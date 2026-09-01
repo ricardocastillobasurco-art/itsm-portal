@@ -6,6 +6,7 @@
 // ============================================================================
 
 const { Umzug, SequelizeStorage } = require('umzug');
+const { DataTypes } = require('sequelize');
 const path     = require('path');
 const sequelize = require('./database');
 
@@ -17,8 +18,8 @@ const umzug = new Umzug({
             const migration = require(migrationPath);
             return {
                 name,
-                up:   async () => migration.up(context,   sequelize),
-                down: async () => migration.down(context, sequelize),
+                up:   async () => migration.up(context,   DataTypes),
+                down: async () => migration.down(context, DataTypes),
             };
         },
     },
