@@ -8,7 +8,7 @@
 $APP_NAME   = "itsm-portal-test"        # nombre global unico en .azurewebsites.net
 $MYSQL_NAME = "mysql-itsm-test"         # nombre global unico
 $DB_USER    = "itsm_admin"
-$DB_PASS    = "ITS-M@2026!Test"         # min 8 chars, mayus+minus+numero+especial
+$DB_PASS    = "YOUR_DB_PASSWORD_HERE"    # min 8 chars, mayus+minus+numero+especial
 $DB_NAME    = "equipment_management"
 $RG         = "rg-itsm-test"
 $LOC        = "eastus"                  # o "brazilsouth" (menor latencia desde PE)
@@ -97,7 +97,7 @@ az webapp config appsettings set `
     SESSION_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") `
     RATE_LIMIT_ENABLED=false `
     SUPERADMIN_EMAIL=superadmin@plataforma.local `
-    SUPERADMIN_PASSWORD="SuperAdmin@2026!" `
+    SUPERADMIN_PASSWORD="YOUR_SUPERADMIN_PASSWORD_HERE" `
     SUPERADMIN_USERNAME=superadmin `
   --output none
 
@@ -115,6 +115,6 @@ az webapp deployment list-publishing-profiles `
 Write-Host "`n== LISTO ==" -ForegroundColor Green
 Write-Host "URL: $APP_URL"
 Write-Host "MySQL host: $MYSQL_HOST"
-Write-Host "Usuario MySQL: $DB_USER / $DB_PASS"
+Write-Host "Usuario MySQL: $DB_USER / [password configurada]"
 Write-Host "`nProximo paso — corre las migraciones desde local:"
 Write-Host "  `$env:EQUIPMENT_HOST='$MYSQL_HOST'; `$env:EQUIPMENT_USER='$DB_USER'; `$env:EQUIPMENT_PASSWORD='$DB_PASS'; npm run migrate"
