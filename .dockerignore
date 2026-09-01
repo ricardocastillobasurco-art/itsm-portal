@@ -1,0 +1,33 @@
+node_modules/
+npm-debug.log*
+.env
+.env.local
+.env copy
+!.env.example
+!.env.docker
+
+# Datos de usuario — nunca en la imagen
+uploads/
+backups/
+*.sql.gz
+
+# Observabilidad — stack separado
+observability/
+docker-compose.observability.yml
+
+# Dev / CI
+coverage/
+.nyc_output/
+.jest-cache/
+*.test.js
+*.spec.js
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore

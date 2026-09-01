@@ -1,0 +1,8 @@
+﻿  <!-- TABS — only shown if privileged or unlocked by identify -->
+  <div class="tabs-wrapper" id="tabsWrapper" <% if (!_isPrivileged) { %>style="display:none"<% } %>>
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="tb-wp" onclick="switchTab('wp')"><i class="bi bi-grid-1x2-fill"></i> Workplace</button>
+      <button class="tab-btn" id="tb-pa" onclick="switchTab('pa')"><i class="bi bi-person-badge-fill"></i> Portal de Autogestión</button>
+      <button class="tab-btn" id="tb-mx" onclick="switchTab('mx');loadPortalMetrics()"><i class="bi bi-bar-chart-line-fill"></i> Métricas Portal</button>
+    </div>
+  </div>

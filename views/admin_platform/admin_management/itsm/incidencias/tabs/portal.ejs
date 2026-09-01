@@ -1,0 +1,115 @@
+<div id="tabPortal" class="corp-tabpanel" style="display:none;">
+  <div style="margin-bottom:20px;">
+    <div style="font-size:17px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <i class="bi bi-people-fill" style="color:var(--jira-blue)"></i> Métricas del Portal de Autogestión
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);">Actividad registrada de usuarios en el portal de autoservicio.</div>
+  </div>
+
+  <!-- Filtros -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:flex-end;">
+    <div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">Desde</div>
+      <input type="date" id="pmxFrom" style="font-size:13px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:7px 10px;">
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">Hasta</div>
+      <input type="date" id="pmxTo" style="font-size:13px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:7px 10px;">
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">Correo</div>
+      <input type="text" id="pmxEmail" placeholder="Filtrar por correo..." style="font-size:13px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:7px 10px;width:230px;">
+    </div>
+    <button onclick="loadPortalMetrics()" style="padding:8px 18px;border-radius:8px;border:none;background:var(--jira-blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="bi bi-search"></i> Aplicar</button>
+    <button onclick="exportPortalCSV()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="bi bi-download"></i> CSV</button>
+  </div>
+
+  <!-- KPI cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;">
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:16px 18px;">
+      <div id="pmx-kpi-users"  style="font-size:30px;font-weight:800;color:var(--text-main);line-height:1;">—</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;gap:5px;"><i class="bi bi-people-fill" style="color:var(--jira-blue)"></i> Usuarios únicos</div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:16px 18px;">
+      <div id="pmx-kpi-logins" style="font-size:30px;font-weight:800;color:var(--text-main);line-height:1;">—</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;gap:5px;"><i class="bi bi-box-arrow-in-right" style="color:#10b981"></i> Accesos al portal</div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:16px 18px;">
+      <div id="pmx-kpi-inc"    style="font-size:30px;font-weight:800;color:#ef4444;line-height:1;">—</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;gap:5px;"><i class="bi bi-exclamation-triangle-fill" style="color:#ef4444"></i> Incidencias abiertas</div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:16px 18px;">
+      <div id="pmx-kpi-req"    style="font-size:30px;font-weight:800;color:var(--jira-blue);line-height:1;">—</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;gap:5px;"><i class="bi bi-clipboard2-plus-fill" style="color:var(--jira-blue)"></i> Requerimientos abiertos</div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:16px 18px;">
+      <div id="pmx-kpi-total"  style="font-size:30px;font-weight:800;color:var(--text-main);line-height:1;">—</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;gap:5px;"><i class="bi bi-activity"></i> Acciones totales</div>
+    </div>
+  </div>
+
+  <!-- Tabla por usuario -->
+  <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border-soft);font-size:13px;font-weight:700;color:var(--text-main);display:flex;align-items:center;justify-content:space-between;">
+      <span><i class="bi bi-table"></i> Actividad por usuario</span>
+      <span id="pmxCount" style="font-size:11px;font-weight:400;color:var(--text-muted);"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:var(--bg-main);">
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Correo</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Accesos</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#ef4444;">Incidencias</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--jira-blue);">Requerimientos</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Total</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Última actividad</th>
+          </tr>
+        </thead>
+        <tbody id="pmxTbody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);"><i class="bi bi-hourglass-split"></i> Haz clic en la pestaña para cargar</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Publicar Marquesina -->
+  <div style="margin-top:28px;">
+    <div style="font-size:15px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <i class="bi bi-megaphone-fill" style="color:#ea580c;"></i> Marquesina del Portal
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Publica avisos deslizantes visibles para todos los usuarios en <strong>/autogestion</strong>. Úsalos para alertar sobre masivas, mantenimientos o comunicados.</div>
+
+    <!-- Formulario -->
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:16px 18px;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:10px;">
+        <input type="text" id="pmqMsg" placeholder="Ej: Interrupción en SAP — equipo TI en atención" maxlength="200"
+               style="padding:8px 12px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);font-size:13px;">
+        <select id="pmqSeverity" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);font-size:13px;">
+          <option value="critical">🔴 Crítico</option>
+          <option value="warning" selected>🟡 Advertencia</option>
+          <option value="info">🔵 Informativo</option>
+          <option value="success">🟢 Resuelto</option>
+        </select>
+        <button onclick="pmqSubmit()" style="padding:8px 18px;border-radius:8px;border:none;background:#ea580c;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;"><i class="bi bi-send-fill"></i> Publicar</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="datetime-local" id="pmqExpires"
+               style="padding:7px 10px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);font-size:12px;flex:1;max-width:240px;">
+        <span style="font-size:11px;color:var(--text-muted);">Fecha de expiración (opcional — deja vacío para indefinido)</span>
+      </div>
+    </div>
+
+    <!-- Lista activos -->
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border-soft);font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;justify-content:space-between;">
+        <span><i class="bi bi-list-ul"></i> Avisos activos</span>
+        <button onclick="pmqLoadList()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+      </div>
+      <div id="pmqList" style="padding:8px 12px;display:flex;flex-direction:column;gap:8px;min-height:60px;">
+        <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;"><i class="bi bi-hourglass-split"></i> Cargando...</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ TAB: Preguntas de Usuarios (Portal) ══ -->

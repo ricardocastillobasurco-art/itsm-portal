@@ -1,0 +1,131 @@
+  <!-- ─── TAB 8: REPORTES ────────────────────────────────────────────────── -->
+  <div class="section-tab" id="toolTab8">
+    <!-- Sub-tab bar -->
+    <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:5px;width:fit-content;">
+      <button class="rp-stab active" id="rpStab0" onclick="switchRpTab(0)">
+        <i class="bi bi-file-earmark-spreadsheet-fill"></i> Excel / CSV
+      </button>
+      <button class="rp-stab" id="rpStab1" onclick="switchRpTab(1)">
+        <i class="bi bi-terminal-fill"></i> SQL Playground
+      </button>
+    </div>
+
+    <!-- ── DATOS panel ── -->
+    <div id="rpTab0">
+      <div id="rpDataUpload" class="card-ui">
+        <div class="card-head">
+          <span class="title"><i class="bi bi-file-earmark-spreadsheet-fill" style="color:#059669;"></i> Cargar archivos Excel / CSV</span>
+          <span style="font-size:12px;color:var(--muted);">Hasta 3 archivos · .xlsx .xls .csv · máx. 10MB c/u</span>
+        </div>
+        <div class="upload-zone" id="rpDzData"
+             onclick="document.getElementById('rpFileData').click()"
+             ondragover="rpDragOver(event)" ondragleave="rpDragLeave(event)" ondrop="rpDropData(event)">
+          <i class="bi bi-files" style="color:var(--primary);font-size:40px;"></i>
+          <p><strong>Haz clic o arrastra hasta 3 archivos Excel o CSV</strong></p>
+          <p style="font-size:12px;margin-top:4px;">Los datos de múltiples archivos se combinarán automáticamente</p>
+        </div>
+        <input type="file" id="rpFileData" style="display:none;" accept=".csv,.xlsx,.xls" multiple onchange="rpLoadFiles(this.files)">
+        <div id="rpFileList" style="padding:0 16px 12px;display:none;"></div>
+      </div>
+
+      <div id="rpDashboard" style="display:none;">
+        <!-- Toolbar -->
+        <div class="card-ui" style="margin-bottom:12px;">
+          <div class="card-head">
+            <span class="title"><i class="bi bi-bar-chart-fill" style="color:var(--primary);"></i> <span id="rpFileName">Análisis de datos</span></span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn-sm btn-outline" onclick="document.getElementById('rpFileData').click()"><i class="bi bi-plus-circle"></i> Agregar</button>
+              <button class="btn-sm btn-outline" onclick="rpExportCSV()"><i class="bi bi-download"></i> Exportar CSV</button>
+              <button class="btn-sm btn-outline" onclick="rpAddChart()"><i class="bi bi-graph-up"></i> + Gráfico</button>
+              <button class="btn-sm btn-outline" onclick="rpReset()"><i class="bi bi-arrow-counterclockwise"></i> Limpiar</button>
+            </div>
+          </div>
+          <div style="padding:10px 16px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:8px;max-width:480px;">
+              <i class="bi bi-search" style="color:var(--muted);"></i>
+              <input type="text" id="rpGlobalSearch" class="form-ctrl" placeholder="Buscar en todos los campos…" oninput="rpOnSearch(this.value)">
+              <span id="rpRowCount" style="font-size:12px;color:var(--muted);white-space:nowrap;"></span>
+            </div>
+          </div>
+          <div id="rpFilterBar" style="padding:10px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;min-height:52px;border-bottom:1px solid var(--border);"></div>
+        </div>
+
+        <div id="rpStats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;"></div>
+        <div id="rpChartArea" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;"></div>
+
+        <div class="card-ui">
+          <div class="card-head">
+            <span class="title"><i class="bi bi-table"></i> Datos</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <label style="font-size:12px;color:var(--muted);">Filas por página:</label>
+              <select id="rpPageSize" class="form-ctrl" style="width:80px;padding:4px;" onchange="_xls.pageSize=+this.value;_xls.page=1;rpRenderTable()">
+                <option>25</option><option>50</option><option>100</option><option>250</option>
+              </select>
+            </div>
+          </div>
+          <div id="rpTableWrap" style="overflow-x:auto;"></div>
+          <div id="rpPagination" style="padding:10px 16px;display:flex;gap:6px;align-items:center;border-top:1px solid var(--border);flex-wrap:wrap;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SQL panel ── -->
+    <div id="rpTab1" style="display:none;">
+      <!-- Editor + Results row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div class="card-ui">
+          <div class="card-head">
+            <span class="title"><i class="bi bi-file-code-fill" style="color:var(--purple);"></i> Editor SQL</span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn-sm btn-outline" onclick="document.getElementById('rpFileSql').click()"><i class="bi bi-upload"></i> .sql</button>
+              <button class="btn-sm btn-primary" onclick="rpRunSQL()"><i class="bi bi-play-fill"></i> Ejecutar</button>
+            </div>
+          </div>
+          <div style="padding:12px;">
+            <textarea id="rpSqlEditor" class="form-ctrl sql-editor" rows="14"
+              placeholder="-- Solo consultas SELECT son permitidas&#10;SELECT * FROM employees LIMIT 20;"></textarea>
+          </div>
+          <input type="file" id="rpFileSql" style="display:none;" accept=".sql" onchange="rpLoadSQL(this.files[0])">
+          <div style="padding:6px 16px 12px;display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn-sm btn-outline" style="font-size:11px;" onclick="rpSqlQuick('SELECT * FROM employees LIMIT 20')"><i class="bi bi-lightning-fill"></i> employees</button>
+            <button class="btn-sm btn-outline" style="font-size:11px;" onclick="rpSqlQuick('SELECT * FROM service_requests ORDER BY created_at DESC LIMIT 20')"><i class="bi bi-lightning-fill"></i> service_requests</button>
+            <button class="btn-sm btn-outline" style="font-size:11px;" onclick="rpSqlQuick('SHOW TABLES')"><i class="bi bi-lightning-fill"></i> SHOW TABLES</button>
+          </div>
+        </div>
+        <div>
+          <div class="card-ui" style="margin-bottom:12px;">
+            <div class="card-head">
+              <span class="title"><i class="bi bi-table" style="color:var(--success);"></i> Resultados</span>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span id="rpSqlRowCount" style="font-size:12px;color:var(--muted);"></span>
+                <button class="btn-sm btn-outline" onclick="rpDownloadSqlCSV()"><i class="bi bi-download"></i> CSV</button>
+              </div>
+            </div>
+            <div id="rpSqlTableWrap" style="overflow:auto;max-height:320px;">
+              <div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;">
+                <i class="bi bi-terminal" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>
+                Ejecuta una consulta para ver resultados
+              </div>
+            </div>
+          </div>
+          <div class="card-ui" style="font-size:12px;color:var(--muted);padding:12px 16px;line-height:1.8;">
+            <p style="margin:0 0 4px;"><i class="bi bi-shield-check" style="color:var(--success);"></i> Solo <strong>SELECT</strong> / <strong>SHOW</strong>. Máx. 500 filas.</p>
+            <p style="margin:0;"><i class="bi bi-grid-3x3-gap-fill" style="color:var(--primary);"></i> Cada ejecución agrega un panel al tablero (máx. 3).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TABLERO DE REPORTES ── -->
+      <div id="sqlBoard" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:14px;font-weight:800;color:var(--text);"><i class="bi bi-grid-3x3-gap-fill" style="color:var(--primary);margin-right:6px;"></i>Tablero de Reportes</span>
+            <span id="sqlBoardCount" style="background:var(--primary);color:#fff;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:800;"></span>
+          </div>
+          <button class="btn-sm btn-primary" onclick="sqlBoardDownload()"><i class="bi bi-download"></i> Descargar imagen</button>
+        </div>
+        <div id="sqlBoardInner" style="display:grid;gap:14px;"></div>
+      </div>
+    </div>
+  </div>
+

@@ -1,0 +1,14 @@
+<%
+const body = `
+<div class="header">
+  <h1>🔐 Acceso al Portal TI</h1>
+  <p>Tus credenciales de acceso han sido configuradas</p>
+</div>
+<div class="body">
+  <div class="field"><div class="field-label">Usuario / Email</div><div class="field-val">${email}</div></div>
+  <div class="field"><div class="field-label">Contraseña</div><div class="field-val" style="font-family:monospace;font-size:16px;letter-spacing:2px;">${password}</div></div>
+  <p style="margin:16px 0 8px;font-size:13px;color:#64748b;">Guarda esta información en un lugar seguro. Puedes cambiar tu contraseña desde tu perfil.</p>
+  <div class="cta"><a href="${process.env.APP_URL || 'http://localhost:3000'}/autogestion">Ir al Portal TI</a></div>
+</div>`;
+%>
+<%- include('_base', { body }) %>

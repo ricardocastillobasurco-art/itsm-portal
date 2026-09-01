@@ -1,0 +1,595 @@
+<!-- ══ MODAL: Enviar correo de feedback de encuesta ══ -->
+<div class="modal fade" id="sfModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:500px;">
+    <div class="modal-content" style="border-radius:14px;border:none;">
+      <div style="background:linear-gradient(135deg,#1e3a5f,#2563eb);padding:18px 22px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <i class="bi bi-envelope-fill" style="color:#fff;font-size:18px;"></i>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#fff;">Enviar correo de feedback</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.7);">Solicitar opinión detallada al usuario</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div style="padding:22px 24px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+          <i class="bi bi-envelope-at-fill" style="color:#2563eb;font-size:16px;flex-shrink:0;"></i>
+          <div>
+            <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Enviar a:</div>
+            <div id="sfEmailTo" style="font-size:14px;font-weight:700;color:#1e293b;word-break:break-all;"></div>
+          </div>
+        </div>
+        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">
+          Selecciona las preguntas a incluir <span style="font-weight:400;color:#94a3b8;">(Ctrl+clic para varias)</span>
+        </label>
+        <select id="sfQuestions" multiple size="7" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:4px 6px;font-size:12px;color:#374151;background:#fff;min-height:150px;outline:none;line-height:1.8;">
+          <option>¿Qué aspecto del servicio no cumplió sus expectativas?</option>
+          <option>¿El tiempo de respuesta fue adecuado para su solicitud?</option>
+          <option>¿El técnico asignado resolvió su problema de forma efectiva?</option>
+          <option>¿La comunicación durante el proceso fue clara y oportuna?</option>
+          <option>¿Cómo podríamos haber resuelto mejor su incidencia?</option>
+          <option>¿Tiene alguna sugerencia para mejorar nuestro servicio?</option>
+          <option>¿Volvería a utilizar el portal de autogestión para futuras solicitudes?</option>
+          <option>¿Recomendaría nuestro Service Desk a un colega?</option>
+        </select>
+        <div style="background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:12px 14px;margin:14px 0 0;">
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <i class="bi bi-person-lines-fill" style="color:#2563eb;font-size:15px;margin-top:2px;flex-shrink:0;"></i>
+            <p style="font-size:12px;color:#1e40af;margin:0;line-height:1.6;">
+              <strong>Siempre incluido:</strong> "¿Desea que nuestro gestor de incidentes se comunique personalmente con usted? Responda este correo indicando su disponibilidad."
+            </p>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 24px 20px;display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" data-bs-dismiss="modal" style="padding:8px 18px;border-radius:8px;border:1px solid #e2e8f0;background:#f1f5f9;color:#475569;font-size:13px;font-weight:600;cursor:pointer;">Cancelar</button>
+        <button id="sfSendBtn" onclick="confirmSurveyEmail()" style="padding:8px 20px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">
+          <i class="bi bi-send-fill"></i> Enviar correo
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: GESTIONAR TICKET ══ -->
+<div class="modal fade" id="modalManage" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:520px;">
+    <div class="modal-content" style="border-radius:14px;border:none;">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#172B4D,#0052CC);padding:18px 22px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.05em;">Gestionar Incidencia</div>
+          <div id="mgTicketKey" style="font-size:18px;font-weight:800;color:#fff;font-family:monospace;"></div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px;">
+        <!-- Info -->
+        <div style="background:var(--bg-card,#f8fafc);border:1px solid var(--border-soft,#e2e8f0);border-radius:8px;padding:12px 14px;">
+          <div id="mgSummary" style="font-size:13px;font-weight:600;color:var(--text-main);margin-bottom:6px;"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span id="mgPrioBadge" class="prio-badge"></span>
+            <span id="mgIstBadge" class="ist-badge"></span>
+            <span id="mgSla" style="font-size:11px;"></span>
+          </div>
+          <div id="mgSlaTimer" style="display:none;margin-top:8px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;letter-spacing:.01em;"></div>
+          <div id="mgAssigned" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
+        </div>
+
+        <!-- Asignación (solo agentes) -->
+        <div id="mgTechRow">
+          <div class="form-label-custom">Reasignar a técnico</div>
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;position:relative;">
+              <input type="text" id="mgTechEmail" class="form-control-custom" style="width:100%;"
+                     placeholder="Nombre o correo del técnico" autocomplete="off"
+                     oninput="techAcSearch(this.value)" onfocus="techAcSearch(this.value)">
+              <div id="techAcDrop" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;max-height:200px;overflow-y:auto;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.12);margin-top:3px;"></div>
+            </div>
+            <button class="btn-take" onclick="assignToTech()" style="padding:8px 14px;font-size:12px;white-space:nowrap;">Asignar</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Nombre o correo del técnico local</div>
+        </div>
+
+        <!-- Estado interno -->
+        <div>
+          <div class="form-label-custom">Cambiar estado</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="ist-btn" data-ist="en_progreso" onclick="changeStatus(this)">En progreso</button>
+            <button class="ist-btn" data-ist="pendiente_usuario" onclick="changeStatus(this)">Pendiente usuario</button>
+            <button class="ist-btn" data-ist="resuelto" onclick="changeStatus(this)">Resuelto</button>
+          </div>
+        </div>
+
+        <!-- Nota de resolución -->
+        <div id="mgNoteWrap" style="display:none;">
+          <div class="form-label-custom">Nota de resolución *</div>
+          <textarea id="mgNote" class="form-control-custom" rows="3" placeholder="Describe la solución aplicada..."></textarea>
+        </div>
+
+        <!-- Acciones adicionales -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--border-soft,#e2e8f0);">
+          <button type="button" class="btn-outline-sm" onclick="openComments(mgCurrentKey)"><i class="bi bi-chat-dots"></i> Comentarios</button>
+          <button type="button" class="btn-outline-sm" onclick="openAttachments(mgCurrentKey)" style="border-color:#0891b2;color:#0891b2;"><i class="bi bi-paperclip"></i> Adjuntos</button>
+          <button type="button" class="btn-outline-sm" onclick="openRecategorize(mgCurrentKey)" style="border-color:#7c3aed;color:#7c3aed;"><i class="bi bi-arrow-repeat"></i> Recategorizar</button>
+          <button type="button" class="btn-outline-sm" onclick="openSendEmail(mgCurrentKey)" style="border-color:#0052CC;color:#0052CC;"><i class="bi bi-envelope"></i> Correo</button>
+          <div style="flex:1;display:flex;justify-content:flex-end;gap:6px;">
+            <button type="button" id="mgBtnReopen" style="display:none;background:#10b981;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;" onclick="reopenTicket(mgCurrentKey)">
+              <i class="bi bi-arrow-counterclockwise"></i> Reabrir
+            </button>
+            <button type="button" id="mgBtnCategorize" style="display:none;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;" onclick="openCategorizeModal(mgCurrentKey)">
+              <i class="bi bi-tag-fill"></i> Categorizar WP
+            </button>
+            <button type="button" class="btn-outline-sm" data-bs-dismiss="modal">Cerrar</button>
+            <button type="button" class="btn-create" onclick="openCloseFromManage()" id="mgBtnClose" style="display:none;background:#dc2626;">
+              <i class="bi bi-x-circle"></i> Cerrar en Jira
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: CERRAR TICKET ══ -->
+<div class="modal fade" id="modalClose" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+    <div class="modal-content">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#dc2626,#b91c1c);">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <i class="bi bi-x-octagon-fill" style="font-size:20px;"></i>
+            <div>
+                <div style="font-weight:700;font-size:16px;">Cerrar Ticket <span id="closeKeyLabel" class="ticket-key" style="font-size:14px;opacity:.85;"></span></div>
+                <div id="closeModalSubtitle" style="font-size:11px;opacity:.75;">Se marcará como RESUELTO en Jira y en el sistema local</div>
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:20px;">
+        <div style="background:var(--bg-header);border:1px solid var(--border-soft);border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+            <div style="font-weight:600;color:var(--text-main);font-size:13px;margin-bottom:2px;" id="closeTicketSummary">—</div>
+            <div style="font-size:11px;color:var(--text-muted);" id="closeTicketMeta">—</div>
+        </div>
+        <div>
+            <div class="form-label-custom">Tipo de atención *</div>
+            <div style="display:flex;gap:8px;margin-bottom:14px;">
+                <label style="flex:1;cursor:pointer;">
+                    <input type="radio" name="tipoAtencion" value="remota" checked style="display:none;" class="tipo-radio">
+                    <div class="tipo-btn tipo-active" data-val="remota"><i class="bi bi-display"></i> Remota</div>
+                </label>
+                <label style="flex:1;cursor:pointer;">
+                    <input type="radio" name="tipoAtencion" value="telefonica" style="display:none;" class="tipo-radio">
+                    <div class="tipo-btn" data-val="telefonica"><i class="bi bi-telephone"></i> Telefónica</div>
+                </label>
+                <label style="flex:1;cursor:pointer;">
+                    <input type="radio" name="tipoAtencion" value="presencial" style="display:none;" class="tipo-radio">
+                    <div class="tipo-btn" data-val="presencial"><i class="bi bi-person-walking"></i> Presencial</div>
+                </label>
+            </div>
+            <div class="form-label-custom">Solución aplicada <span style="color:var(--danger);">*</span></div>
+            <textarea id="closeComment" class="form-control-custom" rows="4"
+                placeholder="Describe detalladamente la solución aplicada al problema…"
+                oninput="const b=document.getElementById('btnCloseSubmit');b.disabled=!this.value.trim();b.style.opacity=this.value.trim()?'1':'.6';">
+            </textarea>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:5px;"><i class="bi bi-info-circle me-1"></i>Campo obligatorio. Se registra en el historial y se envía a Jira.</div>
+        </div>
+        <div id="closeResult" style="display:none;margin-top:14px;padding:12px 14px;border-radius:8px;font-size:13px;font-weight:600;"></div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--border-soft);padding:12px 20px;">
+        <button type="button" class="btn-outline-sm" data-bs-dismiss="modal" id="btnCancelClose">Cancelar</button>
+        <button type="button" id="btnCloseSubmit" disabled
+            style="background:#dc2626;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;opacity:.6;"
+            onclick="submitClose()">
+            <i class="bi bi-check2-circle"></i> Resolver ticket
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: COMENTARIOS ══ -->
+<div class="modal fade" id="modalComments" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:520px;">
+    <div class="modal-content" style="border-radius:14px;">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#172B4D,#0052CC);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6);">Comentarios</div>
+          <div id="cmtTicketKey" style="font-size:16px;font-weight:800;color:#fff;font-family:monospace;"></div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div style="padding:16px 20px;max-height:300px;overflow-y:auto;" id="cmtList">
+        <div class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid var(--border-soft,#e2e8f0);display:flex;flex-direction:column;gap:8px;">
+        <textarea id="cmtInput" class="form-control-custom" rows="2" placeholder="Escribe un comentario..."></textarea>
+        <div id="cmtInternalToggle" style="display:none;align-items:center;gap:8px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-muted);user-select:none;">
+            <input type="checkbox" id="cmtInternalChk" style="accent-color:#6366f1;width:14px;height:14px;">
+            <i class="bi bi-lock" style="color:#6366f1;"></i> Nota interna — solo visible para técnicos
+          </label>
+        </div>
+        <button class="btn-create" style="width:100%;justify-content:center;" onclick="submitComment()">
+          <i class="bi bi-chat-dots"></i> Agregar comentario
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: ADJUNTOS ══ -->
+<div class="modal fade" id="modalAttachments" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:540px;">
+    <div class="modal-content" style="border-radius:14px;">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#0c4a6e,#0891b2);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6);">Adjuntos</div>
+          <div id="attTicketKey" style="font-size:16px;font-weight:800;color:#fff;font-family:monospace;"></div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <!-- Lista adjuntos -->
+      <div id="attList" style="padding:16px 20px;max-height:260px;overflow-y:auto;min-height:60px;">
+        <div class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+      </div>
+      <!-- Upload -->
+      <div style="padding:12px 20px;border-top:1px solid var(--border-soft,#e2e8f0);">
+        <div class="form-label-custom">Subir archivo (máx. 20 MB)</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="file" id="attFileInput" class="form-control-custom" style="flex:1;padding:6px 10px;font-size:12px;">
+          <button class="btn-create" style="white-space:nowrap;" onclick="uploadAttachment()">
+            <i class="bi bi-upload"></i> Subir
+          </button>
+        </div>
+        <div id="attUploadProgress" style="display:none;margin-top:8px;">
+          <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
+            <div id="attProgressBar" style="height:100%;background:#0891b2;width:0%;transition:width .3s;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: RECATEGORIZAR ══ -->
+<div class="modal fade" id="modalRecategorize" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+    <div class="modal-content" style="border-radius:14px;">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div><div style="font-size:14px;font-weight:700;color:#fff;"><i class="bi bi-arrow-repeat me-2"></i>Recategorizar ticket</div>
+        <div id="rcatKey" style="font-size:12px;font-family:monospace;color:rgba(255,255,255,.7);"></div></div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
+        <div><div class="form-label-custom">Prioridad</div>
+          <select id="rcat_priority" class="form-select-custom">
+            <option value="P1">🔴 P1 — Crítico (resolución 4h)</option>
+            <option value="P2">🟠 P2 — Alto (resolución 8h)</option>
+            <option value="P3" selected>🔵 P3 — Medio (resolución 24h)</option>
+            <option value="P4">⚪ P4 — Bajo (resolución 72h)</option>
+          </select></div>
+        <div><div class="form-label-custom">Componente</div>
+          <select id="rcat_component" class="form-select-custom" onchange="rcatCheckSoftware(this)">
+            <option value="">Sin cambio</option>
+            <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11277|Workplace">Workplace</option>
+            <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11278|Red">Red</option>
+            <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11279|Software">Software</option>
+          </select></div>
+        <div><div class="form-label-custom">Tipología</div>
+          <select id="rcat_tipologia" class="form-select-custom">
+            <option value="">Sin cambio</option>
+            <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11378|Almacenamiento - Disco D lleno">Almacenamiento - Disco D lleno</option>
+            <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11379|Sin acceso al sistema">Sin acceso al sistema</option>
+            <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11380|Pantalla azul / crash">Pantalla azul / crash</option>
+            <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11381|Sin conexión a internet">Sin conexión a internet</option>
+            <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11382|Problema de impresión">Problema de impresión</option>
+            <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11383|Equipo lento">Equipo lento</option>
+          </select></div>
+        <!-- Software catalog (aparece si componente = Software) -->
+        <div id="rcatSoftwareWrap" style="display:none;">
+          <div class="form-label-custom">Software relacionado <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(busca o agrega nuevo)</span></div>
+          <div class="autocomplete-wrap">
+            <input type="text" id="rcat_software_input" class="form-control-custom"
+                   placeholder="Ej: Microsoft Office, Adobe Reader..."
+                   autocomplete="off" oninput="acSoftware(this.value)">
+            <div id="acSoftwareDrop" class="ac-dropdown"></div>
+          </div>
+          <input type="hidden" id="rcat_software_id">
+          <div id="rcatSoftwareBadge" style="display:none;margin-top:6px;">
+            <span id="rcatSoftwareBadgeText" style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);color:#7c3aed;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;"></span>
+            <button onclick="clearSoftwareSel()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;margin-left:6px;">✕</button>
+          </div>
+        </div>
+        <button class="btn-create" style="width:100%;justify-content:center;" onclick="submitRecategorize()">
+          <i class="bi bi-arrow-repeat"></i> Guardar cambios
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: ENVIAR CORREO ══ -->
+<div class="modal fade" id="modalSendEmail" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
+    <div class="modal-content" style="border-radius:14px;">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#0052CC,#2684FF);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div><div style="font-size:14px;font-weight:700;color:#fff;"><i class="bi bi-envelope-fill me-2"></i>Notificar al usuario</div>
+        <div id="emailTicketKey" style="font-size:12px;font-family:monospace;color:rgba(255,255,255,.7);"></div></div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
+        <div style="font-size:12px;color:var(--text-muted);background:var(--bg-header,#f8fafc);border-radius:8px;padding:10px 12px;">
+          <i class="bi bi-info-circle me-1"></i> El correo se enviará al email del reportante del ticket.
+        </div>
+        <div><div class="form-label-custom">Mensaje al usuario</div>
+          <textarea id="emailMsg" class="form-control-custom" rows="4" placeholder="Ej: Estamos revisando tu incidencia. Estimamos resolverlo en 2 horas..."></textarea></div>
+        <button class="btn-create" style="width:100%;justify-content:center;" onclick="submitSendEmail()">
+          <i class="bi bi-send-fill"></i> Enviar correo
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: CONSULTAR / COLA ══ -->
+<div class="modal fade" id="modalSearch" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header-custom">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <i class="bi bi-layout-three-columns" style="font-size:18px;"></i>
+            <div>
+                <div style="font-weight:700;font-size:16px;">Consultar & Cola de Trabajo</div>
+                <div style="font-size:11px;opacity:.8;">Busca tickets · Ve tu cola · Gestiona incidencias</div>
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:20px 24px;">
+
+        <div class="search-modal-tabs">
+            <button class="search-tab-btn active" onclick="switchTab('tabSearch',this)"><i class="bi bi-search"></i> Buscar ticket</button>
+            <button class="search-tab-btn" onclick="switchTab('tabAssigned',this)"><i class="bi bi-person-check"></i> Mis asignados</button>
+            <button class="search-tab-btn" onclick="switchTab('tabUnassigned',this)"><i class="bi bi-inbox"></i> Sin asignar</button>
+        </div>
+
+        <!-- TAB 1: BUSCAR -->
+        <div class="tab-panel active" id="tabSearch">
+            <div style="display:flex;gap:10px;margin-bottom:16px;">
+                <input type="text" id="searchTicketKey" class="form-control-custom" style="flex:1;text-transform:uppercase;"
+                    placeholder="INC-115361 o solo el número — Enter para buscar"
+                    onkeydown="if(event.key==='Enter') searchTicket()">
+                <button class="btn-create" id="btnSearch" onclick="searchTicket()" style="white-space:nowrap;padding:10px 16px;"><i class="bi bi-search"></i> Buscar</button>
+            </div>
+            <div id="searchResult" style="display:none;"></div>
+            <div id="searchEmpty" style="display:none;" class="empty-state"><i class="bi bi-ticket-detailed"></i><p>No se encontró ningún ticket con esa clave.</p></div>
+            <div id="searchLoading" style="display:none;" class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div> Consultando...</div>
+            <div id="searchIdle" class="queue-empty"><i class="bi bi-search"></i><p>Ingresa el número de ticket y presiona Enter</p></div>
+        </div>
+
+        <!-- TAB 2: MIS ASIGNADOS — acceso limitado -->
+        <div class="tab-panel" id="tabAssigned">
+            <div class="no-access-banner">
+                <i class="bi bi-shield-lock"></i>
+                <h6>Acceso no disponible con el token actual</h6>
+                <p>Ver los tickets asignados por agente requiere un token con permisos de agente en Jira.<br>
+                Contacta al administrador para configurar <code>JIRA_AGENT_TOKEN</code> en el servidor.</p>
+            </div>
+        </div>
+
+        <!-- TAB 3: SIN ASIGNAR — acceso limitado -->
+        <div class="tab-panel" id="tabUnassigned">
+            <div class="no-access-banner">
+                <i class="bi bi-shield-lock"></i>
+                <h6>Acceso no disponible con el token actual</h6>
+                <p>Ver la cola de tickets sin asignar requiere un token con permisos de agente en Jira.<br>
+                Contacta al administrador para configurar <code>JIRA_AGENT_TOKEN</code> en el servidor.</p>
+            </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: ENVIAR REPORTE ══ -->
+<div class="modal fade" id="modalSendReport" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content" style="border-radius:14px;">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#10b981,#059669);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:14px;font-weight:700;color:#fff;"><i class="bi bi-envelope-fill me-2"></i>Enviar Reporte por Correo</div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
+        <div><div class="form-label-custom">Destinatario *</div>
+          <input type="email" id="rptEmail" class="form-control-custom" placeholder="correo@empresa.com"></div>
+        <div><div class="form-label-custom">Asunto</div>
+          <input type="text" id="rptAsunto" class="form-control-custom" placeholder="Reporte ITSM — período seleccionado"></div>
+        <button class="btn-create" style="width:100%;justify-content:center;" onclick="sendReport()">
+          <i class="bi bi-send-fill"></i> Enviar reporte
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: HISTORIAL DEL TICKET ══ -->
+<div class="modal fade" id="modalHistory" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:14px;">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#172B4D,#0052CC);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:15px;color:#fff;display:flex;align-items:center;gap:8px;"><i class="bi bi-clock-history"></i> Historial del Ticket <span id="histModalKey" style="font-family:monospace;font-size:13px;opacity:.8;"></span></div>
+          <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px;" id="histModalSummary"></div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:20px;background:var(--bg-main);">
+        <!-- Métricas superiores -->
+        <div id="histMetrics" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;"></div>
+        <!-- Contenido dual -->
+        <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">
+          <!-- Timeline -->
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:12px;display:flex;align-items:center;gap:6px;"><i class="bi bi-list-ul"></i> Línea de tiempo</div>
+            <div id="histTimeline"></div>
+          </div>
+          <!-- Comentarios -->
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:12px;display:flex;align-items:center;gap:6px;"><i class="bi bi-chat-left-text"></i> Comentarios</div>
+            <div id="histComments" style="max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Crear incidencia local (TK-NNN) ══ -->
+<div class="modal fade" id="createTkModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:500px;">
+    <div class="modal-content" style="border-radius:14px;border:none;background:var(--bg-card);">
+      <div style="background:linear-gradient(135deg,#1a2744,#7c3aed);padding:18px 22px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <i class="bi bi-plus-circle-fill" style="color:#fff;font-size:18px;"></i>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#fff;">Nueva Incidencia Local</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.7);">Se generará un código TK-NNN automáticamente</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div style="padding:22px 24px;">
+        <div style="margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;color:var(--text-main);display:block;margin-bottom:5px;">Título / Resumen <span style="color:#ef4444;">*</span></label>
+          <input type="text" id="tkSummary" class="form-control-custom" placeholder="Ej: Falla en impresora sala 3" style="width:100%;box-sizing:border-box;" maxlength="255">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;color:var(--text-main);display:block;margin-bottom:5px;">Prioridad</label>
+          <select id="tkPriority" class="form-control-custom" style="width:100%;box-sizing:border-box;">
+            <option value="P3">P3 — Normal (SLA 8h)</option>
+            <option value="P2">P2 — Alta (SLA 4h)</option>
+            <option value="P1">P1 — Crítica (SLA 1h)</option>
+            <option value="P4">P4 — Baja (SLA 24h)</option>
+          </select>
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="font-size:12px;font-weight:600;color:var(--text-main);display:block;margin-bottom:5px;">Descripción</label>
+          <textarea id="tkDescription" class="form-control-custom" rows="4" placeholder="Descripción detallada del problema..." style="width:100%;box-sizing:border-box;resize:vertical;min-height:80px;"></textarea>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <button type="button" class="btn-outline-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn-create" onclick="submitCreateTk()" id="tkSubmitBtn" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:7px 20px;">
+            <i class="bi bi-plus-circle-fill"></i> Crear Incidencia
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: CATEGORIZAR RESULTADO WORKPLACE ══ -->
+<div class="modal fade" id="modalCategorize" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
+    <div class="modal-content">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#6d28d9,#7c3aed);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <i class="bi bi-tag-fill" style="font-size:20px;"></i>
+          <div>
+            <div style="font-weight:700;font-size:16px;">Categorizar Resultado Workplace</div>
+            <div style="font-size:11px;opacity:.85;">Ticket: <span id="catKeyLabel" style="color:#fff;font-weight:700;font-family:monospace;"></span></div>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:20px;">
+        <div style="margin-bottom:6px;font-size:12px;font-weight:600;color:var(--text-main);">Resultado Workplace</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <select id="catWpPadre" class="form-control-custom" style="flex:1;padding:8px 10px;font-size:13px;" onchange="updateCatWpHijo()" disabled>
+            <option value="">Cargando…</option>
+          </select>
+          <select id="catWpHijo" class="form-control-custom" style="flex:1;padding:8px 10px;font-size:13px;" disabled>
+            <option value="">— Subcategoría —</option>
+          </select>
+        </div>
+        <div id="catResult" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;"></div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--border-soft);padding:12px 20px;display:flex;justify-content:flex-end;gap:8px;">
+        <button type="button" class="btn-outline-sm" data-bs-dismiss="modal" id="btnCatOmitir">Omitir</button>
+        <button type="button" id="btnCatSubmit" disabled
+          style="background:#7c3aed;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;opacity:.6;"
+          onclick="submitCategorize()">
+          <i class="bi bi-check2-circle"></i> Guardar categoría
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: DERIVAR TICKET ══ -->
+<div class="modal fade" id="modalDeriveTicket" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:500px;">
+    <div class="modal-content">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <i class="bi bi-arrow-right-circle-fill" style="font-size:20px;"></i>
+          <div>
+            <div style="font-weight:700;font-size:16px;">Derivar ticket</div>
+            <div style="font-size:11px;opacity:.8;">Ticket: <span id="deriveKeyLabel" style="font-family:monospace;font-weight:700;"></span></div>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:20px;">
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text-main);margin-bottom:8px;">Grupo de destino <span style="color:#ef4444;">*</span></div>
+          <div id="deriveTeamsGrid" style="border:1px solid var(--border-soft);border-radius:10px;overflow:hidden;overflow-y:auto;max-height:240px;margin-bottom:10px;"></div>
+          <input type="text" id="deriveCustomTeam" class="form-control-custom" placeholder="O escribe un grupo personalizado..." style="font-size:13px;padding:8px 10px;display:none;" oninput="deriveSelectCustom()">
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text-main);margin-bottom:6px;">Motivo de la derivacion <span style="color:#ef4444;">*</span></div>
+          <textarea id="deriveNote" class="form-control-custom" rows="3" placeholder="Describe por que se deriva este ticket al otro grupo..." style="resize:vertical;font-size:13px;padding:8px 10px;"></textarea>
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text-main);">
+          <input type="checkbox" id="deriveUnassign" style="width:15px;height:15px;">
+          Desasignar tecnico actual (el grupo destino lo tomara en Jira)
+        </label>
+        <div id="deriveResult" style="display:none;margin-top:14px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;"></div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--border-soft);padding:12px 20px;display:flex;justify-content:flex-end;gap:8px;">
+        <button type="button" class="btn-outline-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" id="btnDeriveSubmit" disabled
+          style="background:#1e3a5f;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;opacity:.5;"
+          onclick="submitDerive()">
+          <i class="bi bi-arrow-right-circle"></i> Derivar ticket
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Resetear contraseña de usuario ══ -->
+<div class="modal fade" id="modalResetPass" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:400px;">
+    <div class="modal-content" style="border-radius:12px;border:none;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+      <div class="modal-header" style="border-bottom:1px solid var(--border-soft);padding:16px 20px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <i class="bi bi-key-fill" style="color:#b45309;font-size:16px;"></i>
+          <span style="font-weight:700;font-size:15px;">Resetear contraseña</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:20px;">
+        <div id="resetPassUserName" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;"></div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <div class="form-label-custom">Nueva contraseña *</div>
+            <input type="password" id="resetPassNew" class="form-control-custom" placeholder="Mínimo 8 caracteres" oninput="validateResetPass()">
+          </div>
+          <div>
+            <div class="form-label-custom">Confirmar contraseña *</div>
+            <input type="password" id="resetPassConfirm" class="form-control-custom" placeholder="Repite la contraseña" oninput="validateResetPass()">
+          </div>
+          <div id="resetPassError" style="display:none;color:#dc2626;font-size:12px;padding:8px 10px;background:rgba(239,68,68,.08);border-radius:6px;border:1px solid rgba(239,68,68,.2);"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--border-soft);padding:12px 20px;gap:8px;">
+        <button type="button" class="btn-outline" data-bs-dismiss="modal" style="font-size:13px;">Cancelar</button>
+        <button type="button" id="resetPassBtn" class="btn-create" style="font-size:13px;" onclick="confirmResetPass()">
+          <i class="bi bi-key-fill"></i> Actualizar contraseña
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,16 @@
+﻿  <% if (!_isPrivileged) { %>
+  <!-- IDENTIFICATION BOX -->
+  <div class="identify-box" id="identifyBox">
+    <div class="identify-title"><i class="bi bi-person-check-fill" style="color:var(--primary);margin-right:6px;"></i>Identifíquese</div>
+    <div class="identify-sub">Ingrese su correo corporativo para acceder al portal de servicios</div>
+    <div class="id-input-row">
+      <div class="id-ac-wrap">
+        <input type="email" id="identEmail" class="id-field" placeholder="usuario@integratel.com.pe"
+               autocomplete="off" oninput="acIdentDebounce()" onkeydown="acIdentKey(event)">
+        <div class="ac-drop" id="identDrop"></div>
+      </div>
+      <button class="id-btn" id="identBtn" onclick="identificar()"><i class="bi bi-arrow-right-circle-fill"></i> Ingresar</button>
+    </div>
+    <div class="id-status" id="identStatus"></div>
+  </div>
+  <% } %>

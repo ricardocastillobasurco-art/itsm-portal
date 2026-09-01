@@ -1,0 +1,20 @@
+{
+  "sla": {
+    "P1": 60,
+    "P2": 240,
+    "P3": 480,
+    "P4": 1440
+  },
+  "alerts": {
+    "window_minutes": 10,
+    "breach_notification": true
+  },
+  "escalation": {
+    "emails": "",
+    "enabled": false
+  },
+  "noc": {
+    "queue": "wp",
+    "refresh_seconds": 60
+  }
+}

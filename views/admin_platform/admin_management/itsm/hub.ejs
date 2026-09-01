@@ -1,0 +1,245 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ITSM · Centro de Servicios TI</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<%- include('../../../shared/partials/autogestion/styles') %>
+<style>
+/* ── Sub-module cards (3 col) ───────────────────────────────────────────── */
+.sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:1040px;}
+@media(max-width:740px){.sub-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:460px){.sub-grid{grid-template-columns:1fr;}}
+
+/* ── Back button ────────────────────────────────────────────────────────── */
+.back-btn{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-card);border:1px solid var(--border-soft);border-radius:20px;padding:6px 14px;text-decoration:none;box-shadow:var(--shadow-card);transition:color .2s;margin-bottom:6px;}
+.back-btn:hover{color:var(--primary);}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media(max-width:680px){
+  /* Theme toggle: hide label, compact */
+  .toggle-label{display:none;}
+  .theme-toggle{padding:5px 10px 5px 8px;}
+  /* Hero: compact */
+  .hero{margin-bottom:14px;}
+  .hero-logo-icon{width:38px;height:38px;font-size:19px;border-radius:10px;}
+  .hero-logo-text{font-size:18px;}
+  .hero-title{font-size:10px;letter-spacing:.3px;}
+  .hero-chip{font-size:10px;padding:3px 10px;letter-spacing:.4px;}
+  .back-btn{font-size:11px;padding:5px 10px;}
+  /* Sub-grid cards: reduce padding on mobile */
+  .sub-grid .mod-card{padding:16px 14px 14px;}
+  .sub-grid .mod-icon{width:38px;height:38px;font-size:17px;margin-bottom:8px;}
+  .sub-grid .mod-name{font-size:12.5px;}
+  .sub-grid .mod-desc{font-size:10.5px;}
+}
+</style>
+</head>
+<body>
+
+<div class="theme-toggle" onclick="toggleTheme()">
+  <i id="toggleIcon" class="bi bi-moon-stars-fill toggle-icon"></i>
+  <div class="toggle-track"><div class="toggle-knob"></div></div>
+  <span id="toggleLabel" class="toggle-label">Oscuro</span>
+</div>
+
+<div class="home-wrapper">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-logo">
+      <div class="hero-logo-icon" style="background:linear-gradient(135deg,#0052cc,#2684ff);"><i class="bi bi-headset"></i></div>
+      <div class="hero-logo-text">ITSM · <span>SERVICIOS TI</span></div>
+    </div>
+    <div class="hero-title">IT Service Management · ITIL v4</div>
+    <div class="hero-chip" style="background:rgba(0,82,204,.1);color:#0052cc;border-color:rgba(0,82,204,.25);">
+      <i class="bi bi-circle-fill" style="font-size:8px;color:#10b981;"></i>
+      Gestión integral de servicios tecnológicos
+    </div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <a href="/administracion" class="back-btn"><i class="bi bi-arrow-left"></i> Panel de administración</a>
+    </div>
+  </div>
+
+  <!-- TABS NAV -->
+  <div class="tabs-wrapper">
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="tb-inc"  onclick="switchTab('inc',this)"><i class="bi bi-exclamation-triangle-fill"></i> Incidencias</button>
+      <button class="tab-btn"        id="tb-req"  onclick="switchTab('req',this)"><i class="bi bi-clipboard2-check-fill"></i> Requerimientos</button>
+      <button class="tab-btn"        id="tb-cam"  onclick="switchTab('cam',this)"><i class="bi bi-arrow-repeat"></i> Cambios</button>
+      <button class="tab-btn"        id="tb-pro"  onclick="switchTab('pro',this)"><i class="bi bi-bug-fill"></i> Problemas</button>
+      <button class="tab-btn"        id="tb-cat"  onclick="switchTab('cat',this)"><i class="bi bi-list-task"></i> Catálogo</button>
+      <button class="tab-btn"        id="tb-cmdb" onclick="switchTab('cmdb',this)"><i class="bi bi-diagram-3-fill"></i> CMDB</button>
+    </div>
+  </div>
+
+  <!-- TAB: INCIDENCIAS -->
+  <div class="tab-panel active" id="panel-inc">
+    <div class="section-label"><i class="bi bi-exclamation-triangle-fill"></i> &nbsp;Gestión de Incidencias</div>
+    <div class="sub-grid">
+      <a href="/itsm/incidencias/registrar" class="mod-card c-blue">
+        <div class="mod-icon ib ib-blue"><i class="bi bi-pencil-square"></i></div>
+        <div class="mod-name">Registrar Incidencia</div>
+        <div class="mod-desc">Abre el formulario de registro de incidencias para el usuario o el técnico de soporte.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/itsm/incidencias/gestion" class="mod-card c-red">
+        <div class="mod-icon ib ib-red"><i class="bi bi-ticket-detailed-fill"></i></div>
+        <div class="mod-name">Gestión de Incidencias</div>
+        <div class="mod-desc">Cola de tickets activos, asignación a especialistas, SLA y escalamientos.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/itsm/incidencias/gestion?view=local" class="mod-card c-green">
+        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
+        <div class="mod-name">Gestión Local</div>
+        <div class="mod-desc">Tickets gestionados directamente en la plataforma interna, con cuentas propias del sistema.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: REQUERIMIENTOS -->
+  <div class="tab-panel" id="panel-req">
+    <div class="section-label"><i class="bi bi-clipboard2-check-fill"></i> &nbsp;Gestión de Requerimientos</div>
+    <div class="sub-grid">
+      <a href="/itsm/requerimientos/registrar" class="mod-card c-blue">
+        <div class="mod-icon ib ib-blue"><i class="bi bi-clipboard2-plus-fill"></i></div>
+        <div class="mod-name">Registrar Requerimiento</div>
+        <div class="mod-desc">Abre el formulario para solicitar formalmente un servicio, recurso o mejora tecnológica.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/itsm/requerimientos/gestion" class="mod-card c-indigo">
+        <div class="mod-icon ib ib-indigo"><i class="bi bi-clipboard2-check-fill"></i></div>
+        <div class="mod-name">Gestión de Requerimientos</div>
+        <div class="mod-desc">Cola de requerimientos activos en Jira, asignación a especialistas y seguimiento SLA.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/itsm/requerimientos/gestion?view=local" class="mod-card c-green">
+        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
+        <div class="mod-name">Gestión Local</div>
+        <div class="mod-desc">Requerimientos gestionados directamente en la plataforma interna, con cuentas propias del sistema.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: CAMBIOS -->
+  <div class="tab-panel" id="panel-cam">
+    <div class="section-label"><i class="bi bi-arrow-repeat"></i> &nbsp;Gestión de Cambios</div>
+    <div class="sub-grid">
+      <a href="/cambios?view=local" class="mod-card c-green">
+        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
+        <div class="mod-name">Gestión Local</div>
+        <div class="mod-desc">Cambios gestionados internamente en la plataforma, sin depender de herramientas externas.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: PROBLEMAS -->
+  <div class="tab-panel" id="panel-pro">
+    <div class="section-label"><i class="bi bi-bug-fill"></i> &nbsp;Gestión de Problemas</div>
+    <div class="sub-grid">
+      <a href="/problemas?view=local" class="mod-card c-green">
+        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
+        <div class="mod-name">Gestión Local</div>
+        <div class="mod-desc">Problemas registrados y gestionados directamente en la plataforma interna del equipo.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: CATÁLOGO -->
+  <div class="tab-panel" id="panel-cat">
+    <div class="section-label"><i class="bi bi-list-task"></i> &nbsp;Catálogo de Servicios</div>
+    <div class="sub-grid">
+      <a href="/catalogo?view=local" class="mod-card c-green">
+        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
+        <div class="mod-name">Gestión Local</div>
+        <div class="mod-desc">Administración del catálogo desde la plataforma interna, servicios propios del equipo TI.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/catalogo?tab=admin" class="mod-card c-indigo">
+        <div class="mod-icon ib ib-indigo"><i class="bi bi-people-fill"></i></div>
+        <div class="mod-name">Administración</div>
+        <div class="mod-desc">Gestión de usuarios del sistema: creación, activación y control de accesos por rol.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: CMDB -->
+  <div class="tab-panel" id="panel-cmdb">
+    <div class="section-label"><i class="bi bi-diagram-3-fill"></i> &nbsp;CMDB</div>
+    <div class="sub-grid">
+      <a href="/cmdb?view=local" class="mod-card c-green">
+        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
+        <div class="mod-name">Gestión Local</div>
+        <div class="mod-desc">CIs y relaciones gestionados directamente en la plataforma interna del inventario.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="home-footer">© 2025 Stefanini Group &nbsp;·&nbsp; IT Service Management &nbsp;·&nbsp; ITIL v4</div>
+</div>
+
+<script>
+/* ── THEME ──────────────────────────────────────────────────────────────── */
+(function(){
+  const s = localStorage.getItem('dashboardTheme') || 'light';
+  document.documentElement.setAttribute('data-theme', s);
+  _syncUI(s);
+})();
+function toggleTheme(){
+  const n = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', n);
+  localStorage.setItem('dashboardTheme', n);
+  _syncUI(n);
+}
+function _syncUI(t){
+  document.getElementById('toggleIcon').className = t === 'dark' ? 'bi bi-sun-fill toggle-icon' : 'bi bi-moon-stars-fill toggle-icon';
+  document.getElementById('toggleLabel').textContent = t === 'dark' ? 'Claro' : 'Oscuro';
+}
+/* ── TABS ───────────────────────────────────────────────────────────────── */
+function switchTab(name, btn){
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Deep-link: /itsm?tab=req
+document.addEventListener('DOMContentLoaded', function(){
+  const tab = new URLSearchParams(location.search).get('tab');
+  if(tab){
+    const btn = document.getElementById('tb-' + tab);
+    if(btn) switchTab(tab, btn);
+  }
+});
+</script>
+
+<!-- ── Notificación consulta especialista (Socket.io) ── -->
+<div id="_hubToastWrap" style="position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function(){
+  if(typeof io === 'undefined') return;
+  const _sk = io({ transports:['websocket','polling'] });
+  _sk.on('connect', function(){ _sk.emit('joinAgents'); });
+  _sk.on('consult:new', function(data){
+    const name = data.userName || data.userEmail || 'Usuario';
+    const wrap = document.getElementById('_hubToastWrap');
+    const t = document.createElement('div');
+    t.style.cssText = 'pointer-events:all;background:#fff;border:1.5px solid #0891b2;border-radius:12px;box-shadow:0 4px 20px rgba(8,145,178,.25);padding:12px 16px;max-width:320px;display:flex;align-items:flex-start;gap:10px;animation:uaIn .3s ease;';
+    t.innerHTML = '<span style="font-size:20px;flex-shrink:0;">💬</span><div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:2px;">Nueva consulta</div><div style="font-size:12px;color:#334155;"><b>' + name + '</b> solicita hablar con un especialista.</div><div style="margin-top:8px;display:flex;gap:6px;"><a href="/itsm/incidencias/gestion?consultId=' + data.id + '" style="font-size:12px;font-weight:700;color:#fff;background:#0891b2;padding:5px 12px;border-radius:7px;text-decoration:none;">Atender</a><button onclick="this.closest(\'div[style]\').remove()" style="font-size:12px;color:#64748b;background:none;border:1.5px solid #e2e8f0;border-radius:7px;padding:5px 10px;cursor:pointer;">Cerrar</button></div></div>';
+    wrap.appendChild(t);
+    setTimeout(function(){ if(t.parentNode) t.remove(); }, 10000);
+  });
+})();
+</script>
+<style>@keyframes uaIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}</style>
+</body>
+</html>

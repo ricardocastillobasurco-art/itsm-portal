@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat *)",
+      "Bash(tasklist *)",
+      "Bash(taskkill *)",
+      "Bash(schtasks *)",
+      "Bash(pm2 *)",
+      "Bash(Get-Service *)",
+      "Bash(Get-Process *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(Get-Content *)",
+      "Bash(Select-String *)",
+      "Bash(Test-Path *)",
+      "Bash(Test-NetConnection *)",
+      "Bash(Get-NetFirewallRule *)",
+      "Bash(Get-NetTCPConnection *)",
+      "Bash(Start-Process *)",
+      "Bash(node server.js)",
+      "Bash(npm run *)",
+      "Bash(npm start)"
+    ]
+  }
+}

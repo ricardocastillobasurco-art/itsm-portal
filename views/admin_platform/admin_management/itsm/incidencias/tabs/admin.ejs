@@ -1,0 +1,80 @@
+<div id="tabAdmin" class="corp-tabpanel" style="display:none;">
+  <div class="page-header" style="margin-top:4px;">
+    <div class="page-title"><i class="bi bi-shield-lock-fill" style="color:#0052CC"></i> Administración de Usuarios</div>
+  </div>
+
+  <!-- Leyenda de perfiles -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-radius:8px;font-size:12px;">
+      <i class="bi bi-shield-fill" style="color:#dc2626;"></i>
+      <div><strong>Administrador</strong><br><span style="color:var(--text-muted);">Todo: Registrar · Gestión · Indicadores · Categorías · Especialistas · Automatizaciones · Admin</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(0,82,204,.08);border:1px solid rgba(0,82,204,.2);border-radius:8px;font-size:12px;">
+      <i class="bi bi-person-badge-fill" style="color:#0052CC;"></i>
+      <div><strong>Especialista</strong><br><span style="color:var(--text-muted);">Registrar · Gestión · Indicadores · Categorías</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:12px;">
+      <i class="bi bi-eye-fill" style="color:#10b981;"></i>
+      <div><strong>Visor</strong><br><span style="color:var(--text-muted);">Registrar · Indicadores</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(107,114,128,.08);border:1px solid rgba(107,114,128,.2);border-radius:8px;font-size:12px;">
+      <i class="bi bi-person" style="color:#6b7280;"></i>
+      <div><strong>Usuario</strong><br><span style="color:var(--text-muted);">Solo Registrar</span></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start;">
+
+    <!-- Lista de usuarios -->
+    <div class="card-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+        <div class="card-panel-title" style="margin-bottom:0;"><i class="bi bi-people" style="color:#0052CC"></i> Usuarios del sistema</div>
+        <input type="text" id="adminUserSearch" class="form-control-custom" style="max-width:240px;" placeholder="Buscar nombre, email..." oninput="filterAdminUsers(this.value)">
+      </div>
+      <div id="adminUserTable" style="overflow-x:auto;">
+        <div class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+      </div>
+    </div>
+
+    <!-- Formulario crear usuario -->
+    <div class="card-panel" style="position:sticky;top:80px;">
+      <div class="card-panel-title"><i class="bi bi-person-plus" style="color:#0052CC"></i> Crear usuario</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <div class="form-label-custom">Nombre completo *</div>
+          <input type="text" id="au_name" class="form-control-custom" placeholder="Juan Pérez">
+        </div>
+        <div>
+          <div class="form-label-custom">Usuario *</div>
+          <input type="text" id="au_username" class="form-control-custom" placeholder="jperez">
+        </div>
+        <div>
+          <div class="form-label-custom">Correo *</div>
+          <input type="email" id="au_email" class="form-control-custom" placeholder="jperez@empresa.com">
+        </div>
+        <div>
+          <div class="form-label-custom">Perfil *</div>
+          <select id="au_role" class="form-select-custom">
+            <option value="usuario">Usuario — solo Registrar</option>
+            <option value="visor">Visor — Registrar + Indicadores</option>
+            <option value="especialista">Especialista — Registrar + Gestión + Indicadores + Categorías</option>
+            <option value="administrador">Administrador — Todo</option>
+          </select>
+        </div>
+        <div>
+          <div class="form-label-custom">Contraseña temporal *</div>
+          <input type="password" id="au_pass" class="form-control-custom" placeholder="Mínimo 8 caracteres">
+        </div>
+        <div>
+          <div class="form-label-custom">Confirmar contraseña *</div>
+          <input type="password" id="au_pass_confirm" class="form-control-custom" placeholder="Repite la contraseña">
+        </div>
+        <button class="btn-create" style="width:100%;justify-content:center;margin-top:4px;" onclick="createAdminUser()">
+          <i class="bi bi-person-plus-fill"></i> Crear usuario
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+<!-- ══ TAB: PORTAL — Métricas de autogestión ══ -->

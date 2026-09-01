@@ -1,0 +1,927 @@
+<!-- ─── TAB 10: MAPA MENTAL v2 ──────────────────────────────────────────────── -->
+<div class="section-tab" id="toolTab10">
+  <div id="mmTab">
+
+    <!-- Toolbar superior -->
+    <div class="card-ui" style="padding:0;">
+      <div class="card-head" style="flex-wrap:wrap;gap:6px;">
+        <span class="title"><i class="bi bi-diagram-3" style="color:#7c3aed;"></i> Mapa Mental / Roadmap</span>
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-left:auto;">
+          <span style="font-size:11px;font-weight:700;color:var(--muted);">Tema:</span>
+          <button class="mm-theme-btn active" id="mmTheme0" onclick="mmSetTheme(0)">Morado</button>
+          <button class="mm-theme-btn"        id="mmTheme1" onclick="mmSetTheme(1)">Océano</button>
+          <button class="mm-theme-btn"        id="mmTheme2" onclick="mmSetTheme(2)">Bosque</button>
+          <button class="mm-theme-btn"        id="mmTheme3" onclick="mmSetTheme(3)">Atardecer</button>
+          <div style="width:1px;height:20px;background:var(--border);"></div>
+          <button class="btn-sm btn-outline" onclick="mmFitView()"><i class="bi bi-fullscreen"></i></button>
+          <button class="btn-sm btn-outline" onclick="mmExportPNG()"><i class="bi bi-download"></i> PNG</button>
+          <button class="btn-sm btn-outline" onclick="mmExportJSON()"><i class="bi bi-braces"></i> JSON</button>
+          <button class="btn-sm btn-outline" onclick="mmNewMap()" style="color:#dc2626;border-color:#fca5a5;"><i class="bi bi-plus-lg"></i> Nuevo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workspace: sidebar + canvas -->
+    <div class="mm-workspace">
+
+      <!-- ── PANEL IZQUIERDO ───────────────────────────────────��─── -->
+      <div class="mm-sidebar">
+
+        <!-- Plantillas -->
+        <div class="mm-panel">
+          <div class="mm-panel-head"><i class="bi bi-layout-text-sidebar-reverse"></i> Plantillas</div>
+          <div class="mm-panel-body" style="padding:6px;">
+            <div class="mm-tpl-card" onclick="mmLoadTemplate('mindmap')" id="mmTpl-mindmap">
+              <div class="mm-tpl-icon" style="background:rgba(124,58,237,.12);color:#7c3aed;">🗺️</div>
+              <div><div class="mm-tpl-name">Mapa Mental</div><div class="mm-tpl-desc">Radial desde un centro</div></div>
+            </div>
+            <div class="mm-tpl-card" onclick="mmLoadTemplate('roadmap')" id="mmTpl-roadmap">
+              <div class="mm-tpl-icon" style="background:rgba(59,130,246,.12);color:#3b82f6;">🛣️</div>
+              <div><div class="mm-tpl-name">Roadmap TI</div><div class="mm-tpl-desc">Q1���Q2→Q3→Q4</div></div>
+            </div>
+            <div class="mm-tpl-card" onclick="mmLoadTemplate('concept')" id="mmTpl-concept">
+              <div class="mm-tpl-icon" style="background:rgba(16,185,129,.12);color:#10b981;">🌿</div>
+              <div><div class="mm-tpl-name">Mapa Conceptual</div><div class="mm-tpl-desc">Jerárquico de arriba abajo</div></div>
+            </div>
+            <div class="mm-tpl-card" onclick="mmLoadTemplate('swot')" id="mmTpl-swot">
+              <div class="mm-tpl-icon" style="background:rgba(245,158,11,.12);color:#f59e0b;">⊞</div>
+              <div><div class="mm-tpl-name">Análisis FODA</div><div class="mm-tpl-desc">F/O/D/A en cuadrantes</div></div>
+            </div>
+            <div class="mm-tpl-card" onclick="mmLoadTemplate('okr')" id="mmTpl-okr">
+              <div class="mm-tpl-icon" style="background:rgba(239,68,68,.12);color:#ef4444;">🎯</div>
+              <div><div class="mm-tpl-name">OKR</div><div class="mm-tpl-desc">Objetivo + Key Results</div></div>
+            </div>
+            <div class="mm-tpl-card" onclick="mmLoadTemplate('causes')" id="mmTpl-causes">
+              <div class="mm-tpl-icon" style="background:rgba(6,182,212,.12);color:#06b6d4;">🔍</div>
+              <div><div class="mm-tpl-name">Árbol de Causas</div><div class="mm-tpl-desc">Diagnóstico de problemas</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cargar desde documento -->
+        <div class="mm-panel">
+          <div class="mm-panel-head"><i class="bi bi-file-earmark-arrow-up"></i> Desde documento</div>
+          <div class="mm-panel-body">
+            <div class="mm-upload-area" id="mmDropZone" onclick="document.getElementById('mmFileInput').click()" ondragover="mmDocDragOver(event)" ondragleave="mmDocDragLeave(event)" ondrop="mmDocDrop(event)">
+              <i class="bi bi-file-earmark-arrow-up-fill"></i>
+              <h4>Subir archivo</h4>
+              <p>PDF · TXT · MD · DOCX</p>
+              <input type="file" id="mmFileInput" style="display:none;" accept=".pdf,.txt,.md,.docx" onchange="mmFileSelected(this)">
+            </div>
+            <textarea class="mm-paste-area" id="mmPasteText" rows="3" placeholder="# Título&#10;## Sección&#10;- Item..."></textarea>
+            <div style="display:flex;gap:5px;margin-top:6px;">
+              <input id="mmPasteTitle" placeholder="Título" style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:11px;background:var(--bg);color:var(--text);outline:none;">
+              <button class="btn-sm btn-primary" onclick="mmFromPaste()" style="background:#7c3aed;border-color:#7c3aed;font-size:11px;padding:5px 10px;white-space:nowrap;"><i class="bi bi-magic"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Paleta de elementos -->
+        <div class="mm-panel">
+          <div class="mm-panel-head"><i class="bi bi-grid-3x3-gap"></i> Elementos</div>
+          <div class="mm-panel-body">
+            <div class="mm-palette">
+              <div class="mm-el" draggable="true" data-shape="rounded" data-label="Idea" ondragstart="mmElDragStart(event,this)">
+                <span class="mm-el-icon">💡</span><span class="mm-el-label">Idea</span>
+              </div>
+              <div class="mm-el" draggable="true" data-shape="ellipse" data-label="Concepto" ondragstart="mmElDragStart(event,this)">
+                <span class="mm-el-icon">⭕</span><span class="mm-el-label">Concepto</span>
+              </div>
+              <div class="mm-el" draggable="true" data-shape="phase" data-label="Fase" ondragstart="mmElDragStart(event,this)">
+                <span class="mm-el-icon">📦</span><span class="mm-el-label">Fase</span>
+              </div>
+              <div class="mm-el" draggable="true" data-shape="diamond" data-label="Decisión" ondragstart="mmElDragStart(event,this)">
+                <span class="mm-el-icon">🔷</span><span class="mm-el-label">Decisión</span>
+              </div>
+              <div class="mm-el" draggable="true" data-shape="milestone" data-label="Hito" ondragstart="mmElDragStart(event,this)">
+                <span class="mm-el-icon">🏁</span><span class="mm-el-label">Hito</span>
+              </div>
+              <div class="mm-el" draggable="true" data-shape="note" data-label="Nota" ondragstart="mmElDragStart(event,this)">
+                <span class="mm-el-icon">📝</span><span class="mm-el-label">Nota</span>
+              </div>
+              <div class="mm-el" draggable="true" data-shape="goal" data-label="Meta" ondragstart="mmElDragStart(event,this)">
+                <span class="mm-el-icon">🎯</span><span class="mm-el-label">Meta</span>
+              </div>
+              <div class="mm-el" draggable="true" data-shape="process" data-label="Proceso" ondragstart="mmElDragStart(event,this)">
+                <span class="mm-el-icon">��️</span><span class="mm-el-label">Proceso</span>
+              </div>
+            </div>
+            <div style="margin-top:6px;font-size:10px;color:var(--muted);text-align:center;"><i class="bi bi-info-circle"></i> Arrastra al canvas</div>
+          </div>
+        </div>
+
+        <!-- Panel de propiedades (nodo seleccionado) -->
+        <div class="mm-panel" id="mmPropsPanel" style="display:none;">
+          <div class="mm-panel-head"><i class="bi bi-sliders"></i> Propiedades</div>
+          <div class="mm-panel-body">
+            <div class="mm-prop-row">
+              <div class="mm-prop-label">Texto</div>
+              <input class="mm-prop-input" id="mmPropText" oninput="mmPropTextChange(this.value)" placeholder="Editar nodo...">
+            </div>
+            <div class="mm-prop-row">
+              <div class="mm-prop-label">Color</div>
+              <div class="mm-prop-colors" id="mmPropColors">
+                <div class="mm-color-dot" style="background:#7c3aed;" data-color="#7c3aed" onclick="mmPropColorSet('#7c3aed')"></div>
+                <div class="mm-color-dot" style="background:#3b82f6;" data-color="#3b82f6" onclick="mmPropColorSet('#3b82f6')"></div>
+                <div class="mm-color-dot" style="background:#10b981;" data-color="#10b981" onclick="mmPropColorSet('#10b981')"></div>
+                <div class="mm-color-dot" style="background:#f59e0b;" data-color="#f59e0b" onclick="mmPropColorSet('#f59e0b')"></div>
+                <div class="mm-color-dot" style="background:#ef4444;" data-color="#ef4444" onclick="mmPropColorSet('#ef4444')"></div>
+                <div class="mm-color-dot" style="background:#06b6d4;" data-color="#06b6d4" onclick="mmPropColorSet('#06b6d4')"></div>
+                <div class="mm-color-dot" style="background:#ec4899;" data-color="#ec4899" onclick="mmPropColorSet('#ec4899')"></div>
+                <div class="mm-color-dot" style="background:#64748b;" data-color="#64748b" onclick="mmPropColorSet('#64748b')"></div>
+              </div>
+            </div>
+            <div class="mm-prop-row">
+              <div class="mm-prop-label">Forma</div>
+              <div class="mm-prop-shapes">
+                <button class="mm-shape-btn sel" data-shape="rounded" onclick="mmPropShapeSet('rounded')">Rect</button>
+                <button class="mm-shape-btn" data-shape="ellipse"  onclick="mmPropShapeSet('ellipse')">Oval</button>
+                <button class="mm-shape-btn" data-shape="diamond"  onclick="mmPropShapeSet('diamond')">Rombo</button>
+                <button class="mm-shape-btn" data-shape="phase"    onclick="mmPropShapeSet('phase')">Fase</button>
+              </div>
+            </div>
+            <div class="mm-prop-row">
+              <div class="mm-prop-label">Acciones</div>
+              <div class="mm-prop-actions">
+                <button class="mm-prop-btn success" onclick="mmAddChildToSelected()"><i class="bi bi-node-plus"></i> Añadir hijo</button>
+                <button class="mm-prop-btn" onclick="mmConnectMode()"><i class="bi bi-link-45deg"></i> Conectar a…</button>
+                <button class="mm-prop-btn danger" onclick="mmDeleteSelected()"><i class="bi bi-trash3"></i> Eliminar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── CANVAS AREA ─────────────────────────────────────────── -->
+      <div class="mm-canvas-col">
+        <div class="mm-canvas-wrap" id="mmCanvasWrap"
+          ondragover="mmCanvasDragOver(event)"
+          ondragleave="mmCanvasDragLeave(event)"
+          ondrop="mmCanvasDrop(event)">
+
+          <div class="mm-canvas-hint" id="mmHint">
+            <div class="mm-canvas-hint-inner">
+              <i class="bi bi-diagram-3"></i>
+              <p>Elige una plantilla o sube un documento</p>
+              <small>También puedes arrastrar elementos desde el panel izquierdo</small>
+            </div>
+          </div>
+
+          <div class="mm-progress" id="mmSpinner">
+            <div class="mm-spinner"></div>
+            <span style="font-size:13px;font-weight:600;color:var(--muted);">Generando…</span>
+          </div>
+
+          <svg id="mmSvg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="mmShadow" x="-25%" y="-25%" width="150%" height="150%">
+                <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,.12)"/>
+              </filter>
+              <filter id="mmShadowSel" x="-25%" y="-25%" width="150%" height="150%">
+                <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#7c3aed" flood-opacity="0.5"/>
+              </filter>
+              <marker id="mmArrowEnd" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0,8 3,0 6" fill="#94a3b8"/>
+              </marker>
+            </defs>
+            <g id="mmViewport">
+              <g id="mmEdges"></g>
+              <g id="mmNodes"></g>
+            </g>
+          </svg>
+
+          <div class="mm-zoom-btns">
+            <button class="mm-zoom-btn" onclick="mmZoom(1.2)"><i class="bi bi-zoom-in"></i></button>
+            <button class="mm-zoom-btn" onclick="mmZoom(0.83)"><i class="bi bi-zoom-out"></i></button>
+            <button class="mm-zoom-btn" onclick="mmFitView()"><i class="bi bi-fullscreen"></i></button>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;font-size:11px;color:var(--muted);flex-wrap:wrap;align-items:center;">
+          <span id="mmStats"></span>
+          <span><i class="bi bi-info-circle"></i> Scroll=zoom · Arrastrar fondo=mover · Clic=seleccionar · Doble clic=editar · Clic derecho=menú</span>
+        </div>
+      </div>
+
+    </div><!-- /workspace -->
+
+  </div>
+</div>
+
+<!-- Menú contextual -->
+<div id="mmCtx">
+  <div class="mm-ctx-item" onclick="mmCtxAddChild()"><i class="bi bi-node-plus" style="color:#7c3aed;"></i> Añadir hijo</div>
+  <div class="mm-ctx-item" onclick="mmCtxEdit()"><i class="bi bi-pencil" style="color:#3b82f6;"></i> Editar texto</div>
+  <div class="mm-ctx-item" onclick="mmCtxConnect()"><i class="bi bi-link-45deg" style="color:#10b981;"></i> Conectar a…</div>
+  <div class="mm-ctx-sep"></div>
+  <div class="mm-ctx-item" onclick="mmCtxDuplicate()"><i class="bi bi-copy" style="color:#f59e0b;"></i> Duplicar</div>
+  <div class="mm-ctx-sep"></div>
+  <div class="mm-ctx-item danger" onclick="mmCtxDelete()"><i class="bi bi-trash3"></i> Eliminar nodo</div>
+</div>
+
+<div class="mm-node-tooltip" id="mmTooltip"></div>
+
+<!-- ─── SCRIPT: Mapa Mental v2 ─��──────────────────────────────────────────── -->
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// MIND MAP ENGINE v2  —  grafo nodos + aristas + paleta + plantillas
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Modelo de datos: grafo ────────────────────────────────────────────────
+let _G = { nodes: [], edges: [] };  // nodos y aristas
+let _sel    = null;   // nodo seleccionado (objeto)
+let _connSrc = null;  // source para modo "conectar"
+let _mmInited = false;
+let _mmScale = 1, _mmOffX = 0, _mmOffY = 0;
+let _mmDragging = false, _mmDragStart = null;
+let _mmNodeDrag = null, _mmNodeDragOff = { x:0, y:0 };
+let _mmElDrag   = null;   // elemento de paleta en arrastre
+let _mmTheme    = 0;
+let _mmUid      = 0;
+
+function mmUid() { return 'm' + (++_mmUid); }
+
+// ── Temas ──────────────────────────────────────────────────────────────────
+const MM_THEMES = [
+  { root:'#7c3aed', colors:['#7c3aed','#6366f1','#3b82f6','#06b6d4','#10b981','#f59e0b'], edge:'#c4b5fd' },
+  { root:'#0369a1', colors:['#0369a1','#0284c7','#0891b2','#0d9488','#16a34a','#65a30d'], edge:'#bae6fd' },
+  { root:'#15803d', colors:['#15803d','#16a34a','#65a30d','#ca8a04','#ea580c','#dc2626'], edge:'#bbf7d0' },
+  { root:'#be185d', colors:['#be185d','#e11d48','#ea580c','#d97706','#7c3aed','#3b82f6'], edge:'#fecdd3' },
+];
+
+function mmThemeColor(idx) {
+  const c = MM_THEMES[_mmTheme].colors;
+  return c[idx % c.length];
+}
+
+function mmSetTheme(idx) {
+  _mmTheme = idx;
+  document.querySelectorAll('.mm-theme-btn').forEach((b,i) => b.classList.toggle('active', i === idx));
+  mmRender();
+}
+
+// ── Plantillas ─────────────────────────────────────────────────────────────
+const MM_TEMPLATES = {
+  mindmap: () => {
+    const cx = 600, cy = 340;
+    const root = mmN('Mi Proyecto', cx, cy, 0, 'rounded');
+    const branches = ['Diseño','Desarrollo','Testing','Deploy','Documentación'];
+    branches.forEach((b, i) => {
+      const angle = (i / branches.length) * Math.PI * 2 - Math.PI / 2;
+      const bx = cx + Math.cos(angle) * 220, by = cy + Math.sin(angle) * 160;
+      const bn = mmN(b, bx, by, 1, 'rounded');
+      mmE(root, bn);
+      ['Tarea 1','Tarea 2'].forEach((t, j) => {
+        const a2 = angle + (j - 0.5) * 0.6;
+        const cn = mmN(t, bx + Math.cos(a2)*130, by + Math.sin(a2)*100, 2, 'rounded');
+        mmE(bn, cn);
+      });
+    });
+  },
+  roadmap: () => {
+    const quarters = ['Q1 2025','Q2 2025','Q3 2025','Q4 2025'];
+    const items = [['Análisis','Setup','Infraestructura'],['MVP','Integraciones','QA inicial'],['Beta','Testing','Ajustes'],['Lanzamiento','Monitoreo','Mejoras']];
+    quarters.forEach((q, i) => {
+      const qn = mmN(q, 150 + i * 280, 100, 1, 'phase');
+      qn.color = mmThemeColor(i + 1);
+      if (i > 0) {
+        const prev = _G.nodes.find(n => n.text === quarters[i-1]);
+        if (prev) mmE(prev, qn);
+      }
+      items[i].forEach((item, j) => {
+        const n = mmN(item, 150 + i * 280, 200 + j * 90, 2, 'rounded');
+        mmE(qn, n);
+      });
+    });
+  },
+  concept: () => {
+    const root = mmN('Concepto Central', 600, 60, 0, 'rounded');
+    const L1 = [['Subcategor��a A', 250, 180], ['Subcategoría B', 600, 180], ['Subcategoría C', 950, 180]];
+    L1.forEach(([t, x, y]) => {
+      const n = mmN(t, x, y, 1, 'rounded');
+      mmE(root, n);
+      ['Detalle 1','Detalle 2'].forEach((d, i) => {
+        const dn = mmN(d, x + (i - 0.5) * 160, y + 120, 2, 'rounded');
+        mmE(n, dn);
+      });
+    });
+  },
+  swot: () => {
+    const c = mmN('Análisis FODA', 600, 280, 0, 'rounded');
+    const quads = [
+      ['Fortalezas 💪', 280, 140, '#16a34a'], ['Oportunidades 🚀', 920, 140, '#3b82f6'],
+      ['Debilidades ⚠️',  280, 420, '#ef4444'], ['Amenazas 🔒',     920, 420, '#f59e0b'],
+    ];
+    quads.forEach(([t, x, y, col]) => {
+      const n = mmN(t, x, y, 1, 'phase'); n.color = col;
+      mmE(c, n);
+      ['Item 1','Item 2','Item 3'].forEach((it, i) => {
+        const sign = x < 600 ? -1 : 1;
+        const in2 = mmN(it, x + sign*150, y + (i-1)*65, 2, 'rounded'); in2.color = col;
+        mmE(n, in2);
+      });
+    });
+  },
+  okr: () => {
+    const root = mmN('Objetivo Principal', 600, 60, 0, 'goal');
+    ['KR1: Métrica A', 'KR2: Métrica B', 'KR3: Métrica C'].forEach((kr, i) => {
+      const kn = mmN(kr, 200 + i * 400, 200, 1, 'rounded'); kn.color = '#ef4444';
+      mmE(root, kn);
+      ['Iniciativa 1','Iniciativa 2'].forEach((ini, j) => {
+        const n = mmN(ini, 200 + i*400 + (j-0.5)*160, 340, 2, 'rounded');
+        mmE(kn, n);
+      });
+    });
+  },
+  causes: () => {
+    const prob = mmN('Problema Principal', 600, 60, 0, 'diamond'); prob.color = '#ef4444';
+    ['Causa 1','Causa 2','Causa 3','Causa 4'].forEach((c, i) => {
+      const cn = mmN(c, 150 + i * 300, 220, 1, 'rounded');
+      mmE(prob, cn);
+      ['Sub-causa A','Sub-causa B'].forEach((sc, j) => {
+        const sn = mmN(sc, 150 + i*300 + (j-0.5)*130, 360, 2, 'rounded');
+        mmE(cn, sn);
+      });
+    });
+  },
+};
+
+function mmN(text, x, y, level, shape) {
+  const n = { id: mmUid(), text, x, y, level, shape: shape || 'rounded', color: null };
+  _G.nodes.push(n);
+  return n;
+}
+function mmE(from, to) {
+  _G.edges.push({ id: mmUid(), from: from.id, to: to.id });
+}
+
+function mmLoadTemplate(name) {
+  mmClearGraph();
+  document.querySelectorAll('.mm-tpl-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('mmTpl-' + name)?.classList.add('active');
+  MM_TEMPLATES[name]?.();
+  mmShowCanvas();
+  mmRender();
+  setTimeout(mmFitView, 80);
+  showToast('Plantilla cargada ✓', 'success');
+}
+
+// ── Helpers de grafo ───────────────────────────────────────────────────────
+function mmClearGraph() {
+  _G = { nodes: [], edges: [] };
+  _sel = null; _connSrc = null;
+  mmUpdateProps();
+}
+
+function mmFindNode(id)  { return _G.nodes.find(n => n.id === id); }
+function mmEdgesOf(id)   { return _G.edges.filter(e => e.from === id || e.to === id); }
+function mmChildrenOf(id){ return _G.edges.filter(e => e.from === id).map(e => mmFindNode(e.to)).filter(Boolean); }
+function mmParentOf(id)  { const e = _G.edges.find(e => e.to === id); return e ? mmFindNode(e.from) : null; }
+
+// ── Render SVG ─────────────────────────────────────────────────────────────
+function mmNodeSize(node) {
+  const maxCh = node.level === 0 ? 22 : node.shape === 'phase' ? 18 : 16;
+  const words = node.text.split(' ');
+  const lines = []; let line = '';
+  for (const w of words) {
+    if ((line+' '+w).trim().length > maxCh) { if (line) lines.push(line.trim()); line = w; }
+    else line = (line+' '+w).trim();
+  }
+  if (line) lines.push(line.trim());
+  const ls = lines.slice(0, 3);
+  const w = node.shape === 'phase'
+    ? Math.max(120, Math.min(200, ls.reduce((m,l) => Math.max(m, l.length*7.5+28), 0)))
+    : Math.max(80,  Math.min(190, ls.reduce((m,l) => Math.max(m, l.length*7.2+22), 0)));
+  const h = ls.length * 19 + 18;
+  return { w, h, lines: ls };
+}
+
+function mmNodeColor(node) {
+  if (node.color) return node.color;
+  const t = MM_THEMES[_mmTheme];
+  const idx = node.level === 0 ? 0 : (node.level - 1) % (t.colors.length - 1) + 1;
+  return t.colors[idx];
+}
+
+function mmDrawShape(g, node, w, h, col, isSel) {
+  const s = node.shape;
+  const filter = isSel ? 'url(#mmShadowSel)' : 'url(#mmShadow)';
+  const ns = 'http://www.w3.org/2000/svg';
+
+  if (s === 'ellipse') {
+    const el = document.createElementNS(ns, 'ellipse');
+    el.setAttribute('cx', w/2); el.setAttribute('cy', h/2);
+    el.setAttribute('rx', w/2); el.setAttribute('ry', h/2);
+    el.setAttribute('fill', col); el.setAttribute('filter', filter);
+    g.appendChild(el);
+  } else if (s === 'diamond') {
+    const dw = w * 1.2, dh = h * 1.4;
+    const pg = document.createElementNS(ns, 'polygon');
+    pg.setAttribute('points', `${dw/2},0 ${dw},${dh/2} ${dw/2},${dh} 0,${dh/2}`);
+    pg.setAttribute('transform', `translate(${(w-dw)/2},${(h-dh)/2})`);
+    pg.setAttribute('fill', col); pg.setAttribute('filter', filter);
+    g.appendChild(pg);
+  } else if (s === 'phase') {
+    const r = document.createElementNS(ns, 'rect');
+    r.setAttribute('width', w); r.setAttribute('height', h);
+    r.setAttribute('rx', 8); r.setAttribute('fill', col); r.setAttribute('filter', filter);
+    g.appendChild(r);
+    // arrow indicator right side
+    const arr = document.createElementNS(ns, 'polygon');
+    arr.setAttribute('points', `${w},${h/2} ${w-10},${h/2-8} ${w-10},${h/2+8}`);
+    arr.setAttribute('fill', 'rgba(255,255,255,0.4)');
+    g.appendChild(arr);
+  } else if (s === 'goal') {
+    // Star / hexagon shape using path
+    const cx2 = w/2, cy2 = h/2, ro = Math.min(w,h)*0.5, ri = ro*0.5;
+    let pts = '';
+    for (let i = 0; i < 6; i++) {
+      const a = (i/6)*Math.PI*2 - Math.PI/2;
+      const a2 = a + Math.PI/6;
+      pts += `${cx2+Math.cos(a)*ro},${cy2+Math.sin(a)*ro} `;
+      pts += `${cx2+Math.cos(a2)*ri},${cy2+Math.sin(a2)*ri} `;
+    }
+    const pg = document.createElementNS(ns, 'polygon');
+    pg.setAttribute('points', pts.trim());
+    pg.setAttribute('fill', col); pg.setAttribute('filter', filter);
+    g.appendChild(pg);
+  } else if (s === 'note') {
+    const fold = 12;
+    const d = `M0,0 L${w-fold},0 L${w},${fold} L${w},${h} L0,${h} Z`;
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', d); path.setAttribute('fill', col); path.setAttribute('filter', filter);
+    g.appendChild(path);
+    // fold corner
+    const fp = document.createElementNS(ns,'path');
+    fp.setAttribute('d', `M${w-fold},0 L${w-fold},${fold} L${w},${fold}`);
+    fp.setAttribute('fill','rgba(0,0,0,.12)'); fp.setAttribute('stroke','none');
+    g.appendChild(fp);
+  } else if (s === 'milestone') {
+    const r2 = Math.min(w,h)/2;
+    const ci = document.createElementNS(ns,'circle');
+    ci.setAttribute('cx',w/2); ci.setAttribute('cy',h/2); ci.setAttribute('r',r2);
+    ci.setAttribute('fill',col); ci.setAttribute('filter',filter);
+    g.appendChild(ci);
+    const ci2 = document.createElementNS(ns,'circle');
+    ci2.setAttribute('cx',w/2); ci2.setAttribute('cy',h/2); ci2.setAttribute('r',r2*0.6);
+    ci2.setAttribute('fill','rgba(255,255,255,0.25)');
+    g.appendChild(ci2);
+  } else {
+    // default rounded rect
+    const rx = node.level === 0 ? 18 : 11;
+    const r = document.createElementNS(ns,'rect');
+    r.setAttribute('width',w); r.setAttribute('height',h); r.setAttribute('rx',rx);
+    r.setAttribute('fill',col); r.setAttribute('filter',filter);
+    g.appendChild(r);
+    if (node.level === 0) {
+      const b = document.createElementNS(ns,'rect');
+      b.setAttribute('width',w); b.setAttribute('height',h); b.setAttribute('rx',rx);
+      b.setAttribute('fill','none'); b.setAttribute('stroke','rgba(255,255,255,.35)'); b.setAttribute('stroke-width','2');
+      g.appendChild(b);
+    }
+  }
+}
+
+function mmRender() {
+  const edgesG = document.getElementById('mmEdges');
+  const nodesG = document.getElementById('mmNodes');
+  if (!edgesG || !nodesG) return;
+  edgesG.innerHTML = '';
+  nodesG.innerHTML = '';
+  if (!_G.nodes.length) return;
+  document.getElementById('mmHint').style.display = 'none';
+  const ns = 'http://www.w3.org/2000/svg';
+  const t  = MM_THEMES[_mmTheme];
+
+  // Draw edges
+  _G.edges.forEach(edge => {
+    const fn = mmFindNode(edge.from), tn = mmFindNode(edge.to);
+    if (!fn || !tn) return;
+    const { w:fw, h:fh } = mmNodeSize(fn);
+    const { w:tw, h:th } = mmNodeSize(tn);
+    const x1 = fn.x, y1 = fn.y, x2 = tn.x, y2 = tn.y;
+    const mx = (x1+x2)/2;
+    const path = document.createElementNS(ns,'path');
+    path.setAttribute('d', `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+    path.setAttribute('stroke', t.edge);
+    path.setAttribute('stroke-width', fn.level === 0 ? '2.5' : '1.8');
+    path.setAttribute('fill','none');
+    path.setAttribute('marker-end','url(#mmArrowEnd)');
+    path.setAttribute('opacity','0.85');
+    edgesG.appendChild(path);
+  });
+
+  // Draw nodes
+  _G.nodes.forEach(node => {
+    const col = mmNodeColor(node);
+    const isSel = _sel?.id === node.id;
+    const { w, h, lines } = mmNodeSize(node);
+    const g = document.createElementNS(ns,'g');
+    g.setAttribute('transform', `translate(${node.x - w/2},${node.y - h/2})`);
+    g.style.cursor = _connSrc ? 'crosshair' : 'grab';
+
+    // Shape
+    mmDrawShape(g, node, w, h, col, isSel);
+
+    // Text lines
+    lines.forEach((ln, i) => {
+      const txt = document.createElementNS(ns,'text');
+      txt.setAttribute('x', w/2);
+      txt.setAttribute('y', h/2 - (lines.length-1)*9.5 + i*19);
+      txt.setAttribute('text-anchor','middle');
+      txt.setAttribute('dominant-baseline','middle');
+      txt.setAttribute('fill','#fff');
+      txt.setAttribute('font-size', node.level === 0 ? '13' : '11');
+      txt.setAttribute('font-weight', node.level <= 1 ? '700' : '600');
+      txt.setAttribute('font-family',"'Segoe UI',system-ui,sans-serif");
+      txt.setAttribute('pointer-events','none');
+      txt.textContent = ln;
+      g.appendChild(txt);
+    });
+
+    // Node events
+    g.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      if (_connSrc) { mmFinishConnect(node); return; }
+      _mmNodeDrag = node;
+      const rect = document.getElementById('mmCanvasWrap').getBoundingClientRect();
+      _mmNodeDragOff = {
+        x: (e.clientX - rect.left - _mmOffX) / _mmScale - node.x,
+        y: (e.clientY - rect.top  - _mmOffY) / _mmScale - node.y,
+      };
+      mmSelectNode(node);
+    });
+    g.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      const newT = prompt('Editar nodo:', node.text);
+      if (newT !== null && newT.trim()) { node.text = newT.trim().slice(0,80); mmRender(); }
+    });
+    g.addEventListener('contextmenu', e => {
+      e.preventDefault(); e.stopPropagation();
+      mmSelectNode(node);
+      mmShowCtx(e.clientX, e.clientY);
+    });
+    const tip = document.getElementById('mmTooltip');
+    g.addEventListener('mouseenter', e => { if (node.text.length > 18) { tip.style.display='block'; tip.textContent=node.text; } });
+    g.addEventListener('mouseleave', () => tip.style.display='none');
+    g.addEventListener('mousemove',  e => { tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-30)+'px'; });
+
+    nodesG.appendChild(g);
+  });
+
+  // Update stats
+  document.getElementById('mmStats').textContent = `${_G.nodes.length} nodos · ${_G.edges.length} conexiones`;
+  // Update connect cursor
+  document.getElementById('mmCanvasWrap').style.cursor = _connSrc ? 'crosshair' : '';
+  toolSave('mapas', { nodes: _G.nodes, edges: _G.edges, theme: _mmTheme, uid: _mmUid });
+}
+
+// ── Selección & propiedades ────────────────────────────────────────────────
+function mmSelectNode(node) {
+  _sel = node;
+  mmUpdateProps();
+  mmRender();
+}
+
+function mmDeselectAll() {
+  _sel = null;
+  _connSrc = null;
+  mmUpdateProps();
+  mmRender();
+}
+
+function mmUpdateProps() {
+  const panel = document.getElementById('mmPropsPanel');
+  if (!_sel) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  document.getElementById('mmPropText').value = _sel.text;
+  // Color dots
+  document.querySelectorAll('.mm-color-dot').forEach(d => {
+    d.classList.toggle('sel', d.dataset.color === (_sel.color || mmNodeColor(_sel)));
+  });
+  // Shape buttons
+  document.querySelectorAll('.mm-shape-btn').forEach(b => b.classList.toggle('sel', b.dataset.shape === _sel.shape));
+}
+
+function mmPropTextChange(v) {
+  if (!_sel) return;
+  _sel.text = v.slice(0, 80);
+  mmRender();
+}
+function mmPropColorSet(c) {
+  if (!_sel) return;
+  _sel.color = c;
+  mmRender();
+  mmUpdateProps();
+}
+function mmPropShapeSet(s) {
+  if (!_sel) return;
+  _sel.shape = s;
+  mmRender();
+  mmUpdateProps();
+}
+
+// ── Add child ──────────────────────────────────────────────────────────────
+function mmAddChildToNode(parentNode) {
+  const text = prompt('Texto del nuevo nodo:', 'Nuevo nodo');
+  if (!text || !text.trim()) return;
+  const angle = Math.random() * Math.PI * 2;
+  const dist  = 150 + Math.random() * 60;
+  const child = mmN(text.trim().slice(0, 80), parentNode.x + Math.cos(angle)*dist, parentNode.y + Math.sin(angle)*dist, (parentNode.level||0)+1, parentNode.shape);
+  mmE(parentNode, child);
+  mmSelectNode(child);
+  mmRender();
+}
+function mmAddChildToSelected() { if (_sel) mmAddChildToNode(_sel); }
+
+// ── Connect mode ──���────────────────────────────────────────────────────────
+function mmConnectMode() {
+  if (!_sel) return;
+  _connSrc = _sel;
+  showToast('Haz clic en el nodo destino para conectar…', '');
+}
+function mmFinishConnect(target) {
+  if (!_connSrc || _connSrc.id === target.id) { _connSrc = null; mmRender(); return; }
+  const exists = _G.edges.some(e => e.from===_connSrc.id && e.to===target.id);
+  if (!exists) mmE(_connSrc, target);
+  _connSrc = null;
+  mmSelectNode(target);
+  mmRender();
+}
+
+// ── Delete ─────────────────────────────────────────────────────────────────
+function mmDeleteSelected() {
+  if (!_sel) return;
+  _G.nodes = _G.nodes.filter(n => n.id !== _sel.id);
+  _G.edges = _G.edges.filter(e => e.from !== _sel.id && e.to !== _sel.id);
+  _sel = null;
+  mmUpdateProps();
+  mmRender();
+}
+
+// ── Context menu ───────────────────────────────────────────────────────────
+function mmShowCtx(x, y) {
+  const ctx = document.getElementById('mmCtx');
+  ctx.style.left = x + 'px'; ctx.style.top = y + 'px';
+  ctx.classList.add('show');
+}
+function mmHideCtx() { document.getElementById('mmCtx').classList.remove('show'); }
+function mmCtxAddChild()   { mmHideCtx(); mmAddChildToSelected(); }
+function mmCtxEdit()       { mmHideCtx(); const n=prompt('Editar:',_sel?.text||''); if(n&&n.trim()&&_sel){_sel.text=n.trim().slice(0,80);mmRender();} }
+function mmCtxConnect()    { mmHideCtx(); mmConnectMode(); }
+function mmCtxDuplicate()  { mmHideCtx(); if(!_sel)return; const c=mmN(_sel.text+' (copia)',_sel.x+60,_sel.y+60,_sel.level,_sel.shape); c.color=_sel.color; mmSelectNode(c); mmRender(); }
+function mmCtxDelete()     { mmHideCtx(); mmDeleteSelected(); }
+document.addEventListener('click', e => { if (!e.target.closest('#mmCtx')) mmHideCtx(); });
+
+// ── Drag from element palette to canvas ───────────────────────────────────
+function mmElDragStart(e, el) {
+  _mmElDrag = { shape: el.dataset.shape, label: el.dataset.label };
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', el.dataset.label);
+}
+
+function mmCanvasDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  document.getElementById('mmCanvasWrap').classList.add('drop-active');
+}
+function mmCanvasDragLeave() {
+  document.getElementById('mmCanvasWrap').classList.remove('drop-active');
+}
+function mmCanvasDrop(e) {
+  e.preventDefault();
+  mmCanvasDragLeave();
+  if (!_mmElDrag) return;
+  const wrap = document.getElementById('mmCanvasWrap');
+  const rect = wrap.getBoundingClientRect();
+  const svgX = (e.clientX - rect.left  - _mmOffX) / _mmScale;
+  const svgY = (e.clientY - rect.top   - _mmOffY) / _mmScale;
+  const label = prompt('Nombre del nodo:', _mmElDrag.label || 'Nuevo nodo') || _mmElDrag.label;
+  const level = _sel ? (_sel.level || 0) + 1 : 1;
+  const node  = mmN(label, svgX, svgY, level, _mmElDrag.shape);
+  // Auto-connect to selected node if any
+  if (_sel) { mmE(_sel, node); }
+  mmSelectNode(node);
+  mmShowCanvas();
+  mmRender();
+  _mmElDrag = null;
+}
+
+// ── Drag file onto upload area ────────────────────────────────────────────
+function mmDocDragOver(e) { e.preventDefault(); document.getElementById('mmDropZone').classList.add('drag'); }
+function mmDocDragLeave() { document.getElementById('mmDropZone').classList.remove('drag'); }
+function mmDocDrop(e) { e.preventDefault(); mmDocDragLeave(); mmFileSelected({ files: e.dataTransfer.files }); }
+
+// ── Parse document → graph ────────────────────────────────────────────────
+function mmParseToGraph(text, title) {
+  mmClearGraph();
+  const lines = text.split('\n');
+  const root  = mmN(title || 'Documento', 600, 300, 0, 'rounded');
+  let curH1 = null, curH2 = null, curH3 = null;
+  for (const raw of lines) {
+    const line = raw.trim(); if (!line) continue;
+    const h1 = line.match(/^#{1}\s+(.+)/), h2 = line.match(/^#{2}\s+(.+)/);
+    const h3 = line.match(/^#{3}\s+(.+)/), h4 = line.match(/^#{4,}\s+(.+)/);
+    const bull = line.match(/^[-*+]\s+(.+)/), num = line.match(/^\d+[.)]\s+(.+)/);
+    if (h1 && !h2) { curH1 = mmN(h1[1].slice(0,80),0,0,1,'rounded'); mmE(root,curH1); curH2=null; curH3=null; }
+    else if (h2) { const n=mmN(h2[1].slice(0,80),0,0,2,'rounded'); mmE(curH1||root,n); curH2=n; curH3=null; }
+    else if (h3) { const n=mmN(h3[1].slice(0,80),0,0,3,'rounded'); mmE(curH2||curH1||root,n); curH3=n; }
+    else if (h4) { const n=mmN(h4[1].slice(0,80),0,0,4,'rounded'); mmE(curH3||curH2||curH1||root,n); }
+    else if (bull||num) { const n=mmN((bull||num)[1].slice(0,80),0,0,4,'rounded'); mmE(curH3||curH2||curH1||root,n); }
+  }
+  if (_G.nodes.length === 1) {
+    text.split(/(?<=[.!?])\s+/).filter(s=>s.trim().length>8).slice(0,20).forEach((s,i) => {
+      const n = mmN(s.trim().slice(0,80),0,0,1,'rounded'); mmE(root,n);
+    });
+  }
+  // Auto layout
+  mmLayoutGraph();
+}
+
+// ── Layout automático para grafo (BFS radial) ──────────────────────────────
+function mmLayoutGraph() {
+  if (!_G.nodes.length) return;
+  // Find root(s) = nodes with no incoming edges
+  const hasParent = new Set(_G.edges.map(e=>e.to));
+  const roots = _G.nodes.filter(n => !hasParent.has(n.id));
+  if (!roots.length) { _G.nodes.forEach((n,i) => { n.x=200+i*180; n.y=300; }); return; }
+
+  const visited = new Set();
+  function placeRadial(node, cx, cy, aStart, aEnd, radius) {
+    node.x = cx; node.y = cy;
+    visited.add(node.id);
+    const children = mmChildrenOf(node.id).filter(c => !visited.has(c.id));
+    if (!children.length) return;
+    const step = (aEnd - aStart) / children.length;
+    children.forEach((child, i) => {
+      const angle = aStart + step * i + step/2;
+      const r2 = Math.max(110, radius * 0.65);
+      placeRadial(child, cx+Math.cos(angle)*radius, cy+Math.sin(angle)*radius, angle-step*0.45, angle+step*0.45, r2);
+    });
+  }
+
+  const lvl1r = Math.max(200, roots[0] ? mmChildrenOf(roots[0].id).length * 60 : 200);
+  roots.forEach((r, i) => placeRadial(r, 600 + i*300, 300, -Math.PI, Math.PI, lvl1r));
+  // Place any orphan nodes
+  _G.nodes.filter(n=>!visited.has(n.id)).forEach((n,i) => { n.x=100+i*150; n.y=600; });
+}
+
+// ── Show/hide canvas hint ──────────────────────────────────────────────────
+function mmShowCanvas() {
+  document.getElementById('mmHint').style.display = _G.nodes.length ? 'none' : 'flex';
+}
+
+// ── Interaction: pan + node drag ───────────────────────────────────────────
+function mmInitInteraction() {
+  if (_mmInited) return; _mmInited = true;
+  const wrap = document.getElementById('mmCanvasWrap');
+  wrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    mmZoom(e.deltaY < 0 ? 1.1 : 0.91, e.clientX, e.clientY);
+  }, { passive: false });
+  wrap.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (e.target.closest('.mm-zoom-btns')) return;
+    if (_mmNodeDrag) return;
+    // click on empty canvas
+    if (e.target === wrap || e.target.id === 'mmSvg' || e.target.id === 'mmViewport' || e.target.id === 'mmEdges' || e.target.id === 'mmNodes') {
+      if (_connSrc) { _connSrc = null; mmRender(); return; }
+      mmDeselectAll();
+      _mmDragging = true;
+      _mmDragStart = { x: e.clientX - _mmOffX, y: e.clientY - _mmOffY };
+      wrap.style.cursor = 'grabbing';
+    }
+  });
+  document.addEventListener('mousemove', e => {
+    if (_mmDragging && !_mmNodeDrag) {
+      _mmOffX = e.clientX - _mmDragStart.x;
+      _mmOffY = e.clientY - _mmDragStart.y;
+      mmApplyTransform();
+    }
+    if (_mmNodeDrag) {
+      const rect = document.getElementById('mmCanvasWrap').getBoundingClientRect();
+      _mmNodeDrag.x = (e.clientX - rect.left - _mmOffX) / _mmScale - _mmNodeDragOff.x;
+      _mmNodeDrag.y = (e.clientY - rect.top  - _mmOffY) / _mmScale - _mmNodeDragOff.y;
+      mmRender();
+    }
+  });
+  document.addEventListener('mouseup', () => {
+    _mmDragging = false;
+    _mmNodeDrag = null;
+    document.getElementById('mmCanvasWrap').style.cursor = _connSrc ? 'crosshair' : '';
+  });
+  // Double-click on empty canvas → add free node
+  wrap.addEventListener('dblclick', e => {
+    if (e.target !== wrap && e.target.id !== 'mmSvg' && e.target.id !== 'mmViewport' && e.target.id !== 'mmEdges' && e.target.id !== 'mmNodes') return;
+    const rect = wrap.getBoundingClientRect();
+    const svgX = (e.clientX - rect.left - _mmOffX) / _mmScale;
+    const svgY = (e.clientY - rect.top  - _mmOffY) / _mmScale;
+    const text = prompt('Nuevo nodo:', 'Idea');
+    if (!text || !text.trim()) return;
+    const lev = _sel ? (_sel.level||0)+1 : (_G.nodes.length ? 2 : 0);
+    const n = mmN(text.trim().slice(0,80), svgX, svgY, lev, 'rounded');
+    if (_sel) mmE(_sel, n);
+    mmShowCanvas();
+    mmSelectNode(n);
+    mmRender();
+  });
+}
+
+function mmApplyTransform() {
+  document.getElementById('mmViewport')?.setAttribute('transform', `translate(${_mmOffX},${_mmOffY}) scale(${_mmScale})`);
+}
+function mmZoom(factor, cx, cy) {
+  const wrap = document.getElementById('mmCanvasWrap');
+  const rect = wrap.getBoundingClientRect();
+  const px = (cx ?? rect.left+rect.width/2)  - rect.left;
+  const py = (cy ?? rect.top+rect.height/2)  - rect.top;
+  const ns = Math.min(4, Math.max(0.12, _mmScale * factor));
+  _mmOffX = px - (px-_mmOffX)*(ns/_mmScale);
+  _mmOffY = py - (py-_mmOffY)*(ns/_mmScale);
+  _mmScale = ns;
+  mmApplyTransform();
+}
+function mmFitView() {
+  if (!_G.nodes.length) return;
+  const wrap = document.getElementById('mmCanvasWrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const xs = _G.nodes.map(n=>n.x), ys = _G.nodes.map(n=>n.y);
+  const [minX, maxX, minY, maxY] = [Math.min(...xs)-100, Math.max(...xs)+100, Math.min(...ys)-60, Math.max(...ys)+60];
+  _mmScale = Math.min((W/(maxX-minX)), (H/(maxY-minY)), 1.6);
+  _mmOffX  = -minX*_mmScale + (W-(maxX-minX)*_mmScale)/2;
+  _mmOffY  = -minY*_mmScale + (H-(maxY-minY)*_mmScale)/2;
+  mmApplyTransform();
+}
+
+// ── Generate from parsed tree → show ─────────────────────────────────────
+function mmGenerate(text, filename) {
+  mmParseToGraph(text, filename);
+  mmShowCanvas();
+  mmInitInteraction();
+  mmRender();
+  setTimeout(mmFitView, 80);
+  showToast('Mapa generado ✓', 'success');
+}
+
+// ── From file ─────────────────────────────────────────────────────────────
+async function mmFileSelected(input) {
+  const file = input.files?.[0]; if (!file) return;
+  const ext  = file.name.split('.').pop().toLowerCase();
+  document.getElementById('mmSpinner').classList.add('show');
+  try {
+    if (ext === 'txt' || ext === 'md') {
+      mmGenerate(await file.text(), file.name.replace(/\.[^.]+$/,''));
+    } else {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await fetch('/api/print-queue/parse-doc', { method:'POST', body:fd });
+      const d = await r.json();
+      if (!d.success) { showToast(d.error||'Error', 'error'); return; }
+      mmGenerate(d.text, d.filename);
+    }
+  } catch(e) { showToast('Error: '+e.message, 'error'); }
+  finally    { document.getElementById('mmSpinner').classList.remove('show'); }
+}
+
+function mmFromPaste() {
+  const text  = document.getElementById('mmPasteText').value.trim();
+  const title = document.getElementById('mmPasteTitle').value.trim();
+  if (!text) { showToast('Pega algún texto primero', 'error'); return; }
+  mmGenerate(text, title || 'Mi mapa mental');
+}
+
+// ── New map ───────────────────────────────────────────────────────────────
+function mmNewMap() {
+  if (_G.nodes.length && !confirm('¿Crear un nuevo mapa? Se perderá el actual.')) return;
+  mmClearGraph();
+  _mmScale=1; _mmOffX=0; _mmOffY=0;
+  document.querySelectorAll('.mm-tpl-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('mmPasteText').value='';
+  document.getElementById('mmPasteTitle').value='';
+  document.getElementById('mmFileInput').value='';
+  document.getElementById('mmEdges').innerHTML='';
+  document.getElementById('mmNodes').innerHTML='';
+  document.getElementById('mmStats').textContent='';
+  document.getElementById('mmHint').style.display='flex';
+  mmApplyTransform();
+}
+
+// ── Export ��───────────────────────────────────────────────────────────────
+function mmExportPNG() {
+  const wrap = document.getElementById('mmCanvasWrap');
+  if (typeof html2canvas === 'undefined') { showToast('html2canvas no cargado','error'); return; }
+  html2canvas(wrap, { backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg')||'#f0f4f8' })
+    .then(c => { const a=document.createElement('a'); a.download='mapa-'+new Date().toISOString().slice(0,10)+'.png'; a.href=c.toDataURL('image/png'); a.click(); });
+}
+function mmExportJSON() {
+  if (!_G.nodes.length) return;
+  const a=document.createElement('a'); a.download='mapa.json';
+  a.href='data:application/json,'+encodeURIComponent(JSON.stringify(_G,null,2));
+  a.click();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+if (document.getElementById('toolTab10')?.classList.contains('active')) {
+  mmInitInteraction();
+}
+</script>

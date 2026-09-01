@@ -1,0 +1,43 @@
+  <!-- ─── TAB 3: FLUJOS (BPMN) ─────────────────────────────────────────────── -->
+  <div class="section-tab" id="toolTab3">
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <!-- Toolbar -->
+      <div class="card-ui" style="margin-bottom:0;">
+        <div class="card-head" style="flex-wrap:wrap;gap:6px;">
+          <span class="title"><i class="bi bi-diagram-2-fill" style="color:#10b981;"></i> <span id="bpmnFlowTitle">Flujos — BPMN</span></span>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-left:auto;">
+            <button class="btn-sm bpmn-tool" id="bpmnTool-select" onclick="bpmnSetTool('select')"><i class="bi bi-cursor-fill"></i> Seleccionar</button>
+            <div style="width:1px;height:20px;background:var(--border);"></div>
+            <button class="btn-sm bpmn-tool" id="bpmnTool-start"   onclick="bpmnSetTool('start')"  title="Start Event">● Inicio</button>
+            <button class="btn-sm bpmn-tool" id="bpmnTool-task"    onclick="bpmnSetTool('task')"   title="Task">▭ Tarea</button>
+            <button class="btn-sm bpmn-tool" id="bpmnTool-gwXor"   onclick="bpmnSetTool('gwXor')"  title="Gateway XOR">◇ XOR</button>
+            <button class="btn-sm bpmn-tool" id="bpmnTool-gwAnd"   onclick="bpmnSetTool('gwAnd')"  title="Gateway AND">◇ AND</button>
+            <button class="btn-sm bpmn-tool" id="bpmnTool-end"     onclick="bpmnSetTool('end')"    title="End Event">⬤ Fin</button>
+            <div style="width:1px;height:20px;background:var(--border);"></div>
+            <button class="btn-sm bpmn-tool" id="bpmnTool-connect" onclick="bpmnSetTool('connect')"><i class="bi bi-arrow-right"></i> Conectar</button>
+            <div style="width:1px;height:20px;background:var(--border);"></div>
+            <button class="btn-sm btn-outline" onclick="bpmnAddLane()"><i class="bi bi-plus-lg"></i> Carril</button>
+            <button class="btn-sm btn-outline" onclick="bpmnDeleteSelected()" title="Eliminar seleccionado"><i class="bi bi-trash"></i></button>
+            <button class="btn-sm btn-outline" onclick="bpmnReset()">Limpiar</button>
+            <button class="btn-sm btn-primary" onclick="bpmnExport()"><i class="bi bi-download"></i> Exportar</button>
+          </div>
+        </div>
+      </div>
+      <!-- Canvas centrado -->
+      <div class="card-ui" style="padding:0;overflow:auto;display:flex;align-items:center;justify-content:center;" id="bpmnContainer">
+        <svg id="bpmnSvg" xmlns="http://www.w3.org/2000/svg" style="display:block;font-family:'DM Sans',-apple-system,sans-serif;cursor:default;">
+          <defs>
+            <marker id="bpmnArrow"    markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#64748b"/></marker>
+            <marker id="bpmnArrowSel" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#3b82f6"/></marker>
+          </defs>
+          <g id="bpmnLanesG"></g>
+          <g id="bpmnEdgesG"></g>
+          <g id="bpmnNodesG"></g>
+        </svg>
+      </div>
+      <div style="display:flex;gap:20px;font-size:11px;color:var(--muted);flex-wrap:wrap;">
+        <span id="bpmnStatus">Selecciona una herramienta y haz clic en el canvas</span>
+        <span><i class="bi bi-info-circle"></i> Doble clic → renombrar · Supr → eliminar</span>
+      </div>
+    </div>
+  </div>

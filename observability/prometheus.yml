@@ -1,0 +1,24 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    app: itsm-platform
+
+rule_files:
+  - "alerts.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []  # añadir Alertmanager si se configura
+
+scrape_configs:
+  - job_name: itsm-api
+    static_configs:
+      - targets: ['host.docker.internal:3000']
+    metrics_path: /metrics
+    # Si METRICS_TOKEN está definido en la app, descomentar:
+    # authorization:
+    #   credentials: <tu_token>
+    scrape_interval: 15s
+    scrape_timeout:  10s

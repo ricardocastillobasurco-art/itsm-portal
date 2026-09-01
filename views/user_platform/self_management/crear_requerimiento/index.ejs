@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar Requerimiento · ITSM</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/core/style.css">
+  <link rel="stylesheet" href="../../css/modules/helpdesk.css">
+  <link rel="stylesheet" href="../../css/core/shared.css">
+  <style>
+    html,body{background:var(--bg-main);margin:0;padding:0;}
+    .itsm-topbar{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--bg-card);border-bottom:1px solid var(--border-soft);position:sticky;top:0;z-index:100;}
+    .itsm-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-main);border:1px solid var(--border-soft);border-radius:20px;padding:5px 12px;text-decoration:none;transition:color .2s;}
+    .itsm-back:hover{color:var(--primary);}
+    .itsm-breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);}
+    .itsm-breadcrumb a{color:var(--text-muted);text-decoration:none;font-weight:500;transition:color .2s;}
+    .itsm-breadcrumb a:hover{color:var(--primary);}
+    .itsm-breadcrumb .sep{opacity:.4;}
+    .itsm-breadcrumb .current{color:var(--text-main);font-weight:700;}
+    .dashboard-content{padding:0;}
+
+    /* ── Wizard ── */
+    .rq-wizard{max-width:920px;margin:0 auto;padding:28px 24px;}
+
+    /* ── Step indicator ── */
+    .rq-steps{display:flex;align-items:center;margin-bottom:32px;}
+    .rq-step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;background:var(--border-soft);color:var(--text-muted);flex-shrink:0;transition:all .3s;}
+    .rq-step-dot.active{background:var(--primary);color:#fff;box-shadow:0 0 0 4px rgba(99,102,241,.15);}
+    .rq-step-dot.done{background:var(--primary);color:#fff;}
+    .rq-step-label{font-size:11px;font-weight:700;color:var(--text-muted);margin-left:7px;transition:color .3s;white-space:nowrap;}
+    .rq-step-label.active{color:var(--primary);}
+    .rq-step-line{flex:1;height:2px;background:var(--border-soft);margin:0 12px;transition:background .3s;}
+    .rq-step-line.done{background:var(--primary);}
+
+    /* ── Step panels ── */
+    .rq-step-panel{display:none;}
+    .rq-step-panel.active{display:block;}
+
+    /* ── Type search ── */
+    .rq-search-box{position:relative;margin-bottom:20px;}
+    .rq-search-box input{width:100%;padding:10px 14px 10px 38px;border:1.5px solid var(--border-soft);border-radius:10px;background:var(--bg-card);color:var(--text-main);font-size:13px;outline:none;transition:border-color .2s;box-sizing:border-box;}
+    .rq-search-box input:focus{border-color:var(--primary);}
+    .rq-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;pointer-events:none;}
+
+    /* ── Type cards ── */
+    .rq-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+    @media(max-width:720px){.rq-type-grid{grid-template-columns:repeat(2,1fr);}}
+    @media(max-width:440px){.rq-type-grid{grid-template-columns:1fr;}}
+    @media(max-width:480px){
+      .rq-wizard{padding:16px 10px;}
+      .card-panel{padding:14px 16px !important;}
+      #rqSoftwareSection,#rqEquiposSection,#rqEmployeeInfo{padding:10px 12px !important;}
+      .rq-steps{margin-bottom:20px;}
+    }
+    .rq-type-card{background:var(--bg-card);border:2px solid var(--border-soft);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .18s;display:flex;flex-direction:column;gap:7px;user-select:none;}
+    .rq-type-card:hover{border-color:var(--primary);box-shadow:0 4px 18px rgba(99,102,241,.12);transform:translateY(-2px);}
+    .rq-type-card:active{transform:translateY(0);}
+    .rq-card-header{display:flex;align-items:center;gap:10px;}
+    .rq-card-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#fff;flex-shrink:0;}
+    .rq-card-name{font-size:12px;font-weight:700;color:var(--text-main);line-height:1.3;}
+    .rq-card-desc{font-size:10px;color:var(--text-muted);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .rq-card-note{font-size:10px;font-weight:700;color:#f97316;}
+    .rq-card-note.special{color:#7c3aed;}
+    .rq-card-hidden{display:none!important;}
+
+    /* ── Step 2 form ── */
+    .rq-form-wrap{max-width:600px;margin:0 auto;}
+    .rq-back-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0;margin-bottom:18px;transition:color .2s;}
+    .rq-back-btn:hover{color:var(--primary);}
+    .rq-selected-type{display:flex;align-items:center;gap:10px;background:rgba(99,102,241,.06);border:1.5px solid rgba(99,102,241,.2);border-radius:12px;padding:11px 16px;margin-bottom:22px;}
+    .rq-selected-name{font-size:13px;font-weight:700;color:var(--primary);}
+    .rq-selected-label{font-size:10px;color:var(--text-muted);margin-bottom:2px;}
+
+    /* ── Step 3 success ── */
+    .rq-success-wrap{max-width:480px;margin:0 auto;text-align:center;padding:40px 24px;}
+    .rq-success-icon{width:72px;height:72px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;box-shadow:0 4px 20px rgba(34,197,94,.3);}
+    .rq-key-badge{display:inline-block;font-family:monospace;font-size:22px;font-weight:900;color:#4338ca;background:#eef2ff;border:2px solid #c7d2fe;border-radius:10px;padding:8px 22px;margin:16px 0;}
+    .rq-success-actions{display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap;}
+  </style>
+</head>
+<body>
+<%- include('../../../shared/partials/theme-toggle') %>
+
+<!-- TOP BAR -->
+<div class="itsm-topbar">
+  <a href="/itsm?tab=req" class="itsm-back"><i class="bi bi-arrow-left"></i> ITSM</a>
+  <div class="itsm-breadcrumb">
+    <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
+    <span class="sep">/</span>
+    <a href="/itsm?tab=req">ITSM</a>
+    <span class="sep">/</span>
+    <span class="current"><i class="bi bi-clipboard2-check-fill"></i> Requerimientos</span>
+    <span class="sep">/</span>
+    <span class="current">Registrar</span>
+  </div>
+</div>
+
+<div class="dashboard-content">
+<div class="rq-wizard">
+
+  <!-- Step indicator -->
+  <div class="rq-steps">
+    <div class="rq-step-dot active" id="rqDot1">1</div>
+    <div class="rq-step-label active" id="rqLbl1">Tipo</div>
+    <div class="rq-step-line" id="rqLine1"></div>
+    <div class="rq-step-dot" id="rqDot2">2</div>
+    <div class="rq-step-label" id="rqLbl2">Detalle</div>
+    <div class="rq-step-line" id="rqLine2"></div>
+    <div class="rq-step-dot" id="rqDot3">3</div>
+    <div class="rq-step-label" id="rqLbl3">Listo</div>
+  </div>
+
+  <!-- ─── STEP 1: Select type ─── -->
+  <div id="rqStep1" class="rq-step-panel active">
+    <div style="margin-bottom:20px;">
+      <div style="font-size:17px;font-weight:800;color:var(--text-main);letter-spacing:-.3px;">¿Qué tipo de requerimiento necesitas registrar?</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Selecciona la categoría que mejor describe tu solicitud.</div>
+    </div>
+    <div class="rq-search-box">
+      <i class="bi bi-search rq-search-icon"></i>
+      <input type="text" id="rqTypeSearch" placeholder="Buscar tipo..." oninput="rqFilterTypes(this.value)" autocomplete="off">
+    </div>
+    <div class="rq-type-grid" id="rqTypeGrid">
+      <div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-muted);">
+        <span class="spinner-border spinner-border-sm"></span> Cargando tipos...
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 2: Form ─── -->
+  <div id="rqStep2" class="rq-step-panel">
+    <div class="rq-form-wrap">
+      <button type="button" class="rq-back-btn" onclick="rqGoStep(1)">
+        <i class="bi bi-arrow-left"></i> Volver a tipos
+      </button>
+
+      <div class="rq-selected-type" id="rqSelectedDisplay"></div>
+
+      <div class="card-panel" style="padding:26px 30px;">
+        <div style="display:flex;flex-direction:column;gap:16px;">
+
+          <!-- Reporter -->
+          <div>
+            <div class="form-label-custom">Correo del solicitante *</div>
+            <div class="autocomplete-wrap">
+              <input type="email" id="rq_reporter" class="form-control-custom" placeholder="usuario@integratel.com.pe"
+                     autocomplete="off" oninput="acRqReporter(this.value)" onkeydown="acKeydownRq(event,'acRqReporterDrop')"
+                     onblur="loadRqEmployeeInfo(this.value.trim())">
+              <div id="acRqReporterDrop" class="ac-dropdown"></div>
+            </div>
+          </div>
+
+          <!-- Employee info -->
+          <div id="rqEmployeeInfo" style="display:none;background:var(--step2-bg);border:1.5px solid var(--step2-border);border-radius:12px;padding:12px 16px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--step2-color);margin-bottom:8px;display:flex;align-items:center;gap:5px;"><i class="bi bi-person-badge"></i> Información del colaborador</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;">
+              <div><div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;">Nombre</div><div id="rqEqNombre" style="font-size:12px;font-weight:600;color:var(--text-main);">—</div></div>
+              <div><div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;">Departamento</div><div id="rqEqDept" style="font-size:12px;font-weight:600;color:var(--text-main);">—</div></div>
+              <div><div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;">Equipo / Tag</div><div id="rqEqEquipo" style="font-size:12px;font-weight:600;color:var(--text-main);">—</div></div>
+              <div><div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;">Ubicación</div><div id="rqEqUbicacion" style="font-size:12px;font-weight:600;color:var(--text-main);">—</div></div>
+            </div>
+          </div>
+
+          <!-- Software: Instalar / Desinstalar (solo para tipos Software) -->
+          <div id="rqSoftwareSection" style="display:none;background:rgba(234,88,12,.05);border:1.5px solid rgba(234,88,12,.18);border-radius:12px;padding:14px 16px;flex-direction:column;gap:12px;">
+            <div>
+              <div class="form-label-custom" style="margin-bottom:8px;">Acción</div>
+              <div style="display:flex;gap:24px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text-main);">
+                  <input type="radio" name="rqSwAction" id="rqSwInstalar" value="Instalar" checked onchange="rqSwBuild()"> Instalar
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text-main);">
+                  <input type="radio" name="rqSwAction" id="rqSwDesinstalar" value="Desinstalar" onchange="rqSwBuild()"> Desinstalar
+                </label>
+              </div>
+            </div>
+            <div>
+              <div class="form-label-custom">Nombre del software *</div>
+              <input type="text" id="rqSwName" class="form-control-custom"
+                     placeholder="Ej: Microsoft Office, AutoCAD, Adobe Acrobat..."
+                     autocomplete="off" oninput="rqSwBuild()">
+            </div>
+          </div>
+
+          <!-- Equipos: Tipología + Ubicación + Colaborador -->
+          <div id="rqEquiposSection" style="display:none;background:rgba(59,130,246,.05);border:1.5px solid rgba(59,130,246,.18);border-radius:12px;padding:14px 16px;flex-direction:column;gap:14px;">
+            <div>
+              <div class="form-label-custom" style="margin-bottom:8px;">Tipología *</div>
+              <select id="rqEquiposTipologia" class="form-select-custom" onchange="rqEquiposBuild()">
+                <option value="">— Selecciona una opción —</option>
+              </select>
+            </div>
+            <div>
+              <div class="form-label-custom" style="margin-bottom:8px;">Ubicación</div>
+              <div style="display:flex;gap:24px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text-main);">
+                  <input type="radio" name="rqEquiposUbic" value="Lima" checked onchange="rqEquiposUbicChange()"> Lima
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text-main);">
+                  <input type="radio" name="rqEquiposUbic" value="Provincia" onchange="rqEquiposUbicChange()"> Provincia
+                </label>
+              </div>
+            </div>
+            <div>
+              <div class="form-label-custom">Correo del colaborador (usuario del equipo)</div>
+              <div class="autocomplete-wrap">
+                <input type="email" id="rqEqColaborador" class="form-control-custom" placeholder="colaborador@integratel.com.pe"
+                       autocomplete="off" oninput="acRqColaborador(this.value)" onkeydown="acKeydownRq(event,'acRqColaboradorDrop')"
+                       onblur="rqEquiposBuild()">
+                <div id="acRqColaboradorDrop" class="ac-dropdown"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div id="rqSummaryWrap">
+            <div class="form-label-custom">¿Qué necesita? *</div>
+            <input type="text" id="rq_summary" class="form-control-custom"
+                   placeholder="Ej: Necesito instalar Microsoft Office en mi equipo..."
+                   autocomplete="off">
+          </div>
+
+          <!-- Description -->
+          <div>
+            <div class="form-label-custom">Descripción detallada *</div>
+            <textarea id="rq_description" class="form-control-custom" rows="4"
+                      placeholder="Describe con el mayor detalle posible tu requerimiento: modelo de equipo, sistema, usuario afectado, urgencia, etc." style="min-height:90px;"></textarea>
+          </div>
+
+          <!-- Submit -->
+          <button type="button" class="btn-create" id="rqBtnSubmit" onclick="submitReq()"
+                  style="width:100%;justify-content:center;padding:14px;font-size:14px;border-radius:12px;letter-spacing:.2px;box-shadow:0 2px 8px rgba(99,102,241,.3);">
+            <i class="bi bi-send-fill"></i> Registrar Requerimiento
+          </button>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 3: Success ─── -->
+  <div id="rqStep3" class="rq-step-panel">
+    <div class="rq-success-wrap">
+      <div class="rq-success-icon">
+        <i class="bi bi-check-lg" style="font-size:32px;color:#fff;"></i>
+      </div>
+      <div style="font-size:18px;font-weight:800;color:var(--text-main);">¡Requerimiento registrado!</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">El equipo de TI lo atenderá según su prioridad.</div>
+      <div class="rq-key-badge" id="rqCreatedKey"></div>
+      <div class="rq-success-actions">
+        <a id="rqCreatedUrl" href="#" target="_blank" class="btn-outline-sm" style="font-size:12px;">
+          <i class="bi bi-box-arrow-up-right"></i> Ver en Jira
+        </a>
+        <button type="button" class="btn-create" onclick="rqReset()" style="font-size:12px;padding:8px 18px;border-radius:8px;">
+          <i class="bi bi-plus"></i> Registrar otro
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /rq-wizard -->
+</div><!-- /dashboard-content -->
+
+<div class="toast-container-custom" id="toastContainer"></div>
+
+<!-- Modal: Jira no configurado -->
+<div id="modalJiraNoConf" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-card,#fff);border-radius:18px;padding:36px 32px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="width:64px;height:64px;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 18px;">⚙️</div>
+    <div style="font-size:17px;font-weight:800;color:#92400e;margin-bottom:8px;">Integración no configurada</div>
+    <div style="font-size:13px;color:#78350f;line-height:1.6;margin-bottom:20px;">
+      El módulo de Requerimientos requiere integración con Jira Service Management, la cual <strong>no está configurada</strong> para tu organización.<br><br>
+      Contacta al administrador del sistema para habilitar esta integración.
+    </div>
+    <a href="/autogestion" style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;">
+      <i class="bi bi-arrow-left"></i> Volver al portal
+    </a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const CURRENT_USER_ID    = <%- JSON.stringify(locals.currentUserId || null) %>;
+const CURRENT_USER_ROLE  = <%- JSON.stringify(locals.user?.role || 'usuario') %>;
+const CURRENT_USER_EMAIL = <%- JSON.stringify(locals.user?.email || locals.user?.username || '') %>;
+const JIRA_ENABLED       = <%- JSON.stringify(locals.jiraEnabled !== false) %>;
+
+var _rqSelectedType = null;
+var _acRqTimer = null;
+
+// ── Toast ──────────────────────────────────────────────────────────
+function showToast(msg, type) {
+    const c = document.getElementById('toastContainer');
+    const d = document.createElement('div');
+    d.className = 'toast-msg' + (type ? ' ' + type : '');
+    d.innerHTML = `<i class="bi bi-${type==='success'?'check-circle-fill':type==='error'?'x-circle-fill':'info-circle-fill'}"></i> ${msg}`;
+    c.appendChild(d);
+    setTimeout(() => d.remove(), 4500);
+}
+
+// ── Step indicator ─────────────────────────────────────────────────
+function rqGoStep(n) {
+    [1,2,3].forEach(i => {
+        document.getElementById('rqStep'+i).classList.toggle('active', i===n);
+        const dot = document.getElementById('rqDot'+i);
+        const lbl = document.getElementById('rqLbl'+i);
+        dot.classList.toggle('active', i===n);
+        dot.classList.toggle('done', i<n);
+        lbl.classList.toggle('active', i===n);
+    });
+    [1,2].forEach(i => {
+        const line = document.getElementById('rqLine'+i);
+        if (line) line.classList.toggle('done', i<n);
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Type meta (icon + color + routing note por nombre) ─────────────
+var _TYPE_META = {
+    'aplicaciones colaborativas':               { icon:'bi-people',                color:'#6366f1' },
+    'aplicaciones empresariales':               { icon:'bi-building',              color:'#8b5cf6' },
+    'configuracion de equipos':                 { icon:'bi-pc-display-horizontal', color:'#0ea5e9' },
+    'gestion de accesorios de red':             { icon:'bi-hdd-network',           color:'#10b981' },
+    'gestion de componentes y perifericos':     { icon:'bi-plugin',                color:'#14b8a6' },
+    'gestion de configuracion general interno': { icon:'bi-gear-fill',             color:'#475569' },
+    'gestion de configuracion general':         { icon:'bi-gear',                  color:'#64748b' },
+    'gestion de correo exchange online interno':{ icon:'bi-envelope-fill',         color:'#005a9e' },
+    'gestion de correo exchange online':        { icon:'bi-envelope',              color:'#0078d4' },
+    'gestion de cuentas':                       { icon:'bi-person-lock',           color:'#d97706' },
+    'gestion de entra id':                      { icon:'bi-shield-check',          color:'#0078d4' },
+    'gestion de equipos terceros':              { icon:'bi-laptop-fill',           color:'#1d4ed8' },
+    'gestion de equipos':                       { icon:'bi-laptop',                color:'#3b82f6' },
+    'gestion de licencias':                     { icon:'bi-key',                   color:'#f97316', note:'⚠️ Pasa por licenciamiento' },
+    'gestion de personal':                      { icon:'bi-person-badge',          color:'#ec4899' },
+    'gestion de seguridad':                     { icon:'bi-shield-lock',           color:'#dc2626' },
+    'gestion de sharepoint online':             { icon:'bi-cloud',                 color:'#217346' },
+    'gestion rpa':                              { icon:'bi-robot',                 color:'#7c3aed' },
+    'gestion software - especial':              { icon:'bi-box-seam-fill',         color:'#b45309', note:'⚡ Directo a remoto', noteClass:'special' },
+    'gestion software':                         { icon:'bi-box-seam',              color:'#ea580c', note:'⚠️ Pasa por licenciamiento' },
+    'logistica y traslados':                    { icon:'bi-truck',                 color:'#0891b2' },
+    'no catalogado':                            { icon:'bi-question-circle',       color:'#94a3b8' },
+    'reportes y seguridad':                     { icon:'bi-bar-chart-line',        color:'#7c3aed' },
+};
+
+function _normName(n) {
+    return (n||'').toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g,'')
+        .replace(/\(.*?\)/g,'').replace(/\s+/g,' ').trim();
+}
+function _getTypeMeta(name) {
+    const n = _normName(name);
+    if (_TYPE_META[n]) return _TYPE_META[n];
+    let best = null, bestLen = 0;
+    for (const [k,v] of Object.entries(_TYPE_META)) {
+        if (n.includes(k) && k.length > bestLen) { best = v; bestLen = k.length; }
+    }
+    return best || { icon:'bi-clipboard', color:'#6366f1' };
+}
+
+// ── Step 1: load & render cards ────────────────────────────────────
+function _showJiraNotConfigured() {
+    var m = document.getElementById('modalJiraNoConf');
+    if (m) { m.style.display = 'flex'; }
+}
+
+async function rqLoadTypes() {
+    if (!JIRA_ENABLED) { _showJiraNotConfigured(); return; }
+    try {
+        const r = await fetch('/api/jira/requesttypes', { credentials:'include' });
+        const d = await r.json();
+        if (d.code === 'JIRA_NOT_CONFIGURED') { _showJiraNotConfigured(); return; }
+        if (!d.success) throw new Error(d.message);
+        rqRenderCards(d.data);
+    } catch(e) {
+        document.getElementById('rqTypeGrid').innerHTML =
+            `<div style="grid-column:1/-1;text-align:center;padding:48px;color:#dc2626;font-size:13px;">
+                <i class="bi bi-exclamation-circle" style="font-size:20px;display:block;margin-bottom:8px;"></i>
+                Error al cargar tipos: ${e.message}
+            </div>`;
+    }
+}
+
+function rqRenderCards(types) {
+    const grid = document.getElementById('rqTypeGrid');
+    if (!types.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-muted);">No se encontraron tipos de requerimiento.</div>';
+        return;
+    }
+    grid.innerHTML = types.map(t => {
+        const meta     = _getTypeMeta(t.name);
+        const safeId   = (t.id || '').replace(/'/g,"\\'");
+        const safeName = t.name.replace(/'/g,"\\'");
+        const safeIcon = (meta.icon||'').replace(/'/g,"\\'");
+        const safeClr  = (meta.color||'').replace(/'/g,"\\'");
+        return `<div class="rq-type-card" data-name="${_normName(t.name)}"
+                     onclick="rqSelectType('${safeId}','${safeName}','${safeIcon}','${safeClr}')">
+            <div class="rq-card-header">
+                <div class="rq-card-icon" style="background:${meta.color};"><i class="bi ${meta.icon}"></i></div>
+                <div class="rq-card-name">${t.name}</div>
+            </div>
+            ${t.description ? `<div class="rq-card-desc">${t.description}</div>` : ''}
+            ${meta.note ? `<div class="rq-card-note${meta.noteClass?' '+meta.noteClass:''}">${meta.note}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function rqFilterTypes(val) {
+    const q = (val||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    document.querySelectorAll('.rq-type-card').forEach(card => {
+        card.classList.toggle('rq-card-hidden', !!q && !card.dataset.name.includes(q));
+    });
+}
+
+// ── Tipologías Gestión de Equipos ─────────────────────────────────
+var _EQUIPOS_TIPOLOGIAS = [
+    { id:'ad517439-f3dd-4f69-a642-c27c0d935ce9', name:'Nuevo ingreso en Lima',         ubicacion:'626068' },
+    { id:'8376e7d4-87f3-426f-aeaa-1c45d2057426', name:'Nuevo ingreso en Provincia',     ubicacion:'626069' },
+    { id:'34b6872b-deaa-4bd4-a223-6b302a872713', name:'Asignar equipo en Lima',         ubicacion:'626068' },
+    { id:'12227326-d792-4d98-84f2-7b311eaa6d6b', name:'Asignar equipo en Provincia',    ubicacion:'626069' },
+    { id:'74b04855-8a32-4097-91ca-af802ef7965d', name:'Cambio de equipo en Lima',       ubicacion:'626068' },
+    { id:'11d2fbd1-3ed8-419e-986f-25a8fd3811f2', name:'Cambio de equipo en Provincia',  ubicacion:'626069' },
+    { id:'5cf562d3-bcf3-4ac6-86c3-d75f0c028a74', name:'Cese con equipo asignado',       ubicacion:'626068' },
+    { id:'bf59ccd4-2389-46f4-87c0-49e7e1fc9c59', name:'Cese sin equipo asignado',       ubicacion:'626068' },
+    { id:'809a132b-3fdb-4075-9ac6-737bed6449e1', name:'Retiro de PC',                   ubicacion:'626068' },
+];
+
+function _isEquiposType(name) {
+    const n = (name||'').toLowerCase();
+    return n.includes('equipos') && !n.includes('terceros');
+}
+
+function rqEquiposUbicChange() {
+    const ubic = document.querySelector('input[name="rqEquiposUbic"]:checked')?.value || 'Lima';
+    const sel  = document.getElementById('rqEquiposTipologia');
+    if (!sel) return;
+    if (!sel.value) {
+        sel.value = `Nuevo ingreso en ${ubic}`;
+    } else if (sel.value.includes(' en Lima') || sel.value.includes(' en Provincia')) {
+        sel.value = sel.value.replace(/ en (Lima|Provincia)/, ` en ${ubic}`);
+    }
+    rqEquiposBuild();
+}
+
+var _acColTimer = null;
+function acRqColaborador(val) {
+    clearTimeout(_acColTimer);
+    _acColTimer = setTimeout(() => _acColFetch(val), 300);
+}
+async function _acColFetch(val) {
+    const drop = document.getElementById('acRqColaboradorDrop');
+    if (!drop) return;
+    if (!val || val.length < 2) { drop.classList.remove('show'); return; }
+    try {
+        const r = await fetch(`/api/employees/search-emails?q=${encodeURIComponent(val)}`, { credentials:'include' });
+        const d = await r.json();
+        const items = d.data || [];
+        if (!items.length) { drop.classList.remove('show'); return; }
+        drop.innerHTML = items.slice(0,8).map(it =>
+            `<div class="ac-item" onmousedown="acColPick('${(it.email||'').replace(/'/g,"\\'")}')">
+                <span class="ac-email">${it.email||''}</span>
+                <span class="ac-details">${it.full_name||''}${it.position_name?' · '+it.position_name:''}</span>
+            </div>`).join('');
+        drop.classList.add('show');
+    } catch(e) { drop.classList.remove('show'); }
+}
+function acColPick(email) {
+    const inp = document.getElementById('rqEqColaborador');
+    if (inp) inp.value = email;
+    document.getElementById('acRqColaboradorDrop')?.classList.remove('show');
+    rqEquiposBuild();
+}
+
+function rqEquiposBuild() {
+    const sel     = document.getElementById('rqEquiposTipologia');
+    const tipName = sel?.value || '';
+    const colab   = (document.getElementById('rqEqColaborador')?.value || '').trim();
+    const ubic    = document.querySelector('input[name="rqEquiposUbic"]:checked')?.value || 'Lima';
+    const summary = document.getElementById('rq_summary');
+    const desc    = document.getElementById('rq_description');
+
+    if (tipName.includes(' en Provincia')) {
+        const r = document.querySelector('input[name="rqEquiposUbic"][value="Provincia"]');
+        if (r) r.checked = true;
+    } else if (tipName.includes(' en Lima')) {
+        const r = document.querySelector('input[name="rqEquiposUbic"][value="Lima"]');
+        if (r) r.checked = true;
+    }
+
+    if (summary) summary.value = tipName;
+    if (desc) {
+        if (!tipName) { desc.value = ''; return; }
+        const n = tipName.toLowerCase();
+        const colabTxt = colab ? ` Colaborador: ${colab}.` : '';
+        let txt = '';
+        if (n.includes('nuevo ingreso'))  txt = `Se genera requerimiento para ingreso del personal para nuevo ingreso en ${ubic}.${colabTxt}`;
+        else if (n.includes('asignar'))   txt = `Por favor gestionar "${tipName}". Coordinar la asignación del equipo al usuario indicado.${colabTxt}`;
+        else if (n.includes('cambio'))    txt = `Por favor gestionar "${tipName}". Coordinar el cambio de equipo según disponibilidad.${colabTxt}`;
+        else if (n.includes('cese'))      txt = `Por favor gestionar "${tipName}". Coordinar la recuperación del equipo y revocación de accesos.${colabTxt}`;
+        else if (n.includes('retiro'))    txt = `Por favor gestionar "${tipName}". Coordinar el retiro del equipo según procedimiento.${colabTxt}`;
+        else                              txt = `Por favor gestionar: "${tipName}".${colabTxt}`;
+        desc.value = txt;
+    }
+    const tipData = _EQUIPOS_TIPOLOGIAS.find(t => t.name === tipName);
+    if (tipData && _rqSelectedType) _rqSelectedType._equiposTip = tipData;
+}
+
+function _isSoftwareType(name) {
+    return /software/i.test(name || '');
+}
+
+function rqSwBuild() {
+    const action = document.querySelector('input[name="rqSwAction"]:checked')?.value || 'Instalar';
+    const swName = (document.getElementById('rqSwName')?.value || '').trim();
+    const summary = document.getElementById('rq_summary');
+    const desc    = document.getElementById('rq_description');
+    if (summary) summary.value = swName ? `${action}: ${swName}` : '';
+    if (desc) {
+        desc.value = swName
+            ? (action === 'Instalar'
+                ? `Por favor instalar el software "${swName}" en el equipo del usuario. Por favor coordinar la instalación según disponibilidad.`
+                : `Por favor desinstalar el software "${swName}" del equipo del usuario. Confirmar con el usuario antes de proceder.`)
+            : '';
+    }
+}
+
+function rqSelectType(id, name, icon, color) {
+    _rqSelectedType = { id, name, icon, color };
+    document.getElementById('rqSelectedDisplay').innerHTML =
+        `<div class="rq-card-icon" style="background:${color};width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0;">
+            <i class="bi ${icon}"></i>
+         </div>
+         <div>
+           <div class="rq-selected-label">Tipo de requerimiento</div>
+           <div class="rq-selected-name">${name}</div>
+         </div>`;
+
+    const isSw = _isSoftwareType(name);
+    const isEq = _isEquiposType(name);
+    const swSection   = document.getElementById('rqSoftwareSection');
+    const eqSection   = document.getElementById('rqEquiposSection');
+    const summaryWrap = document.getElementById('rqSummaryWrap');
+
+    if (swSection) {
+        swSection.style.display = isSw ? 'flex' : 'none';
+        if (isSw) {
+            document.getElementById('rqSwInstalar').checked = true;
+            document.getElementById('rqSwName').value = '';
+            document.getElementById('rq_summary').value = '';
+            document.getElementById('rq_description').value = '';
+        }
+    }
+    if (eqSection) {
+        eqSection.style.display = isEq ? 'flex' : 'none';
+        if (isEq) {
+            const sel = document.getElementById('rqEquiposTipologia');
+            sel.innerHTML = '<option value="">— Selecciona una opción —</option>' +
+                _EQUIPOS_TIPOLOGIAS.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            sel.value = '';
+            const limaR = document.querySelector('input[name="rqEquiposUbic"][value="Lima"]');
+            if (limaR) limaR.checked = true;
+            const colabInp = document.getElementById('rqEqColaborador');
+            if (colabInp) colabInp.value = '';
+            document.getElementById('rq_summary').value = '';
+            document.getElementById('rq_description').value = '';
+        }
+    }
+    if (summaryWrap) summaryWrap.style.display = (isSw || isEq) ? 'none' : '';
+
+    rqGoStep(2);
+    const el = document.getElementById('rq_reporter');
+    if (el && !el.value) {
+        const email = localStorage.getItem('portal_user_email') || CURRENT_USER_EMAIL || '';
+        if (email) { el.value = email; loadRqEmployeeInfo(email); }
+    }
+    if (isSw) document.getElementById('rqSwName')?.focus();
+    else if (isEq) document.getElementById('rqEquiposTipologia')?.focus();
+    else document.getElementById('rq_summary').focus();
+}
+
+// ── Reporter autocomplete ──────────────────────────────────────────
+function acRqReporter(val) {
+    clearTimeout(_acRqTimer);
+    _acRqTimer = setTimeout(() => _acRqFetch(val), 300);
+}
+async function _acRqFetch(val) {
+    const drop = document.getElementById('acRqReporterDrop');
+    if (!val || val.length < 2) { drop.classList.remove('show'); return; }
+    try {
+        const r = await fetch(`/api/employees/search-emails?q=${encodeURIComponent(val)}`, { credentials:'include' });
+        const d = await r.json();
+        const items = d.data || [];
+        if (!items.length) { drop.classList.remove('show'); return; }
+        drop.innerHTML = items.slice(0,8).map(it =>
+            `<div class="ac-item" onmousedown="acRqPickReporter('${it.email}')">
+                <span class="ac-email">${it.email}</span>
+                <span class="ac-details">${it.full_name||''}${it.position_name?' · '+it.position_name:''}</span>
+            </div>`).join('');
+        drop.classList.add('show');
+    } catch(e) { drop.classList.remove('show'); }
+}
+function acRqPickReporter(email) {
+    document.getElementById('rq_reporter').value = email;
+    document.getElementById('acRqReporterDrop').classList.remove('show');
+    loadRqEmployeeInfo(email);
+}
+function acKeydownRq(e, dropId) {
+    const drop = document.getElementById(dropId);
+    const items = drop.querySelectorAll('.ac-item');
+    let cur = drop.querySelector('.active-ac');
+    if (e.key === 'ArrowDown') { e.preventDefault(); const nx = cur ? cur.nextElementSibling : items[0]; if(nx){cur?.classList.remove('active-ac');nx.classList.add('active-ac');} }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); const pv = cur?.previousElementSibling; if(pv){cur.classList.remove('active-ac');pv.classList.add('active-ac');} }
+    else if (e.key === 'Enter') { e.preventDefault(); if(cur) cur.dispatchEvent(new MouseEvent('mousedown')); }
+    else if (e.key === 'Escape') { drop.classList.remove('show'); }
+}
+document.addEventListener('click', e => {
+    if (!e.target.closest('#acRqReporterDrop') && !e.target.closest('#rq_reporter'))
+        document.getElementById('acRqReporterDrop')?.classList.remove('show');
+    if (!e.target.closest('#acRqColaboradorDrop') && !e.target.closest('#rqEqColaborador'))
+        document.getElementById('acRqColaboradorDrop')?.classList.remove('show');
+});
+
+async function loadRqEmployeeInfo(email) {
+    if (!email || !email.includes('@')) return;
+    try {
+        const r = await fetch(`/api/jira/employee-info?email=${encodeURIComponent(email)}`, { credentials:'include' });
+        const d = await r.json();
+        if (d.success && d.data) {
+            document.getElementById('rqEqNombre').textContent    = d.data.full_name  || '—';
+            document.getElementById('rqEqDept').textContent      = d.data.department || '—';
+            document.getElementById('rqEqEquipo').textContent    = d.data.equipo     || '—';
+            document.getElementById('rqEqUbicacion').textContent = d.data.ubicacion  || '—';
+            document.getElementById('rqEmployeeInfo').style.display = 'block';
+        }
+    } catch(e) {}
+}
+
+// ── Submit ─────────────────────────────────────────────────────────
+async function submitReq() {
+    const reporter    = document.getElementById('rq_reporter').value.trim();
+    const summary     = document.getElementById('rq_summary').value.trim();
+    const description = document.getElementById('rq_description').value.trim();
+
+    if (!reporter) { showToast('Ingresa el correo del solicitante', 'error'); return; }
+    if (_isSoftwareType(_rqSelectedType?.name)) {
+        const swName = document.getElementById('rqSwName')?.value?.trim();
+        if (!swName) { showToast('Ingresa el nombre del software', 'error'); document.getElementById('rqSwName')?.focus(); return; }
+        rqSwBuild();
+    }
+    if (_isEquiposType(_rqSelectedType?.name)) {
+        const tip = document.getElementById('rqEquiposTipologia')?.value;
+        if (!tip) { showToast('Selecciona la tipología de equipo', 'error'); document.getElementById('rqEquiposTipologia')?.focus(); return; }
+        rqEquiposBuild();
+    }
+    if (!summary)     { showToast('Describe qué necesita el solicitante', 'error'); return; }
+    if (!description) { showToast('Agrega una descripción detallada', 'error'); return; }
+
+    const btn = document.getElementById('rqBtnSubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Registrando...';
+    try {
+        const r = await fetch('/api/jira/requirement', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                reporter,
+                summary,
+                description,
+                requestTypeId:   _rqSelectedType?.id   || null,
+                requestTypeName: _rqSelectedType?.name || null,
+                tipo:            _rqSelectedType?.name || null,
+                priority:        'P3',
+            })
+        });
+        const d = await r.json();
+        if (d.code === 'JIRA_NOT_CONFIGURED') { _showJiraNotConfigured(); return; }
+        if (d.success) {
+            document.getElementById('rqCreatedKey').textContent = d.data.key;
+            document.getElementById('rqCreatedUrl').href = d.data.url;
+            rqGoStep(3);
+            showToast(`✅ Requerimiento ${d.data.key} registrado`, 'success');
+        } else {
+            showToast('Error: ' + (d.message || 'No se pudo crear el requerimiento'), 'error');
+        }
+    } catch(e) {
+        showToast('Error de conexión', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-send-fill"></i> Registrar Requerimiento';
+    }
+}
+
+// ── Reset ──────────────────────────────────────────────────────────
+function rqReset() {
+    _rqSelectedType = null;
+    ['rq_reporter','rq_summary','rq_description'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.value='';
+    });
+    document.getElementById('rqEmployeeInfo').style.display = 'none';
+    document.getElementById('rqTypeSearch').value = '';
+    rqFilterTypes('');
+    rqGoStep(1);
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    rqGoStep(1);
+    rqLoadTypes();
+    const email = new URLSearchParams(window.location.search).get('reporter')
+                || localStorage.getItem('portal_user_email')
+                || CURRENT_USER_EMAIL || '';
+    if (email) {
+        const el = document.getElementById('rq_reporter');
+        if (el) el.value = email;
+    }
+});
+</script>
+</body>
+</html>

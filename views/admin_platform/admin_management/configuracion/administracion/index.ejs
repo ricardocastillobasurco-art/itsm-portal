@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<script>(function(){const t=localStorage.getItem('dashboardTheme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Administración · IT Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+/* ══ VARIABLES ══════════════════════════════════════════════ */
+:root,[data-theme="light"]{
+  --bg:#f1f5f9;--bg-subtle:#e9eef5;--card:#ffffff;--card-hover:#fafcff;
+  --border:#e2e8f0;--border-strong:#cbd5e1;
+  --text:#0f172a;--text-2:#1e293b;--muted:#64748b;--muted-2:#94a3b8;
+  --primary:#2563eb;--primary-dim:rgba(37,99,235,.1);--primary-glow:rgba(37,99,235,.25);
+  --success:#059669;--warning:#d97706;--danger:#dc2626;--purple:#7c3aed;--info:#0891b2;
+  --sh-xs:0 1px 2px rgba(0,0,0,.06);
+  --sh-sm:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.04);
+  --sh-md:0 4px 16px rgba(0,0,0,.1),0 16px 40px rgba(0,0,0,.07);
+  --sh-lg:0 8px 30px rgba(0,0,0,.12),0 30px 60px rgba(0,0,0,.1);
+  --nav-bg:rgba(255,255,255,.95);
+  --radius-sm:8px;--radius:12px;--radius-lg:16px;--radius-xl:20px;
+  --sidebar-w:224px;--navbar-h:44px;
+  --bg-main:var(--bg);--bg-card:var(--card);--bg-surface:var(--card);
+  --border-soft:var(--border);--text-main:var(--text);--text-muted:var(--muted);
+  --shadow-card:var(--sh-sm);--sidebar-bg:var(--card);
+}
+[data-theme="dark"]{
+  --bg:#080d1c;--bg-subtle:#0d1425;--card:#111827;--card-hover:#141d2f;
+  --border:#1e293b;--border-strong:#2d3f55;
+  --text:#f1f5f9;--text-2:#e2e8f0;--muted:#94a3b8;--muted-2:#64748b;
+  --primary:#3b82f6;--primary-dim:rgba(59,130,246,.14);--primary-glow:rgba(59,130,246,.2);
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;--purple:#8b5cf6;--info:#06b6d4;
+  --sh-xs:0 1px 2px rgba(0,0,0,.4);
+  --sh-sm:0 1px 3px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
+  --sh-md:0 4px 16px rgba(0,0,0,.4),0 16px 40px rgba(0,0,0,.3);
+  --sh-lg:0 8px 30px rgba(0,0,0,.5),0 30px 60px rgba(0,0,0,.4);
+  --nav-bg:rgba(8,13,28,.95);
+  --bg-main:var(--bg);--bg-card:var(--card);--bg-surface:var(--card);
+  --border-soft:var(--border);--text-main:var(--text);--text-muted:var(--muted);
+  --shadow-card:var(--sh-sm);--sidebar-bg:var(--bg-subtle);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',-apple-system,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;}
+*::-webkit-scrollbar{width:5px;height:5px;}
+*::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px;}
+
+/* ══ NAVBAR ═════════════════════════════════════════════════ */
+.navbar{
+  position:fixed;top:0;left:0;right:0;z-index:500;
+  height:var(--navbar-h);display:flex;align-items:center;gap:6px;padding:0 16px;
+  background:var(--nav-bg);backdrop-filter:blur(16px) saturate(160%);
+  -webkit-backdrop-filter:blur(16px) saturate(160%);
+  border-bottom:1px solid var(--border);
+}
+.nav-hamburger{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .15s;cursor:pointer;flex-shrink:0;}
+.nav-hamburger:hover{background:var(--bg-subtle);color:var(--text);}
+.nav-brand{display:flex;align-items:center;gap:7px;padding:0 8px;}
+.nav-logo{height:18px;width:auto;}
+.nav-divider{width:1px;height:16px;background:var(--border);}
+.nav-name{font-size:12px;font-weight:700;color:var(--text);}
+.nav-badge{font-size:8px;font-weight:800;padding:1px 6px;border-radius:20px;background:linear-gradient(135deg,#7c3aed,#e11d48);color:#fff;letter-spacing:.5px;text-transform:uppercase;}
+.nav-space{flex:1;}
+.nav-icon-btn{width:30px;height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);transition:all .15s;}
+.nav-icon-btn:hover{background:var(--bg-subtle);color:var(--text);}
+.nav-user{display:flex;align-items:center;gap:5px;padding:3px 8px 3px 4px;border-radius:20px;background:var(--bg-subtle);border:1px solid var(--border);}
+.nav-avatar{width:24px;height:24px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#7c3aed,#e11d48);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;}
+.nav-username{font-size:11px;font-weight:600;color:var(--text-2);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nav-exit{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600;color:var(--muted);transition:all .15s;cursor:pointer;}
+.nav-exit:hover{color:var(--danger);background:rgba(220,38,38,.06);}
+
+/* ══ APP SHELL ══════════════════════════════════════════════ */
+.app-shell{display:flex;position:fixed;top:var(--navbar-h);left:0;right:0;bottom:0;overflow:hidden;}
+
+/* ══ SIDEBAR ════════════════════════════════════════════════ */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;background:var(--card);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;
+  overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1);
+  position:relative;z-index:200;
+}
+.sidebar.collapsed{width:52px;}
+.sb-header{display:flex;align-items:center;gap:8px;padding:0 12px;height:46px;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden;}
+.sb-logo{height:16px;width:auto;flex-shrink:0;}
+.sb-brand{flex:1;min-width:0;overflow:hidden;}
+.sb-brand-name{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;}
+.sb-brand-badge{display:inline-block;font-size:8px;font-weight:800;padding:1px 6px;border-radius:4px;background:linear-gradient(135deg,#7c3aed,#e11d48);color:#fff;text-transform:uppercase;letter-spacing:.4px;margin-top:1px;}
+.sidebar.collapsed .sb-brand{display:none;}
+.sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 0;}
+.sb-nav::-webkit-scrollbar{width:3px;}
+.sb-section{margin-bottom:2px;}
+.sb-section-label{font-size:9px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted-2);padding:10px 14px 3px;white-space:nowrap;overflow:hidden;display:block;}
+.sidebar.collapsed .sb-section-label{display:none;}
+.sb-item{display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--muted);transition:all .15s;white-space:nowrap;overflow:hidden;border:none;background:none;width:100%;text-align:left;position:relative;}
+.sb-item:hover{background:var(--bg-subtle);color:var(--text);}
+.sb-item.active{background:var(--primary-dim);color:var(--primary);font-weight:700;}
+.sb-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--primary);border-radius:0 2px 2px 0;}
+.sb-icon{font-size:15px;flex-shrink:0;width:18px;text-align:center;}
+.sb-label{flex:1;overflow:hidden;text-overflow:ellipsis;}
+.sidebar.collapsed .sb-item{justify-content:center;padding:9px 0;}
+.sidebar.collapsed .sb-label{display:none;}
+.sidebar.collapsed .sb-icon{font-size:17px;width:auto;}
+.sb-divider{height:1px;background:var(--border);margin:6px 14px;}
+.sidebar.collapsed .sb-divider{margin:6px 8px;}
+.sb-sub-menu{overflow:hidden;max-height:0;transition:max-height .25s cubic-bezier(.4,0,.2,1);}
+.sb-sub-menu.open{max-height:600px;}
+.sidebar.collapsed .sb-sub-menu{display:none;}
+.sidebar.collapsed .sb-expand-icon{display:none;}
+.sb-sub-item{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 38px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;background:none;width:100%;text-align:left;transition:all .14s;white-space:nowrap;overflow:hidden;}
+.sb-sub-item:hover{background:var(--bg-subtle);color:var(--text);}
+.sb-sub-item.active{color:var(--primary);font-weight:700;background:var(--primary-dim);}
+.sb-sub-icon{font-size:13px;flex-shrink:0;width:16px;text-align:center;}
+.sb-expand-icon{margin-left:auto;font-size:10px;transition:transform .22s;flex-shrink:0;color:var(--muted-2);}
+.sb-item.sb-expanded .sb-expand-icon{transform:rotate(180deg);}
+.sb-footer{border-top:1px solid var(--border);padding:10px 12px;flex-shrink:0;display:flex;align-items:center;gap:8px;overflow:hidden;}
+.sb-user-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#7c3aed,#e11d48);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;}
+.sb-user-info{flex:1;min-width:0;overflow:hidden;}
+.sb-user-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-user-role{font-size:10px;color:var(--muted);}
+.sidebar.collapsed .sb-user-info{display:none;}
+.sidebar.collapsed .sb-footer{justify-content:center;padding:10px 0;}
+.sb-theme-btn{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);transition:all .15s;flex-shrink:0;}
+.sb-theme-btn:hover{background:var(--bg-subtle);color:var(--text);}
+.sidebar.collapsed .sb-theme-btn{display:none;}
+
+/* ══ MOBILE SIDEBAR OVERLAY ═════════════════════════════════ */
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:299;backdrop-filter:blur(2px);}
+@media(max-width:768px){
+  .sidebar{position:fixed;top:var(--navbar-h);bottom:0;left:0;z-index:300;transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);}
+  .sidebar.mobile-open{transform:translateX(0);}
+  .sb-overlay.visible{display:block;}
+}
+
+/* ══ CONTENT AREA ═══════════════════════════════════════════ */
+.content-area{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;background:var(--bg);min-width:0;}
+.content-header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:14px;flex-shrink:0;position:sticky;top:0;z-index:100;}
+.ch-info{display:flex;flex-direction:column;gap:1px;}
+.ch-title{font-size:14px;font-weight:800;color:var(--text);white-space:nowrap;}
+.ch-sub{font-size:11px;color:var(--muted);}
+.ch-actions{display:flex;align-items:center;gap:8px;margin-left:auto;}
+.content-body{padding:24px;flex:1;}
+
+/* ══ BACKLOG STRIP ══════════════════════════════════════════ */
+.bs-strip{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.bs-pill{display:flex;flex-direction:column;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 18px;flex:1;min-width:80px;box-shadow:var(--sh-xs);cursor:default;}
+.bs-pill-val{font-size:22px;font-weight:800;color:var(--text);line-height:1;}
+.bs-pill-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:3px;}
+
+/* ══ SECTION LABEL ══════════════════════════════════════════ */
+.sec-label{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted-2);margin-bottom:14px;}
+.sec-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.sec-label i{font-size:12px;opacity:.6;}
+
+/* ══ ADMIN MODULE CARDS ══════════════════════════════════════ */
+.admin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:0;}
+@media(max-width:1100px){.admin-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.admin-grid{grid-template-columns:1fr;}}
+.dash-modules{display:flex;flex-direction:column;gap:14px;}
+
+/* Estas clases vienen de shared/partials/autogestion/styles.ejs */
+.mod-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:20px;cursor:pointer;position:relative;overflow:hidden;
+  box-shadow:var(--sh-xs);transition:transform .2s,box-shadow .2s,border-color .2s;
+  display:flex;flex-direction:column;min-height:148px;
+}
+.mod-card:hover{transform:translateY(-3px);box-shadow:var(--sh-md);}
+.mod-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius-lg) var(--radius-lg) 0 0;}
+.mod-icon{width:42px;height:42px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:12px;flex-shrink:0;}
+.mod-name{font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.mod-desc{font-size:11.5px;color:var(--muted);line-height:1.55;flex:1;}
+.mod-arrow{position:absolute;bottom:16px;right:16px;font-size:14px;color:var(--border-strong);transition:all .2s;}
+.mod-card:hover .mod-arrow{transform:translateX(3px);}
+
+/* Color variants */
+.c-blue::before{background:linear-gradient(90deg,#2563eb,#60a5fa);}
+.c-blue .mod-icon{background:rgba(37,99,235,.1);color:#2563eb;}
+.c-blue:hover{border-color:rgba(37,99,235,.25);}
+.c-purp::before{background:linear-gradient(90deg,#7c3aed,#c4b5fd);}
+.c-purp .mod-icon{background:rgba(124,58,237,.1);color:#7c3aed;}
+.c-purp:hover{border-color:rgba(124,58,237,.25);}
+.c-amber::before{background:linear-gradient(90deg,#d97706,#fcd34d);}
+.c-amber .mod-icon{background:rgba(217,119,6,.1);color:#d97706;}
+.c-amber:hover{border-color:rgba(217,119,6,.25);}
+.c-cyan::before{background:linear-gradient(90deg,#0891b2,#67e8f9);}
+.c-cyan .mod-icon{background:rgba(8,145,178,.1);color:#0891b2;}
+.c-cyan:hover{border-color:rgba(8,145,178,.25);}
+.c-green::before{background:linear-gradient(90deg,#059669,#6ee7b7);}
+.c-green .mod-icon{background:rgba(5,150,105,.1);color:#059669;}
+.c-green:hover{border-color:rgba(5,150,105,.25);}
+.c-indigo::before{background:linear-gradient(90deg,#4338ca,#a5b4fc);}
+.c-indigo .mod-icon{background:rgba(67,56,202,.1);color:#4338ca;}
+.c-indigo:hover{border-color:rgba(67,56,202,.25);}
+.c-purple::before{background:linear-gradient(90deg,#6d28d9,#c4b5fd);}
+.c-purple .mod-icon{background:rgba(109,40,217,.1);color:#6d28d9;}
+.c-purple:hover{border-color:rgba(109,40,217,.25);}
+.c-pink::before{background:linear-gradient(90deg,#db2777,#f9a8d4);}
+.c-pink .mod-icon{background:rgba(219,39,119,.1);color:#db2777;}
+.c-pink:hover{border-color:rgba(219,39,119,.25);}
+.c-ora::before{background:linear-gradient(90deg,#0891b2,#6ee7b7);}
+.c-ora .mod-icon{background:rgba(8,145,178,.1);color:#0891b2;}
+.c-ora:hover{border-color:rgba(8,145,178,.25);}
+.c-orange::before{background:linear-gradient(90deg,#ea580c,#fdba74);}
+.c-orange .mod-icon{background:rgba(234,88,12,.1);color:#ea580c;}
+.c-orange:hover{border-color:rgba(234,88,12,.25);}
+
+/* sub-links */
+.sub-links{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;position:relative;z-index:2;}
+.sub-link{display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border-radius:7px;font-size:10px;font-weight:700;
+  background:rgba(37,99,235,.08);color:var(--primary);border:1px solid rgba(37,99,235,.18);
+  text-decoration:none;cursor:pointer;transition:all .18s;white-space:nowrap;font-family:inherit;}
+.c-purp .sub-link{background:rgba(124,58,237,.08);color:#7c3aed;border-color:rgba(124,58,237,.18);}
+.c-amber .sub-link{background:rgba(217,119,6,.08);color:#d97706;border-color:rgba(217,119,6,.18);}
+.c-cyan  .sub-link{background:rgba(8,145,178,.08);color:#0891b2;border-color:rgba(8,145,178,.18);}
+.c-green .sub-link{background:rgba(5,150,105,.08);color:#059669;border-color:rgba(5,150,105,.18);}
+.c-indigo .sub-link{background:rgba(67,56,202,.08);color:#4338ca;border-color:rgba(67,56,202,.18);}
+.c-purple .sub-link{background:rgba(109,40,217,.08);color:#6d28d9;border-color:rgba(109,40,217,.18);}
+.c-pink  .sub-link{background:rgba(219,39,119,.08);color:#db2777;border-color:rgba(219,39,119,.18);}
+.c-orange .sub-link{background:rgba(234,88,12,.08);color:#ea580c;border-color:rgba(234,88,12,.18);}
+.sub-link:hover{opacity:.8;}
+.sub-link i{font-size:9px;}
+
+/* Backlog pills en mod-card */
+.bs-strip-sm{display:flex;gap:6px;margin-top:8px;margin-bottom:2px;}
+.bs-pill-sm{display:flex;flex-direction:column;align-items:center;background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.15);border-radius:8px;padding:5px 10px;flex:1;}
+.bs-pill-sm .val{font-size:15px;font-weight:800;color:var(--text);line-height:1;}
+.bs-pill-sm .lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:2px;}
+
+/* ══ MODALS ════════════════════════════════════════════════ */
+.adm-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px;}
+.adm-modal-overlay.open{display:flex;}
+.adm-modal{background:var(--bg-card);border-radius:18px;padding:28px;width:100%;max-width:560px;box-shadow:0 24px 60px rgba(0,0,0,.25);position:relative;max-height:90vh;overflow-y:auto;}
+.adm-modal h3{font-size:16px;font-weight:800;color:var(--text-main);margin:0 0 20px;display:flex;align-items:center;gap:9px;}
+.adm-modal h3 i{font-size:18px;}
+.adm-modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);line-height:1;}
+.adm-modal-close:hover{color:var(--text-main);}
+.fm-row{margin-bottom:14px;}
+.fm-row label{display:block;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.fm-row input,.fm-row select,.fm-row textarea{width:100%;border:1.5px solid var(--border-soft);border-radius:10px;padding:9px 12px;font-size:13px;background:var(--bg-main);color:var(--text-main);outline:none;font-family:inherit;transition:border-color .2s;box-sizing:border-box;}
+.fm-row input:focus,.fm-row select:focus,.fm-row textarea:focus{border-color:var(--primary);}
+.fm-row textarea{resize:vertical;min-height:90px;}
+.fm-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fm-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.btn-fm{padding:9px 22px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:opacity .2s;}
+.btn-fm-cancel{background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-soft);}
+.btn-fm-cancel:hover{background:var(--border-soft);}
+.btn-fm-submit{color:#fff;}.btn-fm-submit:hover{opacity:.88;}
+.btn-fm-submit.purp{background:linear-gradient(135deg,#7c3aed,#6d28d9);}
+.btn-fm-submit.cyan{background:linear-gradient(135deg,#0891b2,#0e7490);}
+.btn-fm-submit.blue{background:linear-gradient(135deg,#0052cc,#2684ff);}
+.btn-fm-submit.orange{background:linear-gradient(135deg,#ea580c,#c2410c);}
+.btn-fm-submit.green{background:linear-gradient(135deg,#059669,#047857);}
+.dir-results{max-height:220px;overflow-y:auto;border:1.5px solid var(--border-soft);border-radius:10px;}
+.dir-result-item{padding:9px 12px;border-bottom:1px solid var(--border-soft);cursor:pointer;transition:background .15s;}
+.dir-result-item:last-child{border-bottom:none;}
+.dir-result-item:hover{background:var(--bg-subtle);}
+.asg-ac-item:hover{background:var(--bg-subtle);}
+.dir-result-item strong{display:block;font-size:12px;font-weight:700;color:var(--text-main);}
+.dir-result-item span{font-size:11px;color:var(--text-muted);}
+.dir-edit-panel{margin-top:16px;padding-top:16px;border-top:1.5px solid var(--border-soft);display:none;}
+.graph-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;background:rgba(234,88,12,.1);color:#ea580c;border:1px solid rgba(234,88,12,.3);border-radius:6px;padding:2px 8px;margin-bottom:14px;}
+.adm-toast{position:fixed;bottom:28px;right:28px;z-index:99999;display:flex;align-items:center;gap:10px;padding:13px 18px;border-radius:14px;font-size:13px;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,.2);color:#fff;transform:translateY(20px);opacity:0;transition:all .3s;pointer-events:none;}
+.adm-toast.show{transform:translateY(0);opacity:1;}
+.adm-toast.ok{background:#059669;}.adm-toast.err{background:#dc2626;}
+
+/* ══ CONFIG PANEL ═══════════════════════════════════════════ */
+.cfg-prio-badge{width:28px;height:20px;border-radius:5px;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.cfg-input{width:80px;border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;font-size:12px;background:var(--bg);color:var(--text);text-align:right;font-family:inherit;outline:none;}
+.cfg-input:focus{border-color:var(--primary);}
+.cfg-toggle-track{position:absolute;inset:0;background:var(--border);border-radius:10px;cursor:pointer;transition:.25s;}
+input:checked + .cfg-toggle-track{background:var(--primary);}
+
+/* mobile */
+@media(max-width:768px){
+  .content-body{padding:16px;}
+  .admin-grid{grid-template-columns:1fr 1fr;}
+  .nav-username{display:none;}
+}
+@media(max-width:480px){.admin-grid{grid-template-columns:1fr;}}
+.promo-banner{border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--sh-sm);transition:transform .2s cubic-bezier(.4,0,.2,1),box-shadow .2s;display:block;line-height:0;cursor:pointer;height:160px;}
+.promo-banner:hover{transform:translateY(-2px);box-shadow:var(--sh-md);}
+.promo-banner img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
+.banner-wrapper{position:relative;margin-top:20px;}
+.banner-upload-btn{position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);color:#fff;font-size:12px;font-weight:700;border:1.5px solid rgba(255,255,255,.3);cursor:pointer;opacity:0;transition:opacity .2s;z-index:10;}
+.banner-wrapper:hover .banner-upload-btn{opacity:1;}
+.banner-preview-img{width:100%;max-height:180px;object-fit:cover;border-radius:10px;border:2px dashed var(--primary);margin-bottom:10px;display:block;}
+
+/* ══ STATS ROW ════════════════════════════════════════════════ */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+@media(max-width:1100px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:640px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 18px 14px;box-shadow:var(--sh-xs);display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s;}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--sh-sm);}
+.sc-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:4px;}
+.sc-label{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);}
+.sc-val{font-size:26px;font-weight:800;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums;}
+.sc-sub{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:3px;}
+.sc-sub.pos{color:#059669;}
+.sc-spark{position:absolute;bottom:0;left:0;right:0;height:36px;opacity:.22;}
+/* ══ DASH LAYOUT ══════════════════════════════════════════════ */
+.dash-layout{display:grid;grid-template-columns:1fr 300px;gap:20px;margin-bottom:24px;}
+@media(max-width:1024px){.dash-layout{grid-template-columns:1fr;}}
+/* ══ RESUMEN ══════════════════════════════════════════════════ */
+.resumen-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--sh-xs);}
+.resumen-title{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.res-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.res-item:last-child{border-bottom:none;}
+.res-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.res-text{flex:1;min-width:0;}
+.res-label{font-size:12px;font-weight:600;color:var(--text);}
+.res-sub{font-size:10px;color:var(--muted);}
+.res-val{font-size:14px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;flex-shrink:0;}
+.res-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;flex-shrink:0;}
+.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.qa-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-family:inherit;transition:all .15s;font-size:12px;font-weight:600;color:var(--text);text-decoration:none;}
+.qa-btn:hover{background:var(--card);border-color:var(--primary);color:var(--primary);transform:translateY(-1px);box-shadow:var(--sh-xs);}
+.qa-btn i{font-size:15px;flex-shrink:0;}
+.qa-btn-label{line-height:1.2;}
+
+/* ── NEW KPI ROW ──────────────────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:14px;}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
+.kpi-c{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--ac,var(--primary));border-radius:var(--radius);padding:13px 14px 0;box-shadow:var(--sh-xs);overflow:hidden;transition:transform .15s,box-shadow .15s;cursor:default;}
+.kpi-c:hover{transform:translateY(-2px);box-shadow:var(--sh-sm);}
+.kpi-c .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.kpi-c .kc-ico{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.kc-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.1px;}
+.kc-ok{background:rgba(16,185,129,.1);color:#10b981;}
+.kc-nu{background:rgba(100,116,139,.1);color:#64748b;}
+.kc-lbl{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.kc-val{font-size:28px;font-weight:800;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-1px;}
+.kc-sub{font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:9px;}
+.kc-spark{display:block;width:100%;height:30px;}
+.kc-r{--ac:#ef4444;}.kc-r .kc-ico{background:rgba(239,68,68,.1);color:#ef4444;}
+.kc-g{--ac:#10b981;}.kc-g .kc-ico{background:rgba(16,185,129,.1);color:#10b981;}
+.kc-b{--ac:#2563eb;}.kc-b .kc-ico{background:rgba(37,99,235,.1);color:#2563eb;}
+.kc-a{--ac:#d97706;}.kc-a .kc-ico{background:rgba(217,119,6,.1);color:#d97706;}
+/* ── NEW MAIN GRID ───────────────────────────────────────── */
+.new-main{display:grid;grid-template-columns:1fr 292px;grid-template-rows:auto auto;gap:11px;}
+@media(max-width:1024px){.new-main{grid-template-columns:1fr;grid-template-rows:auto;}}
+.new-col-tl,.new-col-tr{display:flex;flex-direction:column;gap:11px;}
+.new-main>.banner-wrapper{margin-top:0;display:flex;flex-direction:column;min-height:120px;}
+.new-main>.banner-wrapper .promo-banner{flex:1;}
+.ch-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;box-shadow:var(--sh-xs);}
+.ch-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}
+.ch-card-title{font-size:13px;font-weight:700;color:var(--text);}
+.ch-card-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.ch-card-leg{display:flex;gap:13px;}
+.chl-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-weight:600;}
+.chl-dot{width:8px;height:8px;border-radius:50%;}
+/* ── NEW MOD CARDS ───────────────────────────────────────── */
+.new-mods{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:8px;}
+@media(max-width:540px){.new-mods{grid-template-columns:repeat(2,1fr);}}
+.nm-card{background:var(--bg);border:1px solid var(--border);border-top:2.5px solid var(--ac,var(--primary));border-radius:var(--radius-sm);padding:11px 12px;cursor:pointer;transition:background .12s,transform .12s,box-shadow .12s;display:flex;flex-direction:column;}
+.nm-card:hover{background:var(--card);transform:translateY(-1px);box-shadow:var(--sh-xs);}
+.nm-ico{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;margin-bottom:5px;}
+.nm-name{font-size:12.5px;font-weight:700;color:var(--text);}
+.nm-desc{font-size:11px;color:var(--muted);line-height:1.4;}
+.nm-b{--ac:#2563eb;}.nm-b .nm-ico{background:rgba(37,99,235,.1);color:#2563eb;}
+.nm-p{--ac:#7c3aed;}.nm-p .nm-ico{background:rgba(124,58,237,.1);color:#7c3aed;}
+.nm-a{--ac:#d97706;}.nm-a .nm-ico{background:rgba(217,119,6,.1);color:#d97706;}
+.nm-g{--ac:#10b981;}.nm-g .nm-ico{background:rgba(16,185,129,.1);color:#10b981;}
+.nm-i{--ac:#4338ca;}.nm-i .nm-ico{background:rgba(67,56,202,.1);color:#4338ca;}
+.nm-c{--ac:#0891b2;}.nm-c .nm-ico{background:rgba(8,145,178,.1);color:#0891b2;}
+/* ── DONUT ───────────────────────────────────────────────── */
+.dnt-wrap{position:relative;display:flex;justify-content:center;margin:4px 0;}
+.dnt-cnt{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+.dnt-n{font-size:26px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-1px;line-height:1;}
+.dnt-s{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.dnt-leg{display:flex;flex-direction:column;gap:7px;margin-top:10px;}
+.dnt-li{display:flex;align-items:center;justify-content:space-between;}
+.dnt-ll{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);}
+.dnt-sq{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
+.dnt-lv{font-size:13px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
+/* ── TECH LIST ───────────────────────────────────────────── */
+.tec-li{display:flex;flex-direction:column;gap:9px;}
+.tec-ri{display:flex;align-items:center;gap:8px;}
+.tec-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;}
+.tec-if{flex:1;min-width:0;}
+.tec-nm{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tec-br{height:3px;background:var(--border);border-radius:2px;margin-top:4px;}
+.tec-bf{height:3px;border-radius:2px;}
+.tec-nv{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;flex-shrink:0;}
+.mod-sep{font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.mod-sep::after{content:'';flex:1;height:1px;background:var(--border);}
+</style>
+</head>
+<body>
+
+<%
+  const _name        = user ? (user.full_name || user.name || user.email || 'Admin') : 'Administrador';
+  const _parts       = _name.trim().split(/\s+/);
+  const _ini         = (_parts[0]?.[0]||'A').toUpperCase() + (_parts[1]?.[0]||'').toUpperCase();
+  const _first       = (_parts[0]||'Admin');
+  const _role        = user ? (user.role || 'admin') : 'admin';
+  const _tenantId    = parseInt(user?.tenant_id || 1);
+  // Usa config del tenant (inyectada por middleware/tenantLocals.js) — sin hardcodes
+  const _cfg         = tenantCfg || {};
+  const _jiraEnabled = _cfg.features?.jira   ?? false;
+  const _tenantName  = _cfg.name              ?? 'Portal TI';
+%>
+
+<!-- ══ NAVBAR ══════════════════════════════════════════════ -->
+<nav class="navbar">
+  <button class="nav-hamburger" id="navHamburger" onclick="toggleSidebar()" title="Menú">
+    <i class="bi bi-layout-sidebar"></i>
+  </button>
+  <div class="nav-brand">
+    <img src="/images/movistar-logo.png" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
+    <span class="nav-divider"></span>
+    <span class="nav-name"><%= _tenantName %></span>
+    <span class="nav-badge">ADMIN</span>
+  </div>
+  <div class="nav-space"></div>
+  <a href="<%= (_role === 'superadmin' && _tenantId !== 1) ? '/api/admin/tenants/' + _tenantId + '/enter?target=autogestion' : '/autogestion' %>" class="nav-icon-btn" title="Portal de usuario"><i class="bi bi-person-circle"></i></a>
+  <button class="nav-icon-btn" onclick="toggleTheme()" title="Cambiar tema"><i class="bi bi-moon-stars-fill" id="navThemeIcon"></i></button>
+  <div class="nav-user">
+    <div class="nav-avatar" id="navAvatar"><%= _ini %></div>
+    <span class="nav-username"><%= _first %></span>
+  </div>
+  <button class="nav-exit" onclick="location.href='/api/auth/logout'"><i class="bi bi-box-arrow-right"></i><span>Salir</span></button>
+</nav>
+
+<!-- ══ APP SHELL ════════════════════════════════════════════ -->
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <nav class="sb-nav" id="sbNav" style="padding-top:10px;">
+
+      <!-- INICIO -->
+      <button class="sb-item active" id="sbInicio" onclick="sbGo('inicio', this)">
+        <i class="bi bi-grid-1x2-fill sb-icon" style="color:#2563eb;"></i>
+        <span class="sb-label">Inicio</span>
+      </button>
+      <a class="sb-item" href="/admin-dashboard">
+        <i class="bi bi-bar-chart-line-fill sb-icon" style="color:#059669;"></i>
+        <span class="sb-label">Dashboard</span>
+      </a>
+
+      <!-- ITSM -->
+      <div class="sb-section">
+        <span class="sb-section-label">ITSM</span>
+        <button class="sb-item" onclick="sbToggle('subItsm', this)">
+          <i class="bi bi-headset sb-icon" style="color:#0891b2;"></i>
+          <span class="sb-label">ITSM</span>
+          <i class="bi bi-chevron-down sb-expand-icon"></i>
+        </button>
+        <div class="sb-sub-menu" id="subItsm">
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion"><i class="bi bi-exclamation-triangle-fill sb-sub-icon" style="color:#dc2626;"></i>Incidencias</a>
+          <a class="sb-sub-item" href="/itsm/requerimientos/gestion"><i class="bi bi-clipboard2-check-fill sb-sub-icon" style="color:#7c3aed;"></i>Requerimientos</a>
+          <a class="sb-sub-item" href="/cambios"><i class="bi bi-arrow-repeat sb-sub-icon" style="color:#0891b2;"></i>Cambios</a>
+          <a class="sb-sub-item" href="/problemas"><i class="bi bi-bug-fill sb-sub-icon" style="color:#d97706;"></i>Problemas</a>
+          <a class="sb-sub-item" href="/catalogo"><i class="bi bi-grid-3x3-gap-fill sb-sub-icon" style="color:#6366f1;"></i>Catálogo</a>
+        </div>
+      </div>
+
+      <!-- ACTIVOS -->
+      <div class="sb-section">
+        <span class="sb-section-label">Activos</span>
+        <button class="sb-item" onclick="sbToggle('subActivos', this)">
+          <i class="bi bi-laptop-fill sb-icon" style="color:#d97706;"></i>
+          <span class="sb-label">Gestión de Activos</span>
+          <i class="bi bi-chevron-down sb-expand-icon"></i>
+        </button>
+        <div class="sb-sub-menu" id="subActivos">
+          <a class="sb-sub-item" href="/equipment"><i class="bi bi-pc-display-horizontal sb-sub-icon" style="color:#d97706;"></i>CMDB</a>
+          <a class="sb-sub-item" href="/warranty"><i class="bi bi-shield-check sb-sub-icon" style="color:#059669;"></i>Garantías</a>
+          <a class="sb-sub-item" href="/incidencias?tab=devoluciones"><i class="bi bi-box-arrow-in-left sb-sub-icon" style="color:#0891b2;"></i>Devoluciones</a>
+          <a class="sb-sub-item" href="/sccm"><i class="bi bi-windows sb-sub-icon" style="color:#0078d4;"></i>SCCM</a>
+          <a class="sb-sub-item" href="/soporte"><i class="bi bi-tools sb-sub-icon" style="color:#059669;"></i>Soporte técnico</a>
+        </div>
+      </div>
+
+      <!-- CONTENIDO -->
+      <div class="sb-section">
+        <span class="sb-section-label">Contenido</span>
+        <button class="sb-item" onclick="sbToggle('subContenido', this)">
+          <i class="bi bi-journal-richtext sb-icon" style="color:#4f46e5;"></i>
+          <span class="sb-label">Gestión Documental</span>
+          <i class="bi bi-chevron-down sb-expand-icon"></i>
+        </button>
+        <div class="sb-sub-menu" id="subContenido">
+          <a class="sb-sub-item" href="/knowledge-base"><i class="bi bi-book-fill sb-sub-icon" style="color:#4f46e5;"></i>Base de Conocimiento</a>
+          <button class="sb-sub-item" onclick="openModal('modalKB')"><i class="bi bi-plus-circle-fill sb-sub-icon" style="color:#4f46e5;"></i>Publicar artículo</button>
+          <a class="sb-sub-item" href="/preguntas-frecuentes"><i class="bi bi-patch-question-fill sb-sub-icon" style="color:#ca8a04;"></i>FAQ</a>
+          <button class="sb-sub-item" onclick="openModal('modalFAQ')"><i class="bi bi-plus-circle-fill sb-sub-icon" style="color:#ca8a04;"></i>Nueva pregunta FAQ</button>
+        </div>
+      </div>
+
+      <!-- USUARIOS -->
+      <div class="sb-section">
+        <span class="sb-section-label">Usuarios</span>
+        <button class="sb-item" onclick="sbToggle('subUsuarios', this)">
+          <i class="bi bi-people-fill sb-icon" style="color:#0891b2;"></i>
+          <span class="sb-label">Gestión de Usuarios</span>
+          <i class="bi bi-chevron-down sb-expand-icon"></i>
+        </button>
+        <div class="sb-sub-menu" id="subUsuarios">
+          <a class="sb-sub-item" href="/colaboradores"><i class="bi bi-person-badge-fill sb-sub-icon" style="color:#0891b2;"></i>Colaboradores</a>
+          <a class="sb-sub-item" href="/licencias"><i class="bi bi-key-fill sb-sub-icon" style="color:#ca8a04;"></i>Licencias</a>
+          <button class="sb-sub-item" onclick="openModal('modalDirectorio')"><i class="bi bi-card-list sb-sub-icon" style="color:#6366f1;"></i>Directorio / Editar</button>
+        </div>
+      </div>
+
+      <!-- REPORTERÍA -->
+      <div class="sb-section">
+        <span class="sb-section-label">Reportería</span>
+        <button class="sb-item" onclick="sbToggle('subReportes', this)">
+          <i class="bi bi-graph-up-arrow sb-icon" style="color:#059669;"></i>
+          <span class="sb-label">Reportería</span>
+          <i class="bi bi-chevron-down sb-expand-icon"></i>
+        </button>
+        <div class="sb-sub-menu" id="subReportes">
+          <a class="sb-sub-item" href="/indicators"><i class="bi bi-bar-chart-line-fill sb-sub-icon" style="color:#059669;"></i>Indicadores KPI</a>
+          <a class="sb-sub-item" href="/analytics"><i class="bi bi-bar-chart-fill sb-sub-icon" style="color:#059669;"></i>Reportes</a>
+          <a class="sb-sub-item" href="/csi"><i class="bi bi-arrow-up-circle-fill sb-sub-icon" style="color:#0891b2;"></i>CSI</a>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=portal"><i class="bi bi-people-fill sb-sub-icon" style="color:#7c3aed;"></i>Estadísticas Portal</a>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=encuesta"><i class="bi bi-star-fill sb-sub-icon" style="color:#db2777;"></i>Calidad / CSAT</a>
+        </div>
+      </div>
+
+      <!-- CONFIGURACIÓN -->
+      <div class="sb-section">
+        <span class="sb-section-label">Configuración</span>
+        <button class="sb-item sb-expanded" onclick="sbToggle('subConfig', this)">
+          <i class="bi bi-sliders2-vertical sb-icon" style="color:#6366f1;"></i>
+          <span class="sb-label">Configuración ITSM</span>
+          <i class="bi bi-chevron-down sb-expand-icon"></i>
+        </button>
+        <div class="sb-sub-menu open" id="subConfig">
+          <button class="sb-sub-item" id="sbConfigSla" onclick="sbGo('config', this); panelGo('panelConfig')">
+            <i class="bi bi-clock-history sb-sub-icon" style="color:#6366f1;"></i>SLA y alertas
+          </button>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=categorias">
+            <i class="bi bi-tags-fill sb-sub-icon" style="color:#7c3aed;"></i>Categorías
+          </a>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=automaciones">
+            <i class="bi bi-gear-wide-connected sb-sub-icon" style="color:#0891b2;"></i>Automatizaciones
+          </a>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=especialistas">
+            <i class="bi bi-people-fill sb-sub-icon" style="color:#059669;"></i>Especialistas
+          </a>
+          <a class="sb-sub-item" href="/equipment?tab=cfg">
+            <i class="bi bi-sliders sb-sub-icon" style="color:#8b5cf6;"></i>Configuración RMM
+          </a>
+        </div>
+      </div>
+
+      <!-- APROBACIONES -->
+      <div class="sb-section">
+        <span class="sb-section-label">Aprobaciones</span>
+        <button class="sb-item sb-expanded" onclick="sbToggle('subAprobaciones', this)">
+          <i class="bi bi-check2-circle sb-icon" style="color:#059669;"></i>
+          <span class="sb-label">Aprobaciones</span>
+          <i class="bi bi-chevron-down sb-expand-icon"></i>
+        </button>
+        <div class="sb-sub-menu open" id="subAprobaciones">
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=portal"><i class="bi bi-people-fill sb-sub-icon" style="color:#0891b2;"></i>Métricas Portal</a>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=encuesta"><i class="bi bi-star-fill sb-sub-icon" style="color:#db2777;"></i>Encuestas CSAT</a>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=whatsapp"><i class="bi bi-whatsapp sb-sub-icon" style="color:#25d366;"></i>WhatsApp Bot</a>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=garantias"><i class="bi bi-shield-check sb-sub-icon" style="color:#059669;"></i>Garantías</a>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=garantias&filter=robo"><i class="bi bi-shield-exclamation sb-sub-icon" style="color:#dc2626;"></i>Garantías por robo</a>
+          <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=devoluciones"><i class="bi bi-box-arrow-in-left sb-sub-icon" style="color:#0891b2;"></i>Devoluciones</a>
+        </div>
+      </div>
+
+      <!-- MICROSOFT 365 -->
+      <div class="sb-section">
+        <span class="sb-section-label">Microsoft 365</span>
+        <a class="sb-item" href="/microsoft">
+          <i class="bi bi-grid-1x2-fill sb-icon" style="color:#0078d4;"></i>
+          <span class="sb-label">Panel M365 + Intune</span>
+        </a>
+        <button class="sb-item" onclick="sbToggle('subMs', this)">
+          <i class="bi bi-microsoft sb-icon" style="color:#0078d4;"></i>
+          <span class="sb-label">Herramientas MS</span>
+          <i class="bi bi-chevron-down sb-expand-icon"></i>
+        </button>
+        <div class="sb-sub-menu" id="subMs">
+          <button class="sb-sub-item" onclick="openModal('modalTeams')"><i class="bi bi-microsoft-teams sb-sub-icon" style="color:#6264a7;"></i>Mensaje Teams</button>
+          <button class="sb-sub-item" onclick="openModal('modalCorreo')"><i class="bi bi-envelope-fill sb-sub-icon" style="color:#0078d4;"></i>Correo masivo</button>
+          <button class="sb-sub-item" onclick="openModal('modalDeploy')"><i class="bi bi-rocket-takeoff-fill sb-sub-icon" style="color:#dc2626;"></i>Despliegues Intune</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sb-footer">
+      <div class="sb-user-av"><%= _ini %></div>
+      <div class="sb-user-info">
+        <div class="sb-user-name"><%= _name %></div>
+        <div class="sb-user-role"><%= _role %></div>
+      </div>
+      <button class="sb-theme-btn" onclick="toggleTheme()" title="Cambiar tema">
+        <i class="bi bi-moon-stars-fill" id="sbThemeIcon"></i>
+      </button>
+    </div>
+  </div><!-- /sidebar -->
+
+  <div class="sb-overlay" id="sbOverlay" onclick="closeSidebarMobile()"></div>
+
+  <!-- CONTENT AREA -->
+  <div class="content-area">
+    <div class="content-header" id="cHeader">
+      <div class="ch-info">
+        <div class="ch-title" id="chTitle">Centro de Control ITSM</div>
+        <div class="ch-sub" id="chSub">Gestión completa · IT Platform Administración</div>
+      </div>
+      <div class="ch-actions">
+        <button onclick="loadDashboard()" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius-sm);background:var(--primary-dim);color:var(--primary);font-size:12px;font-weight:700;border:1px solid var(--primary-glow);cursor:pointer;transition:all .18s;" title="Actualizar métricas">
+          <i class="bi bi-arrow-clockwise"></i><span>Actualizar</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PANEL: INICIO -->
+    <div class="content-body" id="_panelV2" style="display:none;">
+
+      <% if (!_jiraEnabled) { %>
+      <div style="display:flex;align-items:center;gap:10px;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 16px;margin-bottom:16px;">
+        <i class="bi bi-plug-fill" style="color:#d97706;font-size:15px;flex-shrink:0;"></i>
+        <div>
+          <span style="font-size:12px;font-weight:800;color:#92400e;">Integración a sistema de tickets no configurada · </span>
+          <span style="font-size:11px;color:#b45309;">Las métricas muestran tickets del sistema local (TK-).</span>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- BARRA DE BIENVENIDA -->
+      <div class="wbar">
+        <div class="wbar-left">
+          <div class="wbar-ttl">Centro de control · <span id="wbarGreet">Plataforma ITSM</span></div>
+          <div class="wbar-sub" id="wbarSub">Cargando métricas…</div>
+        </div>
+        <div class="wbar-right">
+          <span id="wbarAlrt" style="display:none;"></span>
+          <button onclick="loadDashboard()" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:var(--primary-dim);color:var(--primary);font-size:11px;font-weight:700;border:1px solid var(--primary-glow);cursor:pointer;">
+            <i class="bi bi-arrow-clockwise"></i> Actualizar
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="sc-row">
+        <div class="sc-card">
+          <div class="c-ico" style="background:rgba(37,99,235,.10);color:#2563eb;"><i class="bi bi-ticket-detailed-fill"></i></div>
+          <div class="c-lbl">Tickets abiertos</div>
+          <div class="c-val" id="scOpen">—</div>
+          <div class="c-sub" id="scOpenSub">Incidencias activas</div>
+          <div class="c-bar" style="background:linear-gradient(90deg,#2563eb,#60a5fa);"></div>
+        </div>
+        <div class="sc-card">
+          <div class="c-ico" style="background:rgba(5,150,105,.10);color:#059669;"><i class="bi bi-check-circle-fill"></i></div>
+          <div class="c-lbl">Resueltos hoy</div>
+          <div class="c-val" id="scResolved">—</div>
+          <div class="c-sub" id="scResolvedSub">Tickets cerrados</div>
+          <div class="c-bar" style="background:linear-gradient(90deg,#059669,#34d399);"></div>
+        </div>
+        <div class="sc-card">
+          <div class="c-ico" style="background:rgba(124,58,237,.10);color:#7c3aed;"><i class="bi bi-speedometer2"></i></div>
+          <div class="c-lbl">SLA cumplido</div>
+          <div class="c-val" id="scSla">—</div>
+          <div class="c-sub" id="scSlaSub">Cumplimiento</div>
+          <div class="c-bar" style="background:linear-gradient(90deg,#7c3aed,#a78bfa);"></div>
+        </div>
+        <div class="sc-card">
+          <div class="c-ico" style="background:rgba(8,145,178,.10);color:#0891b2;"><i class="bi bi-people-fill"></i></div>
+          <div class="c-lbl">Colaboradores</div>
+          <div class="c-val" id="scEmpleados">—</div>
+          <div class="c-sub" id="scEmpleadosSub">Activos en plataforma</div>
+          <div class="c-bar" style="background:linear-gradient(90deg,#0891b2,#38bdf8);"></div>
+        </div>
+        <div class="sc-card">
+          <div class="c-ico" style="background:rgba(217,119,6,.10);color:#d97706;"><i class="bi bi-pc-display-horizontal"></i></div>
+          <div class="c-lbl">Equipos TI</div>
+          <div class="c-val" id="scEquipos">—</div>
+          <div class="c-sub" id="scEquiposSub">En inventario</div>
+          <div class="c-bar" style="background:linear-gradient(90deg,#d97706,#fbbf24);"></div>
+        </div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="cr">
+        <div class="cr-card">
+          <div class="cr-hdr"><i class="bi bi-graph-up" style="color:#2563eb;"></i> Tendencia de incidencias · últimos 14 días</div>
+          <canvas id="areaChart" style="width:100%;display:block;" height="130"></canvas>
+        </div>
+        <div class="cr-card" style="display:flex;flex-direction:column;align-items:center;">
+          <div class="cr-hdr" style="width:100%;"><i class="bi bi-pie-chart-fill" style="color:#7c3aed;"></i> Equipos por tipo</div>
+          <canvas id="donutChart" width="160" height="160" style="margin:0 auto 10px;display:block;"></canvas>
+          <div id="donutLegend" style="width:100%;display:flex;flex-direction:column;gap:5px;"></div>
+        </div>
+      </div>
+
+      <!-- PULSE ROW -->
+      <div class="pr">
+        <div class="pr-card" style="border-left-color:#0891b2;">
+          <div class="pr-ico" style="background:rgba(8,145,178,.12);color:#0891b2;"><i class="bi bi-wifi"></i></div>
+          <div>
+            <div class="pr-val" id="prAgents">—</div>
+            <div class="pr-lbl">Agentes online</div>
+          </div>
+        </div>
+        <div class="pr-card" style="border-left-color:#dc2626;">
+          <div class="pr-ico" style="background:rgba(220,38,38,.12);color:#dc2626;"><i class="bi bi-shield-exclamation"></i></div>
+          <div>
+            <div class="pr-val" id="prAlerts">—</div>
+            <div class="pr-lbl">Alertas activas</div>
+          </div>
+        </div>
+        <div class="pr-card" style="border-left-color:#7c3aed;">
+          <div class="pr-ico" style="background:rgba(124,58,237,.12);color:#7c3aed;"><i class="bi bi-clipboard2-check-fill"></i></div>
+          <div>
+            <div class="pr-val" id="prReqs">—</div>
+            <div class="pr-lbl">Requerimientos</div>
+          </div>
+        </div>
+        <div class="pr-card" style="border-left-color:#f59e0b;">
+          <div class="pr-ico" style="background:rgba(245,158,11,.12);color:#f59e0b;"><i class="bi bi-person-dash-fill"></i></div>
+          <div>
+            <div class="pr-val" id="prSinAsig">—</div>
+            <div class="pr-lbl">Sin asignar (INC)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM ROW -->
+      <div class="br">
+
+        <!-- Incidencias sin asignar -->
+        <div class="tbl-card">
+          <div class="tbl-hdr">
+            <div class="tbl-title"><i class="bi bi-exclamation-triangle-fill" style="color:#dc2626;"></i> Incidencias sin asignar</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="tbl-badge" id="sinAsigBadge" style="background:rgba(220,38,38,.1);color:#dc2626;"><i class="bi bi-exclamation-circle"></i> 0</span>
+              <a href="/incidencias?filter=sin_asignar" style="font-size:10px;font-weight:600;color:var(--primary);text-decoration:none;">Ver todas →</a>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="dt">
+              <thead>
+                <tr>
+                  <th>Ticket</th>
+                  <th style="min-width:180px;">Resumen</th>
+                  <th>Prioridad</th>
+                  <th>Espera</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="sinAsigBody">
+                <tr><td colspan="5" class="tbl-empty"><i class="bi bi-hourglass-split"></i> Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Right column -->
+        <div class="rc">
+
+          <!-- Acciones rápidas -->
+          <div class="rc-card">
+            <div class="rc-hdr"><span><i class="bi bi-zap-fill" style="color:#6366f1;"></i> Acciones rápidas</span></div>
+            <div class="qa-g">
+              <button class="qa-b" onclick="openModal('modalKB')"><i class="bi bi-journal-plus" style="color:#7c3aed;"></i> Publicar KB</button>
+              <button class="qa-b" onclick="openModal('modalFAQ')"><i class="bi bi-patch-plus-fill" style="color:#0891b2;"></i> Nueva FAQ</button>
+              <button class="qa-b" onclick="openModal('modalTeams')"><i class="bi bi-microsoft-teams" style="color:#6264a7;"></i> Msg Teams</button>
+              <button class="qa-b" onclick="openModal('modalCorreo')"><i class="bi bi-envelope-fill" style="color:#0052cc;"></i> Correo masivo</button>
+              <button class="qa-b" onclick="openModal('modalDirectorio')"><i class="bi bi-card-list" style="color:#4338ca;"></i> Directorio</button>
+              <button class="qa-b" onclick="openModal('modalDeploy')"><i class="bi bi-rocket-takeoff-fill" style="color:#ea580c;"></i> Despliegue</button>
+            </div>
+          </div>
+
+          <!-- Alertas RMM -->
+          <div class="rc-card">
+            <div class="rc-hdr">
+              <span><i class="bi bi-shield-exclamation" style="color:#dc2626;"></i> Alertas RMM</span>
+              <a href="/rmm?tab=alertas" style="font-size:10px;font-weight:600;color:var(--primary);text-decoration:none;">Ver →</a>
+            </div>
+            <div class="al-row">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="al-ico" style="background:rgba(220,38,38,.1);color:#dc2626;"><i class="bi bi-exclamation-circle-fill"></i></div>
+                <div><div class="al-lbl">Críticas</div><div class="al-sub" id="alCritSub">—</div></div>
+              </div>
+              <div class="al-n" id="alCrit" style="color:#dc2626;">—</div>
+            </div>
+            <div class="al-row">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="al-ico" style="background:rgba(245,158,11,.1);color:#f59e0b;"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div><div class="al-lbl">Advertencias</div><div class="al-sub" id="alWarnSub">—</div></div>
+              </div>
+              <div class="al-n" id="alWarn" style="color:#f59e0b;">—</div>
+            </div>
+            <div class="al-row">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="al-ico" style="background:rgba(8,145,178,.1);color:#0891b2;"><i class="bi bi-info-circle-fill"></i></div>
+                <div><div class="al-lbl">Informativas</div><div class="al-sub">Baja prioridad</div></div>
+              </div>
+              <div class="al-n" id="alInfo" style="color:#0891b2;">—</div>
+            </div>
+          </div>
+
+        </div><!-- /rc -->
+      </div><!-- /br -->
+
+      <!-- Banner -->
+      <div class="banner-wrapper">
+        <div class="promo-banner"<% if (_cfg.branding?.bannerLink) { %> onclick="window.open('<%- _cfg.branding.bannerLink %>','_blank')"<% } %>>
+          <img id="bannerImg" src="/images/<%= _cfg.branding?.bannerImage || 'banner-promo.jpg' %>" alt="<%= _tenantName %> — IT Platform" style="width:100%;object-fit:cover;">
+        </div>
+        <label for="bannerFileInput" class="banner-upload-btn" title="Cambiar banner del portal de autogestion">
+          <i class="bi bi-camera-fill"></i> Cambiar banner
+        </label>
+        <input type="file" id="bannerFileInput" accept="image/jpeg,image/png,image/webp" style="display:none;">
+      </div>
+
+    </div><!-- /_panelV2 -->
+
+    <!-- PANEL: INICIO -->
+    <div class="content-body" id="panelInicio">
+      <!-- KPI Row -->
+      <div class="kpi-row">
+        <div class="kpi-c kc-r" onclick="location.href='/itsm/incidencias/gestion?view=sin_asignar'" style="cursor:pointer;" title="Ver incidencias sin asignar">
+          <div class="kpi-top">
+            <div class="kc-ico"><i class="bi bi-ticket-detailed-fill"></i></div>
+            <span class="kc-badge kc-ok">▼ sin pendientes</span>
+          </div>
+          <div class="kc-lbl">Sin Asignar</div>
+          <div class="kc-val" id="bsOpen">—</div>
+          <div class="kc-sub" id="bsOpenSub">Workplace · Jira</div>
+          <svg class="kc-spark" viewBox="0 0 80 30" preserveAspectRatio="none" id="ksp0"></svg>
+        </div>
+        <div class="kpi-c kc-g" onclick="location.href='/itsm/incidencias/gestion?view=tecnicos'" style="cursor:pointer;" title="Ver estadísticas por técnico">
+          <div class="kpi-top">
+            <div class="kc-ico"><i class="bi bi-check-circle-fill"></i></div>
+            <span class="kc-badge kc-ok">hoy</span>
+          </div>
+          <div class="kc-lbl">Resueltos Hoy</div>
+          <div class="kc-val" id="bsResolved">—</div>
+          <div class="kc-sub" id="bsResolvedSub">Cerrados en Jira</div>
+          <svg class="kc-spark" viewBox="0 0 80 30" preserveAspectRatio="none" id="ksp1"></svg>
+        </div>
+        <div class="kpi-c kc-b" onclick="location.href='/colaboradores/panel'" style="cursor:pointer;" title="Ver colaboradores">
+          <div class="kpi-top">
+            <div class="kc-ico"><i class="bi bi-people-fill"></i></div>
+            <span class="kc-badge kc-nu">→ estable</span>
+          </div>
+          <div class="kc-lbl">Colaboradores</div>
+          <div class="kc-val" id="bsEmpleados">—</div>
+          <div class="kc-sub" id="bsEmpleadosSub">Total en plataforma</div>
+          <svg class="kc-spark" viewBox="0 0 80 30" preserveAspectRatio="none" id="ksp2"></svg>
+        </div>
+        <div class="kpi-c kc-a" onclick="location.href='/equipment'" style="cursor:pointer;" title="Ver inventario de equipos">
+          <div class="kpi-top">
+            <div class="kc-ico"><i class="bi bi-pc-display-horizontal"></i></div>
+            <span class="kc-badge kc-nu">→ estable</span>
+          </div>
+          <div class="kc-lbl">Equipos TI</div>
+          <div class="kc-val" id="bsEquipos">—</div>
+          <div class="kc-sub" id="bsEquiposSub">Inventario total</div>
+          <svg class="kc-spark" viewBox="0 0 80 30" preserveAspectRatio="none" id="ksp3"></svg>
+        </div>
+      </div><!-- /kpi-row -->
+
+      <!-- Main Grid -->
+      <div class="new-main">
+
+        <!-- Arriba izq: tendencia + módulos -->
+        <div class="new-col-tl">
+
+          <!-- Trend Chart -->
+          <div class="ch-card" onclick="location.href='/itsm/incidencias/gestion?view=reportes'" style="cursor:pointer;" title="Ver reportes de incidencias">
+            <div class="ch-card-hdr">
+              <div>
+                <div class="ch-card-title">Tendencia de tickets — últimos 7 días</div>
+                <div class="ch-card-sub">Proyecto INC · Workplace</div>
+              </div>
+              <div class="ch-card-leg">
+                <div class="chl-item"><div class="chl-dot" style="background:#2563eb"></div>Creados</div>
+                <div class="chl-item"><div class="chl-dot" style="background:#10b981"></div>Resueltos</div>
+              </div>
+            </div>
+            <canvas id="dashTrendChart" style="width:100%;display:block;height:160px;"></canvas>
+          </div>
+
+          <!-- Modules -->
+          <div class="ch-card" style="flex:1;display:flex;flex-direction:column;">
+            <div class="mod-sep">Módulos del sistema</div>
+            <div class="new-mods" style="flex:1;">
+              <div class="nm-card nm-b" onclick="location.href='/itsm'" role="link">
+                <div class="nm-ico"><i class="bi bi-headset"></i></div>
+                <div class="nm-name">ITSM</div>
+                <div class="nm-desc">Incidencias, requerimientos, cambios y catálogo</div>
+              </div>
+              <div class="nm-card nm-p" onclick="location.href='/gestion-documental'" role="link">
+                <div class="nm-ico"><i class="bi bi-journal-richtext"></i></div>
+                <div class="nm-name">Conocimiento</div>
+                <div class="nm-desc">Base KB, FAQ y eLearning</div>
+              </div>
+              <div class="nm-card nm-a" onclick="location.href='/activos'" role="link">
+                <div class="nm-ico"><i class="bi bi-laptop-fill"></i></div>
+                <div class="nm-name">Gestión de Activos</div>
+                <div class="nm-desc">Inventario TI, garantías y equipos</div>
+              </div>
+              <div class="nm-card nm-g" onclick="location.href='/licencias'" role="link">
+                <div class="nm-ico"><i class="bi bi-key-fill"></i></div>
+                <div class="nm-name">Licencias</div>
+                <div class="nm-desc">Software, M365 y asignaciones</div>
+              </div>
+              <div class="nm-card nm-i" onclick="location.href='/colaboradores'" role="link">
+                <div class="nm-ico"><i class="bi bi-person-badge-fill"></i></div>
+                <div class="nm-name">Gestión de Usuarios</div>
+                <div class="nm-desc">Colaboradores, Entra ID y MFA</div>
+              </div>
+              <div class="nm-card nm-c" onclick="location.href='/activos?tab=sccm'" role="link">
+                <div class="nm-ico"><i class="bi bi-gear-wide-connected"></i></div>
+                <div class="nm-name">Plataforma</div>
+                <div class="nm-desc">SCCM, endpoints y soporte TI</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /new-col-tl -->
+
+        <!-- Arriba der: donut + top técnicos -->
+        <div class="new-col-tr">
+
+          <!-- Donut -->
+          <div class="ch-card">
+            <div class="ch-card-title" style="margin-bottom:10px">Distribución Workplace</div>
+            <div class="dnt-wrap">
+              <svg id="dashDonut" width="150" height="150" viewBox="0 0 150 150"></svg>
+              <div class="dnt-cnt">
+                <div class="dnt-n" id="donutTotal">—</div>
+                <div class="dnt-s">tickets</div>
+              </div>
+            </div>
+            <div class="dnt-leg">
+              <div class="dnt-li"><div class="dnt-ll"><div class="dnt-sq" style="background:#ef4444"></div>Sin asignar</div><div class="dnt-lv" id="donutOpen">—</div></div>
+              <div class="dnt-li"><div class="dnt-ll"><div class="dnt-sq" style="background:#f59e0b"></div>En progreso</div><div class="dnt-lv" id="donutProg">—</div></div>
+              <div class="dnt-li"><div class="dnt-ll"><div class="dnt-sq" style="background:#10b981"></div>Resueltos hoy</div><div class="dnt-lv" id="donutRes">—</div></div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="ch-card">
+            <div class="ch-card-title" style="margin-bottom:10px">Acciones rápidas</div>
+            <div class="qa-grid">
+              <button class="qa-btn" onclick="openAdmFrame('/incidencias?embed=1')">
+                <i class="bi bi-exclamation-circle-fill" style="color:#ef4444;font-size:14px;"></i>
+                <span class="qa-btn-label">Crear<br>Incidencia</span>
+              </button>
+              <button class="qa-btn" onclick="openAdmFrame('/requerimientos?embed=1')">
+                <i class="bi bi-clipboard2-plus-fill" style="color:#2563eb;font-size:14px;"></i>
+                <span class="qa-btn-label">Crear<br>Requerimiento</span>
+              </button>
+              <button class="qa-btn" onclick="openAdmAsigModal()">
+                <i class="bi bi-pc-display-horizontal" style="color:#059669;font-size:14px;"></i>
+                <span class="qa-btn-label">Nueva<br>Asignación</span>
+              </button>
+              <button class="qa-btn" onclick="openModal('admModalColabs')">
+                <i class="bi bi-person-plus-fill" style="color:#7c3aed;font-size:14px;"></i>
+                <span class="qa-btn-label">Nuevo<br>Colaborador</span>
+              </button>
+              <button class="qa-btn" onclick="openModal('modalTeams')">
+                <i class="bi bi-microsoft-teams" style="color:#6264a7;font-size:14px;"></i>
+                <span class="qa-btn-label">Mensaje<br>Teams</span>
+              </button>
+              <button class="qa-btn" onclick="openModal('modalCorreo')">
+                <i class="bi bi-envelope-fill" style="color:#0052cc;font-size:14px;"></i>
+                <span class="qa-btn-label">Correo<br>Masivo</span>
+              </button>
+            </div>
+          </div>
+
+        </div><!-- /new-col-tr -->
+
+        <!-- Abajo izq: banner (misma fila que Top técnicos) -->
+        <div class="banner-wrapper">
+          <div class="promo-banner"<% if (_cfg.branding?.bannerLink) { %> onclick="window.open('<%- _cfg.branding.bannerLink %>','_blank')"<% } %>>
+            <img id="bannerImg" src="/images/<%= _cfg.branding?.bannerImage || 'banner-promo.jpg' %>" alt="<%= _tenantName %> — IT Platform" style="width:100%;height:100%;object-fit:cover;object-position:center;">
+          </div>
+          <label for="bannerFileInput" class="banner-upload-btn" title="Cambiar banner del portal de autogestion">
+            <i class="bi bi-camera-fill"></i> Cambiar banner
+          </label>
+          <input type="file" id="bannerFileInput" accept="image/jpeg,image/png,image/webp" style="display:none;">
+        </div>
+
+        <!-- Abajo der: top técnicos -->
+        <div class="ch-card">
+          <div class="ch-card-title" style="margin-bottom:10px">Top técnicos — hoy</div>
+          <div class="tec-li" id="dashTecList">
+            <div style="font-size:11px;color:var(--muted);text-align:center;padding:8px 0;">Cargando…</div>
+          </div>
+        </div>
+
+      </div><!-- /new-main -->
+
+
+    </div><!-- /panelInicio -->
+
+    <!-- PANEL: CONFIGURACIÓN ITSM -->
+    <div class="content-body" id="panelConfig" style="display:none;">
+      <div class="sec-label"><i class="bi bi-sliders2-vertical"></i> Configuración ITSM</div>
+      <% if (!_jiraEnabled) { %>
+      <div style="display:flex;align-items:flex-start;gap:12px;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:14px 18px;margin-bottom:20px;max-width:900px;">
+        <i class="bi bi-plug-fill" style="color:#d97706;font-size:20px;flex-shrink:0;margin-top:2px;"></i>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:4px;">Integración a sistema de tickets no configurada</div>
+          <div style="font-size:12px;color:#b45309;line-height:1.5;">Este cliente (<strong><%= _tenantName %></strong>) no tiene una integración con Jira u otro sistema de tickets externo. La configuración de alertas y SLA aplica únicamente al sistema local de tickets (TK-).</div>
+        </div>
+      </div>
+      <% } %>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;">
+
+        <!-- SLA por Prioridad -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <div style="width:32px;height:32px;background:rgba(37,99,235,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#2563eb;"><i class="bi bi-clock-fill"></i></div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:var(--text);">Umbrales SLA</div>
+              <div style="font-size:11px;color:var(--muted);">Tiempo máximo de resolución por prioridad</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <span class="cfg-prio-badge" style="background:#ef444420;color:#ef4444;">P1</span>
+            <span style="font-size:12px;color:var(--muted);flex:1;">Crítico</span>
+            <input type="number" id="cfg-sla-p1" value="60" min="1" max="10080" class="cfg-input">
+            <span style="font-size:11px;color:var(--muted);">min</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <span class="cfg-prio-badge" style="background:#f9731620;color:#f97316;">P2</span>
+            <span style="font-size:12px;color:var(--muted);flex:1;">Alto</span>
+            <input type="number" id="cfg-sla-p2" value="240" min="1" max="10080" class="cfg-input">
+            <span style="font-size:11px;color:var(--muted);">min</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <span class="cfg-prio-badge" style="background:#3b82f620;color:#3b82f6;">P3</span>
+            <span style="font-size:12px;color:var(--muted);flex:1;">Medio</span>
+            <input type="number" id="cfg-sla-p3" value="480" min="1" max="10080" class="cfg-input">
+            <span style="font-size:11px;color:var(--muted);">min</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <span class="cfg-prio-badge" style="background:#6b728020;color:#6b7280;">P4</span>
+            <span style="font-size:12px;color:var(--muted);flex:1;">Bajo</span>
+            <input type="number" id="cfg-sla-p4" value="1440" min="1" max="10080" class="cfg-input">
+            <span style="font-size:11px;color:var(--muted);">min</span>
+          </div>
+        </div>
+
+        <!-- Alertas y NOC -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+
+          <!-- Ventana de Alertas -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+              <div style="width:32px;height:32px;background:rgba(239,68,68,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#ef4444;"><i class="bi bi-bell-fill"></i></div>
+              <div>
+                <div style="font-size:13px;font-weight:800;color:var(--text);">Alertas SLA</div>
+                <div style="font-size:11px;color:var(--muted);">Cuándo disparar la alerta preventiva</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <span style="font-size:12px;color:var(--muted);flex:1;">Ventana de alerta</span>
+              <input type="number" id="cfg-alert-window" value="10" min="1" max="120"
+                style="width:70px;border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;font-size:12px;background:var(--bg);color:var(--text);text-align:right;">
+              <span style="font-size:11px;color:var(--muted);">min antes</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:12px;color:var(--muted);flex:1;">Notif. navegador en breach</span>
+              <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;">
+                <input type="checkbox" id="cfg-alert-notif" checked style="opacity:0;width:0;height:0;">
+                <span onclick="this.previousElementSibling.click()" style="position:absolute;inset:0;background:var(--border);border-radius:10px;cursor:pointer;transition:.3s;" id="cfg-alert-notif-track"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- NOC -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+              <div style="width:32px;height:32px;background:rgba(8,145,178,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#0891b2;"><i class="bi bi-display-fill"></i></div>
+              <div>
+                <div style="font-size:13px;font-weight:800;color:var(--text);">Dashboard NOC</div>
+                <div style="font-size:11px;color:var(--muted);">Cola y frecuencia de actualización</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <span style="font-size:12px;color:var(--muted);flex:1;">Cola de trabajo</span>
+              <select id="cfg-noc-queue" style="border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;font-size:12px;background:var(--bg);color:var(--text);">
+                <option value="wp">Workplace</option>
+                <option value="all">Todas las colas</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:12px;color:var(--muted);flex:1;">Intervalo de refresh</span>
+              <input type="number" id="cfg-noc-refresh" value="60" min="15" max="300"
+                style="width:70px;border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;font-size:12px;background:var(--bg);color:var(--text);text-align:right;">
+              <span style="font-size:11px;color:var(--muted);">seg</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Correos de Escalación (full width) -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;grid-column:1/-1;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <div style="width:32px;height:32px;background:rgba(217,119,6,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#d97706;"><i class="bi bi-envelope-exclamation-fill"></i></div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:var(--text);">Correos de Escalación</div>
+              <div style="font-size:11px;color:var(--muted);">Notificar a estos correos cuando un ticket entre en breach de SLA</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;margin-left:auto;font-size:12px;color:var(--muted);cursor:pointer;">
+              <input type="checkbox" id="cfg-esc-enabled">
+              Habilitado
+            </label>
+          </div>
+          <input type="text" id="cfg-esc-emails" placeholder="supervisor@empresa.com, gerente@empresa.com"
+            style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;background:var(--bg);color:var(--text);font-family:inherit;">
+          <div style="font-size:10px;color:var(--muted);margin-top:5px;">Separar múltiples correos con comas. La escalación se activa automáticamente cuando se detecta un breach.</div>
+        </div>
+
+      </div><!-- /grid -->
+
+      <!-- Acciones -->
+      <div style="display:flex;align-items:center;gap:12px;margin-top:20px;max-width:900px;">
+        <button onclick="cfgSave()" style="display:flex;align-items:center;gap:7px;padding:9px 22px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s;" id="cfgSaveBtn">
+          <i class="bi bi-floppy-fill"></i> Guardar configuración
+        </button>
+        <a href="/itsm/noc" target="_blank" style="display:flex;align-items:center;gap:6px;padding:9px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;transition:all .18s;">
+          <i class="bi bi-display-fill"></i> Abrir NOC TV
+        </a>
+        <span id="cfgStatus" style="font-size:12px;color:var(--success);display:none;"><i class="bi bi-check-circle-fill"></i> Guardado</span>
+      </div>
+    </div><!-- /panelConfig -->
+
+  </div><!-- /content-area -->
+
+</div><!-- /app-shell -->
+
+<!-- ══ MODALES ══════════════════════════════════════════════ -->
+
+<!-- KB -->
+<div class="adm-modal-overlay" id="modalKB">
+  <div class="adm-modal">
+    <button class="adm-modal-close" onclick="closeModal('modalKB')"><i class="bi bi-x-lg"></i></button>
+    <h3><i class="bi bi-journal-plus" style="color:#7c3aed;"></i> Publicar artículo en KB</h3>
+    <div class="fm-row"><label>Título *</label><input id="kb-title" type="text" placeholder="Ej: Cómo configurar VPN en Windows 11"></div>
+    <div class="fm-row-2">
+      <div class="fm-row" style="margin:0;"><label>Tipo *</label><select id="kb-tipo"><option value="articulo">Artículo Técnico</option><option value="procedimiento">Procedimiento</option></select></div>
+      <div class="fm-row" style="margin:0;"><label>Categoría</label><select id="kb-category"><option value="">— Sin categoría —</option></select></div>
+    </div>
+    <div class="fm-row-2" style="margin-top:14px;">
+      <div class="fm-row" style="margin:0;"><label>Estado</label><select id="kb-status"><option value="publicado">Publicado</option><option value="borrador">Borrador</option></select></div>
+      <div class="fm-row" style="margin:0;"><label>Extracto</label><input id="kb-excerpt" type="text" placeholder="Breve descripción (opcional)"></div>
+    </div>
+    <div class="fm-row" style="margin-top:14px;"><label>Contenido *</label><textarea id="kb-content" rows="6" placeholder="Escribe el contenido..."></textarea></div>
+    <div class="fm-row"><label>Etiquetas</label><input id="kb-tags" type="text" placeholder="vpn, red, windows (separadas por coma)"></div>
+    <div class="fm-footer">
+      <button class="btn-fm btn-fm-cancel" onclick="closeModal('modalKB')">Cancelar</button>
+      <button class="btn-fm btn-fm-submit purp" onclick="submitKB()"><i class="bi bi-send-fill"></i> Publicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FAQ -->
+<div class="adm-modal-overlay" id="modalFAQ">
+  <div class="adm-modal">
+    <button class="adm-modal-close" onclick="closeModal('modalFAQ')"><i class="bi bi-x-lg"></i></button>
+    <h3><i class="bi bi-patch-plus-fill" style="color:#0891b2;"></i> Nueva pregunta frecuente</h3>
+    <div class="fm-row-2">
+      <div class="fm-row" style="margin:0;"><label>Categoría *</label><input id="faq-category" type="text" list="faq-cats" placeholder="Ej: Incidencias"><datalist id="faq-cats"><option value="Incidencias"><option value="Requerimientos"><option value="Equipos y Mantenimiento"><option value="Accesos y Correo"><option value="General"></datalist></div>
+      <div class="fm-row" style="margin:0;"><label>Orden</label><input id="faq-order" type="number" value="0" min="0"></div>
+    </div>
+    <div class="fm-row" style="margin-top:14px;"><label>Pregunta *</label><input id="faq-question" type="text" placeholder="¿Cuál es la pregunta?"></div>
+    <div class="fm-row"><label>Respuesta *</label><textarea id="faq-answer" rows="5" placeholder="Escribe la respuesta completa."></textarea></div>
+    <div class="fm-footer">
+      <button class="btn-fm btn-fm-cancel" onclick="closeModal('modalFAQ')">Cancelar</button>
+      <button class="btn-fm btn-fm-submit cyan" onclick="submitFAQ()"><i class="bi bi-send-fill"></i> Publicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- DIRECTORIO -->
+<div class="adm-modal-overlay" id="modalDirectorio">
+  <div class="adm-modal" style="max-width:620px;">
+    <button class="adm-modal-close" onclick="closeModal('modalDirectorio')"><i class="bi bi-x-lg"></i></button>
+    <h3><i class="bi bi-card-list" style="color:#1d4ed8;"></i> Directorio de Empleados</h3>
+    <div style="display:flex;gap:8px;">
+      <input id="dir-search-input" type="text" style="flex:1;border:1.5px solid var(--border-soft);border-radius:10px;padding:9px 12px;font-size:13px;background:var(--bg-main);color:var(--text-main);outline:none;font-family:inherit;" placeholder="Buscar por nombre, email o área..." onkeydown="if(event.key==='Enter')dirSearch()">
+      <button class="btn-fm btn-fm-submit blue" onclick="dirSearch()"><i class="bi bi-search"></i> Buscar</button>
+    </div>
+    <div id="dir-results" class="dir-results" style="display:none;margin-top:10px;"></div>
+    <div class="dir-edit-panel" id="dir-edit-panel">
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;"><i class="bi bi-pencil-square"></i> Editar datos del colaborador</div>
+      <input type="hidden" id="dir-edit-id">
+      <div class="fm-row-2">
+        <div class="fm-row" style="margin:0;"><label>Nombre completo</label><input id="dir-edit-name" type="text"></div>
+        <div class="fm-row" style="margin:0;"><label>Email corporativo</label><input id="dir-edit-email" type="email"></div>
+      </div>
+      <div class="fm-row-2" style="margin-top:12px;">
+        <div class="fm-row" style="margin:0;"><label>Teléfono</label><input id="dir-edit-phone" type="text" placeholder="+51 9..."></div>
+        <div class="fm-row" style="margin:0;"><label>Cargo</label><input id="dir-edit-position" type="text"></div>
+      </div>
+      <div class="fm-row" style="margin-top:12px;"><label>Departamento</label><input id="dir-edit-dept" type="text"></div>
+      <div class="fm-footer" style="margin-top:14px;">
+        <button class="btn-fm btn-fm-cancel" onclick="dirCancelEdit()">Cancelar</button>
+        <button class="btn-fm btn-fm-submit blue" onclick="dirSave()"><i class="bi bi-floppy-fill"></i> Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TEAMS -->
+<div class="adm-modal-overlay" id="modalTeams" data-feature="microsoft_teams">
+  <div class="adm-modal">
+    <button class="adm-modal-close" onclick="closeModal('modalTeams')"><i class="bi bi-x-lg"></i></button>
+    <h3><i class="bi bi-microsoft-teams" style="color:#6264a7;"></i> Mensaje vía Microsoft Teams</h3>
+    <div class="graph-badge"><i class="bi bi-microsoft"></i> Microsoft Graph API</div>
+    <div class="fm-row"><label>Destinatario (email o UPN)</label><input id="teams-to" type="email" placeholder="usuario@empresa.com"></div>
+    <div class="fm-row"><label>Mensaje *</label><textarea id="teams-msg" rows="4" placeholder="Escribe el mensaje..."></textarea></div>
+    <div class="fm-footer">
+      <button class="btn-fm btn-fm-cancel" onclick="closeModal('modalTeams')">Cancelar</button>
+      <button class="btn-fm btn-fm-submit" style="background:linear-gradient(135deg,#6264a7,#4a4f8c);" onclick="sendTeamsMsg()"><i class="bi bi-send-fill"></i> Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CORREO MASIVO -->
+<div class="adm-modal-overlay" id="modalCorreo" data-feature="outlook_sync">
+  <div class="adm-modal">
+    <button class="adm-modal-close" onclick="closeModal('modalCorreo')"><i class="bi bi-x-lg"></i></button>
+    <h3><i class="bi bi-envelope-fill" style="color:#0052cc;"></i> Correo Masivo</h3>
+    <div class="graph-badge"><i class="bi bi-microsoft"></i> Microsoft Graph API · SendMail</div>
+    <div class="fm-row"><label>Destinatarios</label><input id="correo-to" type="text" placeholder="lista@empresa.com o emails separados por coma"></div>
+    <div class="fm-row"><label>Asunto *</label><input id="correo-subject" type="text" placeholder="Asunto del correo"></div>
+    <div class="fm-row"><label>Mensaje *</label><textarea id="correo-body" rows="5" placeholder="Contenido del correo (HTML permitido)..."></textarea></div>
+    <div class="fm-footer">
+      <button class="btn-fm btn-fm-cancel" onclick="closeModal('modalCorreo')">Cancelar</button>
+      <button class="btn-fm btn-fm-submit blue" onclick="sendMasivo()"><i class="bi bi-send-fill"></i> Enviar correo</button>
+    </div>
+  </div>
+</div>
+
+<!-- DESPLIEGUES -->
+<div class="adm-modal-overlay" id="modalDeploy" data-feature="intune">
+  <div class="adm-modal">
+    <button class="adm-modal-close" onclick="closeModal('modalDeploy')"><i class="bi bi-x-lg"></i></button>
+    <h3><i class="bi bi-rocket-takeoff-fill" style="color:#ea580c;"></i> Despliegue de Aplicaciones</h3>
+    <div class="graph-badge"><i class="bi bi-microsoft"></i> Microsoft Intune · Graph API</div>
+    <div class="fm-row"><label>Aplicación a desplegar</label>
+      <select id="deploy-app">
+        <option value="">— Selecciona una aplicación —</option>
+        <option value="office365">Microsoft 365 Apps</option>
+        <option value="teams">Microsoft Teams</option>
+        <option value="edge">Microsoft Edge</option>
+        <option value="defender">Microsoft Defender</option>
+        <option value="custom">Personalizado...</option>
+      </select>
+    </div>
+    <div class="fm-row"><label>Grupo de destino (Azure AD)</label><input id="deploy-group" type="text" placeholder="Nombre del grupo de Azure AD"></div>
+    <div class="fm-row"><label>Notas</label><textarea id="deploy-notes" rows="3" placeholder="Indica el propósito del despliegue..."></textarea></div>
+    <div class="fm-footer">
+      <button class="btn-fm btn-fm-cancel" onclick="closeModal('modalDeploy')">Cancelar</button>
+      <button class="btn-fm btn-fm-submit orange" onclick="sendDeploy()"><i class="bi bi-rocket-takeoff-fill"></i> Iniciar despliegue</button>
+    </div>
+  </div>
+</div>
+
+<div class="adm-toast" id="admToast"></div>
+
+<script>
+/* ── THEME ──────────────────────────────────────────────────── */
+(function(){
+  const s = localStorage.getItem('dashboardTheme') || 'light';
+  document.documentElement.setAttribute('data-theme', s);
+  _syncThemeIcons(s);
+})();
+function toggleTheme(){
+  const n = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', n);
+  localStorage.setItem('dashboardTheme', n);
+  _syncThemeIcons(n);
+}
+function _syncThemeIcons(t){
+  const cls = t === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+  ['navThemeIcon','sbThemeIcon'].forEach(id => { const el = document.getElementById(id); if(el) el.className = cls; });
+}
+
+/* ── SIDEBAR ────────────────────────────────────────────────── */
+(function(){
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sbOverlay');
+  let _sbCollapsed = localStorage.getItem('admin_sb_collapsed') === '1';
+  if (_sbCollapsed) sb.classList.add('collapsed');
+
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= 768) {
+      const opening = !sb.classList.contains('mobile-open');
+      sb.classList.toggle('mobile-open', opening);
+      ov.classList.toggle('visible', opening);
+      document.body.style.overflow = opening ? 'hidden' : '';
+    } else {
+      _sbCollapsed = !_sbCollapsed;
+      sb.classList.toggle('collapsed', _sbCollapsed);
+      localStorage.setItem('admin_sb_collapsed', _sbCollapsed ? '1' : '0');
+    }
+  };
+  window.closeSidebarMobile = function(){
+    sb.classList.remove('mobile-open');
+    ov.classList.remove('visible');
+    document.body.style.overflow = '';
+  };
+  window.addEventListener('resize', function(){
+    if (window.innerWidth > 768) {
+      sb.classList.remove('mobile-open');
+      ov.classList.remove('visible');
+      document.body.style.overflow = '';
+    }
+  });
+})();
+function sbToggle(menuId, btn){
+  const menu = document.getElementById(menuId);
+  const isOpen = menu.classList.contains('open');
+  menu.classList.toggle('open', !isOpen);
+  btn.classList.toggle('sb-expanded', !isOpen);
+}
+function sbGo(key, el){
+  document.querySelectorAll('.sb-item.active').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* ── MODALS ─────────────────────────────────────────────────── */
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+  if(id === 'modalKB') loadKBCategories();
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.adm-modal-overlay').forEach(el =>
+  el.addEventListener('click', e => { if(e.target === el) el.classList.remove('open'); })
+);
+document.addEventListener('keydown', e => { if(e.key === 'Escape') document.querySelectorAll('.adm-modal-overlay.open').forEach(m => m.classList.remove('open')); });
+
+/* ── TOAST ──────────────────────────────────────────────────── */
+function toast(msg, type = 'ok'){
+  const t = document.getElementById('admToast');
+  t.textContent = (type === 'ok' ? '✓  ' : '✕  ') + msg;
+  t.className = 'adm-toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+/* ── KB ─────────────────────────────────────────────────────── */
+async function loadKBCategories(){
+  const sel = document.getElementById('kb-category');
+  if(sel.options.length > 1) return;
+  try {
+    const r = await fetch('/api/kb/categories', { credentials: 'include' });
+    const d = await r.json();
+    (d.data || d || []).forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = c.name || c.nombre || c.category;
+      sel.appendChild(o);
+    });
+  } catch(e) {}
+}
+async function submitKB(){
+  const title = document.getElementById('kb-title').value.trim();
+  const content = document.getElementById('kb-content').value.trim();
+  if(!title)   { toast('El título es requerido', 'err'); return; }
+  if(!content) { toast('El contenido es requerido', 'err'); return; }
+  const btn = event.target; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Publicando…';
+  try {
+    const r = await fetch('/api/kb/admin-create', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ title, content, status: document.getElementById('kb-status').value, excerpt: document.getElementById('kb-excerpt').value.trim(), kbCategoryId: document.getElementById('kb-category').value || null, tags: document.getElementById('kb-tags').value.trim(), tipo: document.getElementById('kb-tipo').value }) });
+    const d = await r.json();
+    if(d.success || d.data){ toast('Artículo publicado'); closeModal('modalKB'); ['kb-title','kb-content','kb-excerpt','kb-tags'].forEach(id => document.getElementById(id).value=''); }
+    else toast(d.error || 'Error al publicar', 'err');
+  } catch(e){ toast('Error de conexión', 'err'); }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send-fill"></i> Publicar'; }
+}
+
+/* ── FAQ ─────────────────────────────────────────────────────── */
+async function submitFAQ(){
+  const category = document.getElementById('faq-category').value.trim();
+  const question = document.getElementById('faq-question').value.trim();
+  const answer   = document.getElementById('faq-answer').value.trim();
+  if(!category || !question || !answer){ toast('Completa todos los campos requeridos', 'err'); return; }
+  const btn = event.target; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Publicando…';
+  try {
+    const r = await fetch('/api/faq', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ category, question, answer, order_num: parseInt(document.getElementById('faq-order').value)||0 }) });
+    const d = await r.json();
+    if(d.success){ toast('Pregunta publicada'); closeModal('modalFAQ'); ['faq-category','faq-question','faq-answer'].forEach(id=>document.getElementById(id).value=''); document.getElementById('faq-order').value='0'; }
+    else toast(d.error || 'Error al publicar', 'err');
+  } catch(e){ toast('Error de conexión', 'err'); }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send-fill"></i> Publicar'; }
+}
+
+/* ── DIRECTORIO ─────────────────────────────────────────────── */
+function _esc(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+async function dirSearch(){
+  const q = document.getElementById('dir-search-input').value.trim();
+  if(!q){ toast('Ingresa un término de búsqueda', 'err'); return; }
+  const res = document.getElementById('dir-results');
+  res.style.display = 'block';
+  res.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--text-muted);"><i class="bi bi-hourglass-split"></i> Buscando...</div>';
+  document.getElementById('dir-edit-panel').style.display = 'none';
+  try {
+    const r = await fetch(`/api/employees/search?q=${encodeURIComponent(q)}`, { credentials:'include' });
+    const d = await r.json();
+    const list = d.data || d || [];
+    if(!list.length){ res.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--text-muted);">Sin resultados</div>'; return; }
+    res.innerHTML = list.slice(0,15).map(e =>
+      `<div class="dir-result-item" onclick="dirEdit(${e.id},'${_esc(e.full_name||e.name||'')}','${_esc(e.email||'')}','${_esc(e.phone||e.telefono||'')}','${_esc(e.position||e.cargo||'')}','${_esc(e.department||e.departamento||'')}')">
+        <strong>${e.full_name||e.name||e.email||''}</strong>
+        <span>${e.email||''} · ${e.department||e.departamento||''}</span>
+      </div>`).join('');
+  } catch(e){ res.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#dc2626;">Error de conexión</div>'; }
+}
+function dirEdit(id, name, email, phone, pos, dept){
+  ['dir-edit-id','dir-edit-name','dir-edit-email','dir-edit-phone','dir-edit-position','dir-edit-dept']
+    .forEach((fid, i) => document.getElementById(fid).value = [id,name,email,phone,pos,dept][i]);
+  const p = document.getElementById('dir-edit-panel'); p.style.display='block'; p.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function dirCancelEdit(){ document.getElementById('dir-edit-panel').style.display='none'; }
+async function dirSave(){
+  const id = document.getElementById('dir-edit-id').value;
+  const body = { full_name: document.getElementById('dir-edit-name').value.trim(), email: document.getElementById('dir-edit-email').value.trim(), phone: document.getElementById('dir-edit-phone').value.trim(), position: document.getElementById('dir-edit-position').value.trim(), department: document.getElementById('dir-edit-dept').value.trim() };
+  const btn = event.target; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando…';
+  try {
+    const r = await fetch(`/api/employees/${id}`, { method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if(d.success || d.data || r.ok){ toast('Datos actualizados'); dirCancelEdit(); }
+    else toast(d.error || 'Error al guardar', 'err');
+  } catch(e){ toast('Error de conexión', 'err'); }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-floppy-fill"></i> Guardar cambios'; }
+}
+
+/* ── GRAPH API ──────────────────────────────────────────────── */
+async function sendTeamsMsg(){
+  const to = document.getElementById('teams-to').value.trim(), msg = document.getElementById('teams-msg').value.trim();
+  if(!to || !msg){ toast('Completa todos los campos', 'err'); return; }
+  const btn = event.target; btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split"></i> Enviando…';
+  try {
+    const r = await fetch('/api/graph/teams/send', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({to, message: msg}) });
+    const d = await r.json();
+    if(d.success || r.ok){ toast('Mensaje enviado por Teams'); closeModal('modalTeams'); document.getElementById('teams-to').value=''; document.getElementById('teams-msg').value=''; }
+    else toast(d.error || 'Error al enviar', 'err');
+  } catch(e){ toast('Error de conexión', 'err'); }
+  finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-send-fill"></i> Enviar'; }
+}
+async function sendMasivo(){
+  const to=document.getElementById('correo-to').value.trim(), subject=document.getElementById('correo-subject').value.trim(), body=document.getElementById('correo-body').value.trim();
+  if(!to||!subject||!body){ toast('Completa todos los campos', 'err'); return; }
+  const btn = event.target; btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split"></i> Enviando…';
+  try {
+    const r = await fetch('/api/graph/mail/send', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({to, subject, body}) });
+    const d = await r.json();
+    if(d.success || r.ok){ toast('Correo enviado'); closeModal('modalCorreo'); ['correo-to','correo-subject','correo-body'].forEach(id=>document.getElementById(id).value=''); }
+    else toast(d.error || 'Error al enviar', 'err');
+  } catch(e){ toast('Error de conexión', 'err'); }
+  finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-send-fill"></i> Enviar correo'; }
+}
+async function sendDeploy(){
+  const app=document.getElementById('deploy-app').value, group=document.getElementById('deploy-group').value.trim();
+  if(!app||!group){ toast('Selecciona app y grupo', 'err'); return; }
+  const btn = event.target; btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split"></i> Iniciando…';
+  try {
+    const r = await fetch('/api/graph/deploy', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({app, group, notes: document.getElementById('deploy-notes').value.trim()}) });
+    const d = await r.json();
+    if(d.success || r.ok){ toast('Despliegue iniciado'); closeModal('modalDeploy'); document.getElementById('deploy-app').value=''; document.getElementById('deploy-group').value=''; document.getElementById('deploy-notes').value=''; }
+    else toast(d.error || 'Error', 'err');
+  } catch(e){ toast('Error de conexión', 'err'); }
+  finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-rocket-takeoff-fill"></i> Iniciar despliegue'; }
+}
+
+/* ── BACKLOG METRICS ────────────────────────────────────────── */
+const ADMIN_TENANT_ID    = <%- _tenantId %>;
+const ADMIN_JIRA_ENABLED = <%- _jiraEnabled %>;
+
+function _set(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}
+
+async function loadDashboard(){
+  try{
+    function _jiraCount(jql){
+      return fetch('/api/jira/rest/api/3/search/jql',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({jql,fields:['id'],maxResults:500})}).then(r=>r.json()).then(d=>Array.isArray(d.issues)?d.issues.length:'—').catch(()=>'—');
+    }
+    const [openVal,resVal,cmdbSt,rmmAl,rmmDevs]=await Promise.all([
+      _jiraCount('project = INC AND "Tipo de Componente" = Workplace AND status not in ("Cerrado","Closed","Resuelto","Resolved","Done","Cancelado","Cancelled") AND assignee is EMPTY'),
+      _jiraCount('project = INC AND "Tipo de Componente" = Workplace AND resolutiondate >= startOfDay()'),
+      fetch('/tickets/cmdb/quick-stats',{credentials:'include'}).then(r=>r.json()).catch(()=>({})),
+      fetch('/api/rmm/alerts/stats',{credentials:'include'}).then(r=>r.json()).catch(()=>({})),
+      fetch('/api/rmm/devices',{credentials:'include'}).then(r=>r.json()).catch(()=>({})),
+    ]);
+    _set('bsOpen',openVal);
+    _set('bsOpenSub',openVal!=='—'?openVal+' sin asignar en Jira':'Cargando…');
+    _set('bsResolved',resVal);
+    _set('bsResolvedSub',resVal!=='—'?resVal+' cerrados hoy':'—');
+    _set('bsEmpleados',cmdbSt.empleados??'—');
+    _set('bsEmpleadosSub','Colaboradores');
+    _set('bsEquipos',cmdbSt.equipos??'—');
+    _set('bsEquiposSub','Inventario TI');
+
+    // Resumen rápido
+    const devList=Array.isArray(rmmDevs?.devices)?rmmDevs.devices:(Array.isArray(rmmDevs)?rmmDevs:[]);
+    const onlineN=devList.filter(d=>d.conn===1||d.conn===true).length;
+    _set('resAgentsVal',onlineN+'/'+devList.length);
+    _set('resAgentsSub',onlineN+' en línea de '+devList.length);
+    const al=rmmAl?.data||rmmAl||{};
+    const alTotal=(al.critical||0)+(al.warning||0);
+    _set('resAlertsVal',alTotal||0);
+    _set('resAlertsSub',(al.critical||0)>0?al.critical+' crítica(s)':'Sin alertas críticas');
+    _set('resDeptVal',cmdbSt.empleados??'—');
+
+    // Update donut with real Jira data
+    if(typeof drawDashDonut==='function'){
+      const ov=openVal!=='—'?+openVal:0, rv=resVal!=='—'?+resVal:0;
+      drawDashDonut(ov,45,rv);
+      const _dsv=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+      _dsv('donutOpen',openVal!=='—'?openVal:'—');
+      _dsv('donutProg',45);
+      _dsv('donutRes',resVal!=='—'?resVal:'—');
+    }
+
+  }catch(e){console.warn('[admin dash]',e);}
+}
+loadDashboard();
+
+/* ── DASH CHARTS ─────────────────────────────────────────────── */
+function _isDarkDash(){return document.documentElement.getAttribute('data-theme')==='dark';}
+function _hex2rg(h,a){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return`rgba(${r},${g},${b},${a})`;}
+
+function drawDashSpk(id,data,color){
+  const svg=document.getElementById(id);if(!svg)return;
+  const W=80,H=30,p=2,mn=Math.min(...data),mx=Math.max(...data),rg=mx-mn||1;
+  const pts=data.map((v,i)=>[(i/(data.length-1))*W,H-p-((v-mn)/rg)*(H-p*2)]);
+  const ln=pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join('');
+  const fi=ln+` L${W} ${H} L0 ${H} Z`;
+  const rc=parseInt(color.slice(1,3),16),gc=parseInt(color.slice(3,5),16),bc=parseInt(color.slice(5,7),16);
+  svg.innerHTML=`<defs><linearGradient id="dg${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgb(${rc},${gc},${bc})" stop-opacity=".2"/><stop offset="100%" stop-color="rgb(${rc},${gc},${bc})" stop-opacity="0"/></linearGradient></defs><path d="${fi}" fill="url(#dg${id})"/><path d="${ln}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
+function drawDashTrend(){
+  const canvas=document.getElementById('dashTrendChart');if(!canvas)return;
+  const dpr=window.devicePixelRatio||1,W=canvas.offsetWidth,H=160;
+  canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  const dark=_isDarkDash();
+  const gc=dark?'rgba(148,163,184,.07)':'rgba(0,0,0,.055)';
+  const tc=dark?'#64748b':'#94a3b8';
+  const labels=['Lun','Mar','Mié','Jue','Vie','Sáb','Hoy'];
+  const d1=[18,25,31,22,28,15,27],d2=[16,22,28,19,26,13,27];
+  const pL=34,pR=10,pT=10,pB=26,cW=W-pL-pR,cH=H-pT-pB;
+  const mxv=Math.ceil(Math.max(...d1,...d2)*1.3/10)*10;
+  const xP=i=>pL+(i/(labels.length-1))*cW;
+  const yP=v=>pT+cH-(v/mxv)*cH;
+  ctx.clearRect(0,0,W,H);
+  const fnt=`10px -apple-system,'Segoe UI',system-ui,sans-serif`;
+  for(let i=0;i<=4;i++){
+    const y=pT+(cH/4)*i,v=Math.round(mxv-(mxv/4)*i);
+    ctx.strokeStyle=gc;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pL,y);ctx.lineTo(pL+cW,y);ctx.stroke();
+    ctx.fillStyle=tc;ctx.font=fnt;ctx.textAlign='right';ctx.fillText(v,pL-5,y+3.5);
+  }
+  function ser(data,color){
+    const g=ctx.createLinearGradient(0,pT,0,pT+cH);
+    g.addColorStop(0,_hex2rg(color,.15));g.addColorStop(1,_hex2rg(color,0));
+    ctx.beginPath();data.forEach((v,i)=>i?ctx.lineTo(xP(i),yP(v)):ctx.moveTo(xP(i),yP(v)));
+    ctx.lineTo(xP(data.length-1),pT+cH);ctx.lineTo(pL,pT+cH);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();data.forEach((v,i)=>i?ctx.lineTo(xP(i),yP(v)):ctx.moveTo(xP(i),yP(v)));
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();
+    data.forEach((v,i)=>{
+      ctx.beginPath();ctx.arc(xP(i),yP(v),3.5,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+      ctx.beginPath();ctx.arc(xP(i),yP(v),1.8,0,Math.PI*2);ctx.fillStyle=dark?'#111827':'#fff';ctx.fill();
+    });
+    ctx.fillStyle=color;ctx.font=`bold 10px ${fnt}`;ctx.textAlign='center';
+    ctx.fillText(data[data.length-1],xP(data.length-1),yP(data[data.length-1])-9);
+  }
+  ser(d2,'#10b981');ser(d1,'#2563eb');
+  ctx.fillStyle=tc;ctx.font=fnt;ctx.textAlign='center';
+  labels.forEach((l,i)=>ctx.fillText(l,xP(i),H-6));
+}
+
+function drawDashDonut(open,prog,res){
+  const svg=document.getElementById('dashDonut');if(!svg)return;
+  const dark=_isDarkDash(),cx=75,cy=75,R=57,sw=15;
+  const total=(open||0)+(prog||0)+(res||0);
+  const trk=dark?'#1e293b':'#e2e8f0';
+  let h=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${trk}" stroke-width="${sw}"/>`;
+  if(total>0){
+    const segs=[{n:open||0,c:'#ef4444'},{n:prog||0,c:'#f59e0b'},{n:res||0,c:'#10b981'}].filter(s=>s.n>0);
+    const gap=0.05;let st=-Math.PI/2;
+    segs.forEach(seg=>{
+      const sw2=seg.n/total*Math.PI*2,a0=st+gap/2,a1=st+sw2-gap/2;
+      const x0=cx+R*Math.cos(a0),y0=cy+R*Math.sin(a0),x1=cx+R*Math.cos(a1),y1=cy+R*Math.sin(a1);
+      h+=`<path d="M${x0.toFixed(2)} ${y0.toFixed(2)} A${R} ${R} 0 ${sw2-gap>Math.PI?1:0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}" fill="none" stroke="${seg.c}" stroke-width="${sw}" stroke-linecap="round"/>`;
+      st+=sw2;
+    });
+  }
+  svg.innerHTML=h;
+  const el=document.getElementById('donutTotal');if(el)el.textContent=total||'—';
+}
+
+(function _initDashCharts(){
+  drawDashSpk('ksp0',[5,3,7,4,2,1,0],'#ef4444');
+  drawDashSpk('ksp1',[15,22,18,28,25,30,33],'#10b981');
+  drawDashSpk('ksp2',[3050,3055,3060,3058,3065,3068,3070],'#2563eb');
+  drawDashSpk('ksp3',[3775,3779,3783,3786,3789,3791,3793],'#d97706');
+  drawDashTrend();
+  drawDashDonut(0,45,87);
+  const _sd=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  _sd('donutOpen','0');_sd('donutProg','45');_sd('donutRes','87');
+  const TECHS=[
+    {n:'Manuel Quintanilla',v:8,c:'#2563eb',i:'MQ'},
+    {n:'Pedro Garay',       v:7,c:'#7c3aed',i:'PG'},
+    {n:'David Ortiz',       v:6,c:'#10b981',i:'DO'},
+    {n:'José Ayala',        v:5,c:'#d97706',i:'JA'},
+    {n:'G. Barnuevo',       v:4,c:'#ec4899',i:'GB'},
+  ];
+  const tl=document.getElementById('dashTecList');
+  if(tl)tl.innerHTML=TECHS.map(t=>`<div class="tec-ri"><div class="tec-av" style="background:${t.c}">${t.i}</div><div class="tec-if"><div class="tec-nm">${t.n}</div><div class="tec-br"><div class="tec-bf" style="width:${(t.v/TECHS[0].v*100).toFixed(0)}%;background:${t.c}"></div></div></div><div class="tec-nv" style="color:${t.c}">${t.v}</div></div>`).join('');
+  window.addEventListener('resize',drawDashTrend);
+  new MutationObserver(()=>{drawDashTrend();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+})();
+
+/* ── PANEL SWITCHER ─────────────────────────────────────────── */
+function panelGo(id) {
+  ['panelInicio','panelConfig'].forEach(p => {
+    const el = document.getElementById(p);
+    if (el) el.style.display = p === id ? '' : 'none';
+  });
+  const hdr = { panelInicio:'Centro de Control ITSM', panelConfig:'Configuración ITSM' };
+  const sub = { panelInicio:'Gestión completa · IT Platform Administración', panelConfig:'SLA, alertas, NOC y escalación' };
+  const t = document.getElementById('chTitle'); if (t) t.textContent = hdr[id] || '';
+  const s = document.getElementById('chSub');   if (s) s.textContent = sub[id] || '';
+  if (id === 'panelConfig') cfgLoad();
+}
+
+/* ── CONFIG ITSM ────────────────────────────────────────────── */
+async function cfgLoad() {
+  try {
+    const r = await fetch('/api/jira/config/itsm', { credentials:'include' });
+    const d = await r.json();
+    if (!d.success) return;
+    const c = d.data;
+    if (c.sla) {
+      ['p1','p2','p3','p4'].forEach(p => {
+        const el = document.getElementById('cfg-sla-' + p);
+        if (el && c.sla[p.toUpperCase()]) el.value = c.sla[p.toUpperCase()];
+      });
+    }
+    if (c.alerts) {
+      const w = document.getElementById('cfg-alert-window');
+      if (w) w.value = c.alerts.window_minutes || 10;
+      const n = document.getElementById('cfg-alert-notif');
+      if (n) n.checked = c.alerts.breach_notification !== false;
+    }
+    if (c.noc) {
+      const q = document.getElementById('cfg-noc-queue');
+      if (q) q.value = c.noc.queue || 'wp';
+      const rf = document.getElementById('cfg-noc-refresh');
+      if (rf) rf.value = c.noc.refresh_seconds || 60;
+    }
+    if (c.escalation) {
+      const em = document.getElementById('cfg-esc-emails');
+      if (em) em.value = c.escalation.emails || '';
+      const en = document.getElementById('cfg-esc-enabled');
+      if (en) en.checked = !!c.escalation.enabled;
+    }
+    _cfgSyncToggle();
+  } catch(e) { console.error('[cfg]', e); }
+}
+
+function _cfgSyncToggle() {
+  const n = document.getElementById('cfg-alert-notif');
+  const t = document.getElementById('cfg-alert-notif-track');
+  if (n && t) t.style.background = n.checked ? 'var(--primary)' : 'var(--border)';
+}
+document.addEventListener('change', e => {
+  if (e.target.id === 'cfg-alert-notif') _cfgSyncToggle();
+});
+
+async function cfgSave() {
+  const btn = document.getElementById('cfgSaveBtn');
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando…';
+  const body = {
+    sla: { P1: +document.getElementById('cfg-sla-p1').value, P2: +document.getElementById('cfg-sla-p2').value, P3: +document.getElementById('cfg-sla-p3').value, P4: +document.getElementById('cfg-sla-p4').value },
+    alerts: { window_minutes: +document.getElementById('cfg-alert-window').value, breach_notification: document.getElementById('cfg-alert-notif').checked },
+    noc: { queue: document.getElementById('cfg-noc-queue').value, refresh_seconds: +document.getElementById('cfg-noc-refresh').value },
+    escalation: { emails: document.getElementById('cfg-esc-emails').value.trim(), enabled: document.getElementById('cfg-esc-enabled').checked }
+  };
+  try {
+    const r = await fetch('/api/jira/config/itsm', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (d.success) {
+      toast('Configuración guardada');
+      const st = document.getElementById('cfgStatus');
+      if (st) { st.style.display = ''; setTimeout(() => st.style.display = 'none', 3000); }
+    } else { toast(d.error || 'Error al guardar', 'err'); }
+  } catch(e) { toast('Error de conexión', 'err'); }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-floppy-fill"></i> Guardar configuración'; }
+}
+
+
+/* ── BANNER UPLOAD ──────────────────────────────────────────── */
+(function(){
+  const inp = document.getElementById('bannerFileInput');
+  if (!inp) return;
+  inp.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const prev = document.getElementById('bannerPreviewImg');
+      const name = document.getElementById('bannerPreviewName');
+      if (prev) prev.src = e.target.result;
+      if (name) name.textContent = file.name + ' (' + (file.size/1024).toFixed(0) + ' KB)';
+      openModal('modalBannerPreview');
+    };
+    reader.readAsDataURL(file);
+  });
+})();
+
+async function saveBanner() {
+  const inp  = document.getElementById('bannerFileInput');
+  const file = inp?.files?.[0];
+  if (!file) return;
+  const btn = document.getElementById('bannerSaveBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Subiendo...'; }
+  try {
+    const fd = new FormData();
+    fd.append('banner', file);
+    const resp = await fetch('/api/admin/tenants/<%= _tenantId %>/banner', { method:'POST', body: fd, credentials:'include' });
+    const data = await resp.json();
+    if (data.success) {
+      const bannerEl = document.getElementById('bannerImg');
+      if (bannerEl) bannerEl.src = '/images/' + data.bannerImage + '?t=' + Date.now();
+      closeModal('modalBannerPreview');
+      toast('Banner actualizado correctamente');
+    } else { toast(data.error || 'Error al subir banner', 'err'); }
+  } catch(e) { toast('Error de red', 'err'); }
+  finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload-fill"></i> Guardar banner'; }
+    inp.value = '';
+  }
+}
+</script>
+
+<!-- MODAL: Vista previa nuevo banner -->
+<div class="adm-modal-overlay" id="modalBannerPreview">
+  <div class="adm-modal" style="max-width:500px;">
+    <h3><i class="bi bi-image-fill" style="color:#7c3aed;"></i> Cambiar banner del portal</h3>
+    <button class="adm-modal-close" onclick="closeModal('modalBannerPreview')">✕</button>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Este banner se mostrará en el portal de autogestión de los colaboradores.</div>
+    <img id="bannerPreviewImg" src="" alt="" class="banner-preview-img">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" id="bannerPreviewName"></div>
+    <div class="fm-footer">
+      <button class="btn-fm btn-fm-cancel" onclick="closeModal('modalBannerPreview')">Cancelar</button>
+      <button id="bannerSaveBtn" class="btn-fm btn-fm-submit purp" onclick="saveBanner()">
+        <i class="bi bi-cloud-upload-fill"></i> Guardar banner
+      </button>
+    </div>
+  </div>
+</div>
+
+<%- include('../../../../shared/partials/feature-gates') %>
+
+<!-- ══ IFRAME MODAL: Incidencias / Requerimientos ══════════════════════════ -->
+<div class="adm-modal-overlay" id="admIframeWrap" style="z-index:10100;padding:0;">
+  <div style="position:relative;width:96%;max-width:860px;height:92vh;background:var(--bg-card);border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.3);">
+    <button onclick="closeAdmFrame()" style="position:absolute;top:12px;right:14px;z-index:2;background:rgba(0,0,0,.08);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;color:var(--text-main);font-size:15px;display:flex;align-items:center;justify-content:center;">
+      <i class="bi bi-x-lg"></i>
+    </button>
+    <iframe id="admIframe" src="" style="width:100%;height:100%;border:none;" allow="clipboard-write"></iframe>
+  </div>
+</div>
+
+<!-- ══ MODAL: Nueva Asignación (inline) ════════════════════════════════════ -->
+<div class="adm-modal-overlay" id="admModalAsig">
+  <div class="adm-modal" style="max-width:600px;">
+    <button class="adm-modal-close" onclick="closeModal('admModalAsig')"><i class="bi bi-x-lg"></i></button>
+    <h3><i class="bi bi-pc-display-horizontal" style="color:#059669;"></i> Nueva Asignación</h3>
+    <div class="fm-row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="fm-row" style="margin:0;position:relative;">
+        <label>Colaborador *</label>
+        <input id="admAsigEmp" type="text" placeholder="Buscar por nombre..." autocomplete="off" style="width:100%;">
+        <input id="admAsigEmpCip" type="hidden">
+        <div id="admAsigEmpRes" class="asg-ac-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.15);"></div>
+      </div>
+      <div class="fm-row" style="margin:0;position:relative;">
+        <label>Equipo *</label>
+        <input id="admAsigEq" type="text" placeholder="Código de equipo..." autocomplete="off" style="width:100%;">
+        <input id="admAsigEqCode" type="hidden">
+        <div id="admAsigEqRes" class="asg-ac-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.15);"></div>
+      </div>
+    </div>
+    <div class="fm-row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+      <div class="fm-row" style="margin:0;position:relative;">
+        <label>Área/Departamento</label>
+        <input id="admAsigDept" type="text" placeholder="Buscar departamento..." autocomplete="off" style="width:100%;">
+        <input id="admAsigDeptId" type="hidden">
+        <div id="admAsigDeptRes" class="asg-ac-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;z-index:100;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.15);"></div>
+      </div>
+      <div class="fm-row" style="margin:0;">
+        <label>Fecha de asignación *</label>
+        <input id="admAsigDate" type="date" style="width:100%;">
+      </div>
+    </div>
+    <div class="fm-row" style="margin-top:12px;">
+      <label>Notas</label>
+      <textarea id="admAsigNotes" rows="2" placeholder="Observaciones..." style="width:100%;resize:vertical;"></textarea>
+    </div>
+    <div class="fm-footer" style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+      <button class="btn-fm btn-fm-cancel" onclick="closeModal('admModalAsig')">Cancelar</button>
+      <button id="admBtnSaveAsig" class="btn-fm btn-fm-submit green" onclick="admSaveAsig()"><i class="bi bi-check-lg"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Nuevo Colaborador (inline) ════════════════════════════════════ -->
+<div class="adm-modal-overlay" id="admModalColabs">
+  <div class="adm-modal" style="max-width:540px;">
+    <button class="adm-modal-close" onclick="closeModal('admModalColabs')"><i class="bi bi-x-lg"></i></button>
+    <h3><i class="bi bi-person-plus-fill" style="color:#7c3aed;"></i> Alta de Empleado</h3>
+    <div class="fm-row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="fm-row" style="margin:0;">
+        <label>Nombre completo *</label>
+        <input id="admColabName" type="text" placeholder="Nombre y apellidos" style="width:100%;">
+      </div>
+      <div class="fm-row" style="margin:0;">
+        <label>Email corporativo *</label>
+        <input id="admColabEmail" type="email" placeholder="usuario@empresa.com" style="width:100%;">
+      </div>
+    </div>
+    <div class="fm-row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+      <div class="fm-row" style="margin:0;">
+        <label>DNI / Código</label>
+        <input id="admColabCip" type="text" placeholder="Ej: 12345678" style="width:100%;">
+      </div>
+      <div class="fm-row" style="margin:0;">
+        <label>Cargo / Puesto</label>
+        <input id="admColabPos" type="text" placeholder="Ej: Analista TI" style="width:100%;">
+      </div>
+    </div>
+    <div class="fm-row" style="margin-top:12px;position:relative;">
+      <label>Área / Departamento</label>
+      <input id="admColabDept" type="text" placeholder="Buscar departamento..." autocomplete="off" style="width:100%;">
+      <input id="admColabDeptId" type="hidden">
+      <div id="admColabDeptRes" class="asg-ac-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;z-index:100;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.15);"></div>
+    </div>
+    <div class="fm-footer" style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+      <button class="btn-fm btn-fm-cancel" onclick="closeModal('admModalColabs')">Cancelar</button>
+      <button id="admBtnSaveColab" class="btn-fm btn-fm-submit purp" onclick="admSaveColab()"><i class="bi bi-check-lg"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── QUICK ACTIONS INLINE MODALS ─────────────────────────────── */
+function openAdmFrame(url){
+  document.getElementById('admIframe').src=url;
+  openModal('admIframeWrap');
+}
+function closeAdmFrame(){
+  closeModal('admIframeWrap');
+  setTimeout(function(){ document.getElementById('admIframe').src=''; },300);
+}
+document.getElementById('admIframeWrap').addEventListener('click',function(e){ if(e.target===this) closeAdmFrame(); });
+document.getElementById('admModalAsig').addEventListener('click',function(e){ if(e.target===this) closeModal('admModalAsig'); });
+document.getElementById('admModalColabs').addEventListener('click',function(e){ if(e.target===this) closeModal('admModalColabs'); });
+
+function openAdmAsigModal(){
+  document.getElementById('admAsigDate').value=new Date().toISOString().split('T')[0];
+  openModal('admModalAsig');
+  if(!window._admAsigACInit){ window._admAsigACInit=true; _admInitAC(); }
+}
+
+/* ── AC helper ──────────────────────────────────────────────── */
+var _admACTimer=null;
+function _admAC(inpId,resId,url,renderFn,pickFn,min){
+  min=min||2;
+  var inp=document.getElementById(inpId),res=document.getElementById(resId);
+  if(!inp||!res)return;
+  inp.addEventListener('input',function(){
+    clearTimeout(_admACTimer);
+    var q=inp.value.trim();
+    if(q.length<min){ res.style.display='none'; return; }
+    _admACTimer=setTimeout(function(){
+      fetch(url+encodeURIComponent(q))
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          var items=(d.data||d||[]).slice(0,8);
+          if(!items.length){ res.style.display='none'; return; }
+          res.innerHTML=items.map(renderFn).join('');
+          res.style.display='block';
+          res.querySelectorAll('[data-idx]').forEach(function(el){
+            el.addEventListener('mousedown',function(e){
+              e.preventDefault();
+              pickFn(items[+el.dataset.idx]);
+              res.style.display='none';
+            });
+          });
+        }).catch(function(){ res.style.display='none'; });
+    },280);
+  });
+  document.addEventListener('click',function(e){ if(!inp.contains(e.target)&&!res.contains(e.target)) res.style.display='none'; });
+}
+
+function _admInitAC(){
+  _admAC('admAsigEmp','admAsigEmpRes','/api/employees/search?q=',
+    function(e,i){ return '<div class="asg-ac-item" style="padding:8px 12px;cursor:pointer;" data-idx="'+i+'"><div style="font-size:13px;font-weight:600;color:var(--text-main);">'+e.full_name+'</div><div style="font-size:11px;color:var(--text-muted);">CIP: '+(e.cip||'—')+'</div></div>'; },
+    function(e){ document.getElementById('admAsigEmp').value=e.full_name; document.getElementById('admAsigEmpCip').value=e.cip||''; },3);
+  _admAC('admAsigEq','admAsigEqRes','/api/equipment/search?term=',
+    function(e,i){ return '<div class="asg-ac-item" style="padding:8px 12px;cursor:pointer;" data-idx="'+i+'"><div style="font-size:13px;font-weight:600;color:var(--text-main);">'+e.device_code+'</div><div style="font-size:11px;color:var(--text-muted);">'+(e.model||'')+' · '+(e.brand||'')+'</div></div>'; },
+    function(e){ document.getElementById('admAsigEq').value=e.device_code; document.getElementById('admAsigEqCode').value=e.device_code; },2);
+  _admAC('admAsigDept','admAsigDeptRes','/api/departments/search?term=',
+    function(e,i){ return '<div class="asg-ac-item" style="padding:8px 12px;cursor:pointer;" data-idx="'+i+'"><div style="font-size:13px;font-weight:600;color:var(--text-main);">'+e.department_name+'</div></div>'; },
+    function(e){ document.getElementById('admAsigDept').value=e.department_name; document.getElementById('admAsigDeptId').value=e.id; },3);
+  _admAC('admColabDept','admColabDeptRes','/api/departments/search?term=',
+    function(e,i){ return '<div class="asg-ac-item" style="padding:8px 12px;cursor:pointer;" data-idx="'+i+'"><div style="font-size:13px;font-weight:600;color:var(--text-main);">'+e.department_name+'</div></div>'; },
+    function(e){ document.getElementById('admColabDept').value=e.department_name; document.getElementById('admColabDeptId').value=e.id; },3);
+}
+
+/* ── Guardar Asignación ─────────────────────────────────────── */
+async function admSaveAsig(){
+  var emp=document.getElementById('admAsigEmp').value.trim();
+  var cip=document.getElementById('admAsigEmpCip').value.trim();
+  var eq=document.getElementById('admAsigEqCode').value.trim()||document.getElementById('admAsigEq').value.trim();
+  var date=document.getElementById('admAsigDate').value;
+  var notes=document.getElementById('admAsigNotes').value.trim();
+  var deptId=document.getElementById('admAsigDeptId').value;
+  if(!emp||!eq||!date){ alert('Completa colaborador, equipo y fecha.'); return; }
+  var btn=document.getElementById('admBtnSaveAsig');
+  btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split"></i> Guardando…';
+  try{
+    var r=await fetch('/api/assignments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      employee_cip:cip||undefined, employee_id:undefined,
+      equipment_code:eq, assignment_date:date,
+      notes:notes||undefined, department_id:deptId||undefined
+    })});
+    var d=await r.json();
+    if(!r.ok) throw new Error(d.message||'Error al guardar');
+    closeModal('admModalAsig');
+    ['admAsigEmp','admAsigEmpCip','admAsigEq','admAsigEqCode','admAsigDept','admAsigDeptId','admAsigNotes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    if(typeof showToast==='function') showToast('Asignación creada correctamente','success');
+  } catch(err){
+    alert(err.message);
+  } finally{
+    btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Guardar';
+  }
+}
+
+/* ── Guardar Colaborador ────────────────────────────────────── */
+async function admSaveColab(){
+  var name=document.getElementById('admColabName').value.trim();
+  var email=document.getElementById('admColabEmail').value.trim();
+  var cip=document.getElementById('admColabCip').value.trim();
+  var pos=document.getElementById('admColabPos').value.trim();
+  var deptId=document.getElementById('admColabDeptId').value;
+  if(!name||!email){ alert('Nombre y email son obligatorios.'); return; }
+  var btn=document.getElementById('admBtnSaveColab');
+  btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split"></i> Guardando…';
+  try{
+    var r=await fetch('/api/employees',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      full_name:name, email:email,
+      cip:cip||undefined, position:pos||undefined,
+      department_id:deptId||undefined
+    })});
+    var d=await r.json();
+    if(!r.ok) throw new Error(d.message||'Error al guardar');
+    closeModal('admModalColabs');
+    ['admColabName','admColabEmail','admColabCip','admColabPos','admColabDept','admColabDeptId'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    if(typeof showToast==='function') showToast('Colaborador creado correctamente','success');
+    else alert('Colaborador creado correctamente.');
+  } catch(err){
+    alert(err.message);
+  } finally{
+    btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Guardar';
+  }
+}
+</script>
+
+</body>
+</html>

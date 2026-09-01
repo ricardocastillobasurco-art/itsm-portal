@@ -1,0 +1,480 @@
+<!-- ── ARIA CHATBOT ───────────────────────────────────────────────────────────── -->
+<style>
+.aria-bubble{position:fixed;bottom:28px;right:28px;z-index:9000;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#0052cc,#6366f1);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,82,204,.4);display:flex;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;}
+.aria-bubble:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(0,82,204,.55);}
+.aria-bubble i{font-size:22px;color:#fff;}
+.aria-bubble .aria-notif{position:absolute;top:-2px;right:-2px;width:14px;height:14px;background:#ef4444;border-radius:50%;border:2px solid #fff;display:none;}
+.aria-panel{position:fixed;bottom:90px;right:28px;z-index:9001;width:360px;max-height:560px;background:var(--bg-surface,#fff);border-radius:20px;box-shadow:0 16px 56px rgba(0,0,0,.22);display:flex;flex-direction:column;overflow:hidden;transform:translateY(12px) scale(.97);opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;}
+.aria-panel.open{opacity:1;pointer-events:auto;transform:translateY(0) scale(1);}
+.aria-head{background:linear-gradient(135deg,#0052cc,#6366f1);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.aria-head-av{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.aria-head-av i{color:#fff;font-size:18px;}
+.aria-head-info{flex:1;}
+.aria-head-info b{color:#fff;font-size:14px;display:block;}
+.aria-head-info span{color:rgba(255,255,255,.75);font-size:11px;}
+.aria-close{background:none;border:none;color:rgba(255,255,255,.8);cursor:pointer;padding:4px;border-radius:6px;font-size:18px;line-height:1;}
+.aria-close:hover{color:#fff;background:rgba(255,255,255,.15);}
+.aria-msgs{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;}
+.aria-msgs::-webkit-scrollbar{width:4px;}
+.aria-msgs::-webkit-scrollbar-thumb{background:var(--border-soft,#e2e8f0);border-radius:4px;}
+.aria-msg{max-width:85%;padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.55;word-break:break-word;}
+.aria-msg.bot{background:var(--bg-card,#f4f7fb);color:var(--text-main,#0d1b2e);border-bottom-left-radius:4px;align-self:flex-start;}
+.aria-msg.user{background:linear-gradient(135deg,#0052cc,#6366f1);color:#fff;border-bottom-right-radius:4px;align-self:flex-end;}
+.aria-msg.typing{color:var(--text-muted,#5a7194);font-style:italic;font-size:12px;}
+.aria-msg b{font-weight:700;}
+.aria-suggestions{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px;flex-shrink:0;}
+.aria-sug{background:var(--bg-card,#f4f7fb);border:1.5px solid var(--border-soft,#dce4ef);border-radius:20px;padding:5px 12px;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--text-main,#0d1b2e);transition:all .15s;white-space:nowrap;}
+.aria-sug:hover{border-color:#0052cc;color:#0052cc;background:rgba(0,82,204,.06);}
+.aria-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border-soft,#dce4ef);flex-shrink:0;background:var(--bg-surface,#fff);}
+.aria-input{flex:1;border:1.5px solid var(--border-soft,#dce4ef);border-radius:22px;padding:8px 14px;font-size:13px;font-family:inherit;background:var(--bg-card,#f4f7fb);color:var(--text-main,#0d1b2e);outline:none;resize:none;max-height:80px;overflow-y:auto;transition:border-color .2s;}
+.aria-input:focus{border-color:#0052cc;}
+.aria-send{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#0052cc,#6366f1);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:filter .2s;align-self:flex-end;}
+.aria-send:hover{filter:brightness(1.1);}
+.aria-send i{color:#fff;font-size:15px;}
+.aria-send:disabled{opacity:.5;cursor:not-allowed;}
+@media(max-width:420px){.aria-panel{width:calc(100vw - 16px);right:8px;bottom:80px;}}
+.aria-attach{width:36px;height:36px;border-radius:50%;background:var(--bg-card,#f4f7fb);border:1.5px solid var(--border-soft,#dce4ef);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .15s;align-self:flex-end;}
+.aria-attach:hover{border-color:#0052cc;}
+.aria-attach i{font-size:14px;color:var(--text-muted,#5a7194);}
+.aria-img-bubble{align-self:flex-end;max-width:75%;background:var(--bg-card,#f4f7fb);border:1.5px solid var(--border-soft,#dce4ef);border-radius:14px 14px 4px 14px;padding:7px 10px;display:flex;align-items:center;gap:9px;}
+.aria-img-thumb{width:42px;height:42px;border-radius:7px;object-fit:cover;flex-shrink:0;}
+.aria-img-name{font-size:11.5px;color:var(--text-muted,#5a7194);line-height:1.35;}
+.aria-img-name small{display:block;font-size:10.5px;}
+</style>
+
+<!-- Bubble -->
+<button class="aria-bubble" id="ariaBubble" onclick="ariaToggle()" title="ARIA — Asistente TI">
+  <i class="bi bi-stars"></i>
+  <div class="aria-notif" id="ariaNotif"></div>
+</button>
+
+<!-- Panel -->
+<div class="aria-panel" id="ariaPanel">
+  <div class="aria-head">
+    <div class="aria-head-av"><i class="bi bi-stars"></i></div>
+    <div class="aria-head-info">
+      <b>ARIA</b>
+      <span>Asistente Virtual de TI · Integratel</span>
+    </div>
+    <button class="aria-close" onclick="ariaToggle()"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="aria-msgs" id="ariaMsgs"></div>
+  <div class="aria-suggestions" id="ariaSugs">
+    <button class="aria-sug" style="border-color:#dc2626;color:#dc2626" onclick="_ariaQuickCreate('incident')">🎫 Crear incidencia</button>
+    <button class="aria-sug" style="border-color:#7c3aed;color:#7c3aed" onclick="_ariaQuickCreate('requirement')">📋 Crear requerimiento</button>
+    <button class="aria-sug" style="border-color:#0891b2;color:#0891b2" onclick="_ariaFetchAndShowTickets()">🔍 Mis tickets</button>
+    <button class="aria-sug" onclick="ariaSend('Mi equipo no funciona')">Equipo no funciona</button>
+  </div>
+  <div class="aria-input-row">
+    <textarea class="aria-input" id="ariaInput" placeholder="Escribe tu consulta…" rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ariaSend();}"
+      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"></textarea>
+    <button class="aria-attach" id="ariaAttachBtn" title="Adjuntar imagen" onclick="document.getElementById('ariaFileInput').click()"><i class="bi bi-paperclip"></i></button>
+    <button class="aria-send" id="ariaSendBtn" onclick="ariaSend()"><i class="bi bi-send-fill"></i></button>
+  </div>
+</div>
+<input type="file" id="ariaFileInput" accept="image/jpeg,image/png,image/webp" style="display:none">
+
+<script>
+(function(){
+  var _ariaHistory          = [];
+  var _ariaOpen             = false;
+  var _ariaBusy             = false;
+  var _ariaPendingImgToken  = null;
+
+  // Mensaje inicial
+  window.addEventListener('DOMContentLoaded', function(){
+    _ariaAddMsg('bot', '👋 ¡Hola! Soy **ARIA**, tu asistente virtual de TI. Puedo orientarte sobre el uso de la plataforma, ayudarte a saber si debes abrir una incidencia o requerimiento, y responder consultas técnicas.\n\n¿En qué puedo ayudarte hoy?');
+  });
+
+  window.ariaToggle = function(){
+    _ariaOpen = !_ariaOpen;
+    document.getElementById('ariaPanel').classList.toggle('open', _ariaOpen);
+    document.getElementById('ariaNotif').style.display = 'none';
+    if(_ariaOpen) setTimeout(function(){ document.getElementById('ariaInput').focus(); }, 250);
+  };
+
+  window.ariaSend = function(text){
+    var input = document.getElementById('ariaInput');
+    var msg   = (text || input.value).trim();
+    if(!msg || _ariaBusy) return;
+    input.value = '';
+    input.style.height = 'auto';
+
+    document.getElementById('ariaSugs').style.display = 'none';
+
+    _ariaAddMsg('user', msg);
+    _ariaBusy = true;
+    document.getElementById('ariaSendBtn').disabled = true;
+
+    var typId = _ariaAddMsg('bot', '…', 'typing');
+
+    fetch('/api/chatbot/message', {
+      method:  'POST',
+      headers: {'Content-Type':'application/json'},
+      body:    JSON.stringify({ message: msg, history: _ariaHistory.slice(-12) })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      _ariaRemoveMsg(typId);
+      var reply = d.reply || 'No pude procesar tu consulta.';
+      _ariaAddMsg('bot', reply);
+      _ariaHistory.push({role:'user',content:msg},{role:'assistant',content:reply});
+
+      // Tickets como tarjetas
+      if(d.tickets && d.tickets.length){ _ariaShowTicketCards(d.tickets); }
+
+      // Botones de seguimiento
+      if(d.followups && d.followups.length){ _ariaShowFollowups(d.followups); }
+
+      // Flag de escalación
+      if(d.escalate){ _ariaShowEscalate(); }
+    })
+    .catch(function(){
+      _ariaRemoveMsg(typId);
+      _ariaAddMsg('bot', 'Error de conexión. Intenta de nuevo.');
+    })
+    .finally(function(){
+      _ariaBusy = false;
+      document.getElementById('ariaSendBtn').disabled = false;
+    });
+  };
+
+  function _ariaShowFollowups(followups){
+    var sugs = document.getElementById('ariaSugs');
+    sugs.innerHTML = '';
+    followups.forEach(function(f){
+      if(f._href){
+        var a = document.createElement('a');
+        a.className = 'aria-sug'; a.textContent = f.label;
+        a.href = f._href; a.target = '_blank'; a.rel = 'noopener';
+        sugs.appendChild(a);
+      } else {
+        var btn = document.createElement('button');
+        btn.className = 'aria-sug'; btn.textContent = f.label;
+        if(f._quickCreate){
+          (function(type){ btn.onclick = function(){ _ariaQuickCreate(type); }; })(f._quickCreate);
+        } else if(f._createTicket){
+          (function(sum){ btn.onclick = function(){ _ariaQuickCreate('incident', sum); }; })(f._summary||'');
+        } else if(f._createRequirement){
+          (function(sum){ btn.onclick = function(){ _ariaQuickCreate('requirement', sum); }; })(f._summary||'');
+        } else if(f._showTickets){
+          btn.onclick = function(){ _ariaFetchAndShowTickets(); };
+        } else {
+          btn.onclick = function(){ ariaSend(f.label); };
+        }
+        sugs.appendChild(btn);
+      }
+    });
+    sugs.style.display = 'flex';
+  }
+
+  function _ariaShowEscalate(){
+    var msgs = document.getElementById('ariaMsgs');
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'align-self:flex-start;margin-top:4px;';
+    wrap.innerHTML = '<a href="/itsm/incidencias/gestion" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:linear-gradient(135deg,#0052cc,#6366f1);color:#fff;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(0,82,204,.3);">'
+      + '<i class="bi bi-headset"></i> Conectar con especialista</a>';
+    msgs.appendChild(wrap);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  var _ariaIdSeq = 0;
+  function _ariaAddMsg(role, text, extraClass){
+    var msgs = document.getElementById('ariaMsgs');
+    var id   = 'am'+(++_ariaIdSeq);
+    var div  = document.createElement('div');
+    div.id   = id;
+    div.className = 'aria-msg ' + role + (extraClass?' '+extraClass:'');
+    div.innerHTML = _ariaMd(text);
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return id;
+  }
+  function _ariaRemoveMsg(id){
+    var el = document.getElementById(id);
+    if(el) el.remove();
+  }
+  function _ariaMd(t){
+    return t
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">$1</a>')
+      .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+      .replace(/_(.+?)_/g,'<em>$1</em>')
+      .replace(/\n/g,'<br>');
+  }
+
+  // ── Image analysis ────────────────────────────────────────────────────────
+  function _escH(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _fmtBytes(b){ return b>1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'; }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    document.getElementById('ariaFileInput').addEventListener('change', function(e){
+      var file = e.target.files[0]; if(!file) return;
+      e.target.value = '';
+      if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
+        _ariaAddMsg('bot','⚠️ Solo se permiten imágenes JPEG, PNG o WEBP.'); return;
+      }
+      if(file.size > 5*1024*1024){
+        _ariaAddMsg('bot','⚠️ La imagen no puede superar 5 MB.'); return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(ev){
+        // Preview bubble
+        var msgs = document.getElementById('ariaMsgs');
+        var div  = document.createElement('div');
+        div.className = 'aria-img-bubble';
+        div.innerHTML = '<img class="aria-img-thumb" src="'+ev.target.result+'" alt="">'
+          +'<span class="aria-img-name"><b>'+_escH(file.name)+'</b><small>'+_fmtBytes(file.size)+'</small></span>';
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+        _ariaAnalyzeImage(file);
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  function _ariaDoCreateTicket(summary){
+    if(_ariaBusy) return;
+    _ariaBusy = true;
+    document.getElementById('ariaSendBtn').disabled = true;
+    document.getElementById('ariaAttachBtn').disabled = true;
+    document.getElementById('ariaSugs').style.display='none';
+    _ariaAddMsg('user','🎫 Crear incidencia: '+summary.substring(0,80)+(summary.length>80?'…':''));
+    var typId = _ariaAddMsg('bot','⏳ Generando incidencia…','typing');
+    fetch('/api/chatbot/incident',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ summary: summary, imageToken: _ariaPendingImgToken||undefined })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      _ariaRemoveMsg(typId);
+      if(d.success){
+        var jiraLink = (d.url && !d.isLocal) ? '\n\n[🔗 Ver en Jira]('+d.url+')' : '';
+        _ariaAddMsg('bot','✅ Incidencia creada correctamente.\n\n**Número:** '+d.key+jiraLink+'\n\nEl equipo de soporte revisará tu caso pronto.');
+        _ariaPendingImgToken = null;
+        _ariaHistory.push({role:'assistant',content:'Incidencia '+d.key+' creada.'});
+      } else {
+        _ariaAddMsg('bot','❌ '+(d.error||'No se pudo crear la incidencia. Intenta desde el portal o contacta al Service Desk.'));
+      }
+    })
+    .catch(function(){
+      _ariaRemoveMsg(typId);
+      _ariaAddMsg('bot','❌ Error de conexión al crear la incidencia. Intenta de nuevo.');
+    })
+    .finally(function(){
+      _ariaBusy = false;
+      document.getElementById('ariaSendBtn').disabled = false;
+      document.getElementById('ariaAttachBtn').disabled = false;
+    });
+  }
+
+  function _ariaAnalyzeImage(file){
+    if(_ariaBusy) return;
+    _ariaBusy = true;
+    document.getElementById('ariaSendBtn').disabled = true;
+    document.getElementById('ariaAttachBtn').disabled = true;
+    document.getElementById('ariaSugs').style.display = 'none';
+
+    var typId = _ariaAddMsg('bot','🔍 Analizando imagen…','typing');
+    var fd = new FormData(); fd.append('image', file);
+
+    fetch('/api/chatbot/analyze-image',{ method:'POST', body:fd })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        _ariaRemoveMsg(typId);
+
+        if(!d.success){
+          _ariaAddMsg('bot','⚠️ '+(d.error||'No pude leer la imagen.'));
+          _ariaShowFollowups([{label:'🎫 Crear incidencia manualmente'}]);
+          return;
+        }
+
+        var parts = [];
+        var snippet = (d.text||'').substring(0,180).replace(/\n/g,' ').trim();
+        parts.push('Detecté este texto en la imagen:\n_"'+snippet+(d.text.length>180?'…':'')+'"_');
+
+        if(d.errorCodes && d.errorCodes.length)
+          parts.push('🔎 Código detectado: **'+d.errorCodes.join(', ')+'**');
+
+        if(d.faq && d.faq.reply)
+          parts.push('✅ **Solución encontrada:**\n'+d.faq.reply);
+        else if(d.kb && d.kb.length)
+          parts.push('📖 Hay '+d.kb.length+' artículo(s) relacionado(s) en la Base de Conocimiento.');
+
+        if(d.similar_tickets && d.similar_tickets.length){
+          var tl = d.similar_tickets.map(function(t){ return '• **'+t.key+'** — '+(t.summary||'').substring(0,55); }).join('\n');
+          parts.push('🔍 Tickets similares abiertos:\n'+tl);
+        }
+
+        var reply = parts.join('\n\n');
+        _ariaAddMsg('bot', reply);
+        _ariaPendingImgToken = d.imageToken;
+        _ariaHistory.push(
+          {role:'user',    content:'[imagen adjunta · OCR: '+snippet+']'},
+          {role:'assistant',content: reply}
+        );
+
+        var fups = [];
+        if(d.kb && d.kb.length)  fups.push({label:'📖 Ver Base de Conocimiento', _href:'/knowledge-base'});
+        if(!d.faq)               fups.push({label:'🎫 Crear incidencia', _createTicket:true, _summary: snippet.substring(0,120)});
+        fups.push({label:'💬 Describir manualmente'});
+        _ariaShowFollowups(fups);
+      })
+      .catch(function(){
+        _ariaRemoveMsg(typId);
+        _ariaAddMsg('bot','❌ Error al analizar la imagen. Intenta de nuevo.');
+      })
+      .finally(function(){
+        _ariaBusy = false;
+        document.getElementById('ariaSendBtn').disabled = false;
+        document.getElementById('ariaAttachBtn').disabled = false;
+      });
+  }
+
+  function _ariaQuickCreate(type, prefill){
+    var isReq = (type === 'requirement');
+    var color = isReq ? '#7c3aed' : '#dc2626';
+    var label = isReq ? '📋 Nuevo requerimiento' : '🎫 Nueva incidencia';
+    var placeholder = isReq
+      ? 'Describe el requerimiento o solicitud de TI…'
+      : 'Describe el problema o incidente que estás experimentando…';
+    var inputId = 'ariaQuickInput_' + Date.now();
+    var html = '<div style="border:1.5px solid '+color+';border-radius:10px;padding:12px;background:var(--aria-user-bg,#f0f4ff)">'
+      + '<div style="font-weight:600;color:'+color+';margin-bottom:8px">'+label+'</div>'
+      + '<textarea id="'+inputId+'" rows="3" placeholder="'+placeholder+'" '
+      + 'style="width:100%;box-sizing:border-box;border:1px solid #ccc;border-radius:6px;padding:8px;font-size:13px;resize:vertical;font-family:inherit">'
+      + (prefill||'') + '</textarea>'
+      + '<div style="margin-top:8px;display:flex;gap:8px">'
+      + '<button onclick="window._ariaSubmitQuick(\''+type+'\',\''+inputId+'\')" '
+      + 'style="background:'+color+';color:#fff;border:none;border-radius:6px;padding:7px 18px;cursor:pointer;font-size:13px;font-weight:600">Enviar</button>'
+      + '<button onclick="this.closest(\'[data-aria-card]\').remove()" '
+      + 'style="background:transparent;border:1px solid #ccc;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:13px">Cancelar</button>'
+      + '</div></div>';
+    var card = document.createElement('div');
+    card.setAttribute('data-aria-card','1');
+    card.innerHTML = html;
+    var msgs = document.getElementById('ariaMsgs');
+    msgs.appendChild(card);
+    msgs.scrollTop = msgs.scrollHeight;
+    setTimeout(function(){ var el=document.getElementById(inputId); if(el){ el.focus(); if(prefill) el.select(); } },50);
+  }
+
+  window._ariaSubmitQuick = function(type, inputId){
+    var el = document.getElementById(inputId);
+    if(!el) return;
+    var summary = el.value.trim();
+    if(!summary){ el.style.borderColor='#dc2626'; el.focus(); return; }
+    var card = el.closest('[data-aria-card]');
+    if(card) card.remove();
+    if(type === 'requirement'){
+      _ariaDoCreateRequirement(summary);
+    } else {
+      _ariaDoCreateTicket(summary);
+    }
+  };
+
+  function _ariaDoCreateRequirement(summary){
+    if(_ariaBusy) return;
+    _ariaBusy = true;
+    document.getElementById('ariaSendBtn').disabled = true;
+    document.getElementById('ariaAttachBtn').disabled = true;
+    document.getElementById('ariaSugs').style.display='none';
+    _ariaAddMsg('user','📋 Crear requerimiento: '+summary.substring(0,80)+(summary.length>80?'…':''));
+    var typId = _ariaAddMsg('bot','⏳ Generando requerimiento…','typing');
+    fetch('/api/chatbot/requirement',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ summary: summary })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      _ariaRemoveMsg(typId);
+      if(d.success){
+        var jiraLink = (d.url && !d.isLocal) ? '\n\n[🔗 Ver en Jira]('+d.url+')' : '';
+        _ariaAddMsg('bot','✅ Requerimiento creado correctamente.\n\n**Número:** '+d.key+jiraLink+'\n\nEl equipo revisará tu solicitud pronto.');
+        _ariaHistory.push({role:'assistant',content:'Requerimiento '+d.key+' creado.'});
+        _ariaShowFollowups([
+          {label:'🔍 Ver mis tickets', _showTickets:true},
+          {label:'🎫 Crear incidencia', _quickCreate:'incident'}
+        ]);
+      } else {
+        _ariaAddMsg('bot','❌ '+(d.error||'No se pudo crear el requerimiento. Intenta desde el portal.'));
+      }
+    })
+    .catch(function(){
+      _ariaRemoveMsg(typId);
+      _ariaAddMsg('bot','❌ Error de conexión al crear el requerimiento. Intenta de nuevo.');
+    })
+    .finally(function(){
+      _ariaBusy = false;
+      document.getElementById('ariaSendBtn').disabled = false;
+      document.getElementById('ariaAttachBtn').disabled = false;
+    });
+  }
+
+  function _ariaFetchAndShowTickets(){
+    if(_ariaBusy) return;
+    _ariaBusy = true;
+    document.getElementById('ariaSugs').style.display='none';
+    var typId = _ariaAddMsg('bot','🔍 Buscando tus tickets…','typing');
+    fetch('/api/chatbot/tickets')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      _ariaRemoveMsg(typId);
+      if(d.tickets && d.tickets.length){
+        _ariaShowTicketCards(d.tickets);
+        _ariaShowFollowups([
+          {label:'🎫 Crear incidencia', _quickCreate:'incident'},
+          {label:'📋 Crear requerimiento', _quickCreate:'requirement'}
+        ]);
+      } else {
+        _ariaAddMsg('bot','No tienes tickets abiertos en este momento.');
+        _ariaShowFollowups([
+          {label:'🎫 Crear incidencia', _quickCreate:'incident'},
+          {label:'📋 Crear requerimiento', _quickCreate:'requirement'}
+        ]);
+      }
+    })
+    .catch(function(){
+      _ariaRemoveMsg(typId);
+      _ariaAddMsg('bot','❌ No pude obtener tus tickets. Intenta de nuevo.');
+    })
+    .finally(function(){ _ariaBusy = false; });
+  }
+
+  function _ariaShowTicketCards(tickets){
+    var statusColors = {
+      'Abierto':'#2563eb','Nuevo':'#2563eb','Open':'#2563eb',
+      'En progreso':'#d97706','In Progress':'#d97706',
+      'Resuelto':'#16a34a','Closed':'#16a34a','Cerrado':'#16a34a',
+      'Pendiente':'#7c3aed','Waiting':'#7c3aed'
+    };
+    var html = '<div style="display:flex;flex-direction:column;gap:8px">';
+    tickets.slice(0,6).forEach(function(t){
+      var sc = statusColors[t.internal_status] || '#64748b';
+      var date = t.created_at ? new Date(t.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) : '';
+      html += '<div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;background:var(--aria-bot-bg,#fff)">'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+        + '<span style="font-weight:700;font-size:12px;background:#f1f5f9;border-radius:4px;padding:2px 7px;color:#334155">'+t.ticket_key+'</span>'
+        + '<span style="font-size:11px;font-weight:600;color:'+sc+';background:'+sc+'18;border-radius:10px;padding:2px 8px">'+t.internal_status+'</span>'
+        + (t.priority ? '<span style="font-size:11px;color:#64748b;margin-left:auto">'+t.priority+'</span>' : '')
+        + '</div>'
+        + '<div style="font-size:13px;color:var(--aria-text,#1e293b);margin-bottom:4px;line-height:1.4">'+(t.summary||'').substring(0,90)+(t.summary&&t.summary.length>90?'…':'')+'</div>'
+        + '<div style="font-size:11px;color:#94a3b8;display:flex;gap:10px">'
+        + (date ? '<span>📅 '+date+'</span>' : '')
+        + (t.assigned_to_name ? '<span>👤 '+t.assigned_to_name+'</span>' : '<span style="color:#e09400">Sin asignar</span>')
+        + (t.jira_url ? ' <a href="'+t.jira_url+'" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none;margin-left:auto">Ver en Jira ↗</a>' : '')
+        + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+    var card = document.createElement('div');
+    card.innerHTML = html;
+    var msgs = document.getElementById('ariaMsgs');
+    msgs.appendChild(card);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+})();
+</script>

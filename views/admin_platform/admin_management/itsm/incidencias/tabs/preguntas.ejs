@@ -1,0 +1,629 @@
+<div id="tabPreguntas" class="corp-tabpanel" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+    <div>
+      <div style="font-size:17px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-chat-dots-fill" style="color:var(--jira-blue)"></i> Preguntas de Usuarios del Portal
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);">Responde y publica en la base de conocimiento (FAQ).</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="pqFilter" onchange="loadUserQuestions()" style="font-size:13px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:7px 10px;">
+        <option value="">Todas</option>
+        <option value="pending">Pendientes</option>
+        <option value="answered">Respondidas</option>
+        <option value="published">Publicadas en FAQ</option>
+      </select>
+      <button onclick="loadUserQuestions()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+    </div>
+  </div>
+
+  <div id="pqList" style="display:flex;flex-direction:column;gap:12px;">
+    <div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="bi bi-hourglass-split" style="font-size:28px;opacity:.4;"></i><br>Cargando…</div>
+  </div>
+
+  <!-- CONTRIBUTIONS SUB-SECTION -->
+  <div style="margin-top:40px;padding-top:28px;border-top:2px dashed var(--border-soft);">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:17px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+          <i class="bi bi-lightbulb-fill" style="color:#f59e0b"></i> Conocimiento Compartido por Usuarios
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);">Aprueba los aportes para que aparezcan públicamente en la base de conocimiento.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="ctFilter" onchange="loadAdminContribs()" style="font-size:13px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:7px 10px;">
+          <option value="">Todos</option>
+          <option value="pending">Pendientes</option>
+          <option value="approved">Aprobados</option>
+          <option value="rejected">Rechazados</option>
+        </select>
+        <button onclick="loadAdminContribs()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+      </div>
+    </div>
+    <div id="ctAdminList" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="text-align:center;padding:30px;color:var(--text-muted);"><i class="bi bi-hourglass-split" style="font-size:24px;opacity:.4;"></i><br>Cargando…</div>
+    </div>
+  </div>
+
+  <!-- WHATSAPP: ver pestaña dedicada -->
+  <div style="margin-top:28px;padding:14px 18px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;display:flex;align-items:center;gap:10px;">
+    <i class="bi bi-whatsapp" style="color:#25d366;font-size:18px;"></i>
+    <span style="font-size:13px;color:#064e3b;">Las solicitudes de WhatsApp Bot están en la pestaña <strong>WhatsApp Bot</strong>.</span>
+    <button onclick="doTab('whatsapp',document.getElementById('tabBtnWhatsapp'));loadWspRequests()" style="margin-left:auto;padding:6px 14px;border-radius:7px;border:none;background:#25d366;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+      <i class="bi bi-arrow-right"></i> Ir ahora
+    </button>
+  </div>
+
+  <!-- ANSWER MODAL -->
+  <div id="pqAnswerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center;">
+    <div style="background:var(--bg-card);border-radius:16px;padding:28px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div style="font-size:16px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;"><i class="bi bi-reply-fill" style="color:var(--jira-blue)"></i> Responder Pregunta</div>
+        <button onclick="closePqModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted);">×</button>
+      </div>
+      <input type="hidden" id="pqAnswerId">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Pregunta del usuario</div>
+      <div id="pqAnswerQuestion" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text-main);margin-bottom:16px;line-height:1.6;"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Categoría</div>
+      <select id="pqAnswerCat" style="width:100%;border:1.5px solid var(--border-soft);border-radius:8px;padding:9px 12px;font-size:13px;background:var(--bg);color:var(--text-main);margin-bottom:14px;outline:none;">
+        <option value="General">General</option>
+        <option value="Incidencias">Incidencias</option>
+        <option value="Requerimientos">Requerimientos</option>
+        <option value="Equipos y Mantenimiento">Equipos y Mantenimiento</option>
+        <option value="Accesos y Correo">Accesos y Correo</option>
+      </select>
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Tu respuesta *</div>
+      <textarea id="pqAnswerText" rows="6" placeholder="Escribe la respuesta detallada…" style="width:100%;border:1.5px solid var(--border-soft);border-radius:10px;padding:11px 14px;font-size:13px;background:var(--bg);color:var(--text-main);outline:none;resize:vertical;font-family:inherit;margin-bottom:20px;"></textarea>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closePqModal()" style="padding:9px 20px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);font-size:13px;font-weight:600;cursor:pointer;">Cancelar</button>
+        <button onclick="savePqAnswer()" style="padding:9px 20px;border-radius:8px;border:none;background:var(--jira-blue);color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="bi bi-check-lg"></i> Guardar respuesta</button>
+        <button onclick="savePqAnswer(true)" style="padding:9px 20px;border-radius:8px;border:none;background:#059669;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="bi bi-book-fill"></i> Guardar y publicar en FAQ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── USER QUESTIONS (PORTAL) ───────────────────────────────────────────────────
+const PQ_STATUS_LABEL = { pending:'Pendiente', answered:'Respondida', published:'Publicada en FAQ' };
+const PQ_STATUS_COLOR = { pending:'#f59e0b', answered:'#3b82f6', published:'#059669' };
+
+async function loadUserQuestions(){
+  const status = document.getElementById('pqFilter')?.value || '';
+  const url = '/api/portal/questions' + (status ? '?status='+status : '');
+  const r = await fetch(url, { credentials:'include' });
+  const d = await r.json();
+  const list = document.getElementById('pqList');
+  if (!d.success || !d.data.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="bi bi-inbox" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px;"></i>No hay preguntas registradas.</div>';
+    return;
+  }
+  list.innerHTML = d.data.map(q => `
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:18px 20px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+            <span style="font-size:11px;font-weight:700;background:rgba(99,102,241,.08);color:#6366f1;border:1px solid rgba(99,102,241,.2);border-radius:6px;padding:2px 9px;">${escHtmlPq(q.category||'General')}</span>
+            <span style="font-size:11px;font-weight:700;color:${PQ_STATUS_COLOR[q.status]||'#94a3b8'};background:${PQ_STATUS_COLOR[q.status]||'#94a3b8'}18;border-radius:6px;padding:2px 9px;">${PQ_STATUS_LABEL[q.status]||q.status}</span>
+            <span style="font-size:11px;color:var(--text-muted);">${escHtmlPq(q.name||q.email)} · ${new Date(q.created_at).toLocaleDateString('es-PE')}</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:${q.answer?'10px':'0'};">${escHtmlPq(q.question)}</div>
+          ${q.answer ? `<div style="font-size:13px;color:var(--text-muted);background:var(--bg);border-left:3px solid var(--jira-blue);border-radius:0 8px 8px 0;padding:10px 12px;margin-top:8px;line-height:1.6;">${escHtmlPq(q.answer)}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+          ${q.status !== 'published' ? `<button onclick="openPqAnswer(${q.id},'${escHtmlPq(q.question).replace(/'/g,"\\'")}','${escHtmlPq(q.answer||'').replace(/'/g,"\\'")}','${escHtmlPq(q.category||'General')}')" style="padding:6px 14px;border-radius:8px;border:1px solid var(--jira-blue);background:rgba(37,99,235,.07);color:var(--jira-blue);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-reply-fill"></i> Responder</button>` : ''}
+          ${q.status === 'answered' ? `<button onclick="publishPq(${q.id})" style="padding:6px 14px;border-radius:8px;border:1px solid #059669;background:rgba(5,150,105,.07);color:#059669;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-book-fill"></i> Publicar en FAQ</button>` : ''}
+          <button onclick="deletePq(${q.id})" style="padding:6px 14px;border-radius:8px;border:1px solid #fca5a5;background:rgba(239,68,68,.07);color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;"><i class="bi bi-trash3"></i></button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escHtmlPq(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function openPqAnswer(id, question, answer, category){
+  document.getElementById('pqAnswerId').value = id;
+  document.getElementById('pqAnswerQuestion').textContent = question;
+  document.getElementById('pqAnswerText').value = answer || '';
+  const sel = document.getElementById('pqAnswerCat');
+  if (sel) sel.value = category || 'General';
+  const modal = document.getElementById('pqAnswerModal');
+  modal.style.display = 'flex';
+}
+function closePqModal(){ document.getElementById('pqAnswerModal').style.display='none'; }
+document.getElementById('pqAnswerModal').addEventListener('click', e => { if(e.target===e.currentTarget) closePqModal(); });
+
+async function savePqAnswer(andPublish){
+  const id     = document.getElementById('pqAnswerId').value;
+  const answer = document.getElementById('pqAnswerText').value.trim();
+  const category = document.getElementById('pqAnswerCat').value;
+  if (!answer) { alert('Escribe la respuesta antes de guardar.'); return; }
+  const r = await fetch('/api/portal/questions/'+id, {
+    method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ answer, category })
+  });
+  const d = await r.json();
+  if (!d.success) { alert('Error: '+(d.error||'No se pudo guardar')); return; }
+  if (andPublish) await publishPq(id);
+  closePqModal();
+  loadUserQuestions();
+}
+
+async function publishPq(id){
+  const r = await fetch('/api/portal/questions/'+id+'/publish', {
+    method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}
+  });
+  const d = await r.json();
+  if (!d.success) { alert('Error: '+(d.error||'No se pudo publicar')); return; }
+  loadUserQuestions();
+}
+
+async function deletePq(id){
+  if (!confirm('¿Eliminar esta pregunta?')) return;
+  await fetch('/api/portal/questions/'+id, { method:'DELETE', credentials:'include' });
+  loadUserQuestions();
+}
+
+// ── KNOWLEDGE CONTRIBUTIONS (admin panel) ────────────────────────────────────
+const CT_STATUS_LABEL = { pending:'Pendiente revisión', approved:'Aprobado', rejected:'Rechazado' };
+const CT_STATUS_COLOR = { pending:'#f59e0b', approved:'#059669', rejected:'#dc2626' };
+
+async function loadAdminContribs(){
+  const status = document.getElementById('ctFilter')?.value || '';
+  const url = '/api/portal/contributions' + (status ? '?status='+status : '');
+  const r = await fetch(url, { credentials:'include' });
+  const d = await r.json();
+  const list = document.getElementById('ctAdminList');
+  if (!d.success || !d.data.length) {
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);"><i class="bi bi-inbox" style="font-size:28px;opacity:.3;display:block;margin-bottom:6px;"></i>No hay aportes registrados.</div>';
+    return;
+  }
+  list.innerHTML = d.data.map(c => `
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:16px 18px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+            <span style="font-size:11px;font-weight:700;background:rgba(245,158,11,.1);color:#b45309;border:1px solid rgba(245,158,11,.2);border-radius:6px;padding:2px 9px;">${escHtmlPq(c.category||'General')}</span>
+            <span style="font-size:11px;font-weight:700;color:${CT_STATUS_COLOR[c.status]||'#94a3b8'};background:${CT_STATUS_COLOR[c.status]||'#94a3b8'}18;border-radius:6px;padding:2px 9px;">${CT_STATUS_LABEL[c.status]||c.status}</span>
+            <span style="font-size:11px;color:var(--text-muted);">${escHtmlPq(c.name||c.email)} · ${new Date(c.created_at).toLocaleDateString('es-PE')}</span>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--text-main);margin-bottom:6px;">${escHtmlPq(c.title)}</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.6;white-space:pre-line;">${escHtmlPq(c.body)}</div>
+          ${c.avg_stars > 0 ? `<div style="margin-top:8px;font-size:12px;color:#f59e0b;font-weight:600;">★ ${Number(c.avg_stars).toFixed(1)} (${c.rating_count} valoraciones)</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+          ${c.status !== 'approved' ? `<button onclick="approveContrib(${c.id})" style="padding:6px 14px;border-radius:8px;border:1px solid #059669;background:rgba(5,150,105,.08);color:#059669;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-check-circle-fill"></i> Aprobar</button>` : ''}
+          ${c.status !== 'rejected' ? `<button onclick="rejectContrib(${c.id})" style="padding:6px 14px;border-radius:8px;border:1px solid #f59e0b;background:rgba(245,158,11,.08);color:#b45309;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-x-circle"></i> Rechazar</button>` : ''}
+          <button onclick="deleteContrib(${c.id})" style="padding:6px 14px;border-radius:8px;border:1px solid #fca5a5;background:rgba(239,68,68,.07);color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;"><i class="bi bi-trash3"></i></button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function approveContrib(id){
+  const r = await fetch('/api/portal/contributions/'+id, {
+    method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ status:'approved' })
+  });
+  const d = await r.json();
+  if (!d.success) alert('Error: '+(d.error||'No se pudo aprobar'));
+  else loadAdminContribs();
+}
+
+async function rejectContrib(id){
+  const r = await fetch('/api/portal/contributions/'+id, {
+    method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ status:'rejected' })
+  });
+  const d = await r.json();
+  if (!d.success) alert('Error: '+(d.error||'No se pudo rechazar'));
+  else loadAdminContribs();
+}
+
+async function deleteContrib(id){
+  if (!confirm('¿Eliminar este aporte?')) return;
+  await fetch('/api/portal/contributions/'+id, { method:'DELETE', credentials:'include' });
+  loadAdminContribs();
+}
+
+// ── WHATSAPP REQUESTS ─────────────────────────────────────────────────────────
+const WSP_STATUS_LABEL = { pending:'Pendiente', approved:'Aprobado', rejected:'Rechazado' };
+const WSP_STATUS_COLOR = { pending:'#f59e0b', approved:'#25d366', rejected:'#dc2626' };
+
+async function loadWspRequests(){
+  const status = document.getElementById('wspFilter')?.value || '';
+  const url = '/api/portal/whatsapp-requests' + (status ? '?status='+status : '');
+  const list = document.getElementById('wspAdminList');
+  if(!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;"><i class="bi bi-hourglass-split" style="font-size:26px;display:block;margin-bottom:8px;opacity:.4;"></i>Cargando...</div>';
+  try {
+    const r = await fetch(url, { credentials:'include' });
+    const d = await r.json();
+    if (!d.success || !d.data.length){
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;"><i class="bi bi-inbox" style="font-size:32px;display:block;margin-bottom:8px;opacity:.3;"></i>No hay solicitudes registradas.</div>';
+      return;
+    }
+    const pending = d.data.filter(function(w){ return w.status==='pending'; }).length;
+    list.innerHTML = (pending > 0 ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 16px;margin-bottom:0;font-size:12px;color:#92400e;display:flex;align-items:center;gap:8px;border-bottom-left-radius:0;border-bottom-right-radius:0;">
+      <i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b;"></i>
+      <strong>${pending}</strong> solicitud${pending>1?'es':''} pendiente${pending>1?'s':''} de aprobación
+    </div>` : '') +
+    `<div style="overflow-x:auto;">
+    <table class="table-tickets w-100" style="font-size:13px;">
+      <thead><tr>
+        <th style="padding:10px 14px;">Usuario</th>
+        <th style="padding:10px 14px;">Correo</th>
+        <th style="padding:10px 14px;text-align:center;">Número WhatsApp</th>
+        <th style="padding:10px 14px;">Motivo</th>
+        <th style="padding:10px 14px;white-space:nowrap;">Fecha</th>
+        <th style="padding:10px 14px;text-align:center;">Estado</th>
+        <th style="padding:10px 14px;text-align:center;">Acciones</th>
+      </tr></thead>
+      <tbody>${d.data.map(function(w){
+        var sc = WSP_STATUS_COLOR[w.status]||'#94a3b8';
+        var sl = WSP_STATUS_LABEL[w.status]||w.status;
+        var fecha = w.created_at ? new Date(w.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+        return '<tr style="'+(w.status==='pending'?'background:#fffbeb;':'')+'">' +
+          '<td style="padding:10px 14px;font-weight:600;">'+escHtmlPq(w.name||'—')+'</td>'+
+          '<td style="padding:10px 14px;color:var(--text-muted);font-size:12px;">'+escHtmlPq(w.email||'—')+'</td>'+
+          '<td style="padding:10px 14px;text-align:center;"><span style="font-size:15px;font-weight:800;color:#25d366;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="bi bi-whatsapp"></i>'+escHtmlPq(w.phone||'—')+'</span></td>'+
+          '<td style="padding:10px 14px;color:var(--text-muted);font-size:12px;max-width:180px;">'+(w.reason?'<em>"'+escHtmlPq(w.reason)+'"</em>':'<span style="opacity:.4;">—</span>')+'</td>'+
+          '<td style="padding:10px 14px;white-space:nowrap;color:var(--text-muted);">'+fecha+'</td>'+
+          '<td style="padding:10px 14px;text-align:center;"><span style="font-size:11px;font-weight:700;color:'+sc+';background:'+sc+'20;border-radius:6px;padding:3px 10px;white-space:nowrap;">'+sl+'</span></td>'+
+          '<td style="padding:10px 14px;text-align:center;"><div style="display:flex;gap:6px;justify-content:center;">'+
+            (w.status!=='approved'?'<button onclick="wspApprove('+w.id+')" style="padding:5px 12px;border-radius:7px;border:1px solid #25d366;background:rgba(37,211,102,.08);color:#16a34a;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-check-circle-fill"></i> Aprobar</button>':'')+
+            (w.status!=='rejected'?'<button onclick="wspReject('+w.id+')" style="padding:5px 12px;border-radius:7px;border:1px solid #f59e0b;background:rgba(245,158,11,.08);color:#b45309;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-x-circle"></i> Rechazar</button>':'')+
+            '<button onclick="wspDelete('+w.id+')" style="padding:5px 10px;border-radius:7px;border:1px solid #fca5a5;background:rgba(239,68,68,.07);color:#dc2626;font-size:11px;font-weight:700;cursor:pointer;"><i class="bi bi-trash3"></i></button>'+
+          '</div></td></tr>';
+      }).join('')}</tbody>
+    </table></div>`;
+  } catch(e) {
+    list.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:20px;">Error: '+e.message+'</div>';
+  }
+}
+
+async function wspApprove(id){
+  const r = await fetch('/api/portal/whatsapp-requests/'+id, { method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'approved'}) });
+  if(!(await r.json()).success) alert('Error al aprobar'); else loadWspRequests();
+}
+async function wspReject(id){
+  const r = await fetch('/api/portal/whatsapp-requests/'+id, { method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'rejected'}) });
+  if(!(await r.json()).success) alert('Error al rechazar'); else loadWspRequests();
+}
+async function wspDelete(id){
+  if(!confirm('¿Eliminar esta solicitud?')) return;
+  await fetch('/api/portal/whatsapp-requests/'+id, { method:'DELETE', credentials:'include' });
+  loadWspRequests();
+}
+
+// ── APROBACIÓN DEVOLUCIONES ──────────────────────────────────────────────────
+var DEV_STATUS_LABEL = { pendiente:'Pendiente', aprobado:'Aprobado', rechazado:'Rechazado' };
+var DEV_STATUS_COLOR = { pendiente:'#f59e0b',  aprobado:'#10b981',  rechazado:'#dc2626'   };
+
+async function loadDevolucionRequests(){
+  var status = document.getElementById('devReqFilter') ? document.getElementById('devReqFilter').value : '';
+  var url = '/api/portal/devoluciones' + (status ? '?status='+encodeURIComponent(status) : '');
+  var list = document.getElementById('devReqList');
+  if(!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;"><i class="bi bi-hourglass-split" style="font-size:26px;display:block;margin-bottom:8px;opacity:.4;"></i>Cargando...</div>';
+  try {
+    var r = await fetch(url, { credentials:'include' });
+    var d = await r.json();
+    var rows = d.data || [];
+    var pending = rows.filter(function(x){ return x.status==='pendiente'; }).length;
+    var badge = document.getElementById('devReqBadge');
+    if(badge){ badge.style.display=pending>0?'':'none'; badge.textContent=pending; }
+    if(!rows.length){
+      list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;"><i class="bi bi-inbox" style="font-size:32px;display:block;margin-bottom:8px;opacity:.3;"></i>No hay solicitudes de devolución.</div>';
+      return;
+    }
+    list.innerHTML = (pending>0?`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 16px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:8px;border-bottom-left-radius:0;border-bottom-right-radius:0;">
+      <i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b;"></i>
+      <strong>${pending}</strong> solicitud${pending>1?'es':''} pendiente${pending>1?'s':''} de aprobación</div>`:'') +
+    `<div style="overflow-x:auto;"><table class="table-tickets w-100" style="font-size:13px;"><thead><tr>
+      <th style="padding:10px 14px;">Empleado</th>
+      <th style="padding:10px 14px;">Correo</th>
+      <th style="padding:10px 14px;text-align:center;">Checklist</th>
+      <th style="padding:10px 14px;text-align:center;">Firma</th>
+      <th style="padding:10px 14px;text-align:center;">Foto</th>
+      <th style="padding:10px 14px;white-space:nowrap;">Fecha</th>
+      <th style="padding:10px 14px;text-align:center;">Estado</th>
+      <th style="padding:10px 14px;text-align:center;">Acciones</th>
+    </tr></thead><tbody>${rows.map(function(dev){
+      var sc=DEV_STATUS_COLOR[dev.status]||'#94a3b8';
+      var sl=DEV_STATUS_LABEL[dev.status]||dev.status;
+      var fecha=dev.created_at?new Date(dev.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}):'—';
+      var checks=[dev.devolvio_celular?'📱':'',dev.entrego_fotocheck?'🪪':'',dev.mantiene_llave?'🔑':'',dev.entrego_mochila?'🎒':''].filter(Boolean).join(' ')||'—';
+      var fotoCell=dev.foto_data?'<img src="'+dev.foto_data+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--border-soft);" onclick="window.open(\''+dev.foto_data+'\',\'_blank\')" alt="foto">':'<span style="color:#94a3b8;font-size:11px;">—</span>';
+      return '<tr style="'+(dev.status==='pendiente'?'background:#fffbeb;':'')+'">' +
+        '<td style="padding:10px 14px;font-weight:600;">'+escHtmlPq(dev.employee_name||'—')+'</td>'+
+        '<td style="padding:10px 14px;color:var(--text-muted);font-size:12px;">'+escHtmlPq(dev.employee_email||'—')+'</td>'+
+        '<td style="padding:10px 14px;text-align:center;font-size:16px;">'+checks+'</td>'+
+        '<td style="padding:10px 14px;text-align:center;">'+(dev.firma_digital?'<span style="color:#10b981;font-weight:700;font-size:12px;">✅ Sí</span>':'<span style="color:#94a3b8;font-size:11px;">—</span>')+'</td>'+
+        '<td style="padding:10px 14px;text-align:center;">'+fotoCell+'</td>'+
+        '<td style="padding:10px 14px;white-space:nowrap;color:var(--text-muted);font-size:12px;">'+fecha+'</td>'+
+        '<td style="padding:10px 14px;text-align:center;"><span style="font-size:11px;font-weight:700;color:'+sc+';background:'+sc+'20;border-radius:6px;padding:3px 10px;white-space:nowrap;">'+sl+'</span></td>'+
+        '<td style="padding:10px 14px;text-align:center;"><div style="display:flex;gap:6px;justify-content:center;">'+
+          (dev.status!=='aprobado'?'<button onclick="devApprove('+dev.id+')" style="padding:5px 12px;border-radius:7px;border:1px solid #10b981;background:rgba(16,185,129,.08);color:#059669;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-check-circle-fill"></i> Aprobar</button>':'')+
+          (dev.status!=='rechazado'?'<button onclick="devReject('+dev.id+')" style="padding:5px 12px;border-radius:7px;border:1px solid #f59e0b;background:rgba(245,158,11,.08);color:#b45309;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-x-circle"></i> Rechazar</button>':'')+
+        '</div></td></tr>';
+    }).join('')}</tbody></table></div>`;
+  } catch(e) {
+    list.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:20px;">Error: '+e.message+'</div>';
+  }
+}
+
+async function devApprove(id){
+  if(!confirm('¿Aprobar esta devolución? Se procesará: equipo marcado En Mantenimiento y empleado dado de baja.')) return;
+  var r=await fetch('/api/portal/devoluciones/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'aprobado'})});
+  if(!(await r.json()).success) alert('Error al aprobar'); else loadDevolucionRequests();
+}
+
+async function devReject(id){
+  var r=await fetch('/api/portal/devoluciones/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'rechazado'})});
+  if(!(await r.json()).success) alert('Error al rechazar'); else loadDevolucionRequests();
+}
+
+// ── Garantías ─────────────────────────────────────────────────────────────────
+var GAR_STATUS_LABEL = { pendiente:'Pendiente', aprobado:'Aprobado', rechazado:'Rechazado' };
+var GAR_STATUS_COLOR = { pendiente:'#b45309', aprobado:'#059669', rechazado:'#dc2626' };
+var GAR_STATUS_BG    = { pendiente:'#fef3c7', aprobado:'#d1fae5', rechazado:'#fee2e2' };
+
+async function loadGarantiaRequests(){
+  var status = (document.getElementById('garReqFilterStatus')||{}).value||'';
+  var tipo   = (document.getElementById('garReqFilterTipo')||{}).value||'';
+  var qs = [status?'status='+encodeURIComponent(status):'', tipo?'tipo='+encodeURIComponent(tipo):''].filter(Boolean).join('&');
+  var url = '/api/portal/garantias'+(qs?'?'+qs:'');
+  var list = document.getElementById('garReqList');
+  var badge = document.getElementById('garReqBadge');
+  try{
+    var r=await fetch(url,{credentials:'include'}); var d=await r.json();
+    if(!d.success){ list.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">Error al cargar datos.</div>'; return; }
+    var rows=d.data||[];
+    var pending=rows.filter(g=>g.status==='pendiente').length;
+    if(badge){ badge.textContent=pending; badge.style.display=pending?'':'none'; }
+    if(!rows.length){ list.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-muted);font-size:13px;"><i class="bi bi-inbox" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>No hay solicitudes.</div>'; return; }
+    window.garDenData={};
+    var html='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--bg-main);">'
+      +'<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;">Empleado</th>'
+      +'<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;">Tipo</th>'
+      +'<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;">Equipo / Detalle</th>'
+      +'<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;">Firma</th>'
+      +'<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;">Fecha</th>'
+      +'<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;">Estado</th>'
+      +'<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;">Acciones</th>'
+      +'</tr></thead><tbody>';
+    rows.forEach(function(g){
+      if(g.denuncia_data) window.garDenData[g.id]=g.denuncia_data;
+      var isRobo=g.tipo==='robo';
+      var tipoLabel=isRobo?'<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">🚨 Pérdida/Robo</span>':'<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">🔧 Técnica</span>';
+      var detalle=isRobo?('Cuando: '+(g.cuando_ocurrio||'—')+'<br>Donde: '+(g.donde_ocurrio||'—')):((g.pieza?'<strong>'+g.pieza+'</strong><br>':'')+escHtmlInc(g.descripcion||'—').substring(0,80));
+      var firma=g.firma_digital?'<img src="'+g.firma_digital+'" style="height:32px;border-radius:4px;border:1px solid var(--border-soft);" alt="firma">':'—';
+      var dt=g.created_at?new Date(g.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}):'—';
+      var sl=GAR_STATUS_LABEL[g.status]||g.status, sc=GAR_STATUS_COLOR[g.status]||'#666', sb=GAR_STATUS_BG[g.status]||'#f3f4f6';
+      html+='<tr style="border-bottom:1px solid var(--border-soft);">'
+        +'<td style="padding:10px 14px;"><div style="font-weight:700;color:var(--text-main);">'+(g.employee_name||'—')+'</div><div style="font-size:11px;color:var(--text-muted);">'+(g.employee_email||'—')+'</div></td>'
+        +'<td style="padding:10px 14px;">'+tipoLabel+'</td>'
+        +'<td style="padding:10px 14px;max-width:200px;font-size:12px;color:var(--text-muted);">'+detalle+'</td>'
+        +'<td style="padding:10px 14px;">'+firma+'</td>'
+        +'<td style="padding:10px 14px;font-size:12px;white-space:nowrap;">'+dt+'</td>'
+        +'<td style="padding:10px 14px;"><span style="background:'+sb+';color:'+sc+';padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">'+sl+'</span></td>'
+        +'<td style="padding:10px 14px;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'
+        +(g.status!=='aprobado'?'<button onclick="garApprove('+g.id+')" style="padding:5px 12px;border-radius:7px;border:1px solid #059669;background:rgba(5,150,105,.08);color:#059669;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-check-circle-fill"></i> Aprobar</button>':'')
+        +(g.status!=='rechazado'?'<button onclick="garReject('+g.id+')" style="padding:5px 12px;border-radius:7px;border:1px solid #f59e0b;background:rgba(245,158,11,.08);color:#b45309;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-x-circle"></i> Rechazar</button>':'')
+        +(g.denuncia_data?'<button onclick="garVerDenuncia('+g.id+',garDenData['+g.id+'])" style="padding:5px 12px;border-radius:7px;border:1px solid #6366f1;background:rgba(99,102,241,.08);color:#4f46e5;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-file-earmark-pdf"></i> Denuncia</button>':'')
+        +'</div></td></tr>';
+    });
+    html+='</tbody></table></div>';
+    list.innerHTML=html;
+  }catch(e){ list.innerHTML='<div style="padding:24px;text-align:center;color:var(--danger);font-size:13px;">Error: '+e.message+'</div>'; }
+}
+
+async function garApprove(id){
+  if(!confirm('¿Aprobar esta solicitud de garantía?')) return;
+  var r=await fetch('/api/portal/garantias/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'aprobado'})});
+  if(!(await r.json()).success) alert('Error al aprobar'); else loadGarantiaRequests();
+}
+
+async function garReject(id){
+  var r=await fetch('/api/portal/garantias/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'rechazado'})});
+  if(!(await r.json()).success) alert('Error al rechazar'); else loadGarantiaRequests();
+}
+
+var _garDenunciaCache={};
+async function garVerDenuncia(id, dataUrl){
+  var data=dataUrl||_garDenunciaCache[id];
+  if(!data){ alert('Denuncia no disponible'); return; }
+  _garDenunciaCache[id]=data;
+  var win=window.open('','_blank');
+  if(data.startsWith('data:application/pdf')||data.startsWith('data:application/octet')){
+    win.document.write('<iframe src="'+data+'" style="width:100%;height:100vh;border:none;"></iframe>');
+  } else {
+    win.document.write('<img src="'+data+'" style="max-width:100%;">');
+  }
+}
+
+function escHtmlInc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+// ── Greetings personalizados — se ejecutan desde el segundo bloque script ─────
+
+// ── Solicitudes de Base de Conocimiento ───────────────────────────────────────
+var KB_REQ_STATUS_LABEL = { pendiente:'Pendiente', en_progreso:'En progreso', resuelto:'Resuelto' };
+var KB_REQ_STATUS_COLOR = { pendiente:'#b45309', en_progreso:'#1e40af', resuelto:'#065f46' };
+var KB_REQ_STATUS_BG    = { pendiente:'#fef3c7', en_progreso:'#dbeafe',  resuelto:'#d1fae5' };
+
+async function loadKbRequests(){
+  var status = document.getElementById('kbReqFilter') ? document.getElementById('kbReqFilter').value : '';
+  var url    = '/api/kb/procedure-requests' + (status ? '?status='+encodeURIComponent(status) : '');
+  var list   = document.getElementById('kbReqList');
+  if(!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;"><i class="bi bi-hourglass-split" style="font-size:26px;display:block;margin-bottom:8px;opacity:.4;"></i>Cargando...</div>';
+  try {
+    var r = await fetch(url, { credentials:'include' });
+    var d = await r.json();
+    var rows = d.data || [];
+
+    var pending = rows.filter(function(x){ return x.status==='pendiente'; }).length;
+    var badge = document.getElementById('kbReqBadge');
+    if(badge){ badge.style.display = pending>0?'':'none'; badge.textContent=pending; }
+
+    if(!rows.length){
+      list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;"><i class="bi bi-inbox" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>Sin solicitudes'+(status?' con este estado':'')+'</div>';
+      return;
+    }
+
+    var html='<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--bg-main);">';
+    ['#','Usuario','Correo','Procedimiento solicitado','Descripción','Fecha','Estado','Acción'].forEach(function(h){
+      html+='<th style="padding:10px 14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);border-bottom:2px solid var(--border-soft);text-align:left;">'+h+'</th>';
+    });
+    html+='</tr></thead><tbody>';
+
+    rows.forEach(function(req){
+      var col=KB_REQ_STATUS_COLOR[req.status]||'#64748b';
+      var bg=KB_REQ_STATUS_BG[req.status]||'#f1f5f9';
+      var lbl=KB_REQ_STATUS_LABEL[req.status]||req.status;
+      var date=req.created_at?new Date(req.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}):'—';
+      var rowBg=req.status==='pendiente'?'background:#fffbeb;':'';
+      html+='<tr style="'+rowBg+'">';
+      html+='<td style="padding:10px 14px;border-bottom:1px solid var(--border-soft);font-weight:700;color:var(--text-muted);">#'+req.id+'</td>';
+      html+='<td style="padding:10px 14px;border-bottom:1px solid var(--border-soft);font-weight:600;">'+(req.user_name||'—')+'</td>';
+      html+='<td style="padding:10px 14px;border-bottom:1px solid var(--border-soft);color:var(--text-muted);font-size:12px;">'+(req.user_email||'—')+'</td>';
+      html+='<td style="padding:10px 14px;border-bottom:1px solid var(--border-soft);font-weight:700;max-width:220px;">'+escKb(req.query)+'</td>';
+      html+='<td style="padding:10px 14px;border-bottom:1px solid var(--border-soft);color:var(--text-muted);font-size:12px;max-width:180px;">'+escKb(req.description||'—')+'</td>';
+      html+='<td style="padding:10px 14px;border-bottom:1px solid var(--border-soft);font-size:12px;white-space:nowrap;">'+date+'</td>';
+      html+='<td style="padding:10px 14px;border-bottom:1px solid var(--border-soft);"><span style="padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;background:'+bg+';color:'+col+';">'+lbl+'</span></td>';
+      html+='<td style="padding:10px 14px;border-bottom:1px solid var(--border-soft);"><div style="display:flex;gap:4px;">';
+      if(req.status!=='resuelto')  html+='<button title="Marcar resuelto" onclick="updateKbReqStatus('+req.id+',\'resuelto\')" style="padding:5px 10px;border-radius:7px;border:none;background:#10b981;color:#fff;font-size:11px;font-weight:700;cursor:pointer;"><i class="bi bi-check2"></i></button>';
+      if(req.status==='pendiente') html+='<button title="En progreso" onclick="updateKbReqStatus('+req.id+',\'en_progreso\')" style="padding:5px 10px;border-radius:7px;border:none;background:#3b82f6;color:#fff;font-size:11px;font-weight:700;cursor:pointer;"><i class="bi bi-play-fill"></i></button>';
+      html+='</div></td></tr>';
+    });
+    html+='</tbody></table>';
+    list.innerHTML=html;
+  } catch(e){
+    list.innerHTML='<div style="text-align:center;padding:32px;color:#dc2626;font-size:13px;">Error al cargar solicitudes</div>';
+  }
+}
+
+async function updateKbReqStatus(id, status){
+  try {
+    var r = await fetch('/api/kb/procedure-requests/'+id+'/status',{
+      method:'PATCH', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status})
+    });
+    var d = await r.json();
+    if(d.success) loadKbRequests(); else alert('Error: '+(d.error||''));
+  } catch(e){ alert('Error de conexión'); }
+}
+
+function escKb(s){ var d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }
+
+// ── Encuesta de Satisfacción General ─────────────────────────────────────────
+var _starLabels = ['','😞 Muy malo','😕 Malo','😐 Regular','😊 Bueno','🤩 Excelente'];
+var _starColor  = ['','#dc2626','#f97316','#f59e0b','#22c55e','#10b981'];
+
+async function loadSurveyGeneralResults() {
+  const wrap  = document.getElementById('surveyGenWrap');
+  const stats = document.getElementById('surveyGenStats');
+  if(!wrap) return;
+  wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px;"><i class="bi bi-hourglass" style="font-size:24px;display:block;margin-bottom:8px;"></i>Cargando...</div>';
+  try {
+    const r = await fetch('/api/portal/survey-general/results', {credentials:'include'});
+    const j = await r.json();
+    if(!j.success) throw new Error(j.error);
+    const data = j.data || [];
+    if(data.length){
+      const avg = (data.reduce((s,x)=>s+x.rating,0)/data.length).toFixed(1);
+      const low = data.filter(x=>x.rating<=2).length;
+      const hi  = data.filter(x=>x.rating>=4).length;
+      stats.innerHTML = `
+        <div style="background:#fff;border:1px solid var(--border-soft);border-radius:10px;padding:14px 20px;display:flex;flex-direction:column;gap:4px;min-width:110px;">
+          <div style="font-size:22px;font-weight:800;color:#2563eb;">${avg}</div>
+          <div style="font-size:11px;color:var(--text-muted);">Promedio global</div>
+          <div style="color:#f59e0b;font-size:14px;">${'★'.repeat(Math.round(avg))}${'☆'.repeat(5-Math.round(avg))}</div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--border-soft);border-radius:10px;padding:14px 20px;display:flex;flex-direction:column;gap:4px;min-width:110px;">
+          <div style="font-size:22px;font-weight:800;color:#374151;">${data.length}</div>
+          <div style="font-size:11px;color:var(--text-muted);">Total respuestas</div>
+        </div>
+        <div style="background:#fff;border:1px solid #fecaca;border-radius:10px;padding:14px 20px;display:flex;flex-direction:column;gap:4px;min-width:110px;">
+          <div style="font-size:22px;font-weight:800;color:#dc2626;">${low}</div>
+          <div style="font-size:11px;color:var(--text-muted);">Bajas (1-2 ★)</div>
+        </div>
+        <div style="background:#fff;border:1px solid #bbf7d0;border-radius:10px;padding:14px 20px;display:flex;flex-direction:column;gap:4px;min-width:110px;">
+          <div style="font-size:22px;font-weight:800;color:#10b981;">${hi}</div>
+          <div style="font-size:11px;color:var(--text-muted);">Altas (4-5 ★)</div>
+        </div>`;
+    } else { stats.innerHTML = ''; }
+    if(!data.length){
+      wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px;"><i class="bi bi-inbox" style="font-size:28px;display:block;margin-bottom:8px;"></i>Sin calificaciones aún.</div>';
+      return;
+    }
+    function miniStars(r){ return r ? ('★'.repeat(r)+'☆'.repeat(5-r)) : '—'; }
+    wrap.innerHTML = `
+      <table class="table-tickets w-100" style="font-size:12px;">
+        <thead><tr>
+          <th style="padding:10px 12px;white-space:nowrap;">Usuario</th>
+          <th style="padding:10px 12px;">Email</th>
+          <th style="padding:10px 12px;text-align:center;white-space:nowrap;"><i class="bi bi-laptop-fill" style="color:#2563eb;"></i> Plataforma</th>
+          <th style="padding:10px 12px;text-align:center;white-space:nowrap;"><i class="bi bi-pc-display-horizontal" style="color:#7c3aed;"></i> Equipo</th>
+          <th style="padding:10px 12px;text-align:center;white-space:nowrap;"><i class="bi bi-grid-3x3-gap-fill" style="color:#0891b2;"></i> App</th>
+          <th style="padding:10px 12px;">Comentario</th>
+          <th style="padding:10px 12px;white-space:nowrap;">Fecha</th>
+          <th style="padding:10px 12px;text-align:center;">Acción</th>
+        </tr></thead>
+        <tbody>${data.map(s=>{
+          const color  = _starColor[s.rating]||'#374151';
+          const label  = _starLabels[s.rating]||'';
+          const cEquip = _starColor[s.rating_equipment]||'#94a3b8';
+          const cApp   = _starColor[s.rating_app]||'#94a3b8';
+          const fecha  = s.created_at ? new Date(s.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+          const canEmail = s.rating <= 3;
+          return `<tr style="${s.rating<=2?'background:#fff5f5;':''}">
+            <td style="padding:9px 12px;font-weight:600;">${s.full_name||'—'}</td>
+            <td style="padding:9px 12px;color:var(--text-muted);font-size:11px;">${s.email}</td>
+            <td style="padding:9px 12px;text-align:center;">
+              <div style="color:${color};font-size:13px;letter-spacing:1px;">${miniStars(s.rating)}</div>
+              <div style="font-size:10px;color:${color};font-weight:600;">${label}</div>
+            </td>
+            <td style="padding:9px 12px;text-align:center;">
+              <div style="color:${cEquip};font-size:13px;letter-spacing:1px;">${miniStars(s.rating_equipment)}</div>
+              ${s.rating_equipment ? `<div style="font-size:10px;color:${cEquip};font-weight:600;">${_starLabels[s.rating_equipment]||''}</div>` : ''}
+            </td>
+            <td style="padding:9px 12px;text-align:center;">
+              <div style="color:${cApp};font-size:13px;letter-spacing:1px;">${miniStars(s.rating_app)}</div>
+              ${s.app_name ? `<div style="font-size:10px;color:#0891b2;font-weight:600;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.app_name}">${s.app_name}</div>` : ''}
+              ${s.rating_app && !s.app_name ? `<div style="font-size:10px;color:${cApp};font-weight:600;">${_starLabels[s.rating_app]||''}</div>` : ''}
+            </td>
+            <td style="padding:9px 12px;color:var(--text-muted);font-size:11px;max-width:180px;">${s.comment||'<span style="opacity:.5;">Sin comentario</span>'}</td>
+            <td style="padding:9px 12px;white-space:nowrap;color:var(--text-muted);">${fecha}</td>
+            <td style="padding:9px 12px;text-align:center;">${canEmail
+              ? `<button onclick="sendSurveyFeedbackEmail(${s.id},'${s.email.replace(/'/g,"\\'")}',this)"
+                  style="padding:5px 10px;border-radius:7px;border:none;background:#2563eb;color:#fff;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;margin:0 auto;">
+                  <i class="bi bi-envelope-fill"></i> Correo
+                </button>`
+              : '<span style="font-size:11px;color:var(--text-muted);">—</span>'}
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+  } catch(e) {
+    wrap.innerHTML = `<div style="color:#dc2626;font-size:13px;padding:20px;">Error: ${e.message}</div>`;
+  }
+}
+
+var _surveyEmailId = null, _surveyEmailBtn = null;
+
+function sendSurveyFeedbackEmail(id, email, btn){
+  _surveyEmailId  = id;
+  _surveyEmailBtn = btn;
+  document.getElementById('sfEmailTo').textContent = email;
+  Array.from(document.getElementById('sfQuestions').options).forEach(function(o){ o.selected=false; });
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('sfModal')).show();
+}
+</script>
+
+<!-- modalTicketOk moved to create.ejs so it's always available -->
+<!-- ══ TAB: Encuesta de Satisfacción General ══ -->

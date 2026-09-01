@@ -1,0 +1,102 @@
+<%
+// Variables esperadas: entity, label, icon, keyLabel, columns, notes
+%>
+<div class="card">
+  <div class="card-head">
+    <h3><i class="bi <%= icon %>"></i> <%= label %></h3>
+    <small style="color:var(--muted);font-size:.78rem"><%= keyLabel %></small>
+  </div>
+  <div class="card-body">
+
+    <!-- Acciones principales -->
+    <div class="action-row">
+      <a href="/api/data-center/<%= entity %>/export" class="btn btn-outline">
+        <i class="bi bi-download"></i> Exportar data actual
+      </a>
+      <a href="/api/data-center/<%= entity %>/template" class="btn btn-outline">
+        <i class="bi bi-file-earmark-spreadsheet"></i> Descargar plantilla
+      </a>
+    </div>
+
+    <!-- Info de columnas -->
+    <div class="info-block" style="margin-bottom:1.25rem">
+      <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.5rem">
+        Columnas del CSV
+      </div>
+      <code style="display:block;word-break:break-all;font-size:.79rem"><%= columns %></code>
+      <ul style="margin-top:.75rem;padding-left:1.25rem">
+        <% notes.forEach(function(n){ %>
+          <li style="margin-bottom:.3rem"><%- n %></li>
+        <% }); %>
+      </ul>
+    </div>
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="dropzone-<%= entity %>">
+      <input type="file" id="fileinput-<%= entity %>" accept=".csv,.tsv,.txt">
+      <span class="dz-icon">📂</span>
+      <div class="dz-label">Arrastra tu CSV aquí o haz clic para seleccionar</div>
+      <div class="dz-hint">Archivos .csv — máx. 20 MB — separador: coma (,)</div>
+    </div>
+
+    <div class="file-selected" id="filesel-<%= entity %>">
+      <i class="bi bi-file-earmark-text" style="font-size:1.4rem;color:var(--success)"></i>
+      <span class="name" id="filename-<%= entity %>">—</span>
+      <span class="size" id="filesize-<%= entity %>">—</span>
+      <button class="remove-file" id="removefile-<%= entity %>" title="Quitar archivo">
+        <i class="bi bi-x-circle"></i>
+      </button>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="action-row" style="margin-top:1rem;margin-bottom:0">
+      <button class="btn btn-primary" id="btnPreview-<%= entity %>" disabled>
+        <i class="bi bi-search"></i> Analizar CSV
+      </button>
+      <button class="btn btn-success" id="btnCommit-<%= entity %>" disabled>
+        <i class="bi bi-check-circle"></i> Confirmar y guardar
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div class="prog-wrap" id="prog-<%= entity %>">
+      <div class="prog-bar"><div class="prog-fill" id="progfill-<%= entity %>"></div></div>
+      <div class="prog-lbl" id="proglbl-<%= entity %>">Procesando...</div>
+    </div>
+
+    <!-- Preview -->
+    <div class="preview-wrap" id="preview-<%= entity %>">
+      <div style="font-size:.88rem;font-weight:700;margin-bottom:.875rem">Vista previa de cambios</div>
+      <div class="preview-summary">
+        <div class="sum-pill pill-ins">
+          <span class="val" id="cnt-ins-<%= entity %>">0</span>
+          <span class="lbl">Nuevos</span>
+        </div>
+        <div class="sum-pill pill-upd">
+          <span class="val" id="cnt-upd-<%= entity %>">0</span>
+          <span class="lbl">Actualizan</span>
+        </div>
+        <div class="sum-pill pill-ski">
+          <span class="val" id="cnt-ski-<%= entity %>">0</span>
+          <span class="lbl">Omiten</span>
+        </div>
+        <div class="sum-pill pill-err">
+          <span class="val" id="cnt-err-<%= entity %>">0</span>
+          <span class="lbl">Errores</span>
+        </div>
+      </div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem;display:none" id="preview-more-<%= entity %>"></div>
+      <div class="table-wrap" style="max-height:380px;overflow-y:auto">
+        <table id="preview-table-<%= entity %>"></table>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div class="result-box" id="resultbox-<%= entity %>"></div>
+
+  </div>
+</div>
+
+<script>
+(function(){ new DataUploader('<%= entity %>'); })();
+</script>

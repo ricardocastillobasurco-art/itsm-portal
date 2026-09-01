@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Licenciamiento · IT Platform</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<%- include('../../../../shared/partials/autogestion/styles') %>
+<style>
+.sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:1040px;}
+@media(max-width:740px){.sub-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:460px){.sub-grid{grid-template-columns:1fr;}}
+.back-btn{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-card);border:1px solid var(--border-soft);border-radius:20px;padding:6px 14px;text-decoration:none;box-shadow:var(--shadow-card);transition:color .2s;margin-bottom:6px;}
+.back-btn:hover{color:var(--primary);}
+@media(max-width:680px){
+  .toggle-label{display:none;}
+  .theme-toggle{padding:5px 10px 5px 8px;}
+  .hero{margin-bottom:14px;}
+  .hero-logo-icon{width:38px;height:38px;font-size:19px;border-radius:10px;}
+  .hero-logo-text{font-size:18px;}
+  .hero-title{font-size:10px;letter-spacing:.3px;}
+  .hero-chip{font-size:10px;padding:3px 10px;letter-spacing:.4px;}
+  .back-btn{font-size:11px;padding:5px 10px;}
+  .sub-grid .mod-card{padding:16px 14px 14px;}
+  .sub-grid .mod-icon{width:38px;height:38px;font-size:17px;margin-bottom:8px;}
+  .sub-grid .mod-name{font-size:12.5px;}
+  .sub-grid .mod-desc{font-size:10.5px;}
+}
+</style>
+</head>
+<body>
+
+<div class="theme-toggle" onclick="toggleTheme()">
+  <i id="toggleIcon" class="bi bi-moon-stars-fill toggle-icon"></i>
+  <div class="toggle-track"><div class="toggle-knob"></div></div>
+  <span id="toggleLabel" class="toggle-label">Oscuro</span>
+</div>
+
+<div class="home-wrapper">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-logo">
+      <div class="hero-logo-icon" style="background:linear-gradient(135deg,#059669,#10b981);"><i class="bi bi-key-fill"></i></div>
+      <div class="hero-logo-text">LICENCIAS · <span>MICROSOFT 365 & SOFTWARE</span></div>
+    </div>
+    <div class="hero-title">Gestión de Licencias · Asignaciones · Alertas · Tendencias de uso</div>
+    <div class="hero-chip" style="background:rgba(5,150,105,.1);color:#059669;border-color:rgba(5,150,105,.25);">
+      <i class="bi bi-circle-fill" style="font-size:8px;color:#10b981;"></i>
+      Control integral de licenciamiento corporativo
+    </div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <a href="/administracion" class="back-btn"><i class="bi bi-arrow-left"></i> Panel de administración</a>
+    </div>
+  </div>
+
+  <!-- TABS NAV -->
+  <div class="tabs-wrapper">
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="tb-m365" onclick="switchTab('m365',this)"><i class="bi bi-microsoft"></i> Microsoft 365</button>
+      <button class="tab-btn"        id="tb-soft" onclick="switchTab('soft',this)"><i class="bi bi-box-seam-fill"></i> Software</button>
+    </div>
+  </div>
+
+  <!-- TAB: MICROSOFT 365 -->
+  <div class="tab-panel active" id="panel-m365">
+    <div class="section-label"><i class="bi bi-microsoft"></i> &nbsp;Licenciamiento Microsoft 365</div>
+    <div class="sub-grid">
+      <a href="/licencias/panel" class="mod-card c-green">
+        <div class="mod-icon ib ib-green"><i class="bi bi-grid-1x2-fill"></i></div>
+        <div class="mod-name">Dashboard M365</div>
+        <div class="mod-desc">KPIs generales de licencias, consumo por servicio y estado global de asignaciones.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/licencias/panel?tab=asignaciones" class="mod-card c-cyan">
+        <div class="mod-icon ib ib-cyan"><i class="bi bi-person-badge-fill"></i></div>
+        <div class="mod-name">Asignaciones</div>
+        <div class="mod-desc">Gestiona la asignación y revocación de licencias M365 por usuario o grupo.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/licencias/panel?tab=alertas" class="mod-card c-orange">
+        <div class="mod-icon ib ib-orange"><i class="bi bi-bell-fill"></i></div>
+        <div class="mod-name">Alertas</div>
+        <div class="mod-desc">Licencias próximas a vencer, sin asignar o con consumo anómalo que requieren atención.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/licencias/panel?tab=usoapps" class="mod-card c-blue">
+        <div class="mod-icon ib ib-blue"><i class="bi bi-graph-up-arrow"></i></div>
+        <div class="mod-name">Uso de Aplicaciones</div>
+        <div class="mod-desc">Estadísticas de actividad y adopción por servicio: Teams, Exchange, SharePoint, OneDrive.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/licencias/panel?tab=tendencias" class="mod-card c-purp">
+        <div class="mod-icon ib ib-purp"><i class="bi bi-bar-chart-fill"></i></div>
+        <div class="mod-name">Tendencias 30d</div>
+        <div class="mod-desc">Evolución de usuarios activos en los últimos 30 días por servicio de Microsoft 365.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: SOFTWARE -->
+  <div class="tab-panel" id="panel-soft">
+    <div class="section-label"><i class="bi bi-box-seam-fill"></i> &nbsp;Licencias de Software</div>
+    <div class="sub-grid">
+      <div class="mod-card c-amber" style="opacity:.6;cursor:default;">
+        <div class="mod-icon ib ib-amber"><i class="bi bi-collection-fill"></i></div>
+        <div class="mod-name">Catálogo de Software</div>
+        <div class="mod-desc">Inventario de licencias de software instaladas en los equipos del parque TI.</div>
+        <span style="position:absolute;bottom:16px;right:16px;font-size:9px;font-weight:800;padding:2px 8px;background:rgba(217,119,6,.12);color:#d97706;border-radius:20px;letter-spacing:.5px;">PRÓXIMAMENTE</span>
+      </div>
+      <div class="mod-card c-indigo" style="opacity:.6;cursor:default;">
+        <div class="mod-icon ib ib-indigo"><i class="bi bi-calendar-check-fill"></i></div>
+        <div class="mod-name">Vencimientos</div>
+        <div class="mod-desc">Control de fechas de expiración y renovación de licencias de software por contrato.</div>
+        <span style="position:absolute;bottom:16px;right:16px;font-size:9px;font-weight:800;padding:2px 8px;background:rgba(67,56,202,.12);color:#4338ca;border-radius:20px;letter-spacing:.5px;">PRÓXIMAMENTE</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="home-footer">© 2025 IT Platform &nbsp;·&nbsp; Gestión de Licenciamiento</div>
+</div>
+
+<script>
+(function(){
+  const s = localStorage.getItem('dashboardTheme') || 'light';
+  document.documentElement.setAttribute('data-theme', s);
+  _syncUI(s);
+})();
+function toggleTheme(){
+  const n = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', n);
+  localStorage.setItem('dashboardTheme', n);
+  _syncUI(n);
+}
+function _syncUI(t){
+  document.getElementById('toggleIcon').className = t === 'dark' ? 'bi bi-sun-fill toggle-icon' : 'bi bi-moon-stars-fill toggle-icon';
+  document.getElementById('toggleLabel').textContent = t === 'dark' ? 'Claro' : 'Oscuro';
+}
+function switchTab(name, btn){
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+document.addEventListener('DOMContentLoaded', function(){
+  const tab = new URLSearchParams(location.search).get('tab');
+  if(tab){ const btn = document.getElementById('tb-' + tab); if(btn) switchTab(tab, btn); }
+});
+</script>
+</body>
+</html>

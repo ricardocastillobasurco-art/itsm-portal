@@ -1,0 +1,1088 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Incidencias · ITSM</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/core/style.css">
+  <link rel="stylesheet" href="../../css/modules/helpdesk.css">
+  <link rel="stylesheet" href="../../css/core/shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    html,body{background:var(--bg-main);margin:0;padding:0;}
+    .itsm-topbar{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--bg-card);border-bottom:1px solid var(--border-soft);position:sticky;top:0;z-index:100;}
+    .itsm-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-main);border:1px solid var(--border-soft);border-radius:20px;padding:5px 12px;text-decoration:none;transition:color .2s;}
+    .itsm-back:hover{color:var(--primary);}
+    .itsm-breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);}
+    .itsm-breadcrumb a{color:var(--text-muted);text-decoration:none;font-weight:500;transition:color .2s;}
+    .itsm-breadcrumb a:hover{color:var(--primary);}
+    .itsm-breadcrumb .sep{opacity:.4;}
+    .itsm-breadcrumb .current{color:var(--text-main);font-weight:700;}
+    .dashboard-content{padding:0;}
+    #tabGestion{display:none;}
+
+    /* ── UNASSIGNED TICKET ALERT ─────────────────────────── */
+    .ua-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9990;pointer-events:none;display:flex;align-items:flex-start;justify-content:flex-end;padding:70px 20px 20px;}
+    .ua-card{pointer-events:all;width:420px;max-width:calc(100vw - 40px);background:var(--bg-card,#fff);border:1.5px solid rgba(220,38,38,.35);border-radius:18px;box-shadow:0 8px 40px rgba(220,38,38,.18),0 24px 64px rgba(0,0,0,.18);overflow:hidden;animation:uaIn .38s cubic-bezier(.34,1.56,.64,1);}
+    @keyframes uaIn{from{opacity:0;transform:scale(.82) translateY(-16px);}to{opacity:1;transform:scale(1) translateY(0);}}
+    .ua-header{background:linear-gradient(135deg,#b91c1c,#ef4444);padding:13px 16px;display:flex;align-items:center;gap:10px;}
+    .ua-pulse-dot{width:9px;height:9px;border-radius:50%;background:#fff;animation:uaDot 1.3s ease-in-out infinite;flex-shrink:0;}
+    @keyframes uaDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.65);}}
+    .ua-header-title{font-size:12px;font-weight:800;color:#fff;letter-spacing:.2px;}
+    .ua-queue-pill{margin-left:auto;background:rgba(255,255,255,.22);color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:12px;display:none;}
+    .ua-body{padding:16px 18px 18px;}
+    .ua-ticket-id{display:inline-flex;align-items:center;gap:8px;margin-bottom:11px;}
+    .ua-id-tag{font-family:monospace;font-size:13px;font-weight:800;background:rgba(220,38,38,.1);color:#dc2626;border:1.5px solid rgba(220,38,38,.22);border-radius:8px;padding:4px 10px;}
+    .ua-prio-tag{font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;letter-spacing:.2px;}
+    .ua-summary{font-size:13.5px;font-weight:700;color:var(--text-main,#0f172a);line-height:1.45;margin-bottom:10px;}
+    .ua-meta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:15px;}
+    .ua-meta span{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted,#64748b);}
+    .ua-actions{display:flex;gap:8px;}
+    .ua-btn-me{flex:1;padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;background:linear-gradient(135deg,#b91c1c,#ef4444);color:#fff;display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity .18s,transform .1s;}
+    .ua-btn-me:hover{opacity:.88;}.ua-btn-me:active{transform:scale(.97);}
+    .ua-btn-assign{padding:10px 13px;border-radius:10px;border:1.5px solid var(--border-soft,#e2e8f0);cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;background:var(--bg-main,#f1f5f9);color:var(--text-main,#0f172a);display:flex;align-items:center;gap:6px;transition:border-color .18s;}
+    .ua-btn-assign:hover{border-color:#3b82f6;color:#3b82f6;}
+    .ua-picker{margin-top:12px;display:none;}
+    .ua-picker input{width:100%;border:1.5px solid var(--border-soft,#e2e8f0);border-radius:9px;padding:8px 12px;font-size:12px;background:var(--bg-main,#f1f5f9);color:var(--text-main,#0f172a);outline:none;font-family:inherit;box-sizing:border-box;}
+    .ua-picker input:focus{border-color:#3b82f6;}
+    .ua-picker-drop{border:1.5px solid var(--border-soft,#e2e8f0);border-radius:9px;margin-top:4px;max-height:150px;overflow-y:auto;background:var(--bg-card,#fff);display:none;}
+    .ua-picker-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border-soft,#e2e8f0);font-size:12px;color:var(--text-main,#0f172a);transition:background .12s;}
+    .ua-picker-item:last-child{border-bottom:none;}.ua-picker-item:hover{background:var(--bg-main,#f1f5f9);}
+    .ua-picker-item strong{display:block;font-weight:700;}.ua-picker-item small{color:var(--text-muted,#64748b);}
+    /* success */
+    .ua-success{display:none;flex-direction:column;align-items:center;justify-content:center;padding:28px 18px;text-align:center;}
+    .ua-success-icon{font-size:44px;color:#059669;animation:uaCheck .4s cubic-bezier(.34,1.56,.64,1);margin-bottom:10px;}
+    @keyframes uaCheck{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}
+    .ua-success-title{font-size:15px;font-weight:800;color:var(--text-main,#0f172a);margin-bottom:4px;}
+    .ua-success-sub{font-size:12px;color:var(--text-muted,#64748b);}
+
+    /* ── CONSULT LIVE PANEL ─────────────────────────────────── */
+    .cci-overlay{position:fixed;bottom:20px;right:20px;z-index:9991;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;}
+    .cci-notif{pointer-events:all;width:340px;background:var(--bg-card,#fff);border:1.5px solid rgba(8,145,178,.38);border-radius:16px;box-shadow:0 8px 32px rgba(8,145,178,.18),0 24px 56px rgba(0,0,0,.16);overflow:hidden;animation:uaIn .35s cubic-bezier(.34,1.56,.64,1);}
+    .cci-notif-hdr{background:linear-gradient(135deg,#0f766e,#0891b2);padding:11px 15px;display:flex;align-items:center;gap:9px;}
+    .cci-notif-dot{width:8px;height:8px;border-radius:50%;background:#fff;animation:uaDot 1.3s ease-in-out infinite;flex-shrink:0;}
+    .cci-notif-title{font-size:12px;font-weight:800;color:#fff;}
+    .cci-notif-time{font-size:10px;color:rgba(255,255,255,.7);margin-left:auto;}
+    .cci-notif-body{padding:13px 15px 15px;}
+    .cci-notif-user{font-size:13px;font-weight:700;color:var(--text-main,#0f172a);margin-bottom:3px;}
+    .cci-notif-topic{font-size:11.5px;color:var(--text-muted,#64748b);margin-bottom:11px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .cci-notif-btns{display:flex;gap:8px;}
+    .cci-btn-take{flex:1;background:linear-gradient(135deg,#0f766e,#0891b2);color:#fff;border:none;border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;}
+    .cci-btn-take:hover{opacity:.88;}
+    .cci-btn-skip{background:transparent;color:var(--text-muted,#64748b);border:1.5px solid var(--border-soft,#e2e8f0);border-radius:9px;padding:9px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+    .cci-btn-skip:hover{border-color:var(--border-strong,#cbd5e1);}
+    .cci-panel{pointer-events:all;width:340px;height:480px;background:var(--bg-card,#fff);border:1.5px solid rgba(8,145,178,.3);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.2);display:none;flex-direction:column;overflow:hidden;animation:uaIn .32s cubic-bezier(.34,1.56,.64,1);}
+    .cci-panel.active{display:flex;}
+    .cci-panel-hdr{background:linear-gradient(135deg,#0f766e,#0891b2);padding:12px 15px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+    .cci-panel-av{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0;}
+    .cci-panel-info h5{margin:0;font-size:12px;font-weight:800;color:#fff;}
+    .cci-panel-info p{margin:0;font-size:10px;color:rgba(255,255,255,.8);display:flex;align-items:center;gap:4px;}
+    .cci-online{width:6px;height:6px;background:#4ade80;border-radius:50%;display:inline-block;animation:cbPulse 2s ease-out infinite;}
+    @keyframes cbPulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(.65);opacity:.5;}}
+    .cci-panel-x{margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:12px;cursor:pointer;padding:5px;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;}
+    .cci-panel-x:hover{background:rgba(255,255,255,.28);}
+    .cci-msgs{flex:1;overflow-y:auto;padding:12px;background:#f4f6fb;display:flex;flex-direction:column;gap:7px;}
+    .cci-msg-user{align-self:flex-start;background:var(--bg-card,#fff);border:1.5px solid var(--border-soft,#e2e8f0);border-radius:12px 12px 12px 2px;padding:7px 11px;max-width:85%;font-size:12px;line-height:1.45;color:var(--text-main,#0f172a);}
+    .cci-msg-spec{align-self:flex-end;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;border-radius:12px 12px 2px 12px;padding:7px 11px;max-width:85%;font-size:12px;line-height:1.45;}
+    .cci-msg-sys{align-self:center;font-size:10px;color:var(--text-muted,#64748b);background:var(--bg-main,#f1f5f9);border-radius:20px;padding:3px 11px;font-style:italic;}
+    .cci-msg-name{font-size:9px;font-weight:700;opacity:.65;margin-bottom:2px;}
+    .cci-input-row{padding:9px 11px;border-top:1.5px solid var(--border-soft,#e2e8f0);display:flex;gap:7px;flex-shrink:0;background:var(--bg-card,#fff);}
+    .cci-input{flex:1;border:1.5px solid var(--border-soft,#e2e8f0);border-radius:9px;padding:7px 11px;font-size:12px;background:var(--bg-main,#f1f5f9);color:var(--text-main,#0f172a);resize:none;outline:none;font-family:inherit;}
+    .cci-input:focus{border-color:#0891b2;}
+    .cci-send-btn{background:linear-gradient(135deg,#0f766e,#0891b2);color:#fff;border:none;border-radius:9px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;align-self:flex-end;}
+    .cci-panel-footer{padding:9px 11px;border-top:1.5px solid var(--border-soft,#e2e8f0);display:flex;gap:6px;flex-shrink:0;background:var(--bg-card,#fff);}
+    .cci-btn-resolve{flex:1;background:#059669;color:#fff;border:none;border-radius:8px;padding:8px;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;}
+    .cci-rate-btn{background:transparent;border:none;font-size:26px;cursor:pointer;padding:2px;border-radius:6px;transition:transform .15s;}.cci-rate-btn:hover{transform:scale(1.25);}
+    .cci-btn-mkticket{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 11px;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;}
+    .cci-reopen-fab{position:fixed;bottom:80px;right:20px;z-index:9990;background:linear-gradient(135deg,#0f766e,#0891b2);color:#fff;border:none;border-radius:50%;width:44px;height:44px;display:none;align-items:center;justify-content:center;font-size:18px;cursor:pointer;box-shadow:0 4px 18px rgba(8,145,178,.4);animation:uaIn .3s ease;}
+    .cci-reopen-fab.visible{display:flex;}
+  </style>
+</head>
+<body>
+<%- include('../../../../shared/partials/theme-toggle') %>
+
+<!-- TOP BAR -->
+<div class="itsm-topbar">
+  <button id="incMenuBtn" onclick="incToggleSidebar()" title="Menú"><i class="bi bi-list" style="font-size:16px;"></i></button>
+  <a href="/itsm?tab=inc" class="itsm-back"><i class="bi bi-arrow-left"></i> ITSM</a>
+  <div class="itsm-breadcrumb">
+    <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
+    <span class="sep">/</span>
+    <a href="/itsm?tab=inc">ITSM</a>
+    <span class="sep">/</span>
+    <span class="current"><i class="bi bi-<%= locals.localView ? 'hdd-network-fill' : 'ticket-detailed-fill' %>"></i> <%= locals.localView ? 'Gestión Local' : 'Gestión de Incidencias' %></span>
+  </div>
+</div>
+
+<div class="dashboard-content">
+  <%
+    const _role = user?.role || 'usuario';
+    const _isAdmin        = _role === 'administrador';
+    const _isEspecialista = ['especialista','agente','tecnico'].includes(_role);
+    const _isVisor        = _role === 'visor';
+  %>
+  <%- include('./partials/nav-tabs',  { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/create',        { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/gestion',       { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/kpis',          { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/admin',         { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/portal',        { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/preguntas',     { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/encuesta',      { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/whatsapp',      { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/kbreqs',        { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/devoluciones',  { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/garantias',     { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/categorias',    { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/especialistas', { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./tabs/automaciones',  { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('./partials/modals',    { _isAdmin, _isEspecialista, _isVisor }) %>
+</div>
+
+<div class="toast-container-custom" id="toastContainer" style="bottom:auto;top:70px;right:20px;"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const CURRENT_USER_ID    = <%- JSON.stringify(locals.currentUserId || null) %>;
+const CURRENT_USER_ROLE  = <%- JSON.stringify(locals.user?.role || 'usuario') %>;
+const CURRENT_USER_NAME  = <%- JSON.stringify(locals.user?.full_name || locals.user?.nombre || locals.user?.username || '') %>;
+const CURRENT_USER_EMAIL = <%- JSON.stringify(locals.user?.email || locals.user?.username || '') %>;
+const CURRENT_TENANT_ID  = <%- JSON.stringify(locals.user?.tenant_id || null) %>;
+</script>
+<script src="/js/incidencias/app.js?v=56"></script>
+<script src="/js/incidencias/_exec_dashboard.js?v=2"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function _incSocket() {
+    if (typeof io === 'undefined') return;
+    const _sk = io({ transports: ['websocket', 'polling'] });
+    _sk.on('connect', function(){ _sk.emit('joinAgents'); });
+
+    _sk.on('ticket:created', data => {
+        // Tickets creados desde chatbot ya tienen asignación manejada en el panel de consultas
+        if (!data.fromChatbot && typeof window._uaNewTicket === 'function') window._uaNewTicket(data);
+        // Incrementar badge "Sin asignar"
+        const badge = document.getElementById('badge-sinAsig');
+        if (badge && badge.textContent !== '—') {
+            const n = parseInt(badge.textContent) || 0;
+            badge.textContent = n + 1;
+            badge.style.animation = 'none';
+            requestAnimationFrame(() => { badge.style.animation = 'incPulse .4s ease'; });
+        }
+    });
+
+    _sk.on('ticket:assigned', data => {
+        // Cerrar modal si corresponde al ticket actual
+        if (typeof window._uaOnAssigned === 'function') window._uaOnAssigned(data);
+        if (typeof showToast === 'function')
+            showToast(`<span style="font-family:monospace;">${data.key}</span> asignado a <b>${data.techName||''}</b>`, 'success', 4000);
+    });
+
+    _sk.on('ticket:closed', data => {
+        if (typeof showToast !== 'function') return;
+        showToast(`<span style="font-family:monospace;">${data.key}</span> cerrado por <b>${data.by||''}</b>`, 'success', 4000);
+    });
+    _sk.on('consult:new', function(data) {
+        if (typeof showToast === 'function')
+            showToast(`💬 Nueva consulta de <b>${data.userName||data.userEmail}</b>`, 'info', 5000);
+        if (typeof window._cciAddNotif === 'function') window._cciAddNotif(data);
+        // Refrescar tabla de consultas activas
+        if (typeof loadConsultasActivas === 'function') loadConsultasActivas();
+    });
+    _sk.on('consult:taken', function(data) {
+        if (typeof window._cciSkipNotif === 'function') window._cciSkipNotif(data.consultId);
+        var si = document.getElementById('cciSide_' + data.consultId);
+        if (si) { si.remove(); if(typeof _cciUpdateSideCount==='function') _cciUpdateSideCount(); }
+    });
+    _sk.on('consult:message', function(data) {
+        if (window._cciActiveId && data.consultId === window._cciActiveId && data.role !== 'specialist')
+            if (typeof window._cciLoadHistory === 'function') window._cciLoadHistory(false);
+    });
+    _sk.on('consult:resolved', function(data) {
+        if (window._cciActiveId && data.consultId === window._cciActiveId)
+            if (typeof window._cciEndSession === 'function') window._cciEndSession(data.ticketKey);
+    });
+})();
+</script>
+<script>
+// showPanel() is defined in app.js with LOCAL_VIEW awareness — do NOT redefine here.
+// Only define LOCAL_VIEW and the DOMContentLoaded initializer.
+
+const LOCAL_VIEW = <%- JSON.stringify(!!locals.localView) %>;
+
+document.addEventListener('DOMContentLoaded', function(){
+  const _urlTabInit = new URLSearchParams(window.location.search).get('tab');
+  if (!_urlTabInit || _urlTabInit === 'gestion') {
+    const g = document.getElementById('tabGestion');
+    if (g) g.style.display = 'block';
+  }
+
+  if (typeof startAlertPolling === 'function') startAlertPolling();
+
+  if (LOCAL_VIEW) {
+    // Redirigir Actualizar a API local
+    const syncBtn = document.getElementById('btnSyncTickets');
+    if (syncBtn) { syncBtn.onclick = () => { if(typeof loadTickets==='function') loadTickets(); }; syncBtn.title = 'Actualizar lista local'; }
+    // Activar nav item "Tickets" del menú local como seleccionado
+    const lnavGestion = document.getElementById('lnav-gestion');
+    if (lnavGestion) lnavGestion.classList.add('active');
+    // Mostrar panel todos con título local
+    const title = document.getElementById('incTopbarTitle');
+    if (title) title.textContent = 'Gestión Local';
+    // Cargar tabla de tickets locales
+    if (typeof loadTickets === 'function') loadTickets();
+  } else if (!_urlTabInit || _urlTabInit === 'gestion') {
+    ['incPanel-indicadores','incPanel-admin'].forEach(id => {
+      const p = document.getElementById(id); if (p) p.style.display = 'none';
+    });
+    const todos = document.getElementById('incPanel-todos');
+    if (todos) todos.style.display = 'none';
+
+    const _qs = new URLSearchParams(window.location.search);
+    const _qPanel  = _qs.get('panel');
+    const _qBuscar = _qs.get('buscar');
+
+    if (_qPanel === 'misAsig') {
+      const btn = document.getElementById('nav-misAsig');
+      if (btn) btn.click();
+    } else if (_qBuscar) {
+      const btn = document.getElementById('nav-buscar');
+      if (btn) btn.click();
+      requestAnimationFrame(function() {
+        const inp = document.getElementById('incSearchInput');
+        if (inp) { inp.value = _qBuscar; }
+        if (typeof buscarTicket === 'function') buscarTicket();
+      });
+    } else {
+      const sinAsigBtn = document.getElementById('nav-sinAsig');
+      if (sinAsigBtn) { sinAsigBtn.click(); }
+      else if (typeof loadSinAsig === 'function') loadSinAsig();
+    }
+
+    const histEl = document.getElementById('histEmail');
+    if (histEl && !histEl.value) {
+      const _savedMail = localStorage.getItem('jira_email') || CURRENT_USER_EMAIL || '';
+      if (_savedMail) histEl.value = _savedMail;
+    }
+
+    setTimeout(function() { if (typeof loadHeatmap === 'function') loadHeatmap(); }, 3500);
+    setTimeout(function() { if (typeof loadTecStats === 'function') loadTecStats(); }, 5500);
+    setTimeout(function() { if (typeof loadMisPaneles === 'function') loadMisPaneles(); }, 7500);
+    setTimeout(function() { if (typeof preloadReportes === 'function') preloadReportes(); }, 9500);
+    // Cargar consultas activas desde BD al iniciar (puebla el sidebar persistentemente)
+    setTimeout(function() { if (typeof loadConsultasActivas === 'function') loadConsultasActivas(); }, 1500);
+    // Si viene de "Atender" en hub ITSM, abrir panel consultas y tomar la sesión
+    var _consultId = new URLSearchParams(location.search).get('consultId');
+    if (_consultId) {
+        var navBtn = document.getElementById('nav-consultas');
+        if (navBtn) navBtn.click();
+        setTimeout(function() { if (typeof cciTake === 'function') cciTake(parseInt(_consultId)); }, 600);
+    }
+  }
+});
+</script>
+<script>
+function incToggleSidebar() {
+  var sb = document.getElementById('incSidebar');
+  var ov = document.getElementById('incSidebarOverlay');
+  if (sb) sb.classList.toggle('inc-mob-open');
+  if (ov) ov.classList.toggle('inc-mob-open');
+}
+function incCloseSidebar() {
+  var sb = document.getElementById('incSidebar');
+  var ov = document.getElementById('incSidebarOverlay');
+  if (sb) sb.classList.remove('inc-mob-open');
+  if (ov) ov.classList.remove('inc-mob-open');
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('#incSidebar .nav-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+      if (window.innerWidth <= 768) incCloseSidebar();
+    });
+  });
+});
+</script>
+
+<!-- ── UNASSIGNED TICKET ALERT MODAL ─────────────────────── -->
+<div class="ua-overlay" id="uaOverlay" style="display:none;">
+  <div class="ua-card" id="uaCard">
+    <div class="ua-header">
+      <span class="ua-pulse-dot"></span>
+      <span class="ua-header-title">Nuevo ticket sin asignar</span>
+      <span class="ua-queue-pill" id="uaQueuePill"></span>
+    </div>
+    <!-- Estado normal -->
+    <div class="ua-body" id="uaBody">
+      <div class="ua-ticket-id">
+        <span class="ua-id-tag" id="uaKey">—</span>
+        <span class="ua-prio-tag" id="uaPrioTag"></span>
+      </div>
+      <div class="ua-summary" id="uaSummary"></div>
+      <div class="ua-meta">
+        <span><i class="bi bi-person-circle"></i> <span id="uaReporter">—</span></span>
+        <span><i class="bi bi-clock"></i> <span id="uaTime"></span></span>
+      </div>
+      <div class="ua-actions">
+        <button class="ua-btn-me" id="uaBtnMe" onclick="uaAssignSelf()">
+          <i class="bi bi-person-fill-check"></i> Asignarme
+        </button>
+        <button class="ua-btn-assign" id="uaBtnAssign" onclick="uaTogglePicker()">
+          <i class="bi bi-person-plus-fill"></i> Asignar a...
+        </button>
+      </div>
+      <div class="ua-picker" id="uaPicker">
+        <input type="text" id="uaPickerInput"
+          placeholder="Buscar técnico por nombre o correo..."
+          oninput="uaSearchTech(this.value)"
+          onkeydown="if(event.key==='Escape')uaClosePicker()">
+        <div class="ua-picker-drop" id="uaPickerDrop"></div>
+      </div>
+    </div>
+    <!-- Estado éxito -->
+    <div class="ua-success" id="uaSuccess">
+      <i class="bi bi-patch-check-fill ua-success-icon"></i>
+      <div class="ua-success-title" id="uaSuccessTitle">Ticket asignado</div>
+      <div class="ua-success-sub" id="uaSuccessSub"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── UNASSIGNED ALERT SYSTEM ────────────────────────────── */
+(function() {
+  var _PRIO_BG    = { P1:'rgba(239,68,68,.12)', P2:'rgba(245,158,11,.12)', P3:'rgba(59,130,246,.12)', P4:'rgba(107,114,128,.1)' };
+  var _PRIO_COLOR = { P1:'#dc2626', P2:'#d97706', P3:'#2563eb', P4:'#6b7280' };
+
+  var _queue   = [];
+  var _current = null;
+  var _searchTimer = null;
+
+  function _resetCard() {
+    var bm  = document.getElementById('uaBtnMe');
+    var ba  = document.getElementById('uaBtnAssign');
+    var pk  = document.getElementById('uaPicker');
+    var drop = document.getElementById('uaPickerDrop');
+    var inp = document.getElementById('uaPickerInput');
+    if (bm)   { bm.disabled  = false; bm.innerHTML  = '<i class="bi bi-person-fill-check"></i> Asignarme'; }
+    if (ba)   { ba.disabled  = false; ba.innerHTML  = '<i class="bi bi-person-plus-fill"></i> Asignar a...'; }
+    if (pk)   pk.style.display = 'none';
+    if (drop) { drop.innerHTML = ''; drop.style.display = 'none'; }
+    if (inp)  inp.value = '';
+  }
+
+  function _show(ticket) {
+    _current = ticket.key;
+
+    // Reset estados
+    _resetCard();
+    document.getElementById('uaBody').style.display    = '';
+    document.getElementById('uaSuccess').style.display = 'none';
+
+    // Animar re-entrada
+    var card = document.getElementById('uaCard');
+    if (card) { card.style.animation = 'none'; requestAnimationFrame(function(){ card.style.animation = 'uaIn .38s cubic-bezier(.34,1.56,.64,1)'; }); }
+
+    // Llenar datos
+    var prio  = ticket.priority || 'P3';
+    var color = _PRIO_COLOR[prio] || '#6b7280';
+    var bg    = _PRIO_BG[prio]   || 'rgba(107,114,128,.1)';
+    var timeStr = new Date().toLocaleTimeString('es-PE', { hour:'2-digit', minute:'2-digit' });
+
+    document.getElementById('uaKey').textContent     = ticket.key;
+    var pt = document.getElementById('uaPrioTag');
+    pt.textContent = prio; pt.style.background = bg; pt.style.color = color;
+    document.getElementById('uaSummary').textContent  = ticket.summary || '(sin título)';
+    document.getElementById('uaReporter').textContent = ticket.reporter || 'Desconocido';
+    document.getElementById('uaTime').textContent     = timeStr;
+
+    // Badge cola
+    var pill = document.getElementById('uaQueuePill');
+    if (_queue.length > 0) {
+      pill.textContent = '+' + _queue.length + ' pendiente' + (_queue.length > 1 ? 's' : '');
+      pill.style.display = '';
+    } else { pill.style.display = 'none'; }
+
+    document.getElementById('uaOverlay').style.display = 'flex';
+  }
+
+  function _showNext() {
+    if (_queue.length > 0) {
+      _show(_queue.shift());
+    } else {
+      _current = null;
+      document.getElementById('uaOverlay').style.display = 'none';
+    }
+  }
+
+  function _showSuccess(assignedTo) {
+    document.getElementById('uaBody').style.display    = 'none';
+    document.getElementById('uaSuccess').style.display = 'flex';
+    document.getElementById('uaSuccessTitle').textContent = 'Ticket asignado correctamente';
+    document.getElementById('uaSuccessSub').textContent   = assignedTo ? ('Asignado a ' + assignedTo) : 'Asignación completada';
+    setTimeout(_showNext, 2400);
+  }
+
+  /* ── API pública ── */
+  window.uaAssignSelf = async function() {
+    var key   = _current;
+    var email = (typeof CURRENT_USER_EMAIL !== 'undefined') ? CURRENT_USER_EMAIL : '';
+    if (!key || !email) return;
+    var btn = document.getElementById('uaBtnMe');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Asignando...'; }
+    try {
+      var r = await fetch('/api/jira/ticket/' + key + '/assign-tech', {
+        method:'PUT', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email: email })
+      });
+      var d = await r.json();
+      if (d.success !== false) {
+        _showSuccess((typeof CURRENT_USER_NAME !== 'undefined' ? CURRENT_USER_NAME : null) || email);
+      } else {
+        if (typeof showToast === 'function') showToast(d.error || 'Error al asignar', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-person-fill-check"></i> Asignarme'; }
+      }
+    } catch(e) {
+      if (typeof showToast === 'function') showToast('Error de red', 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-person-fill-check"></i> Asignarme'; }
+    }
+  };
+
+  window.uaTogglePicker = function() {
+    var pk = document.getElementById('uaPicker');
+    if (!pk) return;
+    var open = pk.style.display !== 'none';
+    pk.style.display = open ? 'none' : '';
+    if (!open) { var inp = document.getElementById('uaPickerInput'); if (inp) inp.focus(); }
+  };
+
+  window.uaClosePicker = function() {
+    var pk = document.getElementById('uaPicker');
+    if (pk) pk.style.display = 'none';
+  };
+
+  window.uaSearchTech = function(q) {
+    clearTimeout(_searchTimer);
+    var drop = document.getElementById('uaPickerDrop');
+    if (!drop) return;
+    if (!q || q.length < 2) { drop.style.display = 'none'; return; }
+    _searchTimer = setTimeout(async function() {
+      try {
+        var tid = (typeof CURRENT_TENANT_ID !== 'undefined' && CURRENT_TENANT_ID) ? CURRENT_TENANT_ID : 1;
+        var url = (tid && tid != 1)
+          ? '/api/portal/users/search?q=' + encodeURIComponent(q)
+          : '/api/employees/search-emails?q=' + encodeURIComponent(q);
+        var r   = await fetch(url, { credentials:'include' }).then(function(x){ return x.json(); });
+        var list = (r.data || []).filter(function(u){ return u.email; });
+        if (!list.length) {
+          drop.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--text-muted,#64748b);">Sin resultados</div>';
+          drop.style.display = '';
+          return;
+        }
+        drop.innerHTML = list.map(function(u) {
+          var name = (u.full_name || u.name || u.email).replace(/'/g, "\\'");
+          return '<div class="ua-picker-item" onclick="uaAssignTo(\'' + u.email + '\',\'' + name + '\')">'
+            + '<strong>' + (u.full_name || u.name || u.email) + '</strong>'
+            + '<small>' + u.email + '</small></div>';
+        }).join('');
+        drop.style.display = '';
+      } catch(e) {}
+    }, 280);
+  };
+
+  window.uaAssignTo = async function(email, name) {
+    var key = _current;
+    if (!key || !email) return;
+    uaClosePicker();
+    var btn = document.getElementById('uaBtnAssign');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Asignando...'; }
+    try {
+      var r = await fetch('/api/jira/ticket/' + key + '/assign-tech', {
+        method:'PUT', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email: email })
+      });
+      var d = await r.json();
+      if (d.success !== false) {
+        _showSuccess(name || email);
+      } else {
+        if (typeof showToast === 'function') showToast(d.error || 'Error al asignar', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-person-plus-fill"></i> Asignar a...'; }
+      }
+    } catch(e) {
+      if (typeof showToast === 'function') showToast('Error de red', 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-person-plus-fill"></i> Asignar a...'; }
+    }
+  };
+
+  window._uaNewTicket = function(data) {
+    if (_current) {
+      _queue.push(data);
+      // Actualizar badge
+      var pill = document.getElementById('uaQueuePill');
+      if (pill) { pill.textContent = '+' + _queue.length + ' pendiente' + (_queue.length > 1 ? 's' : ''); pill.style.display = ''; }
+    } else {
+      _show(data);
+    }
+  };
+
+  window._uaOnAssigned = function(data) {
+    if (data.key === _current) {
+      _showSuccess(data.techName || 'otro agente');
+    } else {
+      // Quitar de la cola si estaba pendiente
+      var idx = _queue.findIndex(function(t){ return t.key === data.key; });
+      if (idx >= 0) {
+        _queue.splice(idx, 1);
+        var pill = document.getElementById('uaQueuePill');
+        if (pill) {
+          if (_queue.length > 0) { pill.textContent = '+' + _queue.length + ' pendiente' + (_queue.length > 1 ? 's' : ''); }
+          else { pill.style.display = 'none'; }
+        }
+      }
+    }
+  };
+
+  // Prevenir cierre con click fuera o Escape
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && _current) e.stopImmediatePropagation(); }, true);
+
+})();
+</script>
+
+<!-- ── CONSULT OVERLAY ────────────────────────────────────── -->
+<div class="cci-overlay" id="cciOverlay">
+  <div class="cci-panel" id="cciPanel">
+    <div class="cci-panel-hdr">
+      <div class="cci-panel-av"><i class="bi bi-person-circle"></i></div>
+      <div class="cci-panel-info">
+        <h5 id="cciPanelName">Usuario</h5>
+        <p><span class="cci-online"></span><span id="cciPanelSub">Consulta activa</span></p>
+      </div>
+      <button class="cci-panel-x" onclick="cciMinimize()" title="Minimizar"><i class="bi bi-dash-lg"></i></button>
+    </div>
+    <div class="cci-msgs" id="cciMsgs"></div>
+    <div class="cci-input-row">
+      <textarea class="cci-input" id="cciInput" rows="1" placeholder="Escribe tu respuesta..."
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cciSendMsg();}"></textarea>
+      <button class="cci-send-btn" onclick="cciSendMsg()"><i class="bi bi-send-fill"></i></button>
+    </div>
+    <div id="cciClosePanel" style="display:none;padding:11px 13px;background:var(--bg-surface,#f8fafc);border-top:1.5px solid var(--border-soft,#e2e8f0);">
+      <div style="font-size:11.5px;font-weight:700;color:var(--text-main,#0f172a);margin-bottom:10px;">¿Cómo deseas cerrar esta consulta?</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button id="cciCatConfirmBtn" onclick="cciConfirmTicket()" style="flex:1;min-width:0;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:9px 6px;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;"><i class="bi bi-ticket-fill"></i> Generar y asignarme</button>
+        <button onclick="cciCloseOnly()" style="background:#64748b;color:#fff;border:none;border-radius:8px;padding:9px 10px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-x-circle"></i> Solo cerrar</button>
+        <button onclick="cciCancelClose()" style="background:transparent;border:1.5px solid var(--border-soft,#e2e8f0);border-radius:8px;padding:9px 10px;font-size:11.5px;color:var(--text-muted,#64748b);cursor:pointer;">✕</button>
+      </div>
+    </div>
+    <div id="cciJiraClosePanel" style="display:none;padding:12px 13px;background:var(--bg-surface,#f8fafc);border-top:1.5px solid var(--border-soft,#e2e8f0);">
+      <div style="font-size:10px;font-weight:700;color:#ef4444;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;">CERRAR INCIDENCIA • <span id="cciJiraCloseKey"></span></div>
+      <div style="font-size:10px;color:var(--text-muted,#64748b);text-transform:uppercase;margin-bottom:4px;">Comentario de cierre *</div>
+      <textarea id="cciJiraCloseComment" rows="3" placeholder="Describe cómo se resolvió el problema..." style="width:100%;resize:vertical;border:1px solid rgba(239,68,68,.4);border-radius:6px;padding:8px;font-size:12px;background:var(--bg-base,#fff);color:var(--text-main,#0f172a);box-sizing:border-box;margin-bottom:8px;"></textarea>
+      <div id="cciJiraCloseResult" style="display:none;padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button id="cciJiraCloseBtnConfirm" onclick="cciJiraConfirmClose()" style="border:1px solid #ef4444;color:#ef4444;background:transparent;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;"><i class="bi bi-check2-circle"></i> Confirmar cierre</button>
+        <button onclick="cciJiraCancelClose()" style="border:1px solid var(--border-soft,#e2e8f0);background:transparent;border-radius:6px;padding:7px 14px;font-size:12px;color:var(--text-muted,#64748b);cursor:pointer;">Cancelar</button>
+      </div>
+    </div>
+    <div id="cciCatPanel" style="display:none;padding:12px 13px;background:var(--bg-surface,#f8fafc);border-top:1.5px solid var(--border-soft,#e2e8f0);">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;">CATEGORIZAR RESULTADO WORKPLACE • <span id="cciCatKey"></span></div>
+      <div style="margin-bottom:8px;">
+        <div style="font-size:10px;color:var(--text-muted,#64748b);text-transform:uppercase;margin-bottom:3px;">Resultado Workplace</div>
+        <select id="cciCatPadre" style="width:100%;padding:6px 8px;border:1px solid var(--border-soft,#e2e8f0);border-radius:6px;font-size:12px;background:var(--bg-base,#fff);color:var(--text-main,#0f172a);box-sizing:border-box;" onchange="cciUpdateCatHijo()"><option value="">Cargando…</option></select>
+      </div>
+      <div id="cciCatHijoWrap" style="display:none;margin-bottom:10px;">
+        <div style="font-size:10px;color:var(--text-muted,#64748b);text-transform:uppercase;margin-bottom:3px;">Sub-categoría</div>
+        <select id="cciCatHijo" style="width:100%;padding:6px 8px;border:1px solid var(--border-soft,#e2e8f0);border-radius:6px;font-size:12px;background:var(--bg-base,#fff);color:var(--text-main,#0f172a);box-sizing:border-box;"><option value="">—</option></select>
+      </div>
+      <div id="cciCatResult" style="display:none;padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button id="cciCatBtnSubmit" onclick="cciSubmitCat()" style="border:1px solid #7c3aed;color:#7c3aed;background:transparent;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;"><i class="bi bi-check2-circle"></i> Guardar categoría</button>
+        <button onclick="cciSkipCat()" style="border:1px solid var(--border-soft,#e2e8f0);background:transparent;border-radius:6px;padding:7px 14px;font-size:12px;color:var(--text-muted,#64748b);cursor:pointer;">Omitir</button>
+      </div>
+    </div>
+    <div id="cciSurveyPanel" style="display:none;padding:12px 13px;background:var(--bg-surface,#f8fafc);border-top:1.5px solid var(--border-soft,#e2e8f0);text-align:center;">
+      <div style="font-size:10px;font-weight:700;color:#0284c7;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;">ENCUESTA DE SATISFACCIÓN</div>
+      <div style="font-size:12px;color:var(--text-main,#0f172a);margin-bottom:10px;">¿Cómo calificarías la atención recibida?</div>
+      <div style="display:flex;justify-content:center;gap:10px;margin-bottom:8px;">
+        <button onclick="cciRateSubmit(1)" class="cci-rate-btn" title="Muy malo">😞</button>
+        <button onclick="cciRateSubmit(2)" class="cci-rate-btn" title="Malo">😐</button>
+        <button onclick="cciRateSubmit(3)" class="cci-rate-btn" title="Regular">🙂</button>
+        <button onclick="cciRateSubmit(4)" class="cci-rate-btn" title="Bueno">😊</button>
+        <button onclick="cciRateSubmit(5)" class="cci-rate-btn" title="Excelente">🤩</button>
+      </div>
+      <button onclick="cciSkipSurvey()" style="border:none;background:none;font-size:11px;color:var(--text-muted,#64748b);cursor:pointer;text-decoration:underline;">Omitir encuesta</button>
+    </div>
+    <div class="cci-panel-footer">
+      <button class="cci-btn-resolve" onclick="cciShowClose()"><i class="bi bi-check-circle-fill"></i> Cerrar consulta</button>
+    </div>
+  </div>
+</div>
+<button class="cci-reopen-fab" id="cciReopenFab" title="Ver consulta activa" onclick="cciReopen()">
+  <i class="bi bi-headset"></i>
+</button>
+
+<script>
+(function _cciAdmin() {
+  window._cciActiveId = null;
+  var _cLastMsgId = 0;
+  var _cPollTimer = null;
+  window._cciUpdateLastId = function(id) { if (id && id > _cLastMsgId) _cLastMsgId = id; };
+
+  window._cciAddNotif = function(data) {
+    var overlay = document.getElementById('cciOverlay');
+    var panel   = document.getElementById('cciPanel');
+    var div     = document.createElement('div');
+    div.className = 'cci-notif';
+    div.id        = 'cciNotif' + data.id;
+    var topicEsc  = (data.topic || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var nameEsc   = (data.userName || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var emailEsc  = (data.userEmail || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    div.innerHTML = `
+      <div class="cci-notif-hdr">
+        <div class="cci-notif-dot"></div>
+        <div class="cci-notif-title">💬 Nueva consulta en vivo</div>
+        <div class="cci-notif-time">ahora</div>
+      </div>
+      <div class="cci-notif-body">
+        <div class="cci-notif-user">👤 ${nameEsc || emailEsc}</div>
+        ${emailEsc && nameEsc ? `<div style="font-size:11px;color:var(--text-muted,#64748b);margin-bottom:4px;">${emailEsc}</div>` : ''}
+        <div class="cci-notif-topic">"${topicEsc}"</div>
+        <div class="cci-notif-btns">
+          <button class="cci-btn-take" onclick="cciTake(${data.id})">
+            <i class="bi bi-headset"></i> Tomar consulta
+          </button>
+          <button class="cci-btn-skip" onclick="_cciSkipNotif(${data.id})">Ahora no</button>
+        </div>
+      </div>`;
+    overlay.insertBefore(div, panel);
+  };
+
+  window._cciSkipNotif = function(id) {
+    var el = document.getElementById('cciNotif' + id);
+    if (el) { el.style.animation='none'; el.style.opacity='0'; el.style.transform='scale(.9)'; setTimeout(() => el.remove(), 220); }
+    // Quitar del sidebar también
+    var si = document.getElementById('cciSide_' + id);
+    if (si) si.remove();
+    _cciUpdateSideCount();
+  };
+
+  function _cciUpdateSideCount() {
+    var list = document.getElementById('cciSideList');
+    var empty = document.getElementById('cciSideEmpty');
+    var badge = document.getElementById('cciSideCount');
+    var cards = list ? list.querySelectorAll('.cci-side-card').length : 0;
+    if (empty) empty.style.display = cards ? 'none' : '';
+    if (badge) { badge.textContent = cards || ''; badge.style.display = cards ? '' : 'none'; }
+  }
+
+  window._cciRefreshSidebar = function(waiting) {
+    var list = document.getElementById('cciSideList');
+    if (!list) return;
+    // Quitar cards antiguas que ya no están en waiting
+    list.querySelectorAll('.cci-side-card').forEach(function(c) {
+      var cid = c.dataset.id;
+      if (!waiting.find(function(w) { return String(w.id) === cid; })) c.remove();
+    });
+    // Añadir las nuevas
+    waiting.forEach(function(s) {
+      if (document.getElementById('cciSide_' + s.id)) return; // ya existe
+      var card = document.createElement('div');
+      card.className = 'cci-side-card';
+      card.id = 'cciSide_' + s.id;
+      card.dataset.id = s.id;
+      var userLabel = (s.user_name || s.user_email || 'Usuario').replace(/</g,'&lt;');
+      var topic = (s.topic || '').slice(0,60).replace(/</g,'&lt;');
+      card.style.cssText = 'background:var(--bg-card);border:1.5px solid #0891b2;border-radius:9px;padding:8px 10px;margin-bottom:6px;cursor:pointer;';
+      card.innerHTML = '<div style="font-size:11px;font-weight:700;color:#0891b2;margin-bottom:2px;display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;background:#10b981;border-radius:50%;display:inline-block;flex-shrink:0;"></span>' + userLabel + '</div>'
+        + (s.user_email && s.user_name ? '<div style="font-size:10px;color:var(--text-muted);margin-bottom:3px;">' + (s.user_email||'').replace(/</g,'&lt;') + '</div>' : '')
+        + '<div style="font-size:10.5px;color:var(--text-main);margin-bottom:6px;font-style:italic;">"' + topic + '"</div>'
+        + '<button onclick="cciTake(' + s.id + ')" style="width:100%;background:#0891b2;color:#fff;border:none;border-radius:6px;padding:5px;font-size:11px;font-weight:700;cursor:pointer;"><i class="bi bi-headset"></i> Atender</button>';
+      list.insertBefore(card, list.firstChild);
+    });
+    _cciUpdateSideCount();
+  };
+
+  window.cciTake = async function(id) {
+    try {
+      var r = await fetch(`/api/chatbot/consult/${id}/take`, {
+        method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:'{}'
+      });
+      var d = await r.json();
+      if (!d.success) {
+        if (typeof showToast === 'function') showToast('Esta consulta ya fue tomada por otro agente', 'warning');
+        window._cciSkipNotif(id); return;
+      }
+      window._cciSkipNotif(id);
+      window._cciActiveId = id;
+      _cLastMsgId = 0;
+      _cCatsLoaded = false;
+      document.getElementById('cciMsgs').innerHTML = '';
+      document.getElementById('cciClosePanel').style.display = 'none';
+      document.getElementById('cciPanel').classList.add('active');
+      document.getElementById('cciReopenFab').classList.remove('visible');
+      _cLoadHistory(true);
+      _cPollTimer = setInterval(() => _cLoadHistory(false), 4000);
+    } catch(e) {
+      if (typeof showToast === 'function') showToast('Error al tomar la consulta', 'error');
+    }
+  };
+
+  window._cciLoadHistory = function(initial) { _cLoadHistory(initial); };
+  async function _cLoadHistory(initial) {
+    if (!window._cciActiveId) return;
+    try {
+      var r = await fetch(`/api/chatbot/consult/${window._cciActiveId}/messages?since=${_cLastMsgId}`, {credentials:'include'});
+      var d = await r.json();
+      if (!d.success) return;
+      if (initial && d.session) {
+        var nameEl = document.getElementById('cciPanelName');
+        var userLabel = d.session.user_email || d.session.user_name || 'usuario';
+        if (nameEl) nameEl.textContent = d.session.specialist_name ? `${d.session.specialist_name} ↔ ${userLabel}` : userLabel;
+      }
+      if (d.messages && d.messages.length) {
+        var _sessUser = d.session ? (d.session.user_name || d.session.user_email || '') : '';
+        d.messages.forEach(function(m) {
+          if (m.id > _cLastMsgId) {
+            _cLastMsgId = m.id;
+            var _dName = (m.sender_role === 'user' && _sessUser) ? _sessUser : m.sender_name;
+            window._cciAddMsg(m.sender_role, _dName, m.message);
+          }
+        });
+      }
+    } catch(e) {}
+  }
+
+  window._cciAddMsg = function(role, name, text) {
+    var msgs = document.getElementById('cciMsgs');
+    if (!msgs) return;
+    var d = document.createElement('div');
+    var safe = text.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (role === 'system') {
+      d.className = 'cci-msg-sys'; d.textContent = text;
+    } else if (role === 'specialist') {
+      d.className = 'cci-msg-spec'; d.innerHTML = `<div class="cci-msg-name">Tú</div>${safe}`;
+    } else {
+      d.className = 'cci-msg-user'; d.innerHTML = `<div class="cci-msg-name">${(name||'Usuario').replace(/</g,'&lt;')}</div>${safe}`;
+    }
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+  };
+
+  window.cciSendMsg = async function() {
+    if (!window._cciActiveId) return;
+    var inp = document.getElementById('cciInput');
+    var txt = inp.value.trim(); if (!txt) return;
+    inp.value = '';
+    try {
+      await fetch(`/api/chatbot/consult/${window._cciActiveId}/message`, {
+        method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ message: txt, role: 'specialist' })
+      });
+      if (typeof window._cciLoadHistory === 'function') window._cciLoadHistory(false);
+    } catch(e) {
+      if (typeof showToast === 'function') showToast('Error al enviar', 'error');
+    }
+  };
+
+  var _cCatsLoaded = false;
+  async function _loadCciCats() {
+    if (_cCatsLoaded) return;
+    var sel = document.getElementById('cciCatSelect');
+    try {
+      var cj = await (await fetch('/api/jira/categories', {credentials:'include'})).json();
+      var cats = (cj.data || []).filter(function(c){ return !c.parent_id; });
+      sel.innerHTML = '<option value="">— Sin categoría específica —</option>' +
+        cats.map(function(c){ return '<option value="' + c.name.replace(/"/g,'&quot;') + '">' + (c.icon ? c.icon + ' ' : '') + c.name + '</option>'; }).join('');
+      _cCatsLoaded = true;
+    } catch(e) { sel.innerHTML = '<option value="">General</option>'; }
+  }
+
+  window.cciShowClose = async function() {
+    if (!window._cciActiveId) return;
+    var panel = document.getElementById('cciClosePanel');
+    panel.style.display = 'block';
+    await _loadCciCats();
+  };
+
+  window.cciCancelClose = function() {
+    document.getElementById('cciClosePanel').style.display = 'none';
+  };
+
+  window.cciCloseOnly = async function() {
+    if (!window._cciActiveId) return;
+    document.getElementById('cciClosePanel').style.display = 'none';
+    try {
+      await fetch(`/api/chatbot/consult/${window._cciActiveId}/resolve`, {
+        method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ createTicket: false })
+      });
+      window._cciEndSession(null);
+      if (typeof showToast === 'function') showToast('Consulta cerrada', 'success');
+    } catch(e) {
+      if (typeof showToast === 'function') showToast('Error al cerrar', 'error');
+    }
+  };
+
+  window.cciConfirmTicket = async function() {
+    if (!window._cciActiveId) return;
+    var assigneeEmail = localStorage.getItem('jira_email') || '';
+    document.getElementById('cciClosePanel').style.display = 'none';
+    var btn = document.getElementById('cciCatConfirmBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creando…'; }
+    try {
+      var r = await fetch(`/api/chatbot/consult/${window._cciActiveId}/resolve`, {
+        method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ createTicket: true, assigneeEmail })
+      });
+      var d = await r.json();
+      if (d.ticketKey) {
+        _cciSavedConsultId = window._cciActiveId; // guardar antes de limpiar sesión
+        window._cciEndSession(null);
+        _cciAddTicketCard(d.ticketKey, d.jiraUrl, d.assigneeName, d.reporter);
+        setTimeout(function() { cciShowJiraClose(d.ticketKey); }, 300);
+      } else {
+        window._cciEndSession(null);
+        var _errMsg = d.jiraError ? ('Jira: ' + d.jiraError.slice(0,120)) : 'No se pudo crear el ticket en Jira';
+        if (typeof showToast === 'function') showToast(_errMsg, 'error', 8000);
+        console.error('[cciConfirmTicket] Jira error:', d.jiraError);
+      }
+    } catch(e) {
+      if (typeof showToast === 'function') showToast('Error al crear ticket', 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-ticket-fill"></i> Generar y asignarme'; }
+    }
+  };
+
+  function _cciAddTicketCard(key, url, assigneeName, reporter) {
+    var msgs = document.getElementById('cciMsgs');
+    if (!msgs) return;
+    var d = document.createElement('div');
+    d.className = 'cci-msg-sys';
+    d.style.cssText = 'padding:0;background:transparent;text-align:left;';
+    var jiraLink = url ? ('<a href="' + url + '" target="_blank" style="color:#2563eb;font-weight:700;text-decoration:none;">' + key + ' <i class="bi bi-box-arrow-up-right" style="font-size:10px;"></i></a>') : ('<b>' + key + '</b>');
+    var assignee = assigneeName ? ('<div style="font-size:11px;color:#64748b;margin-top:3px;">Asignado a: <b>' + assigneeName.replace(/</g,'&lt;') + '</b></div>') : '';
+    var rep = reporter ? ('<div style="font-size:11px;color:#64748b;">Reporter: ' + reporter.replace(/</g,'&lt;') + '</div>') : '';
+    d.innerHTML = '<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:10px 13px;margin:6px 0;">'
+      + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><i class="bi bi-ticket-fill" style="color:#16a34a;font-size:13px;"></i>'
+      + '<span style="font-size:11px;font-weight:700;color:#15803d;">Ticket creado</span></div>'
+      + '<div style="font-size:13px;font-weight:700;">' + jiraLink + '</div>'
+      + rep + assignee + '</div>';
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  var _cciJiraCloseKey = null;
+
+  function cciShowJiraClose(key) {
+    _cciJiraCloseKey = key;
+    document.getElementById('cciJiraCloseKey').textContent = key;
+    document.getElementById('cciJiraCloseComment').value = '';
+    document.getElementById('cciJiraCloseResult').style.display = 'none';
+    var btn = document.getElementById('cciJiraCloseBtnConfirm');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check2-circle"></i> Confirmar cierre'; }
+    document.getElementById('cciPanel').classList.add('active');
+    document.getElementById('cciJiraClosePanel').style.display = 'block';
+    document.getElementById('cciJiraCloseComment').focus();
+  }
+
+  window.cciJiraConfirmClose = async function() {
+    var comment = (document.getElementById('cciJiraCloseComment').value || '').trim();
+    if (!comment) { if (typeof showToast === 'function') showToast('Agrega un comentario de cierre', 'error'); return; }
+    var btn = document.getElementById('cciJiraCloseBtnConfirm');
+    var resultEl = document.getElementById('cciJiraCloseResult');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Cerrando...'; }
+    resultEl.style.display = 'none';
+    try {
+      var r = await fetch('/api/jira/ticket/' + _cciJiraCloseKey + '/close', {
+        method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ comment, tipo_atencion: 'remota', resolucion: 'Resuelto', proceso: 'WORKPLACE', resultado_padre: 'Workplace', resultado_hijo: 'Workplace', masiva: 'NO' })
+      });
+      var d = await r.json();
+      if (!d.success) throw new Error(d.message || 'Error al cerrar');
+      document.getElementById('cciJiraClosePanel').style.display = 'none';
+      var _toastMsg = d.jiraClosed
+        ? 'Ticket <b>' + _cciJiraCloseKey + '</b> cerrado en Jira y sistema local'
+        : 'Ticket <b>' + _cciJiraCloseKey + '</b> cerrado localmente';
+      if (typeof showToast === 'function') showToast(_toastMsg, d.jiraClosed ? 'success' : 'warning', 5000);
+      var _closedKey = _cciJiraCloseKey;
+      setTimeout(function() { cciOpenCategorize(_closedKey); }, 400);
+    } catch(e) {
+      resultEl.style.display = 'block';
+      resultEl.style.background = '#fee2e2'; resultEl.style.border = '1px solid #fca5a5'; resultEl.style.color = '#dc2626';
+      resultEl.innerHTML = '<i class="bi bi-x-circle-fill"></i> ' + e.message;
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check2-circle"></i> Reintentar'; }
+    }
+  };
+
+  window.cciJiraCancelClose = function() {
+    document.getElementById('cciJiraClosePanel').style.display = 'none';
+    _cciJiraCloseKey = null;
+  };
+
+  // ── Categorización inline en chatbot ─────────────────────────────────────────
+  var _cciCatKey = null;
+  var _cciCatTransId = null;
+  var _cciCatOptions = [];
+
+  function cciOpenCategorize(key) {
+    _cciCatKey = key;
+    _cciCatTransId = null;
+    _cciCatOptions = [];
+    document.getElementById('cciCatKey').textContent = key;
+    document.getElementById('cciCatResult').style.display = 'none';
+    document.getElementById('cciCatHijoWrap').style.display = 'none';
+    document.getElementById('cciCatPadre').innerHTML = '<option value="">Cargando…</option>';
+    var btn = document.getElementById('cciCatBtnSubmit');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Cargando…'; }
+    document.getElementById('cciPanel').classList.add('active');
+    document.getElementById('cciCatPanel').style.display = 'block';
+    document.getElementById('cciCatPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    fetch('/api/jira/ticket/' + key + '/wp-categories', { credentials: 'include' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        _cciCatOptions = data.options || [];
+        _cciCatTransId = data._transId || null;
+        var padre = document.getElementById('cciCatPadre');
+        padre.innerHTML = '<option value="">Selecciona…</option>' +
+          _cciCatOptions.map(function(o) { return '<option value="' + o.value + '">' + o.value + '</option>'; }).join('');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check2-circle"></i> Guardar categoría'; }
+      })
+      .catch(function() {
+        document.getElementById('cciCatPadre').innerHTML = '<option value="">Error al cargar</option>';
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check2-circle"></i> Guardar categoría'; }
+      });
+  }
+
+  window.cciUpdateCatHijo = function() {
+    var padre = document.getElementById('cciCatPadre');
+    var hijoWrap = document.getElementById('cciCatHijoWrap');
+    var hijo = document.getElementById('cciCatHijo');
+    var opt = (_cciCatOptions || []).find(function(o) { return o.value === padre.value; });
+    var children = opt ? (opt.children || []) : [];
+    if (children.length) {
+      hijo.innerHTML = '<option value="">Ninguno</option>' + children.map(function(c) { return '<option value="' + c.value + '">' + c.value + '</option>'; }).join('');
+      hijoWrap.style.display = 'block';
+    } else {
+      hijo.innerHTML = '<option value="">—</option>';
+      hijoWrap.style.display = 'none';
+    }
+  };
+
+  var _cciSurveyConsultId = null;
+  var _cciSavedConsultId = null; // guardado antes de _cciEndSession para encuesta
+
+  function _cciOpenSurvey(consultId) {
+    _cciSurveyConsultId = consultId || _cciSavedConsultId;
+    document.getElementById('cciSurveyPanel').style.display = 'block';
+    document.getElementById('cciSurveyPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (typeof loadTickets === 'function') loadTickets();
+  }
+
+  window.cciRateSubmit = async function(rating) {
+    if (!_cciSurveyConsultId) return;
+    document.getElementById('cciSurveyPanel').style.display = 'none';
+    try {
+      await fetch('/api/chatbot/consult/' + _cciSurveyConsultId + '/rate', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating })
+      });
+    } catch(_) {}
+    var msgs = document.getElementById('cciMsgs');
+    if (msgs) {
+      var d = document.createElement('div');
+      d.className = 'cci-msg-sys';
+      d.style.cssText = 'padding:6px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;text-align:center;margin:4px 0;';
+      d.innerHTML = '¡Gracias por tu valoración! ' + ['😞','😐','🙂','😊','🤩'][rating-1];
+      msgs.appendChild(d);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+  };
+
+  window.cciSkipSurvey = function() {
+    document.getElementById('cciSurveyPanel').style.display = 'none';
+    _cciSurveyConsultId = null;
+  };
+
+  window.cciSubmitCat = async function() {
+    var padre = (document.getElementById('cciCatPadre').value || '').trim();
+    if (!padre) { if (typeof showToast === 'function') showToast('Selecciona una categoría', 'error'); return; }
+    var hijo = (document.getElementById('cciCatHijo').value || '').trim();
+    var btn = document.getElementById('cciCatBtnSubmit');
+    var resultEl = document.getElementById('cciCatResult');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando…'; }
+    resultEl.style.display = 'none';
+    try {
+      var r = await fetch('/api/jira/ticket/' + _cciCatKey + '/wp-category', {
+        method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resultado_padre: padre, resultado_hijo: hijo, transitionId: _cciCatTransId })
+      });
+      var d = await r.json();
+      if (!d.success) throw new Error(d.message || 'Error al guardar');
+      document.getElementById('cciCatPanel').style.display = 'none';
+      if (typeof showToast === 'function') showToast('Categoría guardada: ' + padre + (hijo ? ' › ' + hijo : ''), 'success', 4000);
+      setTimeout(function() { _cciOpenSurvey(); }, 300);
+    } catch(e) {
+      resultEl.style.display = 'block';
+      resultEl.style.background = '#fee2e2'; resultEl.style.border = '1px solid #fca5a5'; resultEl.style.color = '#dc2626';
+      resultEl.innerHTML = '<i class="bi bi-x-circle-fill"></i> ' + e.message;
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check2-circle"></i> Reintentar'; }
+    }
+  };
+
+  window.cciSkipCat = function() {
+    document.getElementById('cciCatPanel').style.display = 'none';
+    _cciCatKey = null;
+    _cciOpenSurvey();
+  };
+
+  window._cciEndSession = function(ticketKey) {
+    clearInterval(_cPollTimer); _cPollTimer = null;
+    window._cciActiveId = null;
+    document.getElementById('cciPanel').classList.remove('active');
+    document.getElementById('cciReopenFab').classList.remove('visible');
+    if (ticketKey) {
+      if (typeof showToast === 'function') showToast(`Ticket <b>${ticketKey}</b> creado y asignado`, 'success', 6000);
+    }
+  };
+
+  window.cciMinimize = function() {
+    document.getElementById('cciPanel').classList.remove('active');
+    if (window._cciActiveId) document.getElementById('cciReopenFab').classList.add('visible');
+  };
+
+  window.cciReopen = function() {
+    if (window._cciActiveId) {
+      document.getElementById('cciPanel').classList.add('active');
+      document.getElementById('cciReopenFab').classList.remove('visible');
+    }
+  };
+
+  // Persistencia al recargar: solo restaurar chat activo propio
+  document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/chatbot/consults/active', { credentials: 'include' })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.success) return;
+        // Consultas en espera: actualizar sección del sidebar
+        _cciRefreshSidebar(d.waiting || []);
+        // Reabrir panel solo si hay una consulta activa asignada a este especialista
+        if (d.active && !window._cciActiveId) {
+          window._cciActiveId = d.active.id;
+          _cLastMsgId = 0;
+          document.getElementById('cciMsgs').innerHTML = '';
+          document.getElementById('cciClosePanel').style.display = 'none';
+          document.getElementById('cciPanel').classList.add('active');
+          document.getElementById('cciReopenFab').classList.remove('visible');
+          _cLoadHistory(true);
+          _cPollTimer = setInterval(function() { _cLoadHistory(false); }, 4000);
+        }
+      })
+      .catch(function() {});
+  });
+})();
+</script>
+</body>
+</html>

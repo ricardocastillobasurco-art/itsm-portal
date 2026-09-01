@@ -1,0 +1,885 @@
+<script>
+(function(){
+'use strict';
+
+/* ── Estado global de persistencia ── */
+window._toolDBData = {};
+var _toolLoadDone  = false;
+var _toolSaveTimers = {};
+var _htlCurrentTool = null;
+var _htlHistory     = [];
+var _htlSearchTimer = null;
+
+/* ── Indicador de guardado ── */
+function _toolSetInd(tool, state) {
+  var el = document.getElementById('toolSaveInd_' + tool);
+  if (!el) return;
+  var map = {
+    saving: ['⏳ Guardando…', 'saving'],
+    saved:  ['✓ Guardado',    'saved'],
+    err:    ['✗ Error',       'err'],
+  };
+  var s = map[state] || map.saved;
+  el.textContent = s[0];
+  el.className   = 'tool-save-ind ' + s[1];
+  if (state === 'saved') {
+    setTimeout(function(){ el.textContent=''; el.className='tool-save-ind'; }, 3000);
+  }
+}
+
+/* ── toolSave: guarda con debounce ── */
+window.toolSave = function(tool, data) {
+  if (!tool || !data) return;
+  if (!_toolLoadDone) return;  // evita sobreescribir datos del servidor con defaults
+  clearTimeout(_toolSaveTimers[tool]);
+  _toolSetInd(tool, 'saving');
+  _toolSaveTimers[tool] = setTimeout(async function() {
+    try {
+      var r = await fetch('/api/herramientas/' + tool, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ data: data }),
+      });
+      var json = await r.json();
+      _toolSetInd(tool, json.ok ? 'saved' : 'err');
+    } catch(e) {
+      _toolSetInd(tool, 'err');
+    }
+  }, 1500);
+};
+
+/* ── toolLoad: carga todos los datos al abrir la página ── */
+async function toolLoad() {
+  try {
+    var r    = await fetch('/api/herramientas/all');
+    var json = await r.json();
+    if (json.ok) {
+      window._toolDBData = json.data || {};
+      // Aplicar a herramientas ya inicializadas (usuario muy rápido)
+      if (_notesInited && window._toolDBData.notas?.length && !_toolSaveTimers['notas']) {
+        _notesData = window._toolDBData.notas.filter(function(n){return n&&n.id;});
+        localStorage.setItem('ht_notes_v1', JSON.stringify(_notesData));
+        notesRenderList();
+        if (_notesData.length) notesSelect(_notesData[0].id);
+      }
+      if (_ganttInited && window._toolDBData.gantt?.length && !_toolSaveTimers['gantt']) {
+        _ganttTasks  = window._toolDBData.gantt.filter(function(t){return t&&t.name&&t.start&&t.end;});
+        _ganttNextId = Math.max(0, ..._ganttTasks.map(function(t){return t.id||0;})) + 1;
+        ganttRender();
+      }
+      if (_bpmnInited && window._toolDBData.bpmn && window._toolDBData.bpmn.flows?.length) {
+        _bpmnFlows    = window._toolDBData.bpmn.flows;
+        _bpmnActiveId = window._toolDBData.bpmn.activeId || _bpmnFlows[0].id;
+        _bpmnLoadActive(); bpmnRender(); bpmnFlowsRenderList();
+      }
+      if (_wbInited     && window._toolDBData.pizarra) { _wb.items=window._toolDBData.pizarra.items||[]; _wb.edges=window._toolDBData.pizarra.edges||[]; wbRender(); }
+      if (_mmInited     && window._toolDBData.mapas) { var md=window._toolDBData.mapas; _G.nodes=md.nodes||[]; _G.edges=md.edges||[]; if(md.theme!==undefined){_mmTheme=md.theme;mmSetTheme(_mmTheme);} mmRender(); }
+      if (_calInited    && window._toolDBData.turnos) { if(window._toolDBData.turnos.agents?.length)_calAgents=window._toolDBData.turnos.agents; if(window._toolDBData.turnos.shifts?.length)_calShifts=window._toolDBData.turnos.shifts; calRender(); }
+    }
+  } catch(e) {
+    console.warn('[herramientas] Error cargando datos del servidor:', e.message);
+  } finally {
+    _toolLoadDone = true;
+  }
+}
+
+/* ── Panel de historial ── */
+window.htlOpen = async function(tool) {
+  _htlCurrentTool = tool;
+  var labels = { notas:'Notas', gantt:'Proyectos / Gantt', bpmn:'Flujos BPMN',
+                 pizarra:'Pizarra', mapas:'Mapa Mental', turnos:'Turnos',
+                 pomodoro:'Pomodoro', eventos:'Eventos' };
+  document.getElementById('htlTitle').textContent = 'Historial · ' + (labels[tool] || tool);
+  document.getElementById('htlSearchInput').value = '';
+  document.getElementById('htlList').innerHTML =
+    '<div class="htl-empty"><i class="bi bi-hourglass-split"></i>Cargando...</div>';
+  document.getElementById('htlBackdrop').classList.add('open');
+  document.getElementById('htlPanel').classList.add('open');
+  await htlLoad(tool, '');
+};
+
+window.htlClose = function() {
+  document.getElementById('htlBackdrop').classList.remove('open');
+  document.getElementById('htlPanel').classList.remove('open');
+  _htlCurrentTool = null;
+};
+
+async function htlLoad(tool, q) {
+  try {
+    var url  = '/api/herramientas/' + tool + '/history' + (q ? '?q=' + encodeURIComponent(q) : '');
+    var r    = await fetch(url);
+    var json = await r.json();
+    if (!json.ok) throw new Error(json.error || 'Error');
+    _htlHistory = json.history || [];
+    htlRender(tool);
+  } catch(e) {
+    document.getElementById('htlList').innerHTML =
+      '<div class="htl-empty" style="color:#ef4444;"><i class="bi bi-exclamation-circle"></i>' + _htlEsc(e.message) + '</div>';
+  }
+}
+
+window.htlSearch = function() {
+  clearTimeout(_htlSearchTimer);
+  _htlSearchTimer = setTimeout(function() {
+    var q = document.getElementById('htlSearchInput').value;
+    if (_htlCurrentTool) htlLoad(_htlCurrentTool, q);
+  }, 300);
+};
+
+function htlRender(tool) {
+  var list = document.getElementById('htlList');
+  if (!_htlHistory.length) {
+    list.innerHTML = '<div class="htl-empty"><i class="bi bi-clock-history"></i>No hay versiones guardadas aún.<br><small style="opacity:.7;">Los cambios se guardan automáticamente.</small></div>';
+    return;
+  }
+  var icons = { notas:'journal-richtext', gantt:'diagram-3-fill', bpmn:'diagram-2-fill',
+                pizarra:'stickies-fill', mapas:'diagram-3', turnos:'calendar2-week-fill',
+                pomodoro:'stopwatch-fill', eventos:'calendar-heart-fill' };
+  var icon = icons[tool] || 'clock-history';
+
+  list.innerHTML = _htlHistory.map(function(h) {
+    var d   = new Date(h.created_at);
+    var ts  = d.toLocaleDateString('es-PE',{day:'2-digit',month:'short'}) + ' · ' +
+              d.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+    var lbl = h.label || ('Versión ' + d.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}));
+    var prv = htlPreview(tool, h.data);
+    return '<div class="htl-item">' +
+      '<div class="htl-icon"><i class="bi bi-' + icon + '"></i></div>' +
+      '<div class="htl-info">' +
+        '<div class="htl-label">' + _htlEsc(lbl) + '</div>' +
+        '<div class="htl-preview">' + _htlEsc(prv) + '</div>' +
+        '<div class="htl-time"><i class="bi bi-clock"></i> ' + ts + '</div>' +
+      '</div>' +
+      '<div class="htl-actions">' +
+        '<button class="htl-btn" onclick="htlRestore(\'' + tool + '\',' + h.id + ')">Restaurar</button>' +
+        '<button class="htl-btn htl-btn-del" onclick="htlDelete(\'' + tool + '\',' + h.id + ')" title="Eliminar versión"><i class="bi bi-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function htlPreview(tool, data) {
+  try {
+    if (!data) return '—';
+    if (tool==='notas')    return (data.length||0) + ' nota(s)' + (data[0] ? ' · "' + (data[0].title||'Sin título').substring(0,30) + '"' : '');
+    if (tool==='gantt')    return Array.isArray(data) ? data.length + ' tarea(s)' : '—';
+    if (tool==='bpmn')     return (data.nodes?.length||0) + ' nodo(s) · ' + (data.edges?.length||0) + ' conexiones';
+    if (tool==='pizarra')  return (data.items?.length||0) + ' elemento(s) en pizarra';
+    if (tool==='mapas')    return (data.nodes?.length||0) + ' nodo(s) en el mapa';
+    if (tool==='turnos')   return (data.agents?.length||0) + ' agente(s) · ' + (data.shifts?.length||0) + ' turno(s)';
+    if (tool==='pomodoro') return (data.tasks?.length||0) + ' tarea(s) · ' + (data.history?.length||0) + ' sesión(es)';
+    if (tool==='eventos')  return 'Diseño de tarjeta corporativa';
+    return '—';
+  } catch(e) { return '—'; }
+}
+
+window.htlRestore = async function(tool, id) {
+  if (!confirm('¿Restaurar esta versión? El estado actual se reemplazará.')) return;
+  try {
+    var r    = await fetch('/api/herramientas/' + tool + '/restore/' + id, { method: 'POST' });
+    var json = await r.json();
+    if (!json.ok) throw new Error(json.error || 'Error al restaurar');
+    htlApplyRestored(tool, json.data);
+    showToast('Versión restaurada correctamente', 'success');
+    htlClose();
+  } catch(e) {
+    showToast('Error al restaurar: ' + e.message, 'error');
+  }
+};
+
+function htlApplyRestored(tool, data) {
+  if (!data) return;
+  if (tool === 'notas') {
+    _notesData = data;
+    localStorage.setItem('ht_notes_v1', JSON.stringify(data));
+    if (_notesInited) { notesRenderList(); if (_notesData.length) notesSelect(_notesData[0].id); }
+  } else if (tool === 'gantt') {
+    _ganttTasks = data;
+    if (_ganttInited) ganttRender();
+  } else if (tool === 'bpmn') {
+    if (data.flows && data.flows.length) {
+      _bpmnFlows = data.flows;
+      _bpmnActiveId = data.activeId || _bpmnFlows[0].id;
+      if (_bpmnInited) { _bpmnLoadActive(); bpmnRender(); bpmnFlowsRenderList(); }
+    } else if (data.nodes) {
+      if (_bpmnFlows.length) { var _rf=_bpmnFlows.find(function(fl){return fl.id===_bpmnActiveId;}); if(_rf){if(data.nodes)_rf.nodes=data.nodes; if(data.edges)_rf.edges=data.edges; if(data.lanes)_rf.lanes=data.lanes;} }
+      if (_bpmnInited) { _bpmnLoadActive(); bpmnRender(); }
+    }
+  } else if (tool === 'pizarra') {
+    _wb.items = data.items || []; _wb.edges = data.edges || [];
+    if (_wbInited) wbRender();
+  } else if (tool === 'mapas') {
+    _G.nodes = data.nodes || []; _G.edges = data.edges || [];
+    if (data.theme !== undefined) { _mmTheme = data.theme; mmSetTheme(_mmTheme); }
+    if (data.uid) _mmUid = data.uid;
+    if (_mmInited) mmRender();
+  } else if (tool === 'turnos') {
+    if (data.agents) { _calAgents = data.agents; localStorage.setItem('cal_agents', JSON.stringify(_calAgents)); }
+    if (data.shifts) { _calShifts = data.shifts; localStorage.setItem('cal_shifts', JSON.stringify(_calShifts)); }
+    if (_calInited) calRender();
+  } else if (tool === 'pomodoro') {
+    if (data.tasks)   { _pomTasks    = data.tasks;   localStorage.setItem('pom_tasks',   JSON.stringify(_pomTasks)); }
+    if (data.history) { _pomHistData = data.history; localStorage.setItem('pom_history', JSON.stringify(_pomHistData)); }
+    if (_pomInited) { pomRenderTasks(); pomRenderHistory(); }
+  }
+}
+
+window.htlDelete = async function(tool, id) {
+  try {
+    var r    = await fetch('/api/herramientas/' + tool + '/history/' + id, { method: 'DELETE' });
+    var json = await r.json();
+    if (!json.ok) throw new Error(json.error || 'Error');
+    _htlHistory = _htlHistory.filter(function(h){ return h.id !== id; });
+    htlRender(tool);
+    showToast('Versión eliminada', 'success');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+};
+
+function _htlEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Arrancar carga al inicio
+toolLoad();
+
+})();
+</script>
+
+<!-- ═══════════════════════════ TAB 15 – QR & CÓDIGOS ════════════════════════════ -->
+<style>
+#toolTab15{max-width:1700px;margin:0 auto;padding:24px 20px;box-sizing:border-box;}
+@media(max-width:900px){#toolTab15{padding:12px 8px;}}
+.qr-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+@media(max-width:900px){.qr-grid{grid-template-columns:1fr;}}
+.qr-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;}
+.qr-card h3{font-size:14px;font-weight:800;color:var(--text);margin:0 0 14px;display:flex;align-items:center;gap:8px;}
+.qr-type-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.qr-type-btn{padding:5px 13px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;}
+.qr-type-btn.active{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-color:transparent;box-shadow:0 2px 8px rgba(99,102,241,.35);}
+.qr-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+.qr-field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.qr-field input,.qr-field select,.qr-field textarea{padding:8px 11px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s;width:100%;box-sizing:border-box;}
+.qr-field input:focus,.qr-field select:focus,.qr-field textarea:focus{border-color:#6366f1;}
+.qr-opts-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.qr-opts-row .qr-field{flex:1;min-width:90px;margin-bottom:0;}
+.qr-preview-box{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:220px;background:var(--bg);border:1.5px dashed var(--border);border-radius:12px;margin-bottom:14px;padding:16px;}
+.qr-preview-box canvas{border-radius:8px;max-width:100%;}
+.qr-preview-empty{color:var(--muted);font-size:13px;text-align:center;opacity:.6;}
+.qr-btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+.qr-btn{padding:7px 16px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:opacity .15s;}
+.qr-btn:hover{opacity:.85;}
+.qr-btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.3);}
+.qr-btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text);}
+.qr-btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;}
+.qr-btn-success{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+.qr-drop{border:2px dashed var(--border);border-radius:12px;padding:30px 16px;text-align:center;cursor:pointer;transition:all .2s;color:var(--muted);font-size:13px;background:var(--bg);margin-bottom:14px;}
+.qr-drop.dragover{border-color:#6366f1;background:rgba(99,102,241,.06);color:#6366f1;}
+.qr-drop i{font-size:28px;display:block;margin-bottom:6px;opacity:.5;}
+.qr-result{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;}
+.qr-result .qr-decoded-url{font-size:13px;word-break:break-all;color:var(--text);margin-bottom:8px;}
+.qr-sec-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-right:4px;margin-bottom:4px;}
+.qr-sec-safe{background:rgba(16,185,129,.12);color:#065f46;}
+.qr-sec-warn{background:rgba(245,158,11,.12);color:#92400e;}
+.qr-sec-danger{background:rgba(239,68,68,.12);color:#991b1b;}
+.qr-hist-list{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;}
+.qr-hist-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:9px;cursor:pointer;transition:background .15s;}
+.qr-hist-item:hover{background:rgba(99,102,241,.07);}
+.qr-hist-item .qr-hist-thumb img{width:44px;height:44px;border-radius:6px;object-fit:cover;}
+.qr-hist-item .qr-hist-info{flex:1;min-width:0;}
+.qr-hist-item .qr-hist-type{font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:.05em;}
+.qr-hist-item .qr-hist-val{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.qr-hist-item .qr-hist-time{font-size:10px;color:var(--muted);}
+</style>
+
+<div class="section-tab" id="toolTab15">
+  <!-- header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+    <div>
+      <div style="font-size:17px;font-weight:900;color:var(--text);display:flex;align-items:center;gap:10px;">
+        <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 4px 14px rgba(99,102,241,.4);">
+          <i class="bi bi-qr-code" style="color:#fff;"></i>
+        </span>
+        QR &amp; Códigos
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px;padding-left:50px;">Genera, decodifica y analiza códigos QR de forma segura</div>
+    </div>
+  </div>
+
+  <div class="qr-grid">
+    <!-- ── COLUMNA IZQUIERDA: Generador ── -->
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <div class="qr-card">
+        <h3><i class="bi bi-plus-square-dotted" style="color:#6366f1;"></i> Generador de QR</h3>
+        <!-- Tipo -->
+        <div class="qr-type-row" id="qrTypeRow">
+          <button class="qr-type-btn active" onclick="qrSetType('url')">URL</button>
+          <button class="qr-type-btn" onclick="qrSetType('text')">Texto</button>
+          <button class="qr-type-btn" onclick="qrSetType('wifi')">WiFi</button>
+          <button class="qr-type-btn" onclick="qrSetType('contact')">Contacto</button>
+          <button class="qr-type-btn" onclick="qrSetType('email')">Email</button>
+          <button class="qr-type-btn" onclick="qrSetType('phone')">Teléfono</button>
+        </div>
+
+        <!-- Formularios por tipo -->
+        <div id="qrFormUrl">
+          <div class="qr-field"><label>URL</label><input id="qrFUrl" type="url" placeholder="https://ejemplo.com" oninput="qrLiveGenerate()"></div>
+        </div>
+        <div id="qrFormText" style="display:none;">
+          <div class="qr-field"><label>Texto</label><textarea id="qrFText" rows="3" placeholder="Escribe el texto..." oninput="qrLiveGenerate()"></textarea></div>
+        </div>
+        <div id="qrFormWifi" style="display:none;">
+          <div class="qr-field"><label>Red (SSID)</label><input id="qrFSsid" placeholder="Nombre de la red" oninput="qrLiveGenerate()"></div>
+          <div class="qr-field"><label>Contraseña</label><input id="qrFPass" type="password" placeholder="Contraseña WiFi" oninput="qrLiveGenerate()"></div>
+          <div class="qr-field"><label>Seguridad</label>
+            <select id="qrFSec" onchange="qrLiveGenerate()">
+              <option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option>
+            </select>
+          </div>
+        </div>
+        <div id="qrFormContact" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="qr-field"><label>Nombre</label><input id="qrFCName" placeholder="Nombre completo" oninput="qrLiveGenerate()"></div>
+            <div class="qr-field"><label>Teléfono</label><input id="qrFCPhone" placeholder="+51 999..." oninput="qrLiveGenerate()"></div>
+            <div class="qr-field"><label>Email</label><input id="qrFCEmail" placeholder="correo@..." oninput="qrLiveGenerate()"></div>
+            <div class="qr-field"><label>Empresa</label><input id="qrFCOrg" placeholder="Empresa" oninput="qrLiveGenerate()"></div>
+          </div>
+          <div class="qr-field"><label>URL / Web</label><input id="qrFCUrl" placeholder="https://..." oninput="qrLiveGenerate()"></div>
+        </div>
+        <div id="qrFormEmail" style="display:none;">
+          <div class="qr-field"><label>Para</label><input id="qrFETo" type="email" placeholder="destinatario@..." oninput="qrLiveGenerate()"></div>
+          <div class="qr-field"><label>Asunto</label><input id="qrFESubj" placeholder="Asunto del correo" oninput="qrLiveGenerate()"></div>
+          <div class="qr-field"><label>Mensaje</label><textarea id="qrFEBody" rows="2" placeholder="Cuerpo del mensaje..." oninput="qrLiveGenerate()"></textarea></div>
+        </div>
+        <div id="qrFormPhone" style="display:none;">
+          <div class="qr-field"><label>Número</label><input id="qrFPhone" type="tel" placeholder="+51 999 999 999" oninput="qrLiveGenerate()"></div>
+        </div>
+
+        <!-- Opciones -->
+        <div class="qr-opts-row">
+          <div class="qr-field"><label>Tamaño (px)</label>
+            <select id="qrOptSize" onchange="qrLiveGenerate()">
+              <option value="200">200</option><option value="280" selected>280</option>
+              <option value="360">360</option><option value="480">480</option>
+            </select>
+          </div>
+          <div class="qr-field"><label>Corrección</label>
+            <select id="qrOptEcc" onchange="qrLiveGenerate()">
+              <option value="L">L (7%)</option><option value="M" selected>M (15%)</option>
+              <option value="Q">Q (25%)</option><option value="H">H (30%)</option>
+            </select>
+          </div>
+          <div class="qr-field"><label>Color QR</label>
+            <input type="color" id="qrOptFg" value="#000000" oninput="qrLiveGenerate()" style="padding:3px;height:34px;cursor:pointer;">
+          </div>
+          <div class="qr-field"><label>Fondo</label>
+            <input type="color" id="qrOptBg" value="#ffffff" oninput="qrLiveGenerate()" style="padding:3px;height:34px;cursor:pointer;">
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="qr-preview-box" id="qrPreviewBox">
+          <canvas id="qrCanvas" style="display:none;"></canvas>
+          <div class="qr-preview-empty" id="qrPreviewEmpty">
+            <i class="bi bi-qr-code" style="font-size:40px;display:block;margin-bottom:8px;opacity:.25;"></i>
+            El QR aparecerá aquí
+          </div>
+        </div>
+        <div class="qr-btn-row">
+          <button class="qr-btn qr-btn-primary" onclick="qrDownload()"><i class="bi bi-download"></i> Descargar PNG</button>
+          <button class="qr-btn qr-btn-outline" onclick="qrCopyImage()"><i class="bi bi-clipboard"></i> Copiar imagen</button>
+          <button class="qr-btn qr-btn-outline" onclick="qrClear()"><i class="bi bi-x-circle"></i> Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── COLUMNA DERECHA: Decodificador + Historial ── -->
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <!-- Decodificador -->
+      <div class="qr-card">
+        <h3><i class="bi bi-shield-check" style="color:#10b981;"></i> Decodificar &amp; Analizar seguridad</h3>
+        <!-- Drop zone -->
+        <div class="qr-drop" id="qrDropZone"
+          ondragover="event.preventDefault();this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')"
+          ondrop="qrHandleDrop(event)">
+          <i class="bi bi-cloud-upload"></i>
+          Arrastra una imagen QR aquí<br>
+          <span style="font-size:11px;opacity:.7;">o haz clic para seleccionar</span>
+          <input type="file" id="qrFileInput" accept="image/*" style="position:absolute;opacity:0;pointer-events:none;" onchange="qrHandleFile(this.files[0])">
+        </div>
+        <div class="qr-btn-row" style="margin-bottom:14px;">
+          <button class="qr-btn qr-btn-outline" onclick="document.getElementById('qrFileInput').click()"><i class="bi bi-folder2-open"></i> Seleccionar archivo</button>
+          <button class="qr-btn qr-btn-outline" onclick="qrPasteClipboard()"><i class="bi bi-clipboard-image"></i> Pegar portapapeles</button>
+          <button class="qr-btn qr-btn-outline" onclick="qrStartCamera()"><i class="bi bi-camera-video"></i> Cámara</button>
+        </div>
+        <!-- Cámara -->
+        <div id="qrCameraBox" style="display:none;margin-bottom:12px;">
+          <video id="qrVideo" autoplay playsinline style="width:100%;border-radius:10px;background:#000;max-height:240px;"></video>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="qr-btn qr-btn-primary" onclick="qrCaptureFrame()"><i class="bi bi-camera"></i> Capturar</button>
+            <button class="qr-btn qr-btn-outline" onclick="qrStopCamera()"><i class="bi bi-x"></i> Cerrar</button>
+          </div>
+        </div>
+        <canvas id="qrDecodeCanvas" style="display:none;"></canvas>
+        <!-- Resultado -->
+        <div id="qrDecodeResult" style="display:none;">
+          <div class="qr-result">
+            <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Contenido decodificado</div>
+            <div class="qr-decoded-url" id="qrDecodedText"></div>
+            <div id="qrSecBadges" style="margin-bottom:10px;"></div>
+            <div id="qrSecDetail" style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;"></div>
+            <div class="qr-btn-row">
+              <button class="qr-btn qr-btn-outline" onclick="qrCopyDecoded()"><i class="bi bi-clipboard"></i> Copiar</button>
+              <a id="qrOpenLink" href="#" target="_blank" rel="noopener noreferrer" class="qr-btn qr-btn-success" style="display:none;text-decoration:none;"><i class="bi bi-box-arrow-up-right"></i> Abrir con precaución</a>
+            </div>
+          </div>
+        </div>
+        <div id="qrDecodeError" style="display:none;padding:12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;font-size:13px;color:#dc2626;"></div>
+      </div>
+
+      <!-- Historial -->
+      <div class="qr-card">
+        <h3 style="justify-content:space-between;">
+          <span><i class="bi bi-clock-history" style="color:#f59e0b;"></i> Historial de sesión</span>
+          <button class="qr-btn qr-btn-outline" style="padding:3px 10px;font-size:11px;" onclick="qrClearHistory()"><i class="bi bi-trash"></i> Limpiar</button>
+        </h3>
+        <div class="qr-hist-list" id="qrHistList">
+          <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0;opacity:.5;">No hay QRs generados aún</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var _qrType = 'url';
+var _qrHistory = [];
+var _qrStream = null;
+var _qrCurrentDataUrl = null;
+
+/* ── Tipos ── */
+function qrSetType(t) {
+  _qrType = t;
+  var types = ['url','text','wifi','contact','email','phone'];
+  types.forEach(function(tp) {
+    var el = document.getElementById('qrForm' + tp.charAt(0).toUpperCase() + tp.slice(1));
+    if (el) el.style.display = (tp === t) ? '' : 'none';
+  });
+  document.querySelectorAll('.qr-type-btn').forEach(function(b, i) {
+    b.classList.toggle('active', types[i] === t);
+  });
+  qrLiveGenerate();
+}
+window.qrSetType = qrSetType;
+
+/* ── Build QR string ── */
+function qrBuildString() {
+  if (_qrType === 'url')  return (document.getElementById('qrFUrl')||{}).value || '';
+  if (_qrType === 'text') return (document.getElementById('qrFText')||{}).value || '';
+  if (_qrType === 'phone') return 'tel:' + ((document.getElementById('qrFPhone')||{}).value || '');
+  if (_qrType === 'wifi') {
+    var ssid = (document.getElementById('qrFSsid')||{}).value || '';
+    var pass = (document.getElementById('qrFPass')||{}).value || '';
+    var sec  = (document.getElementById('qrFSec')||{}).value || 'WPA';
+    if (!ssid) return '';
+    return 'WIFI:T:' + sec + ';S:' + ssid + ';P:' + pass + ';;';
+  }
+  if (_qrType === 'contact') {
+    var n = (document.getElementById('qrFCName')||{}).value || '';
+    var p = (document.getElementById('qrFCPhone')||{}).value || '';
+    var e = (document.getElementById('qrFCEmail')||{}).value || '';
+    var o = (document.getElementById('qrFCOrg')||{}).value || '';
+    var u = (document.getElementById('qrFCUrl')||{}).value || '';
+    if (!n && !p && !e) return '';
+    var lines = ['BEGIN:VCARD','VERSION:3.0'];
+    if (n) lines.push('FN:' + n);
+    if (p) lines.push('TEL:' + p);
+    if (e) lines.push('EMAIL:' + e);
+    if (o) lines.push('ORG:' + o);
+    if (u) lines.push('URL:' + u);
+    lines.push('END:VCARD');
+    return lines.join('\n');
+  }
+  if (_qrType === 'email') {
+    var to   = (document.getElementById('qrFETo')||{}).value || '';
+    var subj = encodeURIComponent((document.getElementById('qrFESubj')||{}).value || '');
+    var body = encodeURIComponent((document.getElementById('qrFEBody')||{}).value || '');
+    if (!to) return '';
+    return 'mailto:' + to + '?subject=' + subj + '&body=' + body;
+  }
+  return '';
+}
+
+/* ── Generar ── */
+var _qrGenTimer = null;
+function qrLiveGenerate() {
+  clearTimeout(_qrGenTimer);
+  _qrGenTimer = setTimeout(qrGenerate, 300);
+}
+window.qrLiveGenerate = qrLiveGenerate;
+
+function qrGenerate() {
+  var str = qrBuildString();
+  var canvas = document.getElementById('qrCanvas');
+  var empty  = document.getElementById('qrPreviewEmpty');
+  if (!str) {
+    canvas.style.display = 'none';
+    empty.style.display  = '';
+    _qrCurrentDataUrl    = null;
+    return;
+  }
+  var size = parseInt((document.getElementById('qrOptSize')||{}).value || '280');
+  var ecc  = (document.getElementById('qrOptEcc')||{}).value || 'M';
+  var fg   = (document.getElementById('qrOptFg')||{}).value || '#000000';
+  var bg   = (document.getElementById('qrOptBg')||{}).value || '#ffffff';
+
+  if (typeof QRCode === 'undefined') {
+    showToast('Librería QRCode no disponible, intenta recargar la página','warn');
+    return;
+  }
+  QRCode.toCanvas(canvas, str, {
+    width: Math.min(size, 400),
+    errorCorrectionLevel: ecc,
+    color: { dark: fg, light: bg }
+  }, function(err) {
+    if (err) {
+      showToast('Error al generar QR: ' + err.message, 'error');
+      return;
+    }
+    canvas.style.display = '';
+    empty.style.display  = 'none';
+    _qrCurrentDataUrl    = canvas.toDataURL('image/png');
+    qrAddHistory(str, _qrCurrentDataUrl);
+  });
+}
+window.qrGenerate = qrGenerate;
+
+/* ── Descargar ── */
+function qrDownload() {
+  if (!_qrCurrentDataUrl) { showToast('Genera un QR primero','warn'); return; }
+  var a = document.createElement('a');
+  a.href     = _qrCurrentDataUrl;
+  a.download = 'qr-code.png';
+  a.click();
+}
+window.qrDownload = qrDownload;
+
+/* ── Copiar imagen ── */
+async function qrCopyImage() {
+  if (!_qrCurrentDataUrl) { showToast('Genera un QR primero','warn'); return; }
+  try {
+    var res  = await fetch(_qrCurrentDataUrl);
+    var blob = await res.blob();
+    await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+    showToast('Imagen copiada al portapapeles','success');
+  } catch(e) {
+    showToast('No se pudo copiar: ' + e.message, 'error');
+  }
+}
+window.qrCopyImage = qrCopyImage;
+
+/* ── Limpiar generador ── */
+function qrClear() {
+  ['qrFUrl','qrFText','qrFSsid','qrFPass','qrFCName','qrFCPhone','qrFCEmail','qrFCOrg','qrFCUrl',
+   'qrFETo','qrFESubj','qrFEBody','qrFPhone'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  var canvas = document.getElementById('qrCanvas');
+  canvas.style.display = 'none';
+  document.getElementById('qrPreviewEmpty').style.display = '';
+  _qrCurrentDataUrl = null;
+}
+window.qrClear = qrClear;
+
+/* ── Historial ── */
+function qrAddHistory(str, dataUrl) {
+  var existing = _qrHistory.findIndex(function(h){ return h.str === str; });
+  if (existing !== -1) _qrHistory.splice(existing, 1);
+  _qrHistory.unshift({ type: _qrType.toUpperCase(), str: str, thumb: dataUrl, ts: new Date() });
+  if (_qrHistory.length > 20) _qrHistory.length = 20;
+  qrRenderHistory();
+}
+function qrRenderHistory() {
+  var list = document.getElementById('qrHistList');
+  if (!list) return;
+  if (!_qrHistory.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0;opacity:.5;">No hay QRs generados aún</div>';
+    return;
+  }
+  list.innerHTML = _qrHistory.map(function(h, i) {
+    return '<div class="qr-hist-item" onclick="qrFromHistory(' + i + ')">' +
+      '<div class="qr-hist-thumb"><img src="' + h.thumb + '" alt="qr"></div>' +
+      '<div class="qr-hist-info">' +
+        '<div class="qr-hist-type">' + h.type + '</div>' +
+        '<div class="qr-hist-val">' + _qrEscape(h.str.substring(0,60)) + (h.str.length>60?'…':'') + '</div>' +
+        '<div class="qr-hist-time">' + h.ts.toLocaleTimeString() + '</div>' +
+      '</div>' +
+      '<i class="bi bi-arrow-repeat" style="color:var(--muted);font-size:14px;"></i>' +
+    '</div>';
+  }).join('');
+}
+function qrFromHistory(i) {
+  var h = _qrHistory[i];
+  if (!h) return;
+  qrSetType(h.type.toLowerCase());
+  var canvas = document.getElementById('qrCanvas');
+  canvas.style.display = '';
+  document.getElementById('qrPreviewEmpty').style.display = 'none';
+  var img = new Image();
+  img.onload = function() {
+    var ctx = canvas.getContext('2d');
+    canvas.width = img.width; canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    _qrCurrentDataUrl = h.thumb;
+  };
+  img.src = h.thumb;
+}
+window.qrFromHistory = qrFromHistory;
+function qrClearHistory() {
+  _qrHistory = [];
+  qrRenderHistory();
+}
+window.qrClearHistory = qrClearHistory;
+
+/* ── Escape HTML ── */
+function _qrEscape(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Decodificador ── */
+function qrHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('qrDropZone').classList.remove('dragover');
+  var file = (e.dataTransfer.files||[])[0];
+  if (file && file.type.startsWith('image/')) qrHandleFile(file);
+  else showToast('Solo se aceptan imágenes','warn');
+}
+window.qrHandleDrop = qrHandleDrop;
+
+function qrHandleFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) { qrDecodeDataUrl(ev.target.result); };
+  reader.readAsDataURL(file);
+}
+window.qrHandleFile = qrHandleFile;
+
+async function qrPasteClipboard() {
+  try {
+    var items = await navigator.clipboard.read();
+    for (var item of items) {
+      for (var type of item.types) {
+        if (type.startsWith('image/')) {
+          var blob = await item.getType(type);
+          var url  = URL.createObjectURL(blob);
+          qrDecodeDataUrl(url);
+          return;
+        }
+      }
+    }
+    showToast('No hay imagen en el portapapeles','warn');
+  } catch(e) {
+    showToast('Acceso al portapapeles denegado','error');
+  }
+}
+window.qrPasteClipboard = qrPasteClipboard;
+
+function qrDecodeDataUrl(dataUrl) {
+  var img = new Image();
+  img.onload = function() {
+    var canvas = document.getElementById('qrDecodeCanvas');
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    if (typeof jsQR === 'undefined') {
+      showToast('Librería jsQR no disponible, intenta recargar la página','warn');
+      return;
+    }
+    var code = jsQR(imageData.data, canvas.width, canvas.height, { inversionAttempts: 'dontInvert' });
+    if (!code) code = jsQR(imageData.data, canvas.width, canvas.height, { inversionAttempts: 'attemptBoth' });
+    if (code) {
+      qrShowDecoded(code.data);
+    } else {
+      document.getElementById('qrDecodeResult').style.display = 'none';
+      var errEl = document.getElementById('qrDecodeError');
+      errEl.style.display = '';
+      errEl.textContent = 'No se encontró ningún código QR en la imagen. Asegúrate de que la imagen sea nítida y el QR esté bien visible.';
+    }
+  };
+  img.onerror = function() { showToast('Error al cargar la imagen','error'); };
+  img.src = dataUrl;
+}
+
+function qrShowDecoded(text) {
+  document.getElementById('qrDecodeError').style.display = 'none';
+  document.getElementById('qrDecodedText').textContent = text;
+  var analysis = qrAnalyzeSecurity(text);
+  var badgesEl = document.getElementById('qrSecBadges');
+  var detailEl = document.getElementById('qrSecDetail');
+  var openBtn  = document.getElementById('qrOpenLink');
+  badgesEl.innerHTML = analysis.badges.map(function(b) {
+    return '<span class="qr-sec-badge qr-sec-' + b.level + '"><i class="bi bi-' + b.icon + '"></i> ' + b.label + '</span>';
+  }).join('');
+  detailEl.innerHTML = analysis.details.map(function(d) {
+    return '<div>• ' + _qrEscape(d) + '</div>';
+  }).join('');
+  var isUrl = /^https?:\/\//i.test(text) || /^ftp:\/\//i.test(text);
+  if (isUrl) {
+    openBtn.style.display = '';
+    openBtn.href = text;
+    if (analysis.riskLevel === 'danger') {
+      openBtn.className = 'qr-btn qr-btn-danger';
+      openBtn.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Abrir con mucha precaución';
+    } else {
+      openBtn.className = 'qr-btn qr-btn-success';
+      openBtn.innerHTML = '<i class="bi bi-box-arrow-up-right"></i> Abrir con precaución';
+    }
+  } else {
+    openBtn.style.display = 'none';
+  }
+  document.getElementById('qrDecodeResult').style.display = '';
+}
+
+function qrCopyDecoded() {
+  var text = (document.getElementById('qrDecodedText')||{}).textContent || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(function() {
+    showToast('Copiado al portapapeles','success');
+  }).catch(function() {
+    showToast('No se pudo copiar','error');
+  });
+}
+window.qrCopyDecoded = qrCopyDecoded;
+
+/* ── Análisis de seguridad ── */
+function qrAnalyzeSecurity(text) {
+  var badges  = [];
+  var details = [];
+  var risk    = 'safe';
+
+  var isUrl = /^https?:\/\//i.test(text);
+
+  if (isUrl) {
+    var u;
+    try { u = new URL(text); } catch(e) { u = null; }
+    if (u) {
+      // HTTPS
+      if (u.protocol === 'https:') {
+        badges.push({ level:'safe', icon:'lock-fill', label:'HTTPS' });
+      } else {
+        badges.push({ level:'warn', icon:'unlock', label:'HTTP (sin cifrar)' });
+        details.push('La URL no usa HTTPS. Tu conexión puede no estar cifrada.');
+        if (risk === 'safe') risk = 'warn';
+      }
+      // IP directa
+      if (/^\d{1,3}(\.\d{1,3}){3}$/.test(u.hostname)) {
+        badges.push({ level:'danger', icon:'exclamation-triangle-fill', label:'IP directa' });
+        details.push('La URL apunta directamente a una IP — poco común en sitios legítimos.');
+        risk = 'danger';
+      }
+      // Puerto no estándar
+      if (u.port && u.port !== '80' && u.port !== '443' && u.port !== '8080' && u.port !== '8443') {
+        badges.push({ level:'warn', icon:'plug', label:'Puerto inusual: ' + u.port });
+        details.push('Puerto no estándar detectado (' + u.port + ').');
+        if (risk === 'safe') risk = 'warn';
+      }
+      // Acortadores de URL conocidos
+      var shorteners = ['bit.ly','t.co','tinyurl.com','goo.gl','ow.ly','buff.ly','short.link','rb.gy','cutt.ly','is.gd','tiny.cc'];
+      if (shorteners.some(function(s){ return u.hostname.endsWith(s); })) {
+        badges.push({ level:'warn', icon:'link-45deg', label:'URL acortada' });
+        details.push('URL acortada detectada (' + u.hostname + ') — el destino real es desconocido hasta abrirla.');
+        if (risk === 'safe') risk = 'warn';
+      }
+      // Punycode / IDN homoglyphs
+      if (u.hostname.includes('xn--')) {
+        badges.push({ level:'danger', icon:'fonts', label:'Dominio IDN/Punycode' });
+        details.push('Dominio con caracteres Unicode codificados — técnica usada en ataques de homógrafo.');
+        risk = 'danger';
+      }
+      // Parámetros de redirección
+      var redirParams = ['redirect','url','next','return','returnurl','dest','destination','goto'];
+      var hasRedir = redirParams.some(function(p){ return u.searchParams.has(p); });
+      if (hasRedir) {
+        badges.push({ level:'warn', icon:'arrow-left-right', label:'Redirección en URL' });
+        details.push('La URL contiene un parámetro de redirección — podría llevarte a un sitio diferente.');
+        if (risk === 'safe') risk = 'warn';
+      }
+      // Demasiados subdominios
+      var parts = u.hostname.split('.');
+      if (parts.length > 4) {
+        badges.push({ level:'warn', icon:'diagram-3', label:'Muchos subdominios' });
+        details.push('Hostname con ' + parts.length + ' niveles — inusual en sitios legítimos.');
+        if (risk === 'safe') risk = 'warn';
+      }
+      // Sin riesgos detectados en URL
+      if (risk === 'safe') {
+        badges.push({ level:'safe', icon:'shield-check', label:'Sin amenazas detectadas' });
+        details.push('No se detectaron señales de riesgo obvias. Verifica que el dominio sea el esperado antes de abrir.');
+      }
+    }
+  } else if (/^wifi:/i.test(text)) {
+    badges.push({ level:'safe', icon:'wifi', label:'Configuración WiFi' });
+    details.push('Este QR contiene credenciales WiFi. Asegúrate de que proviene de una fuente de confianza.');
+    if (risk === 'safe') risk = 'safe';
+  } else if (/^mailto:/i.test(text)) {
+    badges.push({ level:'safe', icon:'envelope', label:'Email' });
+    details.push('El QR abre un cliente de correo con datos pre-rellenados.');
+  } else if (/^tel:/i.test(text)) {
+    badges.push({ level:'safe', icon:'telephone', label:'Teléfono' });
+  } else if (/^begin:vcard/i.test(text)) {
+    badges.push({ level:'safe', icon:'person-vcard', label:'Contacto vCard' });
+  } else {
+    badges.push({ level:'safe', icon:'text-left', label:'Texto plano' });
+    details.push('El QR contiene texto plano, sin URL detectable.');
+  }
+
+  return { badges: badges, details: details, riskLevel: risk };
+}
+
+/* ── Cámara ── */
+async function qrStartCamera() {
+  var box = document.getElementById('qrCameraBox');
+  var video = document.getElementById('qrVideo');
+  try {
+    _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = _qrStream;
+    box.style.display = '';
+  } catch(e) {
+    showToast('No se pudo acceder a la cámara: ' + e.message, 'error');
+  }
+}
+window.qrStartCamera = qrStartCamera;
+
+function qrStopCamera() {
+  if (_qrStream) { _qrStream.getTracks().forEach(function(t){ t.stop(); }); _qrStream = null; }
+  document.getElementById('qrCameraBox').style.display = 'none';
+}
+window.qrStopCamera = qrStopCamera;
+
+function qrCaptureFrame() {
+  var video  = document.getElementById('qrVideo');
+  var canvas = document.getElementById('qrDecodeCanvas');
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  var dataUrl = canvas.toDataURL('image/png');
+  qrStopCamera();
+  qrDecodeDataUrl(dataUrl);
+}
+window.qrCaptureFrame = qrCaptureFrame;
+
+// Click en drop zone redirige al input
+document.getElementById('qrDropZone').addEventListener('click', function() {
+  document.getElementById('qrFileInput').click();
+});
+
+})();
+</script>

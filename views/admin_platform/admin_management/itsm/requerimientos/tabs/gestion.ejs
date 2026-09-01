@@ -1,0 +1,612 @@
+  <style>
+    .panel { display: none; }
+    .panel.active { display: block; }
+    /* Nav base — aligned with autogestion portal .sb-item style */
+    .nav-item { display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:0;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--text-muted);transition:all .15s;border:none;background:none;width:100%;text-align:left;position:relative;white-space:nowrap;overflow:hidden; }
+    .nav-item:hover { background:var(--bg-subtle,#e9eef5); color:var(--text-main); }
+    .nav-item.active { background:var(--primary-dim,rgba(37,99,235,.1));color:var(--primary);font-weight:700; }
+    .nav-item.active::before { content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--primary);border-radius:0 2px 2px 0; }
+    .nav-badge { margin-left:auto;background:var(--primary);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700; }
+    .nav-section { font-size:9px;font-weight:800;letter-spacing:1.1px;color:var(--text-muted);padding:10px 14px 3px;text-transform:uppercase;white-space:nowrap;display:block; }
+    /* Collapsible nav sections */
+    .nav-sec-op  { color:#6366f1;border-left:2px solid #6366f1;padding-left:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;user-select:none; }
+    .nav-sec-mon { color:#d97706;border-left:2px solid #f59e0b;padding-left:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;user-select:none; }
+    .nav-sec-anl { color:#7c3aed;border-left:2px solid #7c3aed;padding-left:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;user-select:none; }
+    .nav-sec-op:hover,.nav-sec-mon:hover,.nav-sec-anl:hover { opacity:.8; }
+    .req-nav-chev { margin-left:auto;font-size:9px;opacity:.55;transition:transform .2s; }
+    .nav-group { overflow:hidden;max-height:600px;transition:max-height .22s cubic-bezier(.4,0,.2,1); }
+    .nav-group.collapsed { max-height:0 !important; }
+    /* Search pin */
+    .nav-search-pin { background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:8px;color:#6366f1;font-weight:600;margin-bottom:6px; }
+    .nav-search-pin:hover { background:rgba(99,102,241,.13);color:#6366f1; }
+    .nav-search-pin.active { background:rgba(99,102,241,.15);border-color:#6366f1; }
+    /* Missing ni-* colors (helpdesk.css has ni-blue,orange,red,purple,green,cyan) */
+    .ni-indigo  { background:rgba(99,102,241,.14);  color:#6366f1; }
+    .ni-violet  { background:rgba(124,58,237,.14);  color:#7c3aed; }
+    .ni-teal    { background:rgba(8,145,178,.14);   color:#0891b2; }
+    .ni-amber   { background:rgba(217,119,6,.14);   color:#d97706; }
+    .ni-slate   { background:rgba(100,116,139,.14); color:#64748b; }
+    .ni-emerald { background:rgba(5,150,105,.14);   color:#059669; }
+    .ni-pink    { background:rgba(236,72,153,.14);  color:#ec4899; }
+    /* Alert pulse badge */
+    @keyframes req-alert-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.75;transform:scale(1.12)} }
+    .req-alert-pulse { animation:req-alert-pulse .85s ease-in-out infinite; }
+    /* Panel utilities */
+    .filters-row { display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap; }
+    .filters-row select { font-size:12px;padding:4px 8px;border:1px solid var(--border-soft);border-radius:6px;background:var(--bg-card);color:var(--text-main); }
+    .stats-row { display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px; }
+    .stat-card { background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;padding:8px 14px;display:flex;flex-direction:column;align-items:center;min-width:80px; }
+    .stat-val { font-size:20px;font-weight:700;font-family:monospace; }
+    .stat-lbl { font-size:10px;color:var(--text-muted);margin-top:2px; }
+    .ticket-list { display:flex;flex-direction:column;gap:8px; }
+    .search-bar { display:flex;gap:8px;margin-bottom:16px; }
+    .search-bar input { flex:1;padding:9px 12px;border:1px solid var(--border-soft);border-radius:8px;font-size:13px;background:var(--bg-card);color:var(--text-main); }
+    .hist-form { display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px; }
+    .hist-form label { font-size:9px;font-family:monospace;letter-spacing:.08em;color:var(--text-muted);display:block;margin-bottom:4px; }
+    .hist-form input,.hist-form select { padding:7px 10px;border:1px solid var(--border-soft);border-radius:6px;font-size:12px;background:var(--bg-card);color:var(--text-main); }
+    .empty-state { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--text-muted);text-align:center; }
+    .empty-state p { font-size:13px;margin:0; }
+    /* En curso pills */
+    .req-ec-pill{font-size:11px;padding:3px 10px;border:1px solid var(--border-soft);border-radius:20px;background:none;cursor:pointer;color:var(--text-muted);transition:all .15s;white-space:nowrap;}
+    .req-ec-pill:hover{background:var(--hover-row);color:var(--text-main);}
+    .req-ec-pill.active{background:#6366f1;color:#fff;border-color:#6366f1;}
+    /* Kanban */
+    .req-kb-board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;height:100%;overflow-x:auto;}
+    @media(max-width:900px){.req-kb-board{grid-template-columns:repeat(2,1fr);}}
+    .req-kb-col{background:var(--bg-header);border:1px solid var(--border-soft);border-radius:10px;display:flex;flex-direction:column;min-height:200px;max-height:calc(100vh - 280px);overflow:hidden;}
+    .req-kb-col-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border-soft);flex-shrink:0;}
+    .req-kb-cards{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;}
+    .req-kb-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;padding:10px 12px;cursor:pointer;transition:box-shadow .15s;}
+    .req-kb-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);border-color:rgba(99,102,241,.35);}
+    /* Spin */
+    @keyframes req-spin{to{transform:rotate(360deg);}}
+    .req-spin{width:14px;height:14px;border:2px solid var(--border-soft);border-top-color:#6366f1;border-radius:50%;animation:req-spin .7s linear infinite;display:inline-block;}
+    /* Alertas panel */
+    .req-alrt-section{margin-bottom:10px;border:1px solid var(--border-soft);border-radius:10px;overflow:hidden;}
+    .req-alrt-hdr{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition:background .15s;}
+    .req-alrt-hdr-red   {background:rgba(239,68,68,.06);color:#dc2626;}
+    .req-alrt-hdr-orange{background:rgba(249,115,22,.06);color:#ea580c;}
+    .req-alrt-hdr-amber {background:rgba(245,158,11,.06);color:#b45309;}
+    .req-alrt-hdr-slate {background:var(--bg-header);color:var(--text-muted);}
+    .req-alrt-body{padding:6px 0;max-height:300px;overflow-y:auto;}
+    .req-alrt-body.collapsed{display:none;}
+    .req-alrt-chev{transition:transform .2s;}
+    .req-alrt-chev.open{transform:rotate(180deg);}
+    .req-alrt-row{display:flex;align-items:center;gap:10px;padding:7px 14px;border-bottom:1px solid var(--border-soft);font-size:12px;}
+    .req-alrt-row:last-child{border-bottom:none;}
+    .req-alrt-row:hover{background:var(--hover-row);}
+    .req-alrt-key{font-family:monospace;font-weight:700;font-size:11px;white-space:nowrap;}
+    .req-alrt-sum{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-main);}
+    /* KPI stat cards */
+    .kpi-stat-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:box-shadow .15s,transform .12s;}
+    .kpi-stat-card:hover{box-shadow:0 4px 18px rgba(0,0,0,.1);transform:translateY(-2px);}
+    .kpi-stat-icon{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+    .kpi-stat-body .kpi-num{font-size:26px;font-weight:800;font-family:monospace;line-height:1;}
+    .kpi-stat-body .kpi-lbl{font-size:10px;font-weight:700;color:var(--text-muted);margin-top:4px;letter-spacing:.05em;text-transform:uppercase;}
+    .kpi-stat-body .kpi-hint{font-size:9px;color:var(--text-muted);margin-top:2px;opacity:.65;}
+    .ks-green  .kpi-stat-icon{background:rgba(16,185,129,.12);color:#10b981;} .ks-green .kpi-num{color:#10b981;} .ks-green{border-left:3px solid #10b981;}
+    .ks-amber  .kpi-stat-icon{background:rgba(245,158,11,.12);color:#f59e0b;} .ks-amber .kpi-num{color:#f59e0b;} .ks-amber{border-left:3px solid #f59e0b;}
+    .ks-red    .kpi-stat-icon{background:rgba(239,68,68,.12); color:#ef4444;} .ks-red   .kpi-num{color:#ef4444;} .ks-red  {border-left:3px solid #ef4444;}
+    .ks-indigo .kpi-stat-icon{background:rgba(99,102,241,.12);color:#6366f1;} .ks-indigo .kpi-num{color:#6366f1;} .ks-indigo{border-left:3px solid #6366f1;}
+    .ks-purple .kpi-stat-icon{background:rgba(124,58,237,.12);color:#7c3aed;} .ks-purple .kpi-num{color:#7c3aed;} .ks-purple{border-left:3px solid #7c3aed;}
+    /* Comparativa */
+    .req-cmp-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;align-items:flex-start;}
+    .req-cmp-val{font-size:24px;font-weight:800;font-family:monospace;margin:4px 0;}
+    .req-cmp-delta{font-size:11px;font-weight:700;display:flex;align-items:center;gap:3px;}
+    .req-cmp-delta.up{color:#10b981;} .req-cmp-delta.down{color:#ef4444;} .req-cmp-delta.neu{color:var(--text-muted);}
+    /* Reportes table */
+    .rpt-table{width:100%;border-collapse:collapse;font-size:11px;}
+    .rpt-table th{background:var(--bg-header);padding:7px 10px;text-align:left;font-size:9px;font-family:monospace;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border-soft);position:sticky;top:0;z-index:1;}
+    .rpt-table td{padding:6px 10px;border-bottom:1px solid var(--border-soft);}
+    .rpt-table tbody tr:nth-child(even) td{background:var(--bg-header);}
+    .rpt-table tbody tr:hover td{background:var(--hover-row);}
+    /* ── Paneles (dashboards) ── */
+    .req-pan-period-btn{font-size:10px;padding:3px 10px;border:1px solid var(--border-soft);border-radius:5px;background:none;cursor:pointer;color:var(--text-muted);transition:all .15s;}
+    .req-pan-period-btn.active{background:#6366f1;color:#fff;border-color:#6366f1;}
+    .req-mp-chip{font-size:11px;padding:4px 12px;border:1px solid var(--border-soft);border-radius:20px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s;}
+    .req-mp-chip.active{background:rgba(99,102,241,.12);border-color:#6366f1;color:#6366f1;font-weight:700;}
+    .req-mp-chip-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+    .req-mp-kpi-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+    .req-mp-kpi{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px 16px;flex:1;min-width:80px;text-align:center;}
+    .req-mp-kpi-v{font-size:20px;font-weight:800;font-family:monospace;}
+    .req-mp-kpi-l{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:1px;}
+    .req-mp-chart-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;min-width:0;}
+    .req-mp-chart-hd{padding:10px 14px;background:var(--bg-header);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:var(--text-main);}
+    .req-mp-chart-body{padding:10px;height:220px;position:relative;}
+    .req-mp-chart-dl{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;padding:2px 6px;border-radius:4px;transition:all .15s;}
+    .req-mp-chart-dl:hover{background:var(--hover-row);color:var(--text-main);}
+    .req-mp-chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;}
+    /* kpi-card — top KPIs row + historico stats */
+    .kpi-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px 14px;}
+    .kpi-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:3px;}
+    .kpi-value{font-size:22px;font-weight:800;font-family:monospace;line-height:1;}
+    .kpi-value.primary{color:#6366f1;}
+    .kpi-value.warning{color:#f59e0b;}
+    .kpi-value.success{color:#10b981;}
+    .kpi-value.danger{color:#ef4444;}
+    .c-blue{color:#6366f1;} .c-amber{color:#d97706;} .c-green{color:#16a34a;} .c-red{color:#ef4444;}
+
+    /* ── Hamburger toggle (mobile only) ── */
+    #reqMenuBtn { display:none;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--border-soft);border-radius:6px;background:var(--bg-card);cursor:pointer;color:var(--text-muted);flex-shrink:0;transition:background .15s,color .15s; }
+    #reqMenuBtn:hover { background:var(--hover-row);color:var(--text-main); }
+    /* ── Overlay backdrop ── */
+    #reqSidebarOverlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:250;opacity:0;transition:opacity .25s;pointer-events:none; }
+    #reqSidebarOverlay.req-mob-open { opacity:1;pointer-events:auto; }
+
+    /* ── Responsive: tablet & mobile ── */
+    @media (max-width: 768px) {
+      #reqMenuBtn { display:flex !important; }
+      .itsm-breadcrumb { display:none !important; }
+      .itsm-topbar { padding:8px 12px !important;gap:8px !important; }
+      /* Sidebar becomes fixed slide-over drawer */
+      #reqSidebar {
+        position:fixed !important;
+        top:0;left:0;bottom:0;
+        z-index:300;
+        width:260px !important;
+        min-width:0 !important;
+        transform:translateX(-100%);
+        transition:transform .25s cubic-bezier(.4,0,.2,1);
+        box-shadow:4px 0 28px rgba(0,0,0,.22);
+        border-radius:0 !important;
+      }
+      #reqSidebar.req-mob-open { transform:translateX(0); }
+      #reqSidebarOverlay { display:block !important; }
+      /* Layout: remove border/radius on wrapper, allow full width */
+      #reqGestionLayout { border-radius:0 !important;border-left:none !important;border-right:none !important; }
+      /* Scroll area padding */
+      #reqScrollArea { padding:10px !important; }
+      /* Local todos 6-col → 3-col */
+      .req-kpi-grid { grid-template-columns:repeat(3,1fr) !important; }
+      /* Kanban → 1-col on mobile */
+      .req-kb-board { grid-template-columns:1fr !important; }
+      /* Toolbars wrap */
+      .req-kb-toolbar { flex-wrap:wrap !important; }
+
+      /* ── INDICADORES: KPI row (6 cols) → horizontal scroll ── */
+      #req-panel-ind-content > div:nth-child(1) {
+        display:flex !important;
+        flex-wrap:nowrap !important;
+        overflow-x:auto !important;
+        -webkit-overflow-scrolling:touch;
+        padding-bottom:6px;
+        gap:10px;
+      }
+      #req-panel-ind-content > div:nth-child(1) > div {
+        min-width:130px !important;
+        flex:0 0 auto !important;
+      }
+      /* Evolution + SLA donut (2fr 1fr) → stack */
+      #req-panel-ind-content > div:nth-child(2) {
+        grid-template-columns:1fr !important;
+      }
+      /* Estado + Prioridad (1fr 1fr) → stack */
+      #req-panel-ind-content > div:nth-child(3) {
+        grid-template-columns:1fr !important;
+      }
+      /* Top Técnicos / Reporters / Tipos (3 cols) → horizontal scroll */
+      #req-panel-ind-content > div:nth-child(4) {
+        display:flex !important;
+        flex-wrap:nowrap !important;
+        overflow-x:auto !important;
+        -webkit-overflow-scrolling:touch;
+        padding-bottom:6px;
+        gap:12px;
+      }
+      #req-panel-ind-content > div:nth-child(4) > div {
+        min-width:200px !important;
+        flex:0 0 auto !important;
+      }
+
+      /* ── POR EQUIPO: top 3 stat cards ── */
+      #req-panel-equipo-content > div:first-child > .stat-card {
+        min-width:0 !important;
+        padding:8px 6px !important;
+      }
+      #req-panel-equipo-content > div:first-child .stat-val {
+        font-size:17px !important;
+      }
+      #req-panel-equipo-content > div:first-child .stat-lbl {
+        font-size:9px !important;
+        white-space:normal !important;
+        word-break:break-word !important;
+        text-align:center !important;
+        line-height:1.3 !important;
+      }
+      /* Team card stats row: tighter gap, smaller numbers */
+      #req-panel-equipo-content > div:last-child > div > div:nth-child(2) {
+        gap:10px !important;
+      }
+      #req-panel-equipo-content > div:last-child > div > div:nth-child(2) b {
+        font-size:13px !important;
+      }
+      /* Members line: allow wrap */
+      #req-panel-equipo-content > div:last-child > div > div:last-child {
+        white-space:normal !important;
+        word-break:break-word !important;
+      }
+
+      /* ── COMPARATIVA: 4 metric cards → horizontal scroll ── */
+      #req-panel-cmp-content > div:nth-child(2) {
+        display:flex !important;
+        flex-wrap:nowrap !important;
+        overflow-x:auto !important;
+        -webkit-overflow-scrolling:touch;
+        padding-bottom:6px;
+        gap:10px;
+      }
+      #req-panel-cmp-content > div:nth-child(2) > div {
+        min-width:150px !important;
+        flex:0 0 auto !important;
+      }
+    }
+    /* ── Responsive: altura pequeña — compactar nav para que todos los ítems sean visibles ── */
+    @media (max-height: 900px) {
+      #reqSidebar .nav-item { padding:5px 14px !important; font-size:12.5px !important; }
+      #reqSidebar .nav-section { font-size:9.5px !important; padding:3px 14px 2px !important; margin-top:5px !important; }
+      #reqSidebar nav { padding:4px 0 !important; }
+    }
+    @media (max-height: 780px) {
+      #reqSidebar .nav-item { padding:3px 14px !important; font-size:12px !important; }
+      #reqSidebar .nav-section { font-size:9px !important; padding:2px 14px 1px !important; margin-top:3px !important; }
+      #reqSidebar nav { padding:3px 0 !important; }
+    }
+    @media (max-height: 650px) {
+      #reqSidebar .nav-item { padding:2px 12px !important; font-size:11px !important; }
+      #reqSidebar .nav-section { font-size:8px !important; padding:1px 12px 0 !important; margin-top:2px !important; }
+      #reqSidebar nav { padding:2px 0 !important; }
+    }
+    @media (max-width: 480px) {
+      .req-kpi-grid { grid-template-columns:repeat(2,1fr) !important; }
+      #reqScrollArea { padding:8px !important; }
+      .hist-form { flex-direction:column !important; }
+      .hist-form > div, .hist-form > button, .hist-form input, .hist-form select { width:100% !important; box-sizing:border-box !important; }
+    }
+  </style>
+
+  <div id="tabGestionReq" class="corp-tabpanel" style="display:none;">
+    <div id="reqGestionLayout" style="display:flex;border:1px solid var(--border-soft);border-radius:14px;overflow:hidden;height:calc(100vh - 56px);">
+
+      <!-- ── SIDEBAR ── -->
+      <aside id="reqSidebar" style="width:220px;min-width:220px;background:var(--bg-card);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;overflow:hidden;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;gap:8px;padding:0 12px;height:46px;border-bottom:1px solid var(--border-soft);flex-shrink:0;overflow:hidden;">
+          <div style="width:26px;height:26px;background:linear-gradient(135deg,var(--primary),var(--purple));border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="bi bi-clipboard2-check-fill" style="color:#fff;font-size:12px;"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-main);white-space:nowrap;">REQ Manager</div>
+            <div style="font-size:9px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.4px;">Requerimientos</div>
+          </div>
+        </div>
+        <nav style="flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 0;scrollbar-width:thin;scrollbar-color:var(--border-soft) transparent;">
+
+          <!-- Buscar — pinned at top -->
+          <div class="nav-item nav-search-pin" id="req-nav-buscar" onclick="reqHideLocal();reqShowPanel('buscar',this);">
+            <span class="nav-icon ni-indigo"><i class="bi bi-search"></i></span>
+            Buscar REQ
+            <i class="bi bi-chevron-right" style="margin-left:auto;font-size:10px;opacity:.5;"></i>
+          </div>
+
+          <!-- OPERACIÓN -->
+          <div class="nav-section nav-sec-op" onclick="reqToggleNavGroup('req-grp-op',this)">
+            Operación<i class="bi bi-chevron-down req-nav-chev" id="req-chev-op"></i>
+          </div>
+          <div class="nav-group" id="req-grp-op">
+            <div class="nav-item" id="req-nav-misAsig" onclick="reqHideLocal();reqShowPanel('misAsig',this);reqLoadMisAsig();">
+              <span class="nav-icon ni-indigo"><i class="bi bi-person-fill"></i></span>
+              Mis asignados
+              <span class="nav-badge" id="req-badge-misAsig">—</span>
+            </div>
+            <div class="nav-item" id="req-nav-sinAsig" onclick="reqHideLocal();reqShowPanel('sinAsig',this);reqLoadSinAsig();">
+              <span class="nav-icon ni-orange"><i class="bi bi-inbox-fill"></i></span>
+              Sin asignar
+              <span class="nav-badge" id="req-badge-sinAsig">—</span>
+            </div>
+            <div class="nav-item" id="req-nav-enCurso" onclick="reqHideLocal();reqShowPanel('enCurso',this);reqLoadEnCurso();">
+              <span class="nav-icon ni-green"><i class="bi bi-play-circle-fill"></i></span>
+              En curso
+              <span class="nav-badge" id="req-badge-enCurso" style="display:none;">—</span>
+            </div>
+            <div class="nav-item" id="req-nav-kanban" onclick="reqHideLocal();reqShowPanel('kanban',this);reqLoadKanban();">
+              <span class="nav-icon ni-purple"><i class="bi bi-kanban-fill"></i></span>
+              Kanban
+            </div>
+          </div>
+
+          <!-- MONITOREO -->
+          <div class="nav-section nav-sec-mon" onclick="reqToggleNavGroup('req-grp-mon',this)">
+            Monitoreo<i class="bi bi-chevron-down req-nav-chev" id="req-chev-mon"></i>
+          </div>
+          <div class="nav-group" id="req-grp-mon">
+            <div class="nav-item" id="req-nav-alertas" onclick="reqHideLocal();reqShowPanel('alertas',this);reqLoadAlertas();">
+              <span class="nav-icon ni-red"><i class="bi bi-bell-fill"></i></span>
+              Alertas
+              <span id="req-alertas-badge" class="req-alert-pulse" style="margin-left:auto;background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-family:monospace;display:none;"></span>
+            </div>
+            <div class="nav-item" id="req-nav-tecnicos" onclick="reqHideLocal();reqShowPanel('tecnicos',this);reqLoadTecnicos();">
+              <span class="nav-icon ni-green"><i class="bi bi-people-fill"></i></span>
+              Técnicos
+            </div>
+            <div class="nav-item" id="req-nav-sla" onclick="reqHideLocal();reqShowPanel('sla',this);reqLoadSLA();">
+              <span class="nav-icon ni-teal"><i class="bi bi-speedometer2"></i></span>
+              SLA
+            </div>
+            <div class="nav-item" id="req-nav-categorias" onclick="reqHideLocal();reqShowPanel('categorias',this);reqLoadCategorias();">
+              <span class="nav-icon ni-amber"><i class="bi bi-tags-fill"></i></span>
+              Categorías
+            </div>
+            <div class="nav-item" id="req-nav-porEquipo" onclick="reqHideLocal();reqShowPanel('porEquipo',this);reqLoadPorEquipo();">
+              <span class="nav-icon ni-violet"><i class="bi bi-diagram-3-fill"></i></span>
+              Por Equipo
+            </div>
+          </div>
+
+          <!-- ANÁLISIS -->
+          <div class="nav-section nav-sec-anl" onclick="reqToggleNavGroup('req-grp-anl',this)">
+            Análisis<i class="bi bi-chevron-down req-nav-chev" id="req-chev-anl"></i>
+          </div>
+          <div class="nav-group" id="req-grp-anl">
+            <div class="nav-item" id="req-nav-paneles" onclick="reqHideLocal();reqShowPanel('paneles',this);reqLoadPaneles();">
+              <span class="nav-icon ni-pink"><i class="bi bi-grid-1x2-fill"></i></span>
+              Paneles
+            </div>
+            <div class="nav-item" id="req-nav-indicadores" onclick="reqHideLocal();reqShowPanel('indicadores',this);reqLoadIndicadores();">
+              <span class="nav-icon ni-violet"><i class="bi bi-bar-chart-fill"></i></span>
+              Indicadores
+            </div>
+            <div class="nav-item" id="req-nav-comparativa" onclick="reqHideLocal();reqShowPanel('comparativa',this);reqLoadComparativa();">
+              <span class="nav-icon ni-indigo"><i class="bi bi-calendar2-week-fill"></i></span>
+              Comparativa
+            </div>
+            <div class="nav-item" id="req-nav-reportes" onclick="reqHideLocal();reqShowPanel('reportes',this);reqLoadReportes();">
+              <span class="nav-icon ni-emerald"><i class="bi bi-file-earmark-bar-graph-fill"></i></span>
+              Reportes
+            </div>
+            <div class="nav-item" id="req-nav-historico" onclick="reqHideLocal();reqShowPanel('historico',this);reqAutoLoadHistorico();">
+              <span class="nav-icon ni-slate"><i class="bi bi-clock-history"></i></span>
+              Histórico
+            </div>
+          </div>
+
+        </nav>
+      </aside>
+      <div id="reqSidebarOverlay" onclick="reqCloseSidebar()"></div>
+
+      <!-- ── MAIN ── -->
+      <main style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <!-- Topbar -->
+        <div id="reqPanelTopbar" style="padding:0 16px;height:44px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px;flex-shrink:0;">
+          <span style="font-size:14px;font-weight:600;color:var(--text-main);" id="reqTopbarTitle">Sin asignar</span>
+          <span style="font-size:12px;color:var(--text-muted);" id="reqTopbarSub"></span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <div id="reqStatsPeriodBtns" style="display:none;gap:3px;">
+              <button onclick="reqSetIndPeriod('hoy',this)" class="req-ind-period-btn" style="font-size:11px;padding:2px 9px;border:1px solid var(--border-soft);border-radius:4px;background:none;cursor:pointer;color:var(--text-muted);">Hoy</button>
+              <button onclick="reqSetIndPeriod('sem',this)" class="req-ind-period-btn" style="font-size:11px;padding:2px 9px;border:1px solid var(--border-soft);border-radius:4px;background:none;cursor:pointer;color:var(--text-muted);">Semana</button>
+              <button onclick="reqSetIndPeriod('mes',this)" class="req-ind-period-btn active" style="font-size:11px;padding:2px 9px;border:1px solid #6366f1;border-radius:4px;background:none;cursor:pointer;color:#6366f1;">Mes</button>
+            </div>
+            <div style="width:1px;height:18px;background:var(--border-soft);display:none;" id="reqPeriodDivider"></div>
+            <button class="btn-outline-sm" onclick="reqReloadCurrent()" style="display:flex;align-items:center;gap:5px;"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+            <button class="btn-outline-sm" onclick="reqConfigJiraEmail()" title="Configurar correo Jira" style="padding:5px 8px;"><i class="bi bi-gear-fill" style="font-size:12px;opacity:.65;"></i></button>
+          </div>
+        </div>
+        <!-- Scroll area -->
+        <div id="reqScrollArea" style="flex:1;overflow-y:auto;padding:16px;">
+
+          <!-- PANEL: Gestión Local -->
+          <div id="reqPanel-todos" style="display:none;">
+            <div class="req-kpi-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px;">
+              <div class="kpi-card"><div><div class="kpi-title">Total</div><div class="kpi-value primary" id="req-kpiTotal">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">Abiertos</div><div class="kpi-value warning" id="req-kpiOpen">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">En progreso</div><div class="kpi-value" id="req-kpiProgress">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">Cerrados</div><div class="kpi-value success" id="req-kpiClosed">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">P1 Críticos</div><div class="kpi-value danger" id="req-kpiCritical">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">Este mes</div><div class="kpi-value" id="req-kpiMonth">—</div></div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+              <input type="text" id="reqSearchInput" class="form-control-custom" placeholder="Buscar requerimiento, resumen, reporter..." oninput="reqFilterTickets()" style="flex:1;min-width:160px;max-width:300px;">
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <button class="pill active" onclick="reqSetPill(this,'all')">Todos</button>
+                <button class="pill" onclick="reqSetPill(this,'open')">Abiertos</button>
+                <button class="pill" onclick="reqSetPill(this,'progress')">En progreso</button>
+                <button class="pill" onclick="reqSetPill(this,'closed')">Cerrados</button>
+                <button class="pill" onclick="reqSetPill(this,'p1')">🔴 P1</button>
+                <button class="pill" onclick="reqSetPill(this,'unassigned')">Sin asignar</button>
+              </div>
+            </div>
+            <div id="req-tableWrap"><div class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando...</div></div>
+            <div id="req-paginationWrap" style="display:none;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;">
+              <span id="req-paginationInfo" style="font-size:12px;color:var(--text-muted);"></span>
+              <div id="req-paginationBtns" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+            </div>
+          </div>
+
+          <!-- PANEL: MIS ASIGNADOS -->
+          <div class="panel" id="req-panel-misAsig">
+            <div class="filters-row">
+              <select id="req-filter-misAsig-status" onchange="reqLoadMisAsig()">
+                <option value="">Todos los estados</option>
+                <option>Abierto</option><option>En progreso</option><option>Pendiente</option><option>Resuelto</option>
+              </select>
+              <select id="req-filter-misAsig-prio" onchange="reqLoadMisAsig()">
+                <option value="">Todas las prioridades</option>
+                <option value="P1">P1 Crítico</option><option value="P2">P2 Alto</option><option value="P3">P3 Medio</option><option value="P4">P4 Bajo</option>
+              </select>
+            </div>
+            <div class="stats-row" id="req-stats-misAsig"></div>
+            <div class="ticket-list" id="req-list-misAsig"></div>
+          </div>
+
+          <!-- PANEL: SIN ASIGNAR -->
+          <div class="panel" id="req-panel-sinAsig">
+            <div class="stats-row" id="req-stats-sinAsig"></div>
+            <div class="ticket-list" id="req-list-sinAsig"></div>
+          </div>
+
+          <!-- PANEL: EN CURSO -->
+          <div class="panel" id="req-panel-enCurso">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+              <button class="req-ec-pill active" onclick="reqFilterEnCurso('todos',this)"><i class="bi bi-list-ul"></i> Todos</button>
+              <button class="req-ec-pill" onclick="reqFilterEnCurso('aprobacion',this)"><i class="bi bi-clipboard-check"></i> Para Aprobar</button>
+              <button class="req-ec-pill" onclick="reqFilterEnCurso('progreso',this)"><i class="bi bi-play-circle"></i> En Progreso</button>
+              <button class="req-ec-pill" onclick="reqFilterEnCurso('pendiente',this)"><i class="bi bi-pause-circle"></i> Pendiente</button>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:10px;font-size:10px;color:var(--text-muted);">
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ef4444;margin-right:3px;"></span>&gt;5d</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f59e0b;margin-right:3px;"></span>&gt;2d</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:3px;"></span>Reciente</span>
+              </div>
+            </div>
+            <div class="ticket-list" id="req-list-enCurso"></div>
+          </div>
+
+          <!-- PANEL: KANBAN -->
+          <div class="panel" id="req-panel-kanban" style="height:100%;">
+            <div id="req-kanban-board" class="req-kb-board"></div>
+          </div>
+
+          <!-- PANEL: ALERTAS -->
+          <div class="panel" id="req-panel-alertas">
+            <div id="req-panel-alertas-content">
+              <div style="display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted);"><span class="req-spin"></span> Cargando alertas…</div>
+            </div>
+          </div>
+
+          <!-- PANEL: TÉCNICOS -->
+          <div class="panel" id="req-panel-tecnicos">
+            <div id="req-panel-tecnicos-content">
+              <div style="display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted);"><span class="req-spin"></span> Cargando técnicos…</div>
+            </div>
+          </div>
+
+          <!-- PANEL: SLA -->
+          <div class="panel" id="req-panel-sla">
+            <div id="req-panel-sla-content">
+              <div style="display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted);"><span class="req-spin"></span> Cargando SLA…</div>
+            </div>
+          </div>
+
+          <!-- PANEL: CATEGORÍAS -->
+          <div class="panel" id="req-panel-categorias">
+            <div id="req-panel-cat-content">
+              <div style="display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted);"><span class="req-spin"></span> Cargando categorías…</div>
+            </div>
+          </div>
+
+          <!-- PANEL: POR EQUIPO -->
+          <div class="panel" id="req-panel-porEquipo">
+            <div id="req-panel-equipo-content">
+              <div style="display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted);"><span class="req-spin"></span> Cargando equipos…</div>
+            </div>
+          </div>
+
+          <!-- PANEL: BUSCAR -->
+          <div class="panel" id="req-panel-buscar">
+            <div class="search-bar">
+              <input id="reqSearchJiraInput" type="text" placeholder="REQ-1234 o solo el número..." onkeydown="if(event.key==='Enter') reqBuscarTicket()">
+              <button class="btn-outline-sm" style="padding:9px 16px;font-size:13px;" onclick="reqBuscarTicket()">
+                <i class="bi bi-search"></i> Buscar
+              </button>
+            </div>
+            <div id="req-result-buscar"></div>
+          </div>
+
+          <!-- PANEL: INDICADORES -->
+          <div class="panel" id="req-panel-indicadores">
+            <div id="req-panel-ind-content">
+              <div style="display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted);"><span class="req-spin"></span> Calculando indicadores…</div>
+            </div>
+          </div>
+
+          <!-- PANEL: COMPARATIVA -->
+          <div class="panel" id="req-panel-comparativa">
+            <div id="req-panel-cmp-content">
+              <div style="display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted);"><span class="req-spin"></span> Calculando comparativa…</div>
+            </div>
+          </div>
+
+          <!-- PANEL: REPORTES -->
+          <div class="panel" id="req-panel-reportes">
+            <div id="req-panel-rpt-content">
+              <div style="display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted);"><span class="req-spin"></span> Cargando reportes…</div>
+            </div>
+          </div>
+
+          <!-- PANEL: PANELES -->
+          <div class="panel" id="req-panel-paneles">
+            <div id="req-panel-pan-content">
+              <div style="display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted);"><span class="req-spin"></span> Cargando paneles…</div>
+            </div>
+          </div>
+
+          <!-- PANEL: HISTÓRICO -->
+          <div class="panel" id="req-panel-historico">
+            <div class="hist-form">
+              <div>
+                <label>CORREO JIRA</label>
+                <input id="reqHistEmail" type="email" placeholder="usuario@empresa.com" onkeydown="if(event.key==='Enter') reqBuscarHistorico()">
+              </div>
+              <div>
+                <label>BUSCAR COMO</label>
+                <select id="reqHistRole">
+                  <option value="assignee" selected>Asignado (mi trabajo)</option>
+                  <option value="reporter">Reporter (mis requerimientos)</option>
+                </select>
+              </div>
+              <div>
+                <label>RANGO DE DÍAS</label>
+                <select id="reqHistDays">
+                  <option value="7">Últimos 7 días</option>
+                  <option value="30" selected>Últimos 30 días</option>
+                  <option value="90">Últimos 90 días</option>
+                  <option value="0">Sin límite</option>
+                </select>
+              </div>
+              <button class="btn-outline-sm" style="padding:9px 16px;font-size:12px;" onclick="reqBuscarHistorico()">
+                <i class="bi bi-search"></i> Buscar
+              </button>
+            </div>
+            <div id="req-result-historico"></div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ── TIMELINE DRAWER ── -->
+  <div id="reqTlOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3000;" onclick="reqCloseTimeline()"></div>
+  <div id="reqTlDrawer" style="display:none;position:fixed;top:0;right:0;width:420px;max-width:100vw;height:100vh;background:var(--bg-card);box-shadow:-4px 0 24px rgba(0,0,0,.2);z-index:3001;flex-direction:column;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px;flex-shrink:0;">
+      <i class="bi bi-clock-history" style="color:#6366f1;font-size:15px;"></i>
+      <span style="font-weight:700;font-size:14px;">Timeline — <span id="reqTlKey" style="font-family:monospace;color:#6366f1;"></span></span>
+      <button onclick="reqCloseTimeline()" title="Cerrar" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--bg-subtle,rgba(0,0,0,.06));border:1px solid var(--border-soft);border-radius:8px;cursor:pointer;color:var(--text-main);font-size:16px;margin-left:auto;flex-shrink:0;transition:background .15s;" onmouseover="this.style.background='rgba(239,68,68,.12)';this.style.color='#ef4444'" onmouseout="this.style.background='var(--bg-subtle,rgba(0,0,0,.06))';this.style.color='var(--text-main)'"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div id="reqTlContent" style="flex:1;overflow-y:auto;padding:20px;"></div>
+  </div>
+
+  <!-- ── DERIVAR MODAL ── -->
+  <div id="reqDeriveOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3000;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:var(--bg-card);border-radius:14px;padding:24px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <h3 style="margin:0;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;">
+          <i class="bi bi-arrow-right-circle-fill" style="color:#6366f1;"></i>
+          Derivar Requerimiento
+          <span id="reqDeriveKey" style="font-family:monospace;font-size:13px;color:#6366f1;"></span>
+        </h3>
+        <button onclick="reqCloseDerive()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted);line-height:1;">×</button>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:6px;">Grupo / Equipo destino *</div>
+        <input id="reqDeriveGroup" class="form-control-custom" placeholder="Ej: Infraestructura, Redes, Soporte N2...">
+      </div>
+      <div style="margin-bottom:18px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:6px;">Motivo de derivación *</div>
+        <textarea id="reqDeriveNote" class="form-control-custom" rows="3" placeholder="Explica el motivo..." style="resize:vertical;"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-create" style="padding:9px 18px;font-size:12px;" onclick="reqEjecutarDerive()"><i class="bi bi-arrow-right-circle"></i> Derivar</button>
+        <button class="btn-outline-sm" onclick="reqCloseDerive()">Cancelar</button>
+      </div>
+      <div id="reqDeriveResult" style="display:none;margin-top:12px;padding:10px;border-radius:8px;font-size:12px;"></div>
+    </div>
+  </div>

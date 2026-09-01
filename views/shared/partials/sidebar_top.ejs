@@ -1,0 +1,264 @@
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-brand">
+            <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="jg1" x1="100%" y1="0%" x2="18%" y2="100%">
+                        <stop offset="0%" stop-color="#2684FF"/>
+                        <stop offset="100%" stop-color="#0052CC"/>
+                    </linearGradient>
+                    <linearGradient id="jg2" x1="0%" y1="100%" x2="82%" y2="0%">
+                        <stop offset="0%" stop-color="#0052CC"/>
+                        <stop offset="100%" stop-color="#2684FF"/>
+                    </linearGradient>
+                </defs>
+                <path d="M15.5 3L3 15.5l5.5 5.5 7-7 7 7 5.5-5.5z" fill="url(#jg1)"/>
+                <path d="M15.5 29L28 16.5 22.5 11l-7 7-7-7L3 16.5z" fill="url(#jg2)"/>
+            </svg>
+            <span>Jira</span>
+        </div>
+        <button class="close-sidebar" id="closeSidebar">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/dashboard" class="menu-header">
+            <div class="menu-title">
+               <i class="fas fa-home"></i>
+                <span>Indicadores</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <div class="menu-header" onclick="toggleSubmenu(this)">
+            <div class="menu-title">
+                <i class="fas fa-desktop"></i>
+                <span>Equipos</span>
+            </div>
+            <i class="fas fa-chevron-down collapse-indicator"></i>
+        </div>
+        <div class="submenu">
+            <a href="<%= APP_URL %>/equipment" class="submenu-item">
+                <i class="fa-solid fa-database"></i> CMDB
+            </a>
+            <a href="#" class="submenu-item">
+                <i class="fa-solid fa-server"></i> SCCM
+            </a>
+        </div>
+    </div>
+
+    <div class="menu-item">
+        <div class="menu-header" onclick="toggleSubmenu(this)">
+            <div class="menu-title">
+                <i class="fas fa-users"></i>
+                <span>Usuarios</span>
+            </div>
+            <i class="fas fa-chevron-down collapse-indicator"></i>
+        </div>
+        <div class="submenu">
+            <a href="<%= APP_URL %>/employees" class="submenu-item">
+                <i class="fa-solid fa-user-tie"></i> Planilla
+            </a>
+        </div>
+    </div>
+    
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/index" class="menu-header">
+            <div class="menu-title">
+                <i class="fas fa-laptop-code"></i>
+                <span>Asignaciones</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/warranty" class="menu-header">
+            <div class="menu-title">
+                <i class="fas fa-shield-alt"></i>
+                <span>Garantías</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <div class="menu-header" onclick="toggleSubmenu(this)">
+            <div class="menu-title">
+                <i class="fas fa-headset"></i>
+                <span>ITSM</span>
+            </div>
+            <i class="fas fa-chevron-down collapse-indicator"></i>
+        </div>
+        <div class="submenu">
+            <a href="<%= APP_URL %>/incidencias" class="submenu-item">
+                <i class="fa-solid fa-ticket-alt"></i> Incidencias
+            </a>
+            <a href="<%= APP_URL %>/solicitudes" class="submenu-item">
+                <i class="fa-solid fa-file-alt"></i> Solicitudes
+            </a>
+            <a href="<%= APP_URL %>/cambios" class="submenu-item">
+                <i class="fa-solid fa-arrows-rotate"></i> Cambios
+            </a>
+            <a href="<%= APP_URL %>/problemas" class="submenu-item">
+                <i class="fa-solid fa-bug"></i> Problemas
+            </a>
+            <a href="<%= APP_URL %>/catalogo" class="submenu-item">
+                <i class="fa-solid fa-th-large"></i> Catálogo
+            </a>
+            <a href="<%= APP_URL %>/cmdb" class="submenu-item">
+                <i class="fa-solid fa-diagram-project"></i> CMDB
+            </a>
+        </div>
+    </div>
+
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/recoveries" class="menu-header">
+            <div class="menu-title">
+               <i class="fa-solid fa-truck"></i>
+                <span>Almacen</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/ad" class="menu-header">
+            <div class="menu-title">
+                <i class="fas fa-headset"></i>
+                <span>Reporte AD</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/sccm" class="menu-header">
+            <div class="menu-title">
+                <i class="fas fa-shield-alt"></i>
+                <span>Panda</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <a href="#" class="menu-header">
+            <div class="menu-title">
+                <i class="fas fa-cog"></i>
+                <span>Administración</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <div class="menu-header" onclick="toggleSubmenu(this)">
+            <div class="menu-title">
+                <i class="fas fa-chart-line"></i>
+                <span>Reportes & KB</span>
+            </div>
+            <i class="fas fa-chevron-down collapse-indicator"></i>
+        </div>
+        <div class="submenu">
+            <a href="<%= APP_URL %>/admin-dashboard" class="submenu-item">
+                <i class="fa-solid fa-shield-halved"></i> Dashboard Admin
+            </a>
+            <a href="<%= APP_URL %>/agent-dashboard" class="submenu-item">
+                <i class="fa-solid fa-gauge-high"></i> Mi Dashboard
+            </a>
+            <a href="<%= APP_URL %>/reports-itsm" class="submenu-item">
+                <i class="fa-solid fa-file-chart-pie"></i> Reportes ITSM
+            </a>
+            <a href="<%= APP_URL %>/knowledge-base" class="submenu-item">
+                <i class="fa-solid fa-book-open"></i> Base de Conocimiento
+            </a>
+            <a href="<%= APP_URL %>/csi" class="submenu-item">
+                <i class="fa-solid fa-arrow-trend-up"></i> Mejora Continua
+            </a>
+        </div>
+    </div>
+
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/portal" class="menu-header">
+            <div class="menu-title">
+                <i class="fas fa-user-circle"></i>
+                <span>Portal Usuario</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/tickets/tv" class="menu-header" target="_blank">
+            <div class="menu-title">
+                <i class="fas fa-tv"></i>
+                <span>Dashboard TV</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/licenses" class="menu-header">
+            <div class="menu-title">
+                <i class="bi bi-microsoft"></i>
+                <span>Licenciamiento</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/admin/reglas" class="menu-header">
+            <div class="menu-title">
+                <i class="fas fa-cogs"></i>
+                <span>Motor de Reglas</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="menu-item">
+        <a href="<%= APP_URL %>/logout" class="menu-header">
+            <div class="menu-title">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Cerrar Sesión</span>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Navbar Principal -->
+<nav class="navbar navbar-expand-lg fixed-top" id="navbar">
+    <div class="container-fluid">
+        <button class="toggler-btn" id="mainToggleSidebar">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Logo Jira en navbar -->
+        <div class="navbar-brand-wrap">
+            <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="ng1" x1="100%" y1="0%" x2="18%" y2="100%">
+                        <stop offset="0%" stop-color="#2684FF"/>
+                        <stop offset="100%" stop-color="#0052CC"/>
+                    </linearGradient>
+                    <linearGradient id="ng2" x1="0%" y1="100%" x2="82%" y2="0%">
+                        <stop offset="0%" stop-color="#0052CC"/>
+                        <stop offset="100%" stop-color="#2684FF"/>
+                    </linearGradient>
+                </defs>
+                <path d="M15.5 3L3 15.5l5.5 5.5 7-7 7 7 5.5-5.5z" fill="url(#ng1)"/>
+                <path d="M15.5 29L28 16.5 22.5 11l-7 7-7-7L3 16.5z" fill="url(#ng2)"/>
+            </svg>
+            <span class="navbar-brand-text">Jira</span>
+        </div>
+
+        <div class="theme-toggle-wrap ms-auto" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema" role="button" aria-label="Cambiar modo claro/oscuro">
+            <i class="theme-toggle-icon" id="toggleIcon">🌙</i>
+            <div class="theme-switch">
+                <div class="theme-switch-knob" id="switchKnob"></div>
+            </div>
+            <span class="theme-toggle-label" id="toggleLabel">Oscuro</span>
+        </div>
+    </div>
+</nav>
+
+<!-- el resto del <style> y <script> queda igual... -->

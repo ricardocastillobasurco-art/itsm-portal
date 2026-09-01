@@ -1,0 +1,118 @@
+version: '3.9'
+
+# ============================================================================
+# docker-compose.windows.yml — Stack completo para Windows Server con Docker
+#
+# Incluye: MySQL + Redis + App Node.js + Nginx
+# Uso:
+#   docker compose -f docker-compose.windows.yml up -d --build
+#   docker compose -f docker-compose.windows.yml logs -f
+#   docker compose -f docker-compose.windows.yml down
+#
+# Solo necesitas tener Docker Desktop instalado en Windows.
+# No instales Node.js, MySQL ni Redis directamente en Windows.
+# ============================================================================
+
+services:
+
+  # ── Base de datos ───────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: itsm-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${EQUIPMENT_PASSWORD}
+      MYSQL_DATABASE:      ${EQUIPMENT_DATABASE}
+      MYSQL_USER:          ${EQUIPMENT_USER}
+      MYSQL_PASSWORD:      ${EQUIPMENT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql      # datos persistentes — sobreviven reinicios
+    # Puerto NO expuesto al exterior: solo los contenedores de la red interna pueden conectarse
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${EQUIPMENT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    networks:
+      - backend
+
+  # ── Caché y sesiones ────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: itsm-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - backend
+
+  # ── Aplicación Node.js ──────────────────────────────────────────────────────
+  app:
+    build: .
+    container_name: itsm-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      NODE_ENV:       production
+      EQUIPMENT_HOST: mysql      # nombre del servicio MySQL en la red Docker
+      REDIS_HOST:     redis      # nombre del servicio Redis en la red Docker
+    # Puerto 3000 NO expuesto al exterior — nginx hace de intermediario
+    expose:
+      - "3000"
+    volumes:
+      - uploads:/app/uploads     # archivos subidos por usuarios (persistentes)
+    networks:
+      - backend
+
+  # ── Proxy inverso — único punto de entrada desde el exterior ────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: itsm-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"         # HTTP — accesible desde fuera del servidor
+      # - "443:443"     # descomentar cuando agregues certificado TLS
+    volumes:
+      - ./nginx/docker.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - backend
+
+# ── Volúmenes persistentes ───────────────────────────────────────────────────
+# Docker guarda estos datos aunque elimines y recrees los contenedores
+volumes:
+  mysql_data:     # tablas, registros — NO eliminar en producción
+  redis_data:     # sesiones y caché
+  uploads:        # archivos adjuntos de tickets
+
+# ── Red interna ──────────────────────────────────────────────────────────────
+# Los contenedores se comunican entre sí por nombre (mysql, redis, app)
+# Desde fuera del servidor solo es accesible el puerto 80 de nginx
+networks:
+  backend:
+    driver: bridge

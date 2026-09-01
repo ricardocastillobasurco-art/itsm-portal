@@ -1,0 +1,37 @@
+<div id="tabKbReqs" class="corp-tabpanel" style="display:none;">
+  <!-- Saludo personalizado -->
+  <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe;border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+    <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">
+      <i class="bi bi-book-half" style="color:#fff;"></i>
+    </div>
+    <div>
+      <div style="font-size:15px;font-weight:800;color:#1e3a8a;" id="kbGreetingTitle">Hola, cargando...</div>
+      <div style="font-size:13px;color:#1e40af;margin-top:2px;">Permíteme ofrecerte mi información — aquí tienes las solicitudes de procedimientos que los usuarios no encontraron en la Base de Conocimiento.</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;"><i class="bi bi-lightbulb"></i> Usa estas solicitudes para identificar qué procedimientos crear y subirlos en la sección <strong>Gestión de Procedimientos</strong>.</div>
+    </div>
+  </div>
+  <div class="card-panel" style="padding:0;overflow:hidden;">
+    <div style="padding:14px 18px;background:var(--bg-main);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-inbox" style="color:var(--primary-color);"></i> Solicitudes de Procedimientos
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="kbReqFilter" onchange="loadKbRequests()" style="font-size:12px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:7px 10px;">
+          <option value="">Todas</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="en_progreso">En progreso</option>
+          <option value="resuelto">Resueltas</option>
+        </select>
+        <button onclick="loadKbRequests()" class="btn-jira" style="font-size:12px;padding:6px 14px;">
+          <i class="bi bi-arrow-clockwise"></i> Actualizar
+        </button>
+      </div>
+    </div>
+    <div id="kbReqList">
+      <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">
+        <i class="bi bi-hourglass-split" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>Cargando solicitudes...
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ TAB: Aprobación de Devoluciones ══ -->

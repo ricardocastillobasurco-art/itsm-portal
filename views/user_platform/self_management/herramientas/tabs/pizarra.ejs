@@ -1,0 +1,85 @@
+  <!-- ─── TAB 9: PIZARRA ────────────────────────────────────────────────────── -->
+  <div class="section-tab" id="toolTab9">
+    <div class="card-ui" style="margin-bottom:12px;">
+      <div class="card-head" style="flex-wrap:wrap;gap:6px;">
+        <span class="title"><i class="bi bi-stickies-fill" style="color:#f59e0b;"></i> Pizarra colaborativa</span>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-left:auto;">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;display:flex;gap:2px;">
+            <button class="wb-mode-btn active" id="wbModeBoard"  onclick="wbSetMode('board')"><i class="bi bi-stickies"></i> Pizarra</button>
+            <button class="wb-mode-btn"        id="wbModeKanban" onclick="wbSetMode('kanban')"><i class="bi bi-kanban"></i> Tablero</button>
+          </div>
+          <div id="wbBoardTools" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+            <div style="width:1px;height:20px;background:var(--border);"></div>
+            <button class="btn-sm wb-tool active" id="wbTool-select"  onclick="wbSetTool('select')"  title="Seleccionar"><i class="bi bi-cursor-fill"></i></button>
+            <button class="btn-sm wb-tool"        id="wbTool-sticky"  onclick="wbSetTool('sticky')"  title="Post-it"><i class="bi bi-sticky-fill"></i> Post-it</button>
+            <button class="btn-sm wb-tool"        id="wbTool-text"    onclick="wbSetTool('text')"    title="Texto"><i class="bi bi-fonts"></i> Texto</button>
+            <button class="btn-sm wb-tool"        id="wbTool-pen"     onclick="wbSetTool('pen')"     title="Dibujar"><i class="bi bi-pencil-fill"></i> Dibujar</button>
+            <button class="btn-sm wb-tool"        id="wbTool-connect" onclick="wbSetTool('connect')" title="Conectar"><i class="bi bi-arrow-right"></i> Conectar</button>
+            <button class="btn-sm wb-tool"        id="wbTool-erase"   onclick="wbSetTool('erase')"   title="Borrador"><i class="bi bi-eraser-fill"></i> Borrar</button>
+            <button class="btn-sm wb-tool"        id="wbTool-img"     onclick="wbSetTool('img')"     title="Imagen"><i class="bi bi-image-fill"></i> Imagen</button>
+            <button class="btn-sm wb-tool"        id="wbTool-shape"   onclick="wbSetTool('shape')"   title="Formas"><i class="bi bi-shapes-fill"></i> Formas</button>
+            <input type="file" id="wbImgInput" style="display:none;" accept="image/*" onchange="wbImgInputChange(this)">
+            <div style="width:1px;height:20px;background:var(--border);"></div>
+            <div id="wbPenOpts" style="display:none;align-items:center;gap:6px;">
+              <input type="color" id="wbPenColor" value="#1e293b" style="width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;padding:0;" title="Color" onchange="_wb.penColor=this.value">
+              <input type="range"  id="wbPenSize"  min="1" max="24" value="3" style="width:72px;" title="Grosor" oninput="_wb.penSize=+this.value">
+            </div>
+            <div id="wbShapeOpts" style="display:none;align-items:center;gap:4px;flex-wrap:wrap;">
+              <input type="color" id="wbShapeFill"    value="#bfdbfe" title="Color relleno" style="width:26px;height:26px;border:none;border-radius:5px;cursor:pointer;padding:0;" onchange="_wb.shapeFill=this.value">
+              <input type="color" id="wbShapeStroke"  value="#3b82f6" title="Color borde"   style="width:26px;height:26px;border:none;border-radius:5px;cursor:pointer;padding:0;" onchange="_wb.shapeStroke=this.value">
+              <input type="range" id="wbShapeStrokeW" min="1" max="8" value="2" style="width:60px;" title="Grosor borde" oninput="_wb.shapeStrokeW=+this.value">
+              <div style="width:1px;height:20px;background:var(--border);margin:0 2px;"></div>
+              <button class="wb-shape-btn active" id="wbs-rect"     onclick="wbSelectShape('rect')"     title="Rectángulo"><i class="bi bi-square"></i></button>
+              <button class="wb-shape-btn"        id="wbs-circle"   onclick="wbSelectShape('circle')"   title="Círculo/Elipse"><i class="bi bi-circle"></i></button>
+              <button class="wb-shape-btn"        id="wbs-triangle" onclick="wbSelectShape('triangle')" title="Triángulo"><i class="bi bi-triangle"></i></button>
+              <button class="wb-shape-btn"        id="wbs-diamond"  onclick="wbSelectShape('diamond')"  title="Rombo"><i class="bi bi-diamond"></i></button>
+              <button class="wb-shape-btn"        id="wbs-arrow"    onclick="wbSelectShape('arrow')"    title="Flecha derecha"><i class="bi bi-arrow-right-circle-fill"></i></button>
+              <button class="wb-shape-btn"        id="wbs-arrowUp"  onclick="wbSelectShape('arrowUp')"  title="Flecha arriba"><i class="bi bi-arrow-up-circle-fill"></i></button>
+              <button class="wb-shape-btn"        id="wbs-arrowLR"  onclick="wbSelectShape('arrowLR')"  title="Flecha doble"><i class="bi bi-arrow-left-right"></i></button>
+              <button class="wb-shape-btn"        id="wbs-star"     onclick="wbSelectShape('star')"     title="Estrella"><i class="bi bi-star-fill"></i></button>
+              <button class="wb-shape-btn"        id="wbs-speech"   onclick="wbSelectShape('speech')"   title="Bocadillo"><i class="bi bi-chat-fill"></i></button>
+              <button class="wb-shape-btn"        id="wbs-check"    onclick="wbSelectShape('check')"    title="Verificación"><i class="bi bi-check-lg"></i></button>
+              <button class="wb-shape-btn"        id="wbs-cross"    onclick="wbSelectShape('cross')"    title="Cruz"><i class="bi bi-x-lg"></i></button>
+              <button class="wb-shape-btn"        id="wbs-line"     onclick="wbSelectShape('line')"     title="Línea"><i class="bi bi-dash-lg"></i></button>
+            </div>
+            <button class="btn-sm btn-outline" onclick="wbClearCanvas()" title="Limpiar trazos"><i class="bi bi-eraser"></i></button>
+            <button class="btn-sm btn-outline" onclick="wbDeleteSelected()" title="Eliminar seleccionado"><i class="bi bi-trash"></i></button>
+            <button class="btn-sm btn-primary"  onclick="wbExport()"><i class="bi bi-download"></i> Exportar</button>
+          </div>
+          <div id="wbKanbanTools" style="display:none;gap:5px;align-items:center;">
+            <div style="width:1px;height:20px;background:var(--border);"></div>
+            <button class="btn-sm btn-outline" onclick="wbKanbanAddCol()"><i class="bi bi-plus-lg"></i> Columna</button>
+            <button class="btn-sm btn-outline" onclick="wbKanbanImportGantt()" title="Importar tareas del Gantt"><i class="bi bi-diagram-3-fill"></i> Importar Gantt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOARD VIEW -->
+    <div id="wbBoardView">
+      <div id="wbBoard" style="position:relative;overflow:auto;height:65vh;min-height:480px;background:#f8fafc;border:1px solid var(--border);border-radius:14px;cursor:default;">
+        <div id="wbCanvas" style="position:relative;width:2800px;height:2000px;">
+          <canvas id="wbDrawCanvas" width="2800" height="2000" style="position:absolute;top:0;left:0;pointer-events:none;z-index:1;"></canvas>
+          <svg id="wbEdgesSvg" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:2800px;height:2000px;pointer-events:none;z-index:2;">
+            <defs><marker id="wbArrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#94a3b8"/></marker></defs>
+          </svg>
+          <div id="wbItemsLayer" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:3;"></div>
+        </div>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:16px;font-size:11px;color:var(--muted);flex-wrap:wrap;">
+        <span id="wbStatus">Selecciona una herramienta para empezar</span>
+        <span><i class="bi bi-info-circle"></i> Doble clic → editar · Supr → eliminar</span>
+      </div>
+    </div>
+
+    <!-- KANBAN VIEW -->
+    <div id="wbKanbanView" style="display:none;">
+      <div id="wbKanban" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;min-height:480px;align-items:flex-start;"></div>
+    </div>
+  </div>
+
+</div><!-- /.pg -->
+
+<!-- TOAST -->
+<div class="ht-toast" id="htToast"></div>
+

@@ -1,0 +1,30 @@
+<style>
+.theme-toggle-float{position:fixed;top:14px;right:16px;z-index:9999;display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:30px;padding:6px 14px 6px 10px;box-shadow:0 2px 12px rgba(0,0,0,.1);cursor:pointer;user-select:none;transition:box-shadow .25s;}
+.theme-toggle-float:hover{box-shadow:0 6px 20px rgba(0,0,0,.15);}
+.ttf-icon{font-size:14px;color:var(--text-muted);}
+.ttf-track{width:38px;height:20px;background:#e2e8f0;border-radius:10px;position:relative;flex-shrink:0;transition:background .3s;}
+[data-theme="dark"] .ttf-track{background:#3b82f6;}
+.ttf-knob{width:14px;height:14px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 4px rgba(0,0,0,.3);}
+[data-theme="dark"] .ttf-knob{transform:translateX(18px);}
+.ttf-label{font-size:11px;font-weight:600;color:var(--text-muted);}
+</style>
+
+<div class="theme-toggle-float" onclick="(function(){var n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('dashboardTheme',n);var ic=document.getElementById('ttfIcon');var lb=document.getElementById('ttfLabel');if(ic)ic.className='bi '+(n==='dark'?'bi-sun-fill':'bi-moon-stars-fill')+' ttf-icon';if(lb)lb.textContent=n==='dark'?'Claro':'Oscuro';})()">
+  <i id="ttfIcon" class="bi bi-moon-stars-fill ttf-icon"></i>
+  <div class="ttf-track"><div class="ttf-knob"></div></div>
+  <span id="ttfLabel" class="ttf-label">Oscuro</span>
+</div>
+<script>
+(function(){
+  var t=localStorage.getItem('dashboardTheme')||'light';
+  var ic=document.getElementById('ttfIcon');
+  var lb=document.getElementById('ttfLabel');
+  if(ic) ic.className='bi '+(t==='dark'?'bi-sun-fill':'bi-moon-stars-fill')+' ttf-icon';
+  if(lb) lb.textContent=t==='dark'?'Claro':'Oscuro';
+  // Ocultar cuando se carga dentro de un iframe (el portal ya tiene su propio toggle)
+  if(window.self!==window.top){
+    var tgl=document.querySelector('.theme-toggle-float');
+    if(tgl) tgl.style.display='none';
+  }
+})();
+</script>

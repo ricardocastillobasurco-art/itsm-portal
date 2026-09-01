@@ -1,0 +1,509 @@
+<!-- ─── TAB 12: POMODORO ───────────────────────────────────────────────────────── -->
+<div class="section-tab" id="toolTab12">
+  <div style="display:flex;gap:16px;flex-wrap:wrap;padding:8px 0;">
+    <!-- Timer principal -->
+    <div class="card-ui" style="flex:1;min-width:300px;">
+      <div class="card-head">
+        <span class="title"><i class="bi bi-stopwatch-fill" style="color:#ef4444;"></i> Temporizador</span>
+        <div style="display:flex;gap:6px;margin-left:auto;">
+          <button class="pom-mode-btn active" id="pomModeWork" onclick="pomSetMode('work')">Foco</button>
+          <button class="pom-mode-btn" id="pomModeShort" onclick="pomSetMode('short')">Pausa corta</button>
+          <button class="pom-mode-btn" id="pomModeLong" onclick="pomSetMode('long')">Pausa larga</button>
+        </div>
+      </div>
+      <div style="padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:24px;">
+        <!-- Círculo SVG -->
+        <div style="position:relative;width:220px;height:220px;">
+          <svg width="220" height="220" style="transform:rotate(-90deg);">
+            <circle cx="110" cy="110" r="96" fill="none" stroke="var(--border)" stroke-width="10"/>
+            <circle id="pomArc" cx="110" cy="110" r="96" fill="none" stroke="#ef4444" stroke-width="10"
+              stroke-dasharray="603" stroke-dashoffset="0" stroke-linecap="round"
+              style="transition:stroke-dashoffset .8s ease,stroke .4s;"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+            <div id="pomTime" style="font-size:52px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;line-height:1;">25:00</div>
+            <div id="pomModeLabel" style="font-size:13px;font-weight:700;color:var(--muted);">Tiempo de foco</div>
+          </div>
+        </div>
+        <!-- Controles -->
+        <div style="display:flex;gap:12px;align-items:center;">
+          <button class="pom-ctrl-btn" onclick="pomReset()" title="Reiniciar"><i class="bi bi-skip-backward-fill"></i></button>
+          <button class="pom-ctrl-btn pom-main" id="pomPlayBtn" onclick="pomToggle()"><i class="bi bi-play-fill" id="pomPlayIcon"></i></button>
+          <button class="pom-ctrl-btn" onclick="pomSkip()" title="Saltar"><i class="bi bi-skip-forward-fill"></i></button>
+        </div>
+        <!-- Ronda actual -->
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:12px;color:var(--muted);font-weight:600;">Ronda</span>
+          <div style="display:flex;gap:4px;" id="pomDots"></div>
+          <span id="pomRoundNum" style="font-size:12px;color:var(--muted);font-weight:600;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel derecho: config + tareas + historial -->
+    <div style="display:flex;flex-direction:column;gap:16px;width:320px;">
+      <!-- Configuración -->
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-sliders"></i> Configuración</span></div>
+        <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <label style="font-size:12px;font-weight:700;color:var(--text);">Foco (min)</label>
+            <input type="number" id="pomCfgWork" min="1" max="90" value="25" class="pom-cfg-input" onchange="pomApplyCfg()">
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <label style="font-size:12px;font-weight:700;color:var(--text);">Pausa corta (min)</label>
+            <input type="number" id="pomCfgShort" min="1" max="30" value="5" class="pom-cfg-input" onchange="pomApplyCfg()">
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <label style="font-size:12px;font-weight:700;color:var(--text);">Pausa larga (min)</label>
+            <input type="number" id="pomCfgLong" min="1" max="60" value="15" class="pom-cfg-input" onchange="pomApplyCfg()">
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <label style="font-size:12px;font-weight:700;color:var(--text);">Rondas antes de pausa larga</label>
+            <input type="number" id="pomCfgRounds" min="1" max="10" value="4" class="pom-cfg-input" onchange="pomApplyCfg()">
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <label style="font-size:12px;font-weight:700;color:var(--text);">Sonido</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="pomSound" checked style="width:15px;height:15px;">
+              <span style="font-size:12px;color:var(--muted);">Activado</span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <label style="font-size:12px;font-weight:700;color:var(--text);">Auto-continuar</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="pomAuto" style="width:15px;height:15px;">
+              <span style="font-size:12px;color:var(--muted);">Activado</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <!-- Tarea actual -->
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-list-task"></i> Tareas</span>
+          <button class="btn-sm btn-outline" style="margin-left:auto;font-size:11px;" onclick="pomAddTask()"><i class="bi bi-plus-lg"></i></button>
+        </div>
+        <div style="padding:10px;display:flex;flex-direction:column;gap:5px;" id="pomTaskList"></div>
+      </div>
+      <!-- Historial de sesiones -->
+      <div class="card-ui" style="flex:1;">
+        <div class="card-head"><span class="title"><i class="bi bi-clock-history"></i> Historial</span>
+          <button class="btn-sm btn-outline" style="margin-left:auto;font-size:11px;color:#ef4444;" onclick="pomClearHistory()">Limpiar</button>
+        </div>
+        <div style="padding:10px;max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;" id="pomHistory"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── ESTILOS: Turnos + Pomodoro ───────────────────────────────────────────── -->
+<style>
+/* ── Calendario ─────────────────────────────── */
+.cal-input{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;outline:none;transition:border-color .2s;}
+.cal-input:focus{border-color:#0ea5e9;}
+.cal-color-dot{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s;}
+.cal-color-dot.selected,.cal-color-dot:hover{border-color:#fff;transform:scale(1.15);box-shadow:0 0 0 2px #0ea5e9;}
+.cal-grid-wrap{display:grid;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.cal-day-header{background:var(--card);padding:8px 6px;text-align:center;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}
+.cal-day-header.today{color:#0ea5e9;}
+.cal-day-col{background:var(--bg);min-height:120px;padding:4px;border-right:1px solid var(--border);position:relative;vertical-align:top;}
+.cal-day-col:last-child{border-right:none;}
+.cal-day-col.today{background:rgba(14,165,233,.04);}
+.cal-shift{border-radius:7px;padding:4px 7px;margin-bottom:3px;cursor:pointer;font-size:11px;line-height:1.35;transition:opacity .15s;}
+.cal-shift:hover{opacity:.85;}
+.cal-shift-name{font-weight:700;}
+.cal-shift-time{opacity:.8;}
+.cal-shift-note{font-style:italic;opacity:.7;font-size:10px;}
+.cal-shift-type-guardia::before{content:"🔴 ";}
+.cal-shift-type-extra::before{content:"🟡 ";}
+.cal-shift-type-libre::before{content:"⚪ ";}
+.cal-agent-chip{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;background:var(--card);border:1.5px solid var(--border);cursor:pointer;transition:all .15s;font-size:12px;font-weight:600;color:var(--text);}
+.cal-agent-chip:hover{border-color:#0ea5e9;}
+.cal-agent-chip.hidden-agent{opacity:.45;}
+.cal-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+/* ── Pomodoro ────────────────────────────────── */
+.pom-mode-btn{padding:4px 10px;border-radius:7px;border:1.5px solid var(--border);background:transparent;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .2s;}
+.pom-mode-btn.active{background:#ef4444;border-color:#ef4444;color:#fff;}
+.pom-ctrl-btn{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.pom-ctrl-btn:hover{background:var(--hover);border-color:#ef4444;}
+.pom-ctrl-btn.pom-main{width:64px;height:64px;font-size:22px;background:#ef4444;border-color:#ef4444;color:#fff;box-shadow:0 4px 18px rgba(239,68,68,.35);}
+.pom-ctrl-btn.pom-main:hover{background:#dc2626;border-color:#dc2626;}
+.pom-cfg-input{width:64px;padding:5px 8px;border:1.5px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);font-size:13px;font-weight:700;text-align:center;outline:none;}
+.pom-cfg-input:focus{border-color:#ef4444;}
+.pom-task{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:8px;background:var(--bg);border:1.5px solid var(--border);font-size:12px;color:var(--text);}
+.pom-task.active-task{border-color:#ef4444;background:rgba(239,68,68,.06);}
+.pom-task.done-task{opacity:.5;text-decoration:line-through;}
+.pom-task input[type=checkbox]{cursor:pointer;}
+.pom-task-label{flex:1;cursor:pointer;}
+.pom-task-del{background:none;border:none;color:var(--muted);cursor:pointer;padding:0 2px;font-size:13px;}
+.pom-task-del:hover{color:#ef4444;}
+.pom-hist-item{font-size:11px;color:var(--muted);padding:4px 8px;border-radius:6px;background:var(--bg);display:flex;justify-content:space-between;align-items:center;}
+.pom-hist-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-right:5px;}
+.pom-dot{width:12px;height:12px;border-radius:50%;background:var(--border);transition:background .3s;}
+.pom-dot.done{background:#ef4444;}
+</style>
+
+<!-- ─── JS: Calendario de Turnos ──────────────────────────────────────────────── -->
+<script>
+var _calWeekOffset = 0;
+var _calAgents = JSON.parse(localStorage.getItem('cal_agents') || '[]');
+var _calShifts = JSON.parse(localStorage.getItem('cal_shifts') || '[]');
+var _calEditId = null;
+var _calPickedColor = '#0ea5e9';
+var _calHiddenAgents = new Set();
+
+if (!_calAgents.length) {
+  _calAgents = [
+    { id: 'a1', name: 'Juan Pérez',   role: 'Técnico N1', color: '#0ea5e9' },
+    { id: 'a2', name: 'María López',  role: 'Técnico N2', color: '#10b981' },
+    { id: 'a3', name: 'Carlos Díaz',  role: 'On-Call',    color: '#f59e0b' },
+  ];
+  calSaveData();
+}
+
+function calSaveData() {
+  localStorage.setItem('cal_agents', JSON.stringify(_calAgents));
+  localStorage.setItem('cal_shifts', JSON.stringify(_calShifts));
+  toolSave('turnos', { agents: _calAgents, shifts: _calShifts });
+}
+
+function calInit() { calRender(); }
+
+function calWeekDates(offset) {
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const monday = new Date(now); monday.setDate(now.getDate() - day + 1 + offset * 7);
+  return Array.from({length:7}, (_,i) => { const d=new Date(monday); d.setDate(monday.getDate()+i); return d; });
+}
+
+function calFmt(d) { return d.toISOString().slice(0,10); }
+function calFmtTime(iso) { return iso ? iso.slice(11,16) : ''; }
+function calFmtDate(d) {
+  return d.toLocaleDateString('es-PE', {weekday:'short', day:'numeric', month:'short'});
+}
+
+function calRender() {
+  const days = calWeekDates(_calWeekOffset);
+  const todayStr = calFmt(new Date());
+  // Label semana
+  const label = days[0].toLocaleDateString('es-PE',{day:'numeric',month:'long'}) + ' — ' +
+                days[6].toLocaleDateString('es-PE',{day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('calWeekLabel').textContent = label;
+
+  // Agentes sidebar
+  const al = document.getElementById('calAgentList');
+  al.innerHTML = _calAgents.map(a => `
+    <div class="cal-agent-chip ${_calHiddenAgents.has(a.id)?'hidden-agent':''}" onclick="calToggleAgent('${a.id}')">
+      <div class="cal-dot" style="background:${a.color};"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
+        <div style="font-size:10px;color:var(--muted);">${a.role}</div>
+      </div>
+    </div>`).join('');
+
+  // Grid
+  const grid = document.getElementById('calGrid');
+  let html = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+    <thead><tr>
+      ${days.map(d => `<th class="cal-day-header ${calFmt(d)===todayStr?'today':''}" style="width:14.28%;">
+        ${d.toLocaleDateString('es-PE',{weekday:'short'}).toUpperCase()}<br>
+        <span style="font-size:14px;font-weight:900;">${d.getDate()}</span>
+      </th>`).join('')}
+    </tr></thead>
+    <tbody><tr>
+      ${days.map(d => {
+        const ds = calFmt(d);
+        const dayShifts = _calShifts.filter(s => s.start.slice(0,10) === ds && !_calHiddenAgents.has(s.agentId));
+        const agent_map = {};
+        _calAgents.forEach(a => agent_map[a.id] = a);
+        return `<td class="cal-day-col ${ds===todayStr?'today':''}" ondblclick="calOpenNewShiftDay('${ds}')">
+          ${dayShifts.map(s => {
+            const ag = agent_map[s.agentId] || {};
+            return `<div class="cal-shift cal-shift-type-${s.type}"
+              style="background:${ag.color||'#0ea5e9'}22;border-left:3px solid ${ag.color||'#0ea5e9'};color:var(--text);"
+              onclick="calEditShift('${s.id}')" title="${ag.name||''} | ${s.note||''}">
+              <div class="cal-shift-name">${ag.name||'?'}</div>
+              <div class="cal-shift-time">${calFmtTime(s.start)}–${calFmtTime(s.end)}</div>
+              ${s.note?`<div class="cal-shift-note">${s.note}</div>`:''}
+            </div>`;
+          }).join('')}
+        </td>`;
+      }).join('')}
+    </tr></tbody>
+  </table>`;
+  grid.innerHTML = html;
+}
+
+function calPrevWeek() { _calWeekOffset--; calRender(); }
+function calNextWeek() { _calWeekOffset++; calRender(); }
+function calGoToday()  { _calWeekOffset = 0; calRender(); }
+function calToggleAgent(id) {
+  _calHiddenAgents.has(id) ? _calHiddenAgents.delete(id) : _calHiddenAgents.add(id);
+  calRender();
+}
+
+function calOpenNewShift() {
+  _calEditId = null;
+  document.getElementById('calModalTitle').textContent = 'Nuevo Turno';
+  document.getElementById('calModalDelBtn').style.display = 'none';
+  const now = new Date(); now.setSeconds(0,0);
+  const end = new Date(now); end.setHours(end.getHours()+8);
+  document.getElementById('calModalStart').value = now.toISOString().slice(0,16);
+  document.getElementById('calModalEnd').value   = end.toISOString().slice(0,16);
+  document.getElementById('calModalNote').value  = '';
+  document.getElementById('calModalType').value  = 'normal';
+  const sel = document.getElementById('calModalAgent');
+  sel.innerHTML = _calAgents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  document.getElementById('calModal').style.display = 'flex';
+}
+
+function calOpenNewShiftDay(dateStr) {
+  calOpenNewShift();
+  document.getElementById('calModalStart').value = dateStr + 'T08:00';
+  document.getElementById('calModalEnd').value   = dateStr + 'T17:00';
+}
+
+function calEditShift(id) {
+  const s = _calShifts.find(x => x.id === id); if (!s) return;
+  _calEditId = id;
+  document.getElementById('calModalTitle').textContent = 'Editar Turno';
+  document.getElementById('calModalDelBtn').style.display = '';
+  const sel = document.getElementById('calModalAgent');
+  sel.innerHTML = _calAgents.map(a => `<option value="${a.id}" ${a.id===s.agentId?'selected':''}>${a.name}</option>`).join('');
+  document.getElementById('calModalStart').value = s.start;
+  document.getElementById('calModalEnd').value   = s.end;
+  document.getElementById('calModalType').value  = s.type;
+  document.getElementById('calModalNote').value  = s.note || '';
+  document.getElementById('calModal').style.display = 'flex';
+}
+
+function calSaveShift() {
+  const data = {
+    id:      _calEditId || ('s' + Date.now()),
+    agentId: document.getElementById('calModalAgent').value,
+    start:   document.getElementById('calModalStart').value,
+    end:     document.getElementById('calModalEnd').value,
+    type:    document.getElementById('calModalType').value,
+    note:    document.getElementById('calModalNote').value.trim(),
+  };
+  if (!data.start || !data.end) return;
+  if (_calEditId) { const i = _calShifts.findIndex(x=>x.id===_calEditId); if(i>=0) _calShifts[i]=data; }
+  else _calShifts.push(data);
+  calSaveData(); calCloseModal(); calRender();
+}
+
+function calDeleteShift() {
+  _calShifts = _calShifts.filter(s => s.id !== _calEditId);
+  calSaveData(); calCloseModal(); calRender();
+}
+
+function calCloseModal() { document.getElementById('calModal').style.display = 'none'; }
+
+function calOpenNewAgent() {
+  document.getElementById('calAgentName').value = '';
+  document.getElementById('calAgentRole').value = '';
+  document.getElementById('calAgentColor').value = '#0ea5e9';
+  _calPickedColor = '#0ea5e9';
+  document.querySelectorAll('.cal-color-dot').forEach(d => d.classList.remove('selected'));
+  document.querySelector('.cal-color-dot[data-color="#0ea5e9"]')?.classList.add('selected');
+  document.getElementById('calAgentModal').style.display = 'flex';
+}
+
+function calPickColor(el) {
+  document.querySelectorAll('.cal-color-dot').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+  _calPickedColor = el.dataset.color;
+  document.getElementById('calAgentColor').value = _calPickedColor;
+}
+
+function calSaveAgent() {
+  const name = document.getElementById('calAgentName').value.trim();
+  if (!name) return;
+  _calAgents.push({ id: 'a'+Date.now(), name, role: document.getElementById('calAgentRole').value.trim(), color: _calPickedColor });
+  calSaveData();
+  document.getElementById('calAgentModal').style.display = 'none';
+  calRender();
+}
+</script>
+
+<!-- ─── JS: Pomodoro ──────────────────────────────────────────────────────────── -->
+<script>
+var _pomRunning = false;
+var _pomInterval= null;
+var _pomMode    = 'work';  // 'work' | 'short' | 'long'
+var _pomSecsLeft= 25*60;
+var _pomTotalSecs=25*60;
+var _pomRound   = 1;
+var _pomTasks   = JSON.parse(localStorage.getItem('pom_tasks')   || '[]');
+var _pomHistData= JSON.parse(localStorage.getItem('pom_history') || '[]');
+var _pomCfg     = { work:25, short:5, long:15, rounds:4 };
+var _pomAudioCtx= null;
+
+function pomInit() { pomApplyCfg(); pomRenderTasks(); pomRenderHistory(); pomRenderDots(); }
+
+function pomGetCfg() {
+  _pomCfg.work   = parseInt(document.getElementById('pomCfgWork').value)  || 25;
+  _pomCfg.short  = parseInt(document.getElementById('pomCfgShort').value) || 5;
+  _pomCfg.long   = parseInt(document.getElementById('pomCfgLong').value)  || 15;
+  _pomCfg.rounds = parseInt(document.getElementById('pomCfgRounds').value)|| 4;
+}
+
+function pomApplyCfg() {
+  pomGetCfg();
+  if (!_pomRunning) { pomSetMode(_pomMode); }
+}
+
+function pomSetMode(mode) {
+  _pomMode = mode;
+  ['work','short','long'].forEach(m => document.getElementById('pomMode'+m[0].toUpperCase()+m.slice(1))?.classList.toggle('active', m===mode));
+  const mins = { work: _pomCfg.work, short: _pomCfg.short, long: _pomCfg.long }[mode];
+  _pomSecsLeft  = mins * 60;
+  _pomTotalSecs = mins * 60;
+  if (_pomRunning) { clearInterval(_pomInterval); _pomRunning = false; document.getElementById('pomPlayIcon').className='bi bi-play-fill'; }
+  const labels = { work:'Tiempo de foco', short:'Pausa corta', long:'Pausa larga' };
+  document.getElementById('pomModeLabel').textContent = labels[mode];
+  document.getElementById('pomArc').style.stroke = mode==='work'?'#ef4444':mode==='short'?'#10b981':'#0ea5e9';
+  document.querySelector('.pom-ctrl-btn.pom-main').style.background = mode==='work'?'#ef4444':mode==='short'?'#10b981':'#0ea5e9';
+  document.querySelector('.pom-ctrl-btn.pom-main').style.borderColor = mode==='work'?'#ef4444':mode==='short'?'#10b981':'#0ea5e9';
+  pomUpdateDisplay();
+}
+
+function pomToggle() {
+  if (_pomRunning) {
+    clearInterval(_pomInterval); _pomRunning = false;
+    document.getElementById('pomPlayIcon').className = 'bi bi-play-fill';
+  } else {
+    _pomRunning = true;
+    document.getElementById('pomPlayIcon').className = 'bi bi-pause-fill';
+    _pomInterval = setInterval(pomTick, 1000);
+  }
+}
+
+function pomTick() {
+  _pomSecsLeft--;
+  pomUpdateDisplay();
+  if (_pomSecsLeft <= 0) {
+    clearInterval(_pomInterval); _pomRunning = false;
+    document.getElementById('pomPlayIcon').className = 'bi bi-play-fill';
+    pomOnComplete();
+  }
+}
+
+function pomOnComplete() {
+  pomPlaySound();
+  const now = new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+  _pomHistData.unshift({ mode: _pomMode, time: now, round: _pomRound });
+  if (_pomHistData.length > 30) _pomHistData.pop();
+  localStorage.setItem('pom_history', JSON.stringify(_pomHistData));
+  pomRenderHistory();
+  toolSave('pomodoro', { tasks: _pomTasks, history: _pomHistData });
+
+  if (_pomMode === 'work') {
+    if (_pomRound >= _pomCfg.rounds) { _pomRound = 1; pomSetMode('long'); }
+    else { _pomRound++; pomSetMode('short'); }
+    pomRenderDots();
+  } else {
+    pomSetMode('work');
+  }
+
+  if (document.getElementById('pomAuto').checked) setTimeout(pomToggle, 1500);
+}
+
+function pomReset() {
+  if (_pomRunning) { clearInterval(_pomInterval); _pomRunning = false; }
+  document.getElementById('pomPlayIcon').className = 'bi bi-play-fill';
+  pomGetCfg();
+  const mins = { work:_pomCfg.work, short:_pomCfg.short, long:_pomCfg.long }[_pomMode];
+  _pomSecsLeft = _pomTotalSecs = mins*60;
+  pomUpdateDisplay();
+}
+
+function pomSkip() { pomReset(); pomOnComplete(); }
+
+function pomUpdateDisplay() {
+  const m = Math.floor(_pomSecsLeft/60).toString().padStart(2,'0');
+  const s = (_pomSecsLeft%60).toString().padStart(2,'0');
+  document.getElementById('pomTime').textContent = m+':'+s;
+  const circ = 2 * Math.PI * 96;
+  const pct  = _pomTotalSecs > 0 ? _pomSecsLeft / _pomTotalSecs : 0;
+  document.getElementById('pomArc').style.strokeDashoffset = circ * (1 - pct);
+  document.title = _pomRunning ? `(${m}:${s}) Pomodoro` : 'Herramientas TI';
+}
+
+function pomRenderDots() {
+  const max = _pomCfg.rounds || 4;
+  document.getElementById('pomDots').innerHTML = Array.from({length:max},(_,i)=>
+    `<div class="pom-dot ${i < (_pomRound-1)?'done':''}"></div>`).join('');
+  document.getElementById('pomRoundNum').textContent = `${_pomRound}/${max}`;
+}
+
+function pomPlaySound() {
+  if (!document.getElementById('pomSound').checked) return;
+  try {
+    if (!_pomAudioCtx) _pomAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = _pomAudioCtx.createOscillator();
+    const gain= _pomAudioCtx.createGain();
+    osc.connect(gain); gain.connect(_pomAudioCtx.destination);
+    osc.frequency.setValueAtTime(880, _pomAudioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, _pomAudioCtx.currentTime+.3);
+    gain.gain.setValueAtTime(.4, _pomAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001, _pomAudioCtx.currentTime+.6);
+    osc.start(); osc.stop(_pomAudioCtx.currentTime+.6);
+  } catch(e) {}
+}
+
+// ── Tareas ─────────────────────────────────────────────────────────────────
+function pomAddTask() {
+  const name = prompt('Nombre de la tarea:');
+  if (!name?.trim()) return;
+  _pomTasks.push({ id:'t'+Date.now(), label:name.trim(), done:false });
+  localStorage.setItem('pom_tasks', JSON.stringify(_pomTasks));
+  pomRenderTasks();
+}
+
+function pomToggleTask(id) {
+  const t = _pomTasks.find(x=>x.id===id); if(t) t.done=!t.done;
+  localStorage.setItem('pom_tasks', JSON.stringify(_pomTasks));
+  pomRenderTasks();
+}
+
+function pomDeleteTask(id) {
+  _pomTasks = _pomTasks.filter(x=>x.id!==id);
+  localStorage.setItem('pom_tasks', JSON.stringify(_pomTasks));
+  pomRenderTasks();
+}
+
+function pomRenderTasks() {
+  const list = document.getElementById('pomTaskList');
+  if (!list) return;
+  if (!_pomTasks.length) { list.innerHTML='<div style="font-size:12px;color:var(--muted);padding:4px 8px;">Sin tareas. Haz clic en + para agregar.</div>'; return; }
+  list.innerHTML = _pomTasks.map(t=>`
+    <div class="pom-task ${t.done?'done-task':''}">
+      <input type="checkbox" ${t.done?'checked':''} onchange="pomToggleTask('${t.id}')">
+      <span class="pom-task-label" ondblclick="pomToggleTask('${t.id}')">${t.label}</span>
+      <button class="pom-task-del" onclick="pomDeleteTask('${t.id}')"><i class="bi bi-x"></i></button>
+    </div>`).join('');
+}
+
+function pomRenderHistory() {
+  const el = document.getElementById('pomHistory');
+  if (!el) return;
+  if (!_pomHistData.length) { el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px;">Sin sesiones aún.</div>'; return; }
+  const colors = {work:'#ef4444',short:'#10b981',long:'#0ea5e9'};
+  const labels = {work:'Foco',short:'Pausa corta',long:'Pausa larga'};
+  el.innerHTML = _pomHistData.slice(0,20).map(h=>`
+    <div class="pom-hist-item">
+      <div style="display:flex;align-items:center;">
+        <div class="pom-hist-dot" style="background:${colors[h.mode]||'#888'};"></div>
+        ${labels[h.mode]||h.mode} — Ronda ${h.round}
+      </div>
+      <span>${h.time}</span>
+    </div>`).join('');
+}
+
+function pomClearHistory() {
+  _pomHistData = [];
+  localStorage.setItem('pom_history', JSON.stringify(_pomHistData));
+  pomRenderHistory();
+}
+</script>

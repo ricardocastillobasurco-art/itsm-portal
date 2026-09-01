@@ -1,0 +1,759 @@
+<style>
+@media(max-width:768px){
+  /* Stack 3 columns vertically: left tools → canvas → right send */
+  #evtLayout{flex-direction:column !important;}
+  #evtLeft,#evtRight{width:100% !important;}
+  /* Left tools: lay out cards side by side where possible */
+  #evtLeft{flex-direction:row !important;flex-wrap:wrap !important;align-items:flex-start;}
+  #evtLeft > .card-ui{flex:1 1 140px;min-width:0;}
+  /* Toolbar card: overflow visible para que las filas wrapped (color dots) no se corten */
+  #evtCenter > .card-ui:first-child{overflow:visible !important;}
+  #evtCenter > .card-ui:first-child > div{row-gap:6px !important;}
+  /* Selects más compactos */
+  #evtCenter > .card-ui:first-child select{max-width:80px;}
+  /* Canvas card: right panel full width */
+  #evtRight{width:100% !important;}
+  #evtRight > .card-ui{width:100%;}
+}
+@media(max-width:600px){
+  /* Canvas: escalar para encuadrar en pantalla mobile (520→338, 360→234) */
+  #evtCanvasCard{
+    overflow:visible !important;
+    padding:12px !important;
+    justify-content:flex-start !important;
+    align-items:flex-start !important;
+  }
+  #evtCanvasCard > div{
+    width:338px !important;
+    height:234px !important;
+    overflow:visible !important;
+  }
+  #evtCanvas{
+    transform:scale(0.65);
+    transform-origin:top left;
+  }
+}
+@media(max-width:480px){
+  /* On very small screens, keep left tools stacked vertically */
+  #evtLeft{flex-direction:column !important;}
+  #evtLeft > .card-ui{flex:none !important;width:100% !important;}
+  /* Color dots más pequeños */
+  .evt-clr-dot{width:16px !important;height:16px !important;}
+}
+</style>
+<!-- ─── TAB 14: DISEÑADOR DE TARJETAS CORPORATIVAS ────────────────────────────── -->
+<div class="section-tab" id="toolTab14">
+
+  <!-- Top action bar -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+    <div>
+      <div style="font-size:17px;font-weight:900;color:var(--text);display:flex;align-items:center;gap:10px;">
+        <span style="background:linear-gradient(135deg,#ec4899,#8b5cf6);width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 4px 14px rgba(139,92,246,.4);">🎨</span>
+        Diseñador de Tarjetas Corporativas
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px;padding-left:50px;">Diseña, personaliza y envía tarjetas únicas para cada evento de tu equipo</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-sm btn-outline" onclick="evtClear()"><i class="bi bi-arrow-counterclockwise"></i> Limpiar</button>
+      <button class="btn-sm btn-outline" onclick="evtDownload()"><i class="bi bi-download"></i> PNG</button>
+      <button onclick="evtSendEmail()" id="evtSendBtn"
+        style="display:inline-flex;align-items:center;gap:7px;padding:7px 18px;font-size:13px;font-weight:800;
+               background:linear-gradient(135deg,#ec4899,#8b5cf6);color:#fff;border:none;border-radius:9px;
+               cursor:pointer;box-shadow:0 4px 14px rgba(139,92,246,.35);transition:opacity .2s;font-family:inherit;">
+        <i class="bi bi-send-fill"></i> Enviar por correo
+      </button>
+    </div>
+  </div>
+
+  <!-- 3-column layout -->
+  <div id="evtLayout" style="display:flex;gap:12px;align-items:flex-start;">
+
+    <!-- ── LEFT TOOLS (210px) ───────────────────────────────── -->
+    <div id="evtLeft" style="width:210px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;">
+
+      <!-- Fondos -->
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-palette" style="color:#ec4899;"></i> Fondo</span></div>
+        <div style="padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;" id="evtBgGrid"></div>
+      </div>
+
+      <!-- Marcos -->
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-border-outer" style="color:#f59e0b;"></i> Marco</span></div>
+        <div style="padding:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;" id="evtFrameGrid"></div>
+      </div>
+
+      <!-- Foto / Logo -->
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-image-fill" style="color:#10b981;"></i> Foto / Logo</span></div>
+        <div style="padding:10px;">
+          <input type="file" id="evtImgInput" accept="image/*" style="display:none" onchange="evtAddImg(this)">
+          <div id="evtImgDropZone" class="upload-zone" style="margin:0;padding:20px 10px;cursor:pointer;" onclick="document.getElementById('evtImgInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="evtImgDrop(event)">
+            <i class="bi bi-cloud-upload-fill" style="font-size:22px;color:var(--primary);display:block;margin-bottom:6px;"></i>
+            <p style="font-size:11px;margin:0;">Subir o arrastrar imagen</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /LEFT -->
+
+    <!-- ── CENTER CANVAS EDITOR ─────────────────────────────── -->
+    <div id="evtCenter" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;">
+
+      <!-- Text / tools toolbar -->
+      <div class="card-ui" style="padding:0;">
+        <div style="padding:8px 12px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:2px;">TEXTO</span>
+          <button class="evt-tool-btn evt-tb-btn active" id="evtTbBold"   onclick="evtTbToggle('bold')"   title="Negrita"><i class="bi bi-type-bold"></i></button>
+          <button class="evt-tool-btn evt-tb-btn"        id="evtTbShadow" onclick="evtTbToggle('shadow')" title="Sombra"><i class="bi bi-shadows"></i></button>
+          <select id="evtTbSize" class="evt-tool-btn" onchange="evtTbApply()" style="padding:4px 7px;">
+            <option value="14">XS</option>
+            <option value="20">S</option>
+            <option value="26" selected>M</option>
+            <option value="36">L</option>
+            <option value="52">XL</option>
+            <option value="72">2XL</option>
+          </select>
+          <select id="evtTbFont" class="evt-tool-btn" onchange="evtTbApply()" style="padding:4px 7px;">
+            <option value="'DM Sans',sans-serif">DM Sans</option>
+            <option value="Georgia,serif">Serif</option>
+            <option value="'Courier New',monospace">Mono</option>
+            <option value="Impact,sans-serif">Impact</option>
+          </select>
+          <div style="width:1px;height:18px;background:var(--border);margin:0 3px;flex-shrink:0;"></div>
+          <% ['#ffffff','#000000','#f59e0b','#ef4444','#3b82f6','#10b981','#ec4899','#8b5cf6','#fbbf24','#34d399'].forEach(function(c){ %>
+          <div class="evt-clr-dot" data-clr="<%=c%>"
+               style="background:<%=c%>;<%=c==='#ffffff'?'box-shadow:0 0 0 1.5px #94a3b8;':c==='#000000'?'box-shadow:0 0 0 1.5px #64748b;':''%>"
+               onclick="evtSetColor(this)" title="<%=c%>"></div>
+          <% }); %>
+          <div style="width:1px;height:18px;background:var(--border);margin:0 3px;flex-shrink:0;"></div>
+          <button class="evt-tool-btn" onclick="evtAddText()" style="background:var(--primary);color:#fff;border-color:var(--primary);font-weight:700;">
+            <i class="bi bi-plus-lg"></i> Texto
+          </button>
+          <button class="evt-tool-btn" id="evtDelBtn" onclick="evtDeleteSelected()" style="display:none;color:#ef4444;border-color:#fca5a5;" title="Borrar seleccionado">
+            <i class="bi bi-trash"></i> Borrar
+          </button>
+        </div>
+      </div>
+
+      <!-- The canvas -->
+      <div id="evtCanvasCard" class="card-ui" style="padding:24px;background:var(--hdr);display:flex;justify-content:center;align-items:center;">
+        <div style="position:relative;">
+          <div id="evtCanvas"
+               style="position:relative;width:520px;height:360px;overflow:hidden;border-radius:20px;
+                      background:linear-gradient(135deg,#f59e0b,#ef4444);
+                      box-shadow:0 20px 60px rgba(0,0,0,.35),0 4px 16px rgba(0,0,0,.2);
+                      cursor:default;"
+               onmousedown="evtCanvasDown(event)"
+               onmousemove="evtCanvasMove(event)"
+               onmouseup="evtCanvasUp(event)"
+               onmouseleave="evtCanvasUp(event)">
+            <!-- Frame overlay (non-interactive) -->
+            <div id="evtFrameLayer" style="position:absolute;inset:0;pointer-events:none;z-index:30;overflow:hidden;"></div>
+          </div>
+          <!-- Decorative outer glow ring -->
+          <div style="position:absolute;inset:-4px;border-radius:24px;border:1.5px dashed rgba(139,92,246,.4);pointer-events:none;"></div>
+        </div>
+      </div>
+
+      <!-- Stickers bar -->
+      <div class="card-ui">
+        <div class="card-head" style="padding:8px 14px;">
+          <span class="title"><i class="bi bi-emoji-smile-fill" style="color:#f59e0b;"></i> Stickers — clic para añadir al canvas</span>
+        </div>
+        <div style="padding:6px 10px;display:flex;flex-wrap:wrap;gap:2px;" id="evtStickerBar"></div>
+      </div>
+
+    </div><!-- /CENTER -->
+
+    <!-- ── RIGHT SEND PANEL (255px) ─────────────────────────── -->
+    <div id="evtRight" style="width:255px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;">
+
+      <div class="card-ui">
+        <div class="card-head">
+          <span class="title"><i class="bi bi-send-fill" style="color:#3b82f6;"></i> Enviar tarjeta</span>
+        </div>
+        <div style="padding:14px;display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label class="form-lbl">Asunto del correo</label>
+            <input type="text" id="evtSubject" class="form-ctrl" placeholder="🎂 ¡Feliz Cumpleaños, Ana!">
+          </div>
+          <div>
+            <label class="form-lbl">Destinatarios</label>
+            <textarea id="evtRecipients2" class="form-ctrl" rows="5"
+              placeholder="ana.garcia@empresa.com&#10;carlos.lopez@empresa.com"
+              style="resize:vertical;font-size:12px;line-height:1.8;"></textarea>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px;">Un email por línea o separados por coma</div>
+          </div>
+          <div>
+            <label class="form-lbl">Mensaje adicional (opcional)</label>
+            <textarea id="evtExtraMsg" class="form-ctrl" rows="3"
+              placeholder="Hola equipo, aquí les comparto esta tarjeta especial…"
+              style="resize:vertical;font-size:12px;line-height:1.6;"></textarea>
+          </div>
+          <button id="evtSendBtn2" onclick="evtSendEmail()"
+            style="background:linear-gradient(135deg,#ec4899,#8b5cf6);color:#fff;border:none;
+                   border-radius:10px;padding:12px 0;font-size:14px;font-weight:800;cursor:pointer;
+                   width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+                   transition:opacity .2s;box-shadow:0 4px 14px rgba(139,92,246,.35);font-family:inherit;">
+            <i class="bi bi-envelope-fill"></i> Enviar tarjeta
+          </button>
+          <div id="evtStatus" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Instrucciones -->
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-info-circle-fill" style="color:#0ea5e9;"></i> Cómo usar</span></div>
+        <div style="padding:12px;display:flex;flex-direction:column;gap:5px;">
+          <% [['🎨','Elige un fondo y marco'],['✍️','Pulsa "+ Texto" y escribe'],['😊','Clic en stickers para añadir'],['✋','Arrastra para reposicionar'],['🖼️','Clic para seleccionar / borrar'],['📸','Descarga PNG o envía por correo']].forEach(function(tip){ %>
+          <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--muted);line-height:1.5;">
+            <span style="flex-shrink:0;"><%=tip[0]%></span><span><%=tip[1]%></span>
+          </div>
+          <% }); %>
+        </div>
+      </div>
+
+    </div><!-- /RIGHT -->
+
+  </div><!-- /3-col -->
+</div>
+
+<!-- ─── WHEEL SPINNER JS ──────────────────────────────────────────────────────── -->
+<script>
+var _wheel = {
+  angle: 0, spinning: false,
+  targetAngle: 0, startAngle: 0,
+  startTime: null, duration: 4000,
+  winner: -1, history: []
+};
+var _WHEEL_COLORS = [
+  '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6',
+  '#ec4899','#14b8a6','#f97316','#0ea5e9','#84cc16',
+  '#a855f7','#06b6d4','#f43f5e','#22c55e','#eab308'
+];
+
+function wheelGetNames() {
+  var ta = document.getElementById('wheelNames');
+  if (!ta) return [];
+  return ta.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+}
+
+function wheelDraw() {
+  var canvas = document.getElementById('wheelCanvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var cx = W/2, cy = H/2, r = Math.min(cx,cy) - 8;
+  ctx.clearRect(0,0,W,H);
+  var names = wheelGetNames();
+  if (!names.length) {
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,2*Math.PI);
+    ctx.fillStyle = '#e2e8f0'; ctx.fill();
+    ctx.fillStyle = '#94a3b8'; ctx.font = '14px DM Sans,sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Añade nombres arriba', cx, cy);
+    return;
+  }
+  var n = names.length;
+  var segSize = 2 * Math.PI / n;
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(_wheel.angle);
+  for (var i = 0; i < n; i++) {
+    var sA = i * segSize, eA = sA + segSize;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,r,sA,eA); ctx.closePath();
+    ctx.fillStyle = _WHEEL_COLORS[i % _WHEEL_COLORS.length]; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.save(); ctx.rotate(sA + segSize/2);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
+    var fs = Math.max(9, Math.min(14, 180/n));
+    ctx.font = 'bold ' + fs + 'px DM Sans,sans-serif';
+    ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 3;
+    var label = names[i].length > 15 ? names[i].substring(0,13)+'…' : names[i];
+    ctx.fillText(label, r - 10, 4.5);
+    ctx.restore();
+  }
+  // Center hub
+  ctx.beginPath(); ctx.arc(0,0,20,0,2*Math.PI);
+  ctx.fillStyle = '#1e293b'; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.restore();
+}
+
+function wheelSpin() {
+  if (_wheel.spinning) return;
+  var names = wheelGetNames();
+  if (names.length < 2) { showToast('Añade al menos 2 participantes', 'warn'); return; }
+  _wheel.winner = Math.floor(Math.random() * names.length);
+  var segSize = 2 * Math.PI / names.length;
+  var baseTarget = -((_wheel.winner + 0.5) * segSize);
+  var minRot = 6 * 2 * Math.PI;
+  var k = Math.ceil((_wheel.angle + minRot - baseTarget) / (2 * Math.PI));
+  _wheel.targetAngle = baseTarget + k * 2 * Math.PI;
+  _wheel.startAngle = _wheel.angle;
+  _wheel.startTime = null;
+  _wheel.spinning = true;
+  _wheel.duration = 3800 + Math.random() * 1500;
+  document.getElementById('wheelSpinBtn').disabled = true;
+  document.getElementById('wheelWinner').style.display = 'none';
+  requestAnimationFrame(wheelAnimate);
+}
+
+function wheelAnimate(ts) {
+  if (_wheel.startTime === null) _wheel.startTime = ts;
+  var t = Math.min((ts - _wheel.startTime) / _wheel.duration, 1);
+  var ease = 1 - Math.pow(1 - t, 4);
+  _wheel.angle = _wheel.startAngle + (_wheel.targetAngle - _wheel.startAngle) * ease;
+  wheelDraw();
+  if (t < 1) { requestAnimationFrame(wheelAnimate); return; }
+  _wheel.angle = _wheel.targetAngle;
+  _wheel.spinning = false;
+  wheelDraw();
+  document.getElementById('wheelSpinBtn').disabled = false;
+  var names = wheelGetNames();
+  var winnerName = names[_wheel.winner] || '—';
+  document.getElementById('wheelWinnerName').textContent = winnerName;
+  var wb = document.getElementById('wheelWinner');
+  wb.style.display = 'block';
+  wb.className = 'wheel-winner-banner';
+  _wheel.history.unshift({ name: winnerName, time: new Date().toLocaleTimeString('es-PE') });
+  wheelRenderHistory();
+  showToast('¡' + winnerName + ' fue seleccionado/a!', 'success');
+}
+
+function wheelRenderHistory() {
+  var el = document.getElementById('wheelHistory');
+  if (!el || !_wheel.history.length) return;
+  el.innerHTML = '<div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:.5px;margin-bottom:3px;">Historial</div>' +
+    _wheel.history.slice(0,6).map(function(h,i){
+      return '<div style="display:flex;justify-content:space-between;background:var(--hover);border-radius:6px;padding:5px 10px;font-size:11px;">' +
+        '<span style="font-weight:700;color:var(--text);">#'+(i+1)+' '+h.name+'</span>' +
+        '<span style="color:var(--muted);">'+h.time+'</span></div>';
+    }).join('');
+}
+
+function wheelReset() {
+  _wheel.history = []; _wheel.angle = 0;
+  document.getElementById('wheelWinner').style.display = 'none';
+  var el = document.getElementById('wheelHistory');
+  if (el) el.innerHTML = '';
+  wheelDraw();
+}
+
+wheelDraw();
+</script>
+
+<!-- ─── EVENTOS CORPORATIVOS JS ───────────────────────────────────────────────── -->
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+var _evtSt = {
+  bgIdx: 0, frameIdx: 0,
+  color: '#ffffff', bold: true, shadow: true,
+  font: "'DM Sans',sans-serif", size: 26,
+  nextId: 0, selId: null,
+  drag: { on: false, id: null, sx: 0, sy: 0, sl: 0, st: 0 }
+};
+
+// ── Data ────────────────────────────────────────────────────────────────────
+var _evtBgs = [
+  { e:'🎂', g:'linear-gradient(135deg,#f59e0b,#ef4444)' },
+  { e:'🤝', g:'linear-gradient(135deg,#3b82f6,#8b5cf6)' },
+  { e:'🎉', g:'linear-gradient(135deg,#10b981,#06b6d4)' },
+  { e:'👋', g:'linear-gradient(135deg,#ec4899,#8b5cf6)' },
+  { e:'⭐', g:'linear-gradient(135deg,#d97706,#84cc16)' },
+  { e:'🙏', g:'linear-gradient(135deg,#0ea5e9,#14b8a6)' },
+  { e:'🏆', g:'linear-gradient(135deg,#d97706,#fbbf24)' },
+  { e:'🌙', g:'linear-gradient(135deg,#1e293b,#334155)' },
+];
+
+var _evtFrameDefs = [
+  { l:'Ninguno',   fn: function(){ return ''; } },
+  { l:'🎊 Fiesta', fn: function(){
+    var html = '';
+    var c = [['top:6px;left:6px','🎂'],['top:6px;right:6px','🎉'],['bottom:6px;left:6px','🎈'],['bottom:6px;right:6px','🎁']];
+    c.forEach(function(x){ html += '<div style="position:absolute;'+x[0]+';font-size:38px;line-height:1;opacity:.88;">'+x[1]+'</div>'; });
+    html += '<div style="position:absolute;top:50%;left:6px;transform:translateY(-50%);font-size:26px;">🎊</div>';
+    html += '<div style="position:absolute;top:50%;right:6px;transform:translateY(-50%);font-size:26px;">🥳</div>';
+    html += '<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);font-size:26px;">✨</div>';
+    html += '<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:26px;">🎀</div>';
+    return html;
+  }},
+  { l:'✨ Brillos', fn: function(){
+    var pos = ['top:8px;left:8px','top:8px;right:8px','bottom:8px;left:8px','bottom:8px;right:8px',
+               'top:8px;left:50%;transform:translateX(-50%)','bottom:8px;left:50%;transform:translateX(-50%)',
+               'top:50%;left:8px;transform:translateY(-50%)','top:50%;right:8px;transform:translateY(-50%)'];
+    var em = ['✨','⭐','💫','🌟','✨','💫','⭐','🌟'];
+    return pos.map(function(p,i){ return '<div style="position:absolute;'+p+';font-size:28px;line-height:1;opacity:.88;">'+em[i]+'</div>'; }).join('');
+  }},
+  { l:'🌸 Floral', fn: function(){
+    var pos = ['top:4px;left:4px','top:4px;right:4px','bottom:4px;left:4px','bottom:4px;right:4px'];
+    var em = ['🌸','🌺','🌻','🌹'];
+    var html = pos.map(function(p,i){ return '<div style="position:absolute;'+p+';font-size:42px;line-height:1;opacity:.85;">'+em[i]+'</div>'; }).join('');
+    html += '<div style="position:absolute;top:50%;left:6px;transform:translateY(-50%);font-size:24px;">🌷</div>';
+    html += '<div style="position:absolute;top:50%;right:6px;transform:translateY(-50%);font-size:24px;">🌷</div>';
+    return html;
+  }},
+  { l:'◆ Corp.', fn: function(){
+    return '<div style="position:absolute;inset:12px;border:2px solid rgba(255,255,255,.45);border-radius:12px;pointer-events:none;"></div>' +
+           '<div style="position:absolute;inset:20px;border:1px solid rgba(255,255,255,.2);border-radius:8px;pointer-events:none;"></div>' +
+           '<div style="position:absolute;top:12px;left:12px;width:16px;height:16px;border-top:3px solid rgba(255,255,255,.7);border-left:3px solid rgba(255,255,255,.7);border-radius:2px 0 0 0;"></div>' +
+           '<div style="position:absolute;top:12px;right:12px;width:16px;height:16px;border-top:3px solid rgba(255,255,255,.7);border-right:3px solid rgba(255,255,255,.7);border-radius:0 2px 0 0;"></div>' +
+           '<div style="position:absolute;bottom:12px;left:12px;width:16px;height:16px;border-bottom:3px solid rgba(255,255,255,.7);border-left:3px solid rgba(255,255,255,.7);border-radius:0 0 0 2px;"></div>' +
+           '<div style="position:absolute;bottom:12px;right:12px;width:16px;height:16px;border-bottom:3px solid rgba(255,255,255,.7);border-right:3px solid rgba(255,255,246,.7);border-radius:0 0 2px 0;"></div>';
+  }},
+  { l:'🎀 Lazo', fn: function(){
+    return '<div style="position:absolute;top:0;left:0;font-size:54px;line-height:1;opacity:.82;">🎀</div>' +
+           '<div style="position:absolute;top:0;right:0;font-size:54px;line-height:1;opacity:.82;transform:scaleX(-1);">🎀</div>' +
+           '<div style="position:absolute;bottom:0;left:0;font-size:38px;line-height:1;opacity:.65;transform:rotate(30deg);">🎀</div>' +
+           '<div style="position:absolute;bottom:0;right:0;font-size:38px;line-height:1;opacity:.65;transform:rotate(-30deg) scaleX(-1);">🎀</div>';
+  }},
+];
+
+var _evtStickers = [
+  '🎂','🎉','🎊','🎈','🎁','🎀','🥳','🍰','🎆','🎇',
+  '⭐','🌟','✨','💫','🌠','🏆','🥇','👑','💎','🎖️',
+  '❤️','💕','💖','💗','🌹','🌺','🌸','🌻','🍀','🌈',
+  '🤝','👏','🙌','💪','✅','🎯','💡','🚀','🔥','⚡',
+  '🎵','🎶','🍾','🥂','🎸','🎤','☀️','🌙','🦋','🌊',
+];
+
+// ── Init ────────────────────────────────────────────────────────────────────
+function evtUpdatePreview() {} // stub — replaced below, called by switchToolTab
+
+function evtInit() {
+  // BG grid
+  var bgGrid = document.getElementById('evtBgGrid');
+  if (bgGrid) {
+    bgGrid.innerHTML = _evtBgs.map(function(b,i){
+      return '<div class="evt-bg-thumb'+(i===0?' active':'')+'" data-i="'+i+'" onclick="evtSetBg('+i+')" style="background:'+b.g+';">'+b.e+'</div>';
+    }).join('');
+  }
+
+  // Frame grid
+  var fgrid = document.getElementById('evtFrameGrid');
+  if (fgrid) {
+    fgrid.innerHTML = _evtFrameDefs.map(function(f,i){
+      return '<div class="evt-frame-thumb'+(i===0?' active':'')+'" onclick="evtSetFrame('+i+')">'+f.l+'</div>';
+    }).join('');
+  }
+
+  // Stickers
+  var sbar = document.getElementById('evtStickerBar');
+  if (sbar) {
+    sbar.innerHTML = _evtStickers.map(function(e){
+      return '<button class="evt-sticker-btn" onclick="evtAddSticker(\''+e+'\')">'+e+'</button>';
+    }).join('');
+  }
+
+  // Default color selection
+  var firstDot = document.querySelector('.evt-clr-dot[data-clr="#ffffff"]');
+  if (firstDot) firstDot.style.boxShadow = '0 0 0 2px #1e293b, 0 0 0 4px rgba(255,255,255,.8)';
+}
+
+// ── Background ──────────────────────────────────────────────────────────────
+function evtSetBg(i) {
+  _evtSt.bgIdx = i;
+  var cv = document.getElementById('evtCanvas');
+  if (cv) cv.style.background = _evtBgs[i].g;
+  document.querySelectorAll('.evt-bg-thumb').forEach(function(el,j){ el.classList.toggle('active', j===i); });
+}
+
+// ── Frames ──────────────────────────────────────────────────────────────────
+function evtSetFrame(i) {
+  _evtSt.frameIdx = i;
+  var fl = document.getElementById('evtFrameLayer');
+  if (fl) fl.innerHTML = _evtFrameDefs[i].fn();
+  document.querySelectorAll('.evt-frame-thumb').forEach(function(el,j){ el.classList.toggle('active', j===i); });
+}
+
+// ── Add elements ─────────────────────────────────────────────────────────────
+function evtAddSticker(emoji) {
+  var cv = document.getElementById('evtCanvas');
+  if (!cv) return;
+  var id = 'eve_'+(++_evtSt.nextId);
+  var el = document.createElement('div');
+  el.id = id; el.className = 'evt-el';
+  el.setAttribute('data-t','sticker');
+  el.style.cssText = 'position:absolute;font-size:46px;line-height:1;cursor:move;user-select:none;z-index:10;' +
+    'left:'+(40+Math.random()*380)+'px;top:'+(20+Math.random()*270)+'px;';
+  el.textContent = emoji;
+  el.addEventListener('mousedown', function(e){ evtElDown(e, id); });
+  cv.insertBefore(el, document.getElementById('evtFrameLayer'));
+  evtSelect(id);
+}
+
+function evtAddText() {
+  var cv = document.getElementById('evtCanvas');
+  if (!cv) return;
+  var id = 'eve_'+(++_evtSt.nextId);
+  var el = document.createElement('div');
+  el.id = id; el.className = 'evt-el';
+  el.setAttribute('data-t','text');
+  el.contentEditable = 'true';
+  el.spellcheck = false;
+  el.style.cssText = 'position:absolute;left:40px;top:140px;' +
+    'font-size:'+_evtSt.size+'px;font-weight:'+(_evtSt.bold?'800':'400')+';' +
+    'color:'+_evtSt.color+';font-family:'+_evtSt.font+';' +
+    'text-shadow:'+(_evtSt.shadow?'0 2px 10px rgba(0,0,0,.7),0 0 20px rgba(0,0,0,.3)':'none')+';' +
+    'cursor:move;user-select:none;z-index:10;outline:none;min-width:80px;' +
+    'white-space:nowrap;line-height:1.2;';
+  el.textContent = 'Escribe aquí';
+  el.addEventListener('mousedown', function(e){ evtElDown(e, id); });
+  el.addEventListener('dblclick', function(e){
+    e.stopPropagation();
+    el.style.cursor = 'text'; el.style.userSelect = 'text';
+    el.focus(); document.execCommand('selectAll', false, null);
+  });
+  el.addEventListener('blur', function(){
+    el.style.cursor = 'move'; el.style.userSelect = 'none';
+  });
+  cv.insertBefore(el, document.getElementById('evtFrameLayer'));
+  evtSelect(id);
+  setTimeout(function(){ el.focus(); document.execCommand('selectAll',false,null); }, 60);
+}
+
+function evtAddImg(input) {
+  var file = input.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var cv = document.getElementById('evtCanvas'); if (!cv) return;
+    var id = 'eve_'+(++_evtSt.nextId);
+    var img = document.createElement('img');
+    img.id = id; img.className = 'evt-el';
+    img.setAttribute('data-t','image');
+    img.src = ev.target.result;
+    img.draggable = false;
+    img.style.cssText = 'position:absolute;left:130px;top:60px;width:260px;height:auto;' +
+      'cursor:move;border-radius:10px;z-index:10;box-shadow:0 6px 24px rgba(0,0,0,.4);';
+    img.addEventListener('mousedown', function(e){ evtElDown(e, id); });
+    cv.insertBefore(img, document.getElementById('evtFrameLayer'));
+    evtSelect(id);
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function evtImgDrop(e) {
+  e.preventDefault();
+  document.getElementById('evtImgDropZone').classList.remove('drag-over');
+  var file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    var fakeInput = { files: [file] };
+    evtAddImg(fakeInput);
+  }
+}
+
+// ── Selection & drag ────────────────────────────────────────────────────────
+function evtSelect(id) {
+  _evtSt.selId = id;
+  document.querySelectorAll('.evt-el').forEach(function(el){
+    el.style.outline = (el.id===id) ? '2px dashed rgba(255,255,255,.9)' : 'none';
+    el.style.outlineOffset = '4px';
+  });
+  var db = document.getElementById('evtDelBtn');
+  if (db) db.style.display = id ? 'inline-flex' : 'none';
+  // Sync toolbar to selected text element
+  if (id) {
+    var el = document.getElementById(id);
+    if (el && el.getAttribute('data-t')==='text') {
+      _evtSt.color = el.style.color || _evtSt.color;
+      _evtSt.size  = parseInt(el.style.fontSize) || _evtSt.size;
+    }
+  }
+}
+
+function evtDeleteSelected() {
+  if (!_evtSt.selId) return;
+  var el = document.getElementById(_evtSt.selId);
+  if (el) el.remove();
+  evtSelect(null);
+}
+
+function evtElDown(e, id) {
+  e.stopPropagation();
+  evtSelect(id);
+  var el = document.getElementById(id);
+  if (!el || (el.getAttribute('data-t')==='text' && e.detail>=2)) return;
+  e.preventDefault();
+  _evtSt.drag = { on:true, id:id, sx:e.clientX, sy:e.clientY, sl:el.offsetLeft, st:el.offsetTop };
+}
+
+function evtCanvasDown(e) {
+  if (e.target.id === 'evtCanvas' || e.target.id === 'evtFrameLayer') evtSelect(null);
+}
+
+function evtCanvasMove(e) {
+  if (!_evtSt.drag.on) return;
+  var el = document.getElementById(_evtSt.drag.id); if (!el) return;
+  var cv = document.getElementById('evtCanvas');
+  var tm = window.getComputedStyle(cv).transform;
+  var scale = 1;
+  if (tm && tm !== 'none') { var m = tm.match(/matrix\(([^,]+)/); if (m) scale = parseFloat(m[1]) || 1; }
+  var dx = (e.clientX - _evtSt.drag.sx) / scale;
+  var dy = (e.clientY - _evtSt.drag.sy) / scale;
+  var nx = _evtSt.drag.sl + dx;
+  var ny = _evtSt.drag.st + dy;
+  // Soft clamp
+  nx = Math.max(-20, Math.min(cv.offsetWidth  - 20, nx));
+  ny = Math.max(-20, Math.min(cv.offsetHeight - 20, ny));
+  el.style.left = nx+'px'; el.style.top = ny+'px'; el.style.transform = '';
+}
+
+function evtCanvasUp() { _evtSt.drag.on = false; }
+
+// ── Toolbar ─────────────────────────────────────────────────────────────────
+function evtTbToggle(prop) {
+  if (prop === 'bold') {
+    _evtSt.bold = !_evtSt.bold;
+    document.getElementById('evtTbBold').classList.toggle('active', _evtSt.bold);
+  } else {
+    _evtSt.shadow = !_evtSt.shadow;
+    document.getElementById('evtTbShadow').classList.toggle('active', _evtSt.shadow);
+  }
+  evtTbApply();
+}
+
+function evtTbApply() {
+  _evtSt.size = parseInt(document.getElementById('evtTbSize').value) || 26;
+  _evtSt.font = document.getElementById('evtTbFont').value;
+  if (!_evtSt.selId) return;
+  var el = document.getElementById(_evtSt.selId);
+  if (!el || el.getAttribute('data-t') !== 'text') return;
+  el.style.fontSize   = _evtSt.size+'px';
+  el.style.fontWeight = _evtSt.bold ? '800' : '400';
+  el.style.fontFamily = _evtSt.font;
+  el.style.color      = _evtSt.color;
+  el.style.textShadow = _evtSt.shadow ? '0 2px 10px rgba(0,0,0,.7),0 0 20px rgba(0,0,0,.3)' : 'none';
+}
+
+function evtSetColor(dotEl) {
+  _evtSt.color = dotEl.getAttribute('data-clr');
+  document.querySelectorAll('.evt-clr-dot').forEach(function(d){ d.style.boxShadow=''; });
+  dotEl.style.boxShadow = '0 0 0 2px #1e293b, 0 0 0 4px '+_evtSt.color;
+  evtTbApply();
+}
+
+// ── Clear / Download / Send ──────────────────────────────────────────────────
+function evtClear() {
+  document.querySelectorAll('#evtCanvas .evt-el').forEach(function(el){ el.remove(); });
+  evtSelect(null);
+}
+
+function evtDownload() {
+  if (typeof html2canvas === 'undefined') { showToast('html2canvas no cargado','error'); return; }
+  evtSelect(null);
+  html2canvas(document.getElementById('evtCanvas'), { scale:2.5, useCORS:true, logging:false }).then(function(c){
+    var a = document.createElement('a'); a.download='tarjeta-evento.png';
+    a.href = c.toDataURL('image/png'); a.click();
+    showToast('Tarjeta descargada','success');
+  });
+}
+
+async function evtSendEmail() {
+  var subject  = (document.getElementById('evtSubject')||{}).value || '';
+  var recText  = (document.getElementById('evtRecipients2')||{}).value || '';
+  var extraMsg = (document.getElementById('evtExtraMsg')||{}).value || '';
+  var recipients = recText.split(/[\n,]/).map(function(s){return s.trim();}).filter(function(s){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);});
+  if (!recipients.length) { showToast('Ingresa al menos un correo válido','warn'); return; }
+  if (!subject) { showToast('Escribe un asunto para el correo','warn'); return; }
+  if (typeof html2canvas === 'undefined') { showToast('html2canvas no cargado','error'); return; }
+
+  var btns = [document.getElementById('evtSendBtn'), document.getElementById('evtSendBtn2')];
+  btns.forEach(function(b){ if(b){b.style.opacity='.5';b.style.pointerEvents='none';} });
+  var statusEl = document.getElementById('evtStatus');
+  statusEl.style.display='none';
+
+  try {
+    evtSelect(null);
+    var c = await html2canvas(document.getElementById('evtCanvas'), { scale:2.5, useCORS:true, logging:false });
+    var imageBase64 = c.toDataURL('image/png').split(',')[1];
+
+    var resp = await fetch('/api/events/send-invite', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ subject, recipients, extraMsg, imageBase64 })
+    });
+    var data = await resp.json();
+    if (data.success) {
+      showToast('¡Enviado a '+recipients.length+' destinatario(s)!','success');
+      statusEl.style.display='block';
+      statusEl.innerHTML = '<div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:12px 14px;font-size:12px;color:#065f46;display:flex;align-items:flex-start;gap:8px;">' +
+        '<i class="bi bi-check-circle-fill" style="color:#10b981;font-size:15px;margin-top:1px;flex-shrink:0;"></i>' +
+        '<div><strong>¡Enviado!</strong><br>A: '+recipients.join(', ')+'</div></div>';
+    } else {
+      showToast(data.error||'Error al enviar','error');
+    }
+  } catch(err) {
+    showToast('Error: '+err.message,'error');
+  } finally {
+    btns.forEach(function(b){ if(b){b.style.opacity='1';b.style.pointerEvents='';} });
+  }
+}
+
+evtInit();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- QR tab CDN -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<!-- ═══════════════════ SISTEMA DE PERSISTENCIA POR USUARIO ════════════════════ -->
+<style>
+.tool-save-ind{font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;color:var(--muted);min-width:80px;transition:color .2s;}
+.tool-save-ind.saving{color:#f59e0b;}
+.tool-save-ind.saved{color:#10b981;}
+.tool-save-ind.err{color:#ef4444;}
+
+/* BPMN flow list */
+.bfl-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:12px;color:var(--text);transition:background .15s;position:relative;}
+.bfl-item:hover{background:var(--hover);}
+.bfl-item.active{background:rgba(16,185,129,.13);font-weight:700;color:#10b981;}
+.bfl-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.bfl-del{background:none;border:none;cursor:pointer;color:#ef4444;opacity:0;font-size:11px;padding:2px 4px;border-radius:4px;line-height:1;transition:opacity .15s;flex-shrink:0;}
+.bfl-item:hover .bfl-del{opacity:1;}
+
+.htl-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:1050;opacity:0;pointer-events:none;transition:opacity .2s;}
+.htl-backdrop.open{opacity:1;pointer-events:auto;}
+.htl-panel{position:fixed;top:0;right:-420px;width:390px;max-width:96vw;height:100vh;background:var(--card);border-left:1.5px solid var(--border);z-index:1051;display:flex;flex-direction:column;transition:right .26s cubic-bezier(.4,0,.2,1);box-shadow:-8px 0 32px rgba(0,0,0,.14);}
+.htl-panel.open{right:0;}
+.htl-head{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.htl-head h4{flex:1;font-size:14px;font-weight:800;color:var(--text);margin:0;}
+.htl-head-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;padding:0;line-height:1;transition:color .15s;}
+.htl-head-close:hover{color:var(--text);}
+.htl-search{padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.htl-search input{width:100%;padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;}
+.htl-search input:focus{border-color:#6366f1;}
+.htl-list{flex:1;overflow-y:auto;padding:10px;}
+.htl-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);margin-bottom:8px;transition:background .15s;}
+.htl-item:hover{background:rgba(99,102,241,.07);}
+.htl-icon{width:34px;height:34px;border-radius:8px;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#6366f1;font-size:15px;}
+.htl-info{flex:1;min-width:0;}
+.htl-label{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.htl-preview{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.htl-time{font-size:10px;color:var(--muted);margin-top:3px;}
+.htl-actions{display:flex;gap:5px;flex-shrink:0;align-items:center;}
+.htl-btn{padding:4px 10px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.htl-btn:hover{background:#6366f1;color:#fff;border-color:#6366f1;}
+.htl-btn-del{border-color:transparent;color:var(--muted);padding:4px 7px;}
+.htl-btn-del:hover{background:#ef4444;color:#fff;border-color:#ef4444;}
+.htl-empty{text-align:center;padding:40px 16px;color:var(--muted);font-size:13px;line-height:1.8;}
+.htl-empty i{font-size:28px;opacity:.3;display:block;margin-bottom:10px;}
+</style>
+
+<!-- Panel de historial (compartido) -->
+<div class="htl-backdrop" id="htlBackdrop" onclick="htlClose()"></div>
+<div class="htl-panel" id="htlPanel">
+  <div class="htl-head">
+    <i class="bi bi-clock-history" style="color:#6366f1;font-size:16px;"></i>
+    <h4 id="htlTitle">Historial</h4>
+    <button class="htl-head-close" onclick="htlClose()">×</button>
+  </div>
+  <div class="htl-search">
+    <input type="text" id="htlSearchInput" placeholder="Buscar en historial..." oninput="htlSearch()">
+  </div>
+  <div class="htl-list" id="htlList"></div>
+</div>

@@ -1,0 +1,76 @@
+  <nav class="corp-tabnav" role="tablist">
+    <button class="corp-tab active" id="tabBtnCreate"       onclick="doTab('create',this)"><i class="bi bi-pencil-square"></i> Registrar</button>
+    <% if (_isAdmin || _isEspecialista) { %>
+    <button class="corp-tab"        id="tabBtnGestion"      onclick="doTab('gestion',this)"><i class="bi bi-ticket-detailed"></i> Gestión</button>
+    <% } %>
+    <% if (_isAdmin || _isEspecialista || _isVisor) { %>
+    <button class="corp-tab"        id="tabBtnKpis"         onclick="doTab('kpis',this)"><i class="bi bi-bar-chart-line"></i> Indicadores</button>
+    <% } %>
+    <% if (_isAdmin) { %>
+    <button class="corp-tab"        id="tabBtnAdmin"        onclick="doTab('admin',this)"><i class="bi bi-shield-lock"></i> Administración</button>
+    <% } %>
+    <% if (_isAdmin || _isEspecialista) { %>
+    <button class="corp-tab"        id="tabBtnPortal"       onclick="doTab('portal',this);loadPortalMetrics()"><i class="bi bi-people-fill"></i> Portal</button>
+    <button class="corp-tab"        id="tabBtnPreguntas"    onclick="doTab('preguntas',this);loadUserQuestions()"><i class="bi bi-chat-dots-fill"></i> Preguntas</button>
+    <button class="corp-tab"        id="tabBtnEncuesta"     onclick="doTab('encuesta',this);loadSurveyGeneralResults()"><i class="bi bi-star-half"></i> Encuesta</button>
+    <button class="corp-tab"        id="tabBtnWhatsapp"     onclick="doTab('whatsapp',this);loadWspRequests()"><i class="bi bi-whatsapp"></i> WhatsApp Bot</button>
+    <button class="corp-tab"        id="tabBtnKbReqs"       onclick="doTab('kbreqs',this);loadKbRequests()"><i class="bi bi-book"></i> Solicitudes KB <span id="kbReqBadge" style="display:none;background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:3px;"></span></button>
+    <button class="corp-tab"        id="tabBtnDevoluciones" onclick="doTab('devoluciones',this);loadDevolucionRequests()"><i class="bi bi-box-arrow-in-left"></i> Devoluciones <span id="devReqBadge" style="display:none;background:#ec4899;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:3px;"></span></button>
+    <button class="corp-tab"        id="tabBtnGarantias"   onclick="doTab('garantias',this);loadGarantiaRequests()"><i class="bi bi-patch-check-fill"></i> Garantías <span id="garReqBadge" style="display:none;background:#059669;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:3px;"></span></button>
+    <% } %>
+    <% if (_isAdmin) { %>
+    <button class="corp-tab" id="tabBtnCategorias"    onclick="doTab('categorias',this)"><i class="bi bi-tags-fill"></i> Categorías</button>
+    <button class="corp-tab" id="tabBtnEspecialistas" onclick="doTab('especialistas',this)"><i class="bi bi-people-fill"></i> Especialistas</button>
+    <button class="corp-tab" id="tabBtnAutomaciones"  onclick="doTab('automaciones',this)"><i class="bi bi-gear-wide-connected"></i> Automatizaciones</button>
+    <% } %>
+  </nav>
+  <script>
+  var _tabLoaded = {};
+  var _tabBtnId = { kbreqs:'KbReqs', garantias:'Garantias', whatsapp:'Whatsapp', kpis:'Kpis' };
+  function _tabBtnSuffix(n){ return _tabBtnId[n] || (n.charAt(0).toUpperCase()+n.slice(1)); }
+  function doTab(name, btn) {
+      var panels = {create:'tabCreate', gestion:'tabGestion', categorias:'tabCategorias', kpis:'tabKpis', especialistas:'tabEspecialistas', automaciones:'tabAutomaciones', admin:'tabAdmin', portal:'tabPortal', preguntas:'tabPreguntas', encuesta:'tabEncuesta', whatsapp:'tabWhatsapp', kbreqs:'tabKbReqs', devoluciones:'tabDevoluciones', garantias:'tabGarantias'};
+      Object.values(panels).forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
+      document.querySelectorAll('.corp-tab').forEach(function(b){ b.classList.remove('active'); });
+      var target = document.getElementById(panels[name]);
+      if (target) target.style.display = 'block';
+      if (btn) btn.classList.add('active');
+      if (!_tabLoaded[name]) {
+          _tabLoaded[name] = true;
+          setTimeout(function(){
+              if (name==='gestion'       && typeof loadTickets          ==='function') loadTickets();
+              if (name==='categorias'    && typeof loadCatListInline   ==='function') loadCatListInline();
+              if (name==='kpis'          && typeof loadStats           ==='function') loadStats();
+              if (name==='especialistas' && typeof loadSpecialists     ==='function') loadSpecialists();
+              if (name==='automaciones'  && typeof loadAutomations     ==='function') loadAutomations();
+              if (name==='admin'         && typeof loadAdminUsers      ==='function') loadAdminUsers();
+              if (name==='portal') { if(typeof loadPortalMetrics==='function') loadPortalMetrics(); if(typeof pmqLoadList==='function') pmqLoadList(); }
+              if (name==='preguntas' && typeof loadUserQuestions==='function') { loadUserQuestions(); loadAdminContribs(); loadWspRequests(); }
+              if (name==='encuesta'    && typeof loadSurveyGeneralResults==='function') loadSurveyGeneralResults();
+              if (name==='devoluciones' && typeof loadDevolucionRequests==='function') loadDevolucionRequests();
+              if (name==='garantias'   && typeof loadGarantiaRequests  ==='function') loadGarantiaRequests();
+          }, 0);
+      }
+      var _bk=document.getElementById('bkSection'); if(_bk) _bk.style.display=(name==='create')?'block':'none';
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    var _qs = new URLSearchParams(location.search);
+    var urlTab = _qs.get('tab');
+    var urlFilter = _qs.get('filter');
+    var _bk=document.getElementById('bkSection'); if(_bk) _bk.style.display=(!urlTab||urlTab==='create')?'block':'none';
+    var _activeTab = urlTab || 'gestion';
+    var btn = document.getElementById('tabBtn' + _tabBtnSuffix(_activeTab));
+    doTab(_activeTab, btn || null);
+    if(urlTab){
+      // autoseleccionar filtro si viene por URL
+      if(urlFilter){
+        setTimeout(function(){
+          var sel = document.getElementById('garReqFilterTipo') || document.getElementById('wspFilter') || document.getElementById('devFilter');
+          if(sel){ sel.value = urlFilter; sel.dispatchEvent(new Event('change')); }
+        }, 300);
+      }
+    }
+  });
+  </script>
+
+  <!-- ══ TAB 1: Registrar Incidencia (vista usuario) ══ -->

@@ -1,0 +1,297 @@
+/* ============================================================
+   catalog.css — Estilos específicos del portal de catálogo
+   Requiere: shared.css
+   ============================================================ */
+
+/* ── Grid cards 5 columnas ──────────────────────────────────── */
+.cards-5 { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 20px; }
+@media (max-width: 1100px) { .cards-5 { grid-template-columns: repeat(3,1fr); } }
+@media (max-width: 640px)  { .cards-5 { grid-template-columns: repeat(2,1fr); } }
+
+/* ── Tabla genérica ─────────────────────────────────────────── */
+.tbl-wrap { overflow: auto; max-height: 530px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl thead th {
+  background: var(--bg-header);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.tbl tbody tr { border-bottom: 1px solid var(--border-row); transition: background .12s; cursor: pointer; }
+.tbl tbody tr:hover td { background: var(--hover-row); }
+.tbl td { padding: 10px 14px; vertical-align: middle; }
+
+/* ── Sidebar de categorías + grid de servicios ──────────────── */
+.two-col { display: grid; grid-template-columns: 260px 1fr; gap: 14px; align-items: start; }
+@media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+
+.cat-sidebar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  position: sticky;
+  top: 76px;
+}
+.cat-sidebar-head {
+  padding: 11px 14px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-row);
+  transition: background .12s;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.cat-item:last-child { border-bottom: none; }
+.cat-item:hover      { background: var(--hover-row); }
+.cat-item.active     { background: rgba(0,82,204,.06); color: var(--jira-blue); border-left: 3px solid var(--jira-blue); }
+.cat-item .cnt       { margin-left: auto; background: var(--border-soft); color: var(--text-muted); padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+
+/* ── Service cards ──────────────────────────────────────────── */
+.svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; padding: 16px; }
+.svc-card {
+  border: 1.5px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--bg-card);
+  transition: all .2s;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.svc-card:hover { border-color: var(--jira-blue); box-shadow: 0 4px 16px rgba(0,82,204,.1); transform: translateY(-2px); }
+.svc-name { font-size: 14px; font-weight: 700; margin-bottom: 5px; display: flex; align-items: center; gap: 7px; }
+.svc-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
+.svc-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.badge-sla   { background: #dbeafe; color: #1d4ed8; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+.badge-aprob { background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+[data-theme="dark"] .badge-sla   { background: #1e3a5f; color: #93c5fd; }
+[data-theme="dark"] .badge-aprob { background: #422006; color: #fde68a; }
+
+.svc-btn-hover {
+  position: absolute;
+  bottom: 14px; right: 14px;
+  background: var(--jira-blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 13px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.svc-card:hover .svc-btn-hover { opacity: 1; }
+
+.svc-admin-btns { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; opacity: 0; transition: opacity .18s; }
+.svc-card:hover .svc-admin-btns { opacity: 1; }
+
+/* ── Badges de estado / prioridad (solicitudes) ─────────────── */
+.bs { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.bs-pendiente_aprobacion { background: #fef3c7; color: #d97706; }
+.bs-aprobado,
+.bs-completado           { background: #d1fae5; color: #059669; }
+.bs-en_proceso           { background: #dbeafe; color: #2563eb; }
+.bs-rechazado            { background: #fee2e2; color: #dc2626; }
+.bs-borrador             { background: #f1f5f9; color: #64748b; }
+.bs-cancelado            { background: #f1f5f9; color: #94a3b8; }
+
+.bp-baja    { background: #d1fae5; color: #059669; }
+.bp-media   { background: #fef3c7; color: #d97706; }
+.bp-alta    { background: #fee2e2; color: #dc2626; }
+.bp-critica { background: #fce7f3; color: #be185d; }
+
+[data-theme="dark"] .bs-pendiente_aprobacion { background: #422006; color: #fde68a; }
+[data-theme="dark"] .bs-aprobado,
+[data-theme="dark"] .bs-completado           { background: #064e3b; color: #6ee7b7; }
+[data-theme="dark"] .bs-rechazado            { background: #450a0a; color: #f87171; }
+[data-theme="dark"] .bs-en_proceso           { background: #1e3a5f; color: #93c5fd; }
+
+/* ── Modal ──────────────────────────────────────────────────── */
+.modal-ov {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,.55);
+  backdrop-filter: blur(4px);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-ov.open { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: var(--bg-card);
+  border-radius: 16px;
+  width: 600px;
+  max-width: 96vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0,0,0,.25);
+  transform: translateY(20px);
+  transition: transform .2s;
+}
+.modal-ov.open .modal-box { transform: translateY(0); }
+.modal-hdr { padding: 18px 24px 14px; border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; justify-content: space-between; }
+.modal-hdr h3 { margin: 0; font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.modal-body   { padding: 20px 24px; overflow-y: auto; flex: 1; }
+.modal-ftr    { padding: 14px 24px; border-top: 1px solid var(--border-soft); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ── Botones extra (peligro / éxito) ────────────────────────── */
+.btn-danger-sm {
+  border: 1.5px solid #fca5a5;
+  background: transparent;
+  border-radius: 7px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all .15s;
+}
+.btn-danger-sm:hover { background: #fee2e2; }
+
+.btn-success-sm {
+  border: 1.5px solid #6ee7b7;
+  background: transparent;
+  border-radius: 7px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #059669;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all .15s;
+}
+.btn-success-sm:hover { background: #d1fae5; }
+
+/* ── Software tag list ──────────────────────────────────────── */
+.sw-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0,82,204,.08);
+  color: var(--jira-blue);
+  border: 1px solid rgba(0,82,204,.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 2px;
+}
+.sw-tag .rm           { cursor: pointer; opacity: .6; font-size: 11px; margin-left: 2px; }
+.sw-tag .rm:hover     { opacity: 1; }
+.software-tag-list    { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.tag-wrap {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  cursor: text;
+  background: var(--input-bg);
+}
+
+/* ── Paginación ─────────────────────────────────────────────── */
+.pag    { display: flex; gap: 4px; justify-content: flex-end; padding: 10px 0; }
+.pg-btn {
+  width: 30px; height: 30px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  transition: all .15s;
+}
+.pg-btn:hover,
+.pg-btn.active { background: var(--jira-blue); color: #fff; border-color: var(--jira-blue); }
+
+/* ── Detail rows en modal ───────────────────────────────────── */
+.detail-row   { display: flex; gap: 12px; margin-bottom: 10px; font-size: 13px; }
+.detail-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); min-width: 100px; }
+
+/* ── Search global bar ──────────────────────────────────────── */
+.search-gbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-soft);
+  border-radius: 12px 12px 0 0;
+}
+.search-gbar input {
+  height: 35px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 0 12px 0 32px;
+  font-size: 13px;
+  background: var(--input-bg);
+  color: var(--text-main);
+  outline: none;
+  flex: 1;
+  min-width: 200px;
+}
+.search-gbar input:focus     { border-color: var(--jira-blue); }
+.search-gbar-wrap            { position: relative; flex: 1; min-width: 200px; }
+.search-gbar-wrap i          { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px; pointer-events: none; }
+
+/* ── Category inline row ────────────────────────────────────── */
+.cat-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  margin-bottom: 6px;
+}
+.cat-inline-row:hover { border-color: var(--jira-blue); }
+
+/* ── Ac name / sub (variante catálogo) ──────────────────────── */
+.ac-name { font-weight: 600; color: var(--text-main); }
+.ac-sub  { font-size: 11px; color: var(--text-muted); }

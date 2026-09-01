@@ -1,0 +1,66 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar Incidencia · ITSM</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/core/style.css">
+  <link rel="stylesheet" href="../../css/modules/helpdesk.css">
+  <link rel="stylesheet" href="../../css/core/shared.css">
+  <style>
+    html,body{background:var(--bg-main);margin:0;padding:0;}
+    .itsm-topbar{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--bg-card);border-bottom:1px solid var(--border-soft);position:sticky;top:0;z-index:100;}
+    .itsm-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-main);border:1px solid var(--border-soft);border-radius:20px;padding:5px 12px;text-decoration:none;transition:color .2s;}
+    .itsm-back:hover{color:var(--primary);}
+    .itsm-breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);}
+    .itsm-breadcrumb a{color:var(--text-muted);text-decoration:none;font-weight:500;transition:color .2s;}
+    .itsm-breadcrumb a:hover{color:var(--primary);}
+    .itsm-breadcrumb .sep{opacity:.4;}
+    .itsm-breadcrumb .current{color:var(--text-main);font-weight:700;}
+    .dashboard-content{padding:0;}
+  </style>
+</head>
+<body>
+<%- include('../../../shared/partials/theme-toggle') %>
+
+<!-- TOP BAR -->
+<div class="itsm-topbar">
+  <a href="/itsm?tab=inc" class="itsm-back"><i class="bi bi-arrow-left"></i> ITSM</a>
+  <div class="itsm-breadcrumb">
+    <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
+    <span class="sep">/</span>
+    <a href="/itsm?tab=inc">ITSM</a>
+    <span class="sep">/</span>
+    <span class="current"><i class="bi bi-exclamation-triangle-fill"></i> Incidencias</span>
+    <span class="sep">/</span>
+    <span class="current">Registrar</span>
+  </div>
+</div>
+
+<div class="dashboard-content">
+  <%
+    const _role = user?.role || 'usuario';
+    const _isAdmin        = _role === 'administrador';
+    const _isEspecialista = ['especialista','agente','tecnico'].includes(_role);
+    const _isVisor        = _role === 'visor';
+  %>
+  <%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/create', { _isAdmin, _isEspecialista, _isVisor }) %>
+  <%- include('../../../admin_platform/admin_management/itsm/incidencias/partials/modals',     { _isAdmin, _isEspecialista, _isVisor }) %>
+</div>
+
+<div class="toast-container-custom" id="toastContainer"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const CURRENT_USER_ID    = <%- JSON.stringify(locals.currentUserId || null) %>;
+const CURRENT_USER_ROLE  = <%- JSON.stringify(locals.user?.role || 'usuario') %>;
+const CURRENT_USER_NAME  = <%- JSON.stringify(locals.user?.full_name || locals.user?.nombre || locals.user?.username || '') %>;
+const CURRENT_USER_EMAIL = <%- JSON.stringify(locals.user?.email || locals.user?.username || '') %>;
+const LOCAL_VIEW         = false;
+</script>
+<script src="/js/incidencias/app.js?v=28"></script>
+</body>
+</html>

@@ -1,0 +1,2222 @@
+  <style>
+    /* Cola Jira panels — hide by default, show only the active one */
+    .panel { display: none; }
+    .panel.active { display: block; }
+    #panel-indicadores.active { display: flex !important; flex-direction: column; }
+    #panel-alertas.active    { display: flex !important; flex-direction: column; }
+    #panel-kanban.active     { display: flex !important; flex-direction: column; }
+    /* ── Panel Alertas ── */
+    .alrt-kpi { display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;border:1px solid; }
+    .alrt-kpi-ico { font-size:20px;flex-shrink:0; }
+    .alrt-kpi-n  { font-size:22px;font-weight:800;line-height:1; }
+    .alrt-kpi-l  { font-size:10px;color:var(--text-muted);margin-top:2px;font-family:monospace;text-transform:uppercase; }
+    .alrt-red    { background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.25);color:#ef4444; }
+    .alrt-orange { background:rgba(249,115,22,.07);border-color:rgba(249,115,22,.25);color:#f97316; }
+    .alrt-amber  { background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.25);color:#d97706; }
+    .alrt-section { margin-bottom:10px;border:1px solid var(--border-soft);border-radius:10px;overflow:hidden; }
+    .alrt-section-hdr { display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition:background .15s; }
+    .alrt-hdr-red    { background:rgba(239,68,68,.06);color:#dc2626; }
+    .alrt-hdr-orange { background:rgba(249,115,22,.06);color:#ea580c; }
+    .alrt-hdr-amber  { background:rgba(245,158,11,.06);color:#b45309; }
+    .alrt-section-hdr:hover { filter:brightness(.95); }
+    .alrt-body { padding:6px 0;max-height:320px;overflow-y:auto; }
+    .alrt-body.collapsed { display:none; }
+    .alrt-chev { transition:transform .2s; }
+    .alrt-chev.open { transform:rotate(180deg); }
+    .alrt-loading { padding:14px;font-size:12px;color:var(--text-muted);text-align:center; }
+    .alrt-row { display:flex;align-items:center;gap:10px;padding:7px 14px;border-bottom:1px solid var(--border-soft);font-size:12px; }
+    .alrt-row:last-child { border-bottom:none; }
+    .alrt-row:hover { background:var(--hover-row); }
+    .alrt-key { font-family:monospace;font-weight:700;font-size:11px;color:var(--jira-blue);white-space:nowrap; }
+    .alrt-sum { flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-main); }
+    .alrt-age { font-size:10px;font-family:monospace;color:var(--text-muted);white-space:nowrap; }
+    .alrt-empty { padding:14px;font-size:12px;color:#10b981;text-align:center;font-weight:600; }
+    /* ── Kanban ── */
+    .kb-board    { display:flex;gap:12px;flex:1;overflow-x:auto;padding-bottom:8px;min-height:0; }
+    .kb-col      { display:flex;flex-direction:column;min-width:260px;max-width:300px;flex:1;border-radius:12px;background:var(--bg-main);border:1px solid var(--border-soft);overflow:hidden; }
+    .kb-col-hdr  { padding:10px 14px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border-soft);letter-spacing:.03em;flex-shrink:0; }
+    .kb-col-cnt  { margin-left:auto;font-size:10px;font-family:monospace;font-weight:400;color:var(--text-muted); }
+    .kb-col-body { flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:6px;min-height:80px; }
+    .kb-col-body.kb-over { background:rgba(37,99,235,.05);outline:2px dashed var(--jira-blue);outline-offset:-4px;border-radius:8px; }
+    .kb-card     { background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;padding:10px 11px;cursor:grab;transition:box-shadow .15s,transform .15s;user-select:none; }
+    .kb-card:active { cursor:grabbing; }
+    .kb-card.kb-dragging { opacity:.45;transform:rotate(1.5deg); }
+    .kb-card:hover { box-shadow:0 2px 8px rgba(0,0,0,.12); }
+    .kb-card.kb-mine { box-shadow:0 0 0 1.5px var(--jira-blue),0 2px 10px rgba(37,99,235,.18); }
+    .kb-card.kb-mine:hover { box-shadow:0 0 0 2px var(--jira-blue),0 4px 14px rgba(37,99,235,.22); }
+    .kb-card-top { display:flex;align-items:center;gap:6px;margin-bottom:5px; }
+    .kb-key      { font-family:monospace;font-weight:700;font-size:10px;color:var(--jira-blue);cursor:pointer; }
+    .kb-key:hover { text-decoration:underline; }
+    .kb-sum      { font-size:12px;color:var(--text-main);line-height:1.4;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+    .kb-meta     { display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-muted); }
+    .kb-avatar   { width:18px;height:18px;border-radius:50%;color:#fff;font-size:8px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0; }
+    .kb-actions  { display:none;gap:4px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border-soft); }
+    .kb-card:hover .kb-actions { display:flex; }
+    .kb-btn      { font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:500; }
+    .kb-btn:hover { border-color:var(--jira-blue);color:var(--jira-blue); }
+    .kb-empty    { text-align:center;padding:24px 12px;font-size:11px;color:var(--text-muted);font-style:italic; }
+    .kb-toolbar  { display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-shrink:0; }
+    .kb-spin     { display:inline-block;width:14px;height:14px;border:2px solid var(--border-soft);border-top-color:var(--jira-blue);border-radius:50%;animation:kb-spin .7s linear infinite;} @keyframes kb-spin{to{transform:rotate(360deg);}}
+    /* ── Tech Stats ── */
+    #panel-tecnicos.active { display:flex !important; flex-direction:column; }
+    .tec-toolbar   { display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-shrink:0;flex-wrap:wrap; }
+    .tec-kpis      { display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;flex-shrink:0; }
+    .tec-kpi       { padding:10px 14px;border-radius:10px;border:1px solid var(--border-soft);background:var(--bg-card); }
+    .tec-kpi-val   { font-size:22px;font-weight:700;display:block; }
+    .tec-kpi-lbl   { font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em; }
+    .tec-table     { width:100%;border-collapse:collapse;font-size:12px; }
+    .tec-table th  { padding:8px 12px;text-align:left;font-size:10px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border-soft);white-space:nowrap; }
+    .tec-table td  { padding:9px 12px;border-bottom:1px solid var(--border-soft);vertical-align:middle; }
+    .tec-row       { cursor:pointer;transition:background .12s; }
+    .tec-row:hover { background:var(--bg-main); }
+    .tec-row.tec-selected { background:rgba(37,99,235,.07); }
+    .tec-avatar    { width:30px;height:30px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff; }
+    .tec-badge     { display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600; }
+    .tec-bar-wrap  { width:80px;height:5px;border-radius:3px;background:var(--border-soft);overflow:hidden;display:block;margin-top:3px; }
+    .tec-bar-fill  { height:100%;border-radius:3px; }
+    .tec-detail    { background:var(--bg-main); }
+    .tec-dtable    { width:100%;border-collapse:collapse;font-size:11px; }
+    .tec-dtable th { padding:6px 10px;font-size:10px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border-soft); }
+    .tec-dtable td { padding:7px 10px;border-bottom:1px solid var(--border-soft); }
+    .tec-chart-wrap{ margin-top:16px;position:relative;height:240px;flex-shrink:0; }
+    /* ── SLA Panel ── */
+    #panel-sla.active  { display:flex !important; flex-direction:column; }
+    .sla-toolbar       { display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-shrink:0;flex-wrap:wrap; }
+    .sla-kpis          { display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;flex-shrink:0; }
+    .sla-kpi           { padding:10px 14px;border-radius:10px;border:1px solid var(--border-soft);background:var(--bg-card); }
+    .sla-kpi-val       { font-size:22px;font-weight:700;display:block; }
+    .sla-kpi-lbl       { font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em; }
+    .sla-table         { width:100%;border-collapse:collapse;font-size:12px; }
+    .sla-table th      { padding:8px 12px;text-align:left;font-size:10px;font-weight:600;color:var(--text-muted);border-bottom:2px solid var(--border-soft);white-space:nowrap;cursor:pointer; }
+    .sla-table th:hover{ color:var(--text-main); }
+    .sla-table td      { padding:9px 12px;border-bottom:1px solid var(--border-soft);vertical-align:middle; }
+    .sla-table tbody tr:hover { background:var(--bg-main); }
+    .sla-table tbody tr.sla-row-breach { background:rgba(239,68,68,.04); }
+    .sla-bar-track     { width:90px;height:6px;border-radius:3px;background:var(--border-soft);overflow:hidden;display:inline-block;vertical-align:middle;margin-left:7px; }
+    .sla-bar-fill      { height:100%;border-radius:3px;transition:width .5s; }
+    .sla-pri           { display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap; }
+    .sla-cd            { font-family:monospace;font-weight:700;font-size:12px;white-space:nowrap; }
+    .sla-breach        { color:#ef4444; }
+    .sla-risk          { color:#f59e0b; }
+    .sla-ok            { color:#10b981; }
+    .sla-nav-badge     { margin-left:auto;background:#ef4444;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;min-width:16px;text-align:center; }
+    @keyframes sla-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .sla-pulse         { animation:sla-pulse 1.2s ease-in-out infinite; }
+    /* ── Heatmap ── */
+    #panel-heatmap.active  { display:flex !important; flex-direction:column; }
+    /* ── Semanal ── */
+    #panel-semanal.active  { display:flex !important; flex-direction:column; }
+    /* ── Timeline drawer ── */
+    #tlDrawer { transition:transform .22s cubic-bezier(.4,0,.2,1); }
+    .tl-event { display:flex;gap:12px;margin-bottom:14px; }
+    .tl-icon  { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+    .tl-line  { width:2px;flex:1;background:var(--border-soft);margin:4px auto;min-height:10px; }
+    .hm-toolbar  { display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-shrink:0;flex-wrap:wrap; }
+    .hm-kpis     { display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;flex-shrink:0; }
+    .hm-kpi      { padding:10px 14px;border-radius:10px;border:1px solid var(--border-soft);background:var(--bg-card); }
+    .hm-kpi-val  { font-size:20px;font-weight:700;display:block; }
+    .hm-kpi-lbl  { font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em; }
+    .hm-cell     { border-radius:5px;cursor:default;transition:transform .1s;display:flex;align-items:center;justify-content:center; }
+    .hm-cell:hover { transform:scale(1.18);z-index:2;position:relative; }
+    .hm-daycol   { font-size:10px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;justify-content:flex-end;padding-right:7px;white-space:nowrap; }
+    .hm-hrlbl    { font-size:8px;color:var(--text-muted);display:flex;align-items:center;justify-content:center; }
+    .hm-tip      { position:fixed;z-index:9999;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;padding:7px 11px;font-size:11px;font-weight:600;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.18);display:none; }
+    .hm-legend   { display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-muted);margin:6px 0 14px 52px; }
+    .hm-lc       { width:14px;height:14px;border-radius:3px;flex-shrink:0; }
+    .hm-charts   { display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-shrink:0; }
+    .hm-reco     { padding:12px 16px;border-radius:10px;border:1px solid var(--border-soft);background:var(--bg-card); }
+    .hm-reco-item{ display:flex;align-items:flex-start;gap:9px;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:12px;line-height:1.5; }
+    .hm-reco-item:last-child { border-bottom:none; }
+    /* Cola Jira sidebar nav — aligned with autogestion portal .sb-item style */
+    .nav-item { display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:0;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--text-muted);transition:all .15s;border:none;background:none;width:100%;text-align:left;position:relative;white-space:nowrap;overflow:hidden; }
+    .nav-item:hover { background:var(--bg-subtle,#e9eef5);color:var(--text-main); }
+    .nav-item.active { background:var(--primary-dim,rgba(37,99,235,.1));color:var(--primary);font-weight:700; }
+    .nav-item.active::before { content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--primary);border-radius:0 2px 2px 0; }
+    .nav-badge { margin-left:auto;background:var(--primary);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700; }
+    .nav-section { font-size:9px;font-weight:800;letter-spacing:1.1px;color:var(--text-muted);padding:10px 14px 3px;text-transform:uppercase;white-space:nowrap;overflow:hidden;display:block; }
+    .sidebar-user { padding:10px 12px;border-top:1px solid var(--border-soft);display:flex;align-items:center;gap:8px; }
+    .avatar { width:28px;height:28px;background:linear-gradient(135deg,var(--primary),var(--purple));border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;flex-shrink:0;letter-spacing:.5px; }
+    .user-info { flex:1;min-width:0; }
+    .user-name  { font-size:12px;font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .user-email { font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .btn-config { background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;border-radius:4px; }
+    .btn-config:hover { background:var(--bg-subtle,#e9eef5);color:var(--text-main); }
+    /* Cola Jira panel content */
+    .filters-row { display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap; }
+    .filters-row select { font-size:12px;padding:4px 8px;border:1px solid var(--border-soft);border-radius:6px;background:var(--bg-card);color:var(--text-main); }
+    .stats-row { display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px; }
+    .stat-card { background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;padding:8px 14px;display:flex;flex-direction:column;align-items:center;min-width:80px; }
+    .stat-val { font-size:20px;font-weight:700;font-family:monospace; }
+    .stat-lbl { font-size:10px;color:var(--text-muted);margin-top:2px; }
+    .c-blue  { color:var(--jira-blue); }
+    .c-amber { color:#d97706; }
+    .c-green { color:#16a34a; }
+    .ticket-list { display:flex;flex-direction:column;gap:8px; }
+    .search-bar { display:flex;gap:8px;margin-bottom:16px; }
+    .search-bar input { flex:1;padding:9px 12px;border:1px solid var(--border-soft);border-radius:8px;font-size:13px;background:var(--bg-card);color:var(--text-main); }
+    .hist-form { display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px; }
+    .hist-form label { font-size:9px;font-family:monospace;letter-spacing:.08em;color:var(--text-muted);display:block;margin-bottom:4px; }
+    .hist-form input,.hist-form select { padding:7px 10px;border:1px solid var(--border-soft);border-radius:6px;font-size:12px;background:var(--bg-card);color:var(--text-main); }
+    .skeleton { background:linear-gradient(90deg,var(--bg-header) 25%,var(--bg-card) 50%,var(--bg-header) 75%);background-size:200%;animation:incShimmer 1.4s infinite;border-radius:10px;height:80px;margin-bottom:8px; }
+    .empty-state { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--text-muted);text-align:center; }
+    .empty-state svg { width:40px;height:40px;margin-bottom:12px;opacity:.4; }
+    .empty-state p { font-size:13px;margin:0; }
+    /* ranking-scroll — top reporters/equipos/categorías */
+    .ranking-scroll{overflow-y:auto;flex:1;min-height:0;scrollbar-width:thin;scrollbar-color:var(--border-soft) transparent;}
+    .ranking-scroll::-webkit-scrollbar{width:4px;}
+    .ranking-scroll::-webkit-scrollbar-track{background:transparent;}
+    .ranking-scroll::-webkit-scrollbar-thumb{background:var(--border-soft);border-radius:4px;}
+    /* tech-quick-drop — autocomplete asignación inline */
+    .tech-quick-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:500;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.15);max-height:220px;overflow-y:auto;display:none;scrollbar-width:thin;}
+    .tech-quick-drop.show{display:block;}
+    .tech-quick-item{padding:7px 10px;cursor:pointer;display:flex;align-items:center;gap:10px;}
+    .tech-quick-item:hover{background:var(--hover-row);}
+    .tqi-avatar{width:26px;height:26px;background:var(--jira-blue);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0;}
+    .tqi-name{font-size:12px;font-weight:600;color:var(--text-main);}
+    .tqi-email{font-size:10px;color:var(--text-muted);}
+    /* metric-box — bottom KPI boxes */
+    .metric-box{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:3px;overflow:hidden;}
+    .metric-box .mb-lbl{font-size:10px;color:var(--text-muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .metric-box .mb-val{font-size:20px;font-weight:800;font-family:monospace;color:var(--text-main);line-height:1.1;}
+    .metric-box .mb-meta{font-size:9px;color:var(--text-muted);}
+    /* KPI stat cards — panel Indicadores */
+    .kpi-stat-card { background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:box-shadow .15s,transform .12s;cursor:pointer;user-select:none; }
+    .kpi-stat-card:hover { box-shadow:0 4px 18px rgba(0,0,0,.1);transform:translateY(-2px); }
+    .kpi-stat-card:active { transform:translateY(0); }
+    .kpi-stat-icon { width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
+    .kpi-stat-body .kpi-num { font-size:26px;font-weight:800;font-family:monospace;line-height:1; }
+    .kpi-stat-body .kpi-lbl { font-size:10px;font-weight:700;color:var(--text-muted);margin-top:4px;letter-spacing:.05em;text-transform:uppercase; }
+    .kpi-stat-body .kpi-hint { font-size:9px;color:var(--text-muted);margin-top:2px;opacity:.65; }
+    .ks-green .kpi-stat-icon { background:rgba(16,185,129,.12);color:#10b981; } .ks-green .kpi-num { color:#10b981; } .ks-green { border-left:3px solid #10b981; }
+    .ks-amber .kpi-stat-icon { background:rgba(245,158,11,.12);color:#f59e0b; } .ks-amber .kpi-num { color:#f59e0b; } .ks-amber { border-left:3px solid #f59e0b; }
+    .ks-red   .kpi-stat-icon { background:rgba(239,68,68,.12); color:#ef4444; } .ks-red   .kpi-num { color:#ef4444; } .ks-red   { border-left:3px solid #ef4444; }
+    .ks-blue  .kpi-stat-icon { background:rgba(59,130,246,.12);color:#3b82f6; } .ks-blue  .kpi-num { color:#3b82f6; } .ks-blue  { border-left:3px solid #3b82f6; }
+    .ks-purple .kpi-stat-icon { background:rgba(124,58,237,.12);color:#7c3aed; } .ks-purple .kpi-num { color:#7c3aed; } .ks-purple { border-left:3px solid #7c3aed; }
+    [data-theme="dark"] .kpi-stat-card:hover { box-shadow:0 4px 18px rgba(0,0,0,.35); }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spin { display:inline-block; animation:spin .7s linear infinite; }
+    /* Reportes pills */
+    .rpt-pill{font-size:11px;padding:3px 10px;border:1px solid var(--border-soft);border-radius:20px;background:none;cursor:pointer;color:var(--text-muted);transition:all .15s;white-space:nowrap;}
+    .rpt-pill:hover{background:var(--hover-row);color:var(--text-main);}
+    .rpt-pill.active{background:rgba(37,99,235,.1);color:var(--jira-blue);border-color:rgba(37,99,235,.35);font-weight:600;}
+    .rpt-radio{font-size:11px;padding:3px 10px;border:1px solid var(--border-soft);border-radius:20px;background:none;cursor:pointer;color:var(--text-muted);transition:all .15s;white-space:nowrap;}
+    .rpt-radio:hover{background:var(--hover-row);color:var(--text-main);}
+    .rpt-radio.active{background:var(--jira-blue);color:#fff;border-color:var(--jira-blue);}
+    .rpt-input{width:100%;padding:7px 10px;border:1px solid var(--border-soft);border-radius:6px;font-size:12px;background:var(--bg-card);color:var(--text-main);}
+    .rpt-input:focus{outline:none;border-color:var(--jira-blue);}
+    .rpt-table th,.rpt-table td{padding:7px 10px;text-align:left;white-space:nowrap;}
+    .rpt-table th{font-size:9px;font-family:monospace;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:600;background:var(--bg-header);}
+    .rpt-table tr:not(:first-child){border-top:1px solid var(--border-soft);}
+    .rpt-table tr:nth-child(even) td{background:var(--bg-header);}
+    /* Sin asignar — filter pills + SLA urgency chips */
+    .sa-pill{font-size:11px;padding:3px 10px;border:1px solid var(--border-soft);border-radius:20px;background:none;cursor:pointer;color:var(--text-muted);transition:all .15s;white-space:nowrap;}
+    .sa-pill:hover{background:var(--hover-row);color:var(--text-main);}
+    .sa-pill.active{background:var(--jira-blue);color:#fff;border-color:var(--jira-blue);}
+    .ec-sort-btn{font-size:11px;padding:3px 10px;border:1px solid var(--border-soft);border-radius:20px;background:none;cursor:pointer;color:var(--text-muted);transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;}
+    .ec-sort-btn:hover{background:var(--hover-row);color:var(--text-main);}
+    .ec-sort-btn.active{background:#7c3aed;color:#fff;border-color:#7c3aed;}
+    .c-red{color:#ef4444;}
+    .sla-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;font-family:monospace;white-space:nowrap;flex-shrink:0;}
+    .sla-breach{background:rgba(239,68,68,.15);color:#dc2626;}
+    .sla-critical{background:rgba(239,68,68,.12);color:#dc2626;}
+    .sla-warning{background:rgba(245,158,11,.12);color:#b45309;}
+    .sla-attention{background:rgba(234,179,8,.1);color:#92400e;}
+    .sla-ok{background:rgba(16,185,129,.1);color:#059669;}
+    /* Bandera SLA — siempre visible en tickets abiertos */
+    .sla-flag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;font-family:monospace;white-space:nowrap;flex-shrink:0;letter-spacing:.3px;}
+    .sla-flag i{font-size:9px;}
+    .sla-f-red   {background:#ef4444;color:#fff;}
+    .sla-f-amber {background:#f97316;color:#fff;}
+    .sla-f-yellow{background:#eab308;color:#fff;}
+    .sla-f-green {background:#10b981;color:#fff;}
+    .meta-time{font-family:monospace;font-size:10px;background:var(--bg-main);border:1px solid var(--border-soft);border-radius:4px;padding:0 4px;margin-left:4px;opacity:.8;}
+    /* Analizador panel */
+    .an-stab{font-size:12px;padding:5px 14px;border-radius:8px;border:none;background:none;font-weight:600;color:var(--text-muted);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;}
+    .an-stab.active{background:var(--jira-blue);color:#fff;}
+    .an-upload{border:2px dashed var(--border-soft);border-radius:12px;padding:36px 24px;text-align:center;cursor:pointer;transition:all .2s;margin:0;}
+    .an-upload:hover,.an-upload.drag-over{border-color:var(--jira-blue);background:rgba(37,99,235,.04);}
+    .an-stat{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px 14px;flex:1;min-width:100px;}
+    .an-stat-lbl{font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+    .an-stat-val{font-size:20px;font-weight:800;color:var(--text-main);margin-top:2px;}
+    .an-table{width:100%;border-collapse:collapse;font-size:12px;}
+    .an-table th{background:var(--bg-header);padding:7px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border-soft);position:sticky;top:0;z-index:1;}
+    .an-table td{padding:6px 12px;border-bottom:1px solid var(--border-soft);color:var(--text-main);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;}
+    .an-table tr:hover td{background:var(--hover-row);}
+    .an-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;margin-bottom:12px;}
+    .an-card-head{padding:11px 16px;background:var(--bg-header);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;}
+    .an-card-title{font-size:13px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:7px;}
+    .an-btn{padding:5px 12px;font-size:11px;font-weight:600;border-radius:7px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-muted);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;}
+    .an-btn:hover{background:var(--hover-row);color:var(--text-main);}
+    .an-btn-primary{background:var(--jira-blue);color:#fff;border-color:var(--jira-blue);}
+    .an-btn-primary:hover{opacity:.88;}
+    .an-dashtab{background:none;border:none;border-bottom:2px solid transparent;padding:8px 16px;font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:6px;margin-bottom:-1px;}
+    .an-dashtab:hover{color:var(--text-main);}
+    .an-dashtab.active{color:var(--jira-blue);border-bottom-color:var(--jira-blue);}
+    .an-input{padding:6px 10px;border:1px solid var(--border-soft);border-radius:6px;font-size:12px;background:var(--bg-card);color:var(--text-main);outline:none;}
+    .an-input:focus{border-color:var(--jira-blue);}
+    .sql-editor-an{width:100%;border:1px solid var(--border-soft);border-radius:8px;padding:10px 12px;font-size:12px;font-family:monospace;background:var(--bg-header);color:var(--text-main);outline:none;resize:vertical;line-height:1.6;}
+    .sql-editor-an:focus{border-color:var(--jira-blue);}
+    .an-schema-table{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;color:var(--text-main);transition:background .15s;}
+    .an-schema-table:hover{background:var(--hover-row);}
+    .an-schema-cols{padding-left:16px;}
+    .an-schema-col{display:flex;align-items:center;justify-content:space-between;padding:3px 8px;border-radius:5px;cursor:pointer;font-size:10px;gap:6px;transition:background .15s;}
+    .an-schema-col:hover{background:var(--hover-row);}
+    .an-history-item{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:7px;cursor:pointer;transition:background .15s;}
+    .an-history-item:hover{background:var(--hover-row);}
+    /* Dashboard Ejecutivo */
+    .exec-kpi-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:16px 20px;position:relative;overflow:hidden;}
+    .exec-kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--exec-accent,#3b82f6);}
+    .exec-kpi-lbl{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+    .exec-kpi-val{font-size:28px;font-weight:800;line-height:1;margin-bottom:6px;}
+    .exec-kpi-delta{font-size:11px;font-weight:600;display:flex;align-items:center;gap:3px;}
+    .exec-kpi-delta.up{color:#10b981;} .exec-kpi-delta.down{color:#ef4444;} .exec-kpi-delta.neu{color:var(--text-muted);}
+    .exec-chart-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:14px 16px;}
+    .exec-chart-ttl{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+    .exec-btn{padding:5px 14px;font-size:11px;font-weight:600;border-radius:20px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-muted);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;}
+    .exec-btn:hover{background:var(--hover-row);color:var(--text-main);}
+    .exec-btn.active,.exec-btn.primary{background:var(--jira-blue);color:#fff;border-color:var(--jira-blue);}
+    .exec-btn.primary:hover,.exec-btn.active:hover{opacity:.88;}
+    .ni-exec{background:rgba(0,63,165,.12);color:#003fa5;}
+    [data-theme="dark"] .ni-exec{background:rgba(96,165,250,.12);color:#60a5fa;}
+    /* Dashboard Jira charts */
+    .jdb-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;min-width:0;}
+    .jdb-card-hd{padding:10px 14px;background:var(--bg-header);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;}
+    .jdb-card-title{font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;}
+    .jdb-chart-wrap{padding:12px;position:relative;height:clamp(190px,22vh,280px);}
+    .jdb-grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:12px;}
+    .jdb-grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;}
+    .jdb-kpi-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+    .jdb-kpi{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px 14px;flex:1;min-width:90px;text-align:center;}
+    .jdb-kpi-v{font-size:22px;font-weight:800;font-family:monospace;}
+    .jdb-kpi-l{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:1px;}
+    .jdb-section-hd{display:flex;align-items:center;justify-content:space-between;margin:18px 0 10px;}
+    .jdb-section-title{font-size:13px;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:7px;}
+    .jdb-period-btn{font-size:10px;padding:2px 9px;border:1px solid var(--border-soft);border-radius:4px;background:none;cursor:pointer;color:var(--text-muted);transition:all .15s;}
+    .jdb-period-btn.active{background:var(--jira-blue);color:#fff;border-color:var(--jira-blue);}
+    .jdb-skeleton{background:linear-gradient(90deg,var(--bg-header) 25%,var(--bg-card) 50%,var(--bg-header) 75%);background-size:200%;animation:incShimmer 1.4s infinite;border-radius:8px;height:200px;}
+    /* Mis Paneles */
+    .mp-period-btn{font-size:10px;padding:3px 10px;border:1px solid var(--border-soft);border-radius:5px;background:none;cursor:pointer;color:var(--text-muted);transition:all .15s;}
+    .mp-period-btn.active{background:var(--jira-blue);color:#fff;border-color:var(--jira-blue);}
+    .mp-tab{font-size:12px;font-weight:700;padding:7px 16px;border-radius:8px;cursor:pointer;color:var(--text-muted);display:inline-flex;align-items:center;gap:6px;transition:all .15s;}
+    .mp-tab.active{background:var(--jira-blue);color:#fff;}
+    .mp-chip{font-size:11px;padding:4px 12px;border:1px solid var(--border-soft);border-radius:20px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s;}
+    .mp-chip.active{background:rgba(37,99,235,.12);border-color:var(--jira-blue);color:var(--jira-blue);font-weight:700;}
+    .mp-kpi-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+    .mp-kpi{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px 16px;flex:1;min-width:80px;text-align:center;}
+    .mp-kpi-v{font-size:20px;font-weight:800;font-family:monospace;}
+    .mp-kpi-l{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:1px;}
+    .mp-chart-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;min-width:0;}
+    .mp-chart-hd{padding:10px 14px;background:var(--bg-header);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:var(--text-main);}
+    .mp-chart-body{padding:10px;height:220px;position:relative;}
+    .mp-chart-dl{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;padding:2px 6px;border-radius:4px;transition:all .15s;}
+    .mp-chart-dl:hover{background:var(--hover-row);color:var(--text-main);}
+    .mp-dl-btn{padding:7px 16px;font-size:11px;font-weight:700;border-radius:7px;border:none;background:var(--jira-blue);color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+    .mp-dl-btn:hover{opacity:.88;}
+    .mp-chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;}
+    .mp-branding-hd{padding:14px 20px 12px;border-bottom:2px solid var(--jira-blue);display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    /* Sidebar redesign */
+    .nav-search-pin { background:rgba(37,99,235,.07);border:1px solid rgba(37,99,235,.2);border-radius:8px;color:var(--jira-blue);font-weight:600; }
+    .nav-search-pin:hover { background:rgba(37,99,235,.13);color:var(--jira-blue); }
+    .nav-search-pin.active { background:rgba(37,99,235,.15);border-color:var(--jira-blue); }
+    .nav-sec-op  { color:#2563eb;border-left:2px solid #2563eb;padding-left:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;user-select:none; }
+    .nav-sec-mon { color:#d97706;border-left:2px solid #f59e0b;padding-left:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;user-select:none; }
+    .nav-sec-anl { color:#7c3aed;border-left:2px solid #7c3aed;padding-left:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;user-select:none; }
+    .nav-sec-op:hover,.nav-sec-mon:hover,.nav-sec-anl:hover { opacity:.8; }
+    .nav-sec-chev { margin-left:auto;font-size:9px;opacity:.55;transition:transform .2s; }
+    .nav-group { overflow:hidden;max-height:600px;transition:max-height .22s cubic-bezier(.4,0,.2,1); }
+    .nav-group.collapsed { max-height:0 !important; }
+    @keyframes alert-badge-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.75;transform:scale(1.12)} }
+    .alert-pulse-anim { animation:alert-badge-pulse .85s ease-in-out infinite; }
+    /* CMDB empty state */
+    .cmdb-empty { display:block;padding:4px 0; }
+    .cmdb-empty-icon { width:36px;height:36px;border-radius:10px;background:rgba(124,58,237,.1);display:flex;align-items:center;justify-content:center;font-size:17px;color:#7c3aed;flex-shrink:0; }
+    .cmdb-empty-title { font-size:13px;font-weight:700;color:var(--text-main); }
+    .cmdb-empty-sub { font-size:11px;color:var(--text-muted);line-height:1.5; }
+    .cmdb-grid { display:grid;grid-template-columns:240px 1fr;gap:18px;align-items:start; }
+    @media(max-width:720px){ .cmdb-grid{ grid-template-columns:1fr; } }
+    .cmdb-ex-chip { display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:5px 13px;border-radius:20px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-muted);cursor:pointer;transition:all .15s;font-family:monospace;font-weight:600; }
+    .cmdb-ex-chip:hover { border-color:#7c3aed;color:#7c3aed;background:rgba(124,58,237,.05); }
+    .cmdb-skel { background:linear-gradient(90deg,var(--bg-header) 25%,var(--bg-card) 50%,var(--bg-header) 75%);background-size:200%;animation:incShimmer 1.4s infinite;border-radius:10px;height:56px;flex-shrink:0; }
+    /* Top incidentes cards */
+    .cmdb-top-card { display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:10px;border:1px solid var(--border-soft);background:var(--bg-card);cursor:pointer;transition:all .15s; }
+    .cmdb-top-card:hover { transform:translateX(3px); }
+    .ctc-icon { width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0; }
+    .ctc-body { flex:1;min-width:0; }
+    .ctc-code { font-size:12px;font-weight:700;color:var(--text-main);font-family:monospace;line-height:1.2; }
+    .ctc-sub  { font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px; }
+    .ctc-count { text-align:right;flex-shrink:0;margin-right:4px; }
+    .ctc-num { font-size:20px;font-weight:800;font-family:monospace;line-height:1; }
+    .ctc-lbl { font-size:9px;color:var(--text-muted); }
+    .ctc-badge { padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0; }
+
+    /* ── Hamburger toggle (mobile only) ── */
+    #incMenuBtn { display:none;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--border-soft);border-radius:6px;background:var(--bg-card);cursor:pointer;color:var(--text-muted);flex-shrink:0;transition:background .15s,color .15s; }
+    #incMenuBtn:hover { background:var(--hover-row);color:var(--text-main); }
+    /* ── Overlay backdrop ── */
+    #incSidebarOverlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:250;opacity:0;transition:opacity .25s;pointer-events:none; }
+    #incSidebarOverlay.inc-mob-open { opacity:1;pointer-events:auto; }
+
+    /* ── Responsive: tablet & mobile ── */
+    @media (max-width: 768px) {
+      #incMenuBtn { display:flex !important; }
+      .itsm-breadcrumb { display:none !important; }
+      .itsm-topbar { padding:8px 12px !important;gap:8px !important; }
+      /* Sidebar becomes a fixed slide-over drawer */
+      #incSidebar {
+        position:fixed !important;
+        top:0;left:0;bottom:0;
+        z-index:300;
+        width:260px !important;
+        min-width:0 !important;
+        transform:translateX(-100%);
+        transition:transform .25s cubic-bezier(.4,0,.2,1);
+        box-shadow:4px 0 28px rgba(0,0,0,.22);
+      }
+      #incSidebar.inc-mob-open { transform:translateX(0); }
+      #incSidebarOverlay { display:block !important; }
+      /* Content area full width */
+      #incScrollArea { padding:10px !important; }
+      /* KPI grids 4-col → 2-col */
+      .tec-kpis,.sla-kpis,.hm-kpis { grid-template-columns:repeat(2,1fr) !important; }
+      /* Local todos 6-col → 3-col */
+      .inc-kpi-grid { grid-template-columns:repeat(3,1fr) !important; }
+      /* Heatmap charts 2-col → 1-col */
+      .hm-charts { grid-template-columns:1fr !important; }
+      /* Indicadores 6-col KPI → 3-col */
+      .inc-ind-kpi-grid { grid-template-columns:repeat(3,1fr) !important; }
+      /* Exec KPI 5-col → 3-col, chart 2-col → 1-col */
+      #execKpiRow { grid-template-columns:repeat(3,1fr) !important; }
+      .exec-chart-2col { grid-template-columns:1fr !important; }
+      /* Tables: horizontal scroll */
+      .tec-table,.sla-table { display:block !important;overflow-x:auto !important;-webkit-overflow-scrolling:touch; }
+      /* Kanban column min-width */
+      .kb-col { min-width:220px !important; }
+      /* Toolbars wrap */
+      .tec-toolbar,.sla-toolbar,.hm-toolbar,.kb-toolbar { flex-wrap:wrap !important; }
+      /* Histórico: stack form fields */
+      .hist-form { flex-direction:column !important; }
+      .hist-form > div, .hist-form > button, .hist-form input, .hist-form select { width:100% !important; box-sizing:border-box !important; }
+      /* Indicadores: unlock fixed height so #incScrollArea can scroll through it */
+      #panel-indicadores { height:auto !important; overflow:visible !important; }
+      /* Charts row: stack vertically instead of horizontal fixed-width */
+      #kpiChartsSection { flex:none !important; flex-direction:column !important; height:auto !important; }
+      #kpiChartsSection > div { flex:none !important; width:100% !important; }
+      #kpiChartsSection > div:first-child { height:200px !important; }
+      #kpiChartsSection > div:nth-child(2) { height:160px !important; }
+      /* Tech / rankings row: stack vertically, give each section a fixed height */
+      #kpiTechRow { flex:none !important; flex-direction:column !important; height:auto !important; }
+      #kpiTechRow > div { flex:none !important; height:200px !important; }
+      /* Breach / MTTR / metric boxes row: stack vertically */
+      #kpiBreachRow { flex:none !important; flex-direction:column !important; height:auto !important; }
+      #kpiBreachRow > div { flex:none !important; }
+      #kpiBreachRow > div:first-child { height:240px !important; }
+      #kpiBreachRow > div:nth-child(2) { height:200px !important; }
+      /* Comparativa: let #incScrollArea handle vertical scroll */
+      #swPanel { flex:none !important; overflow:visible !important; }
+      /* Mis Paneles: tabs wrap, smaller text */
+      #mpTabBar { width:100% !important; flex-wrap:wrap !important; }
+      .mp-tab { font-size:10px !important; padding:5px 8px !important; flex:1 1 auto !important; justify-content:center !important; }
+      /* CMDB: stat cards — override JS-set height:80px so text never clips */
+      #qstat-inc-equip, #qstat-inc-email { height:auto !important; min-height:76px !important; }
+      /* CMDB: ticket history table horizontal scroll */
+      #cmdbTicketHistWrap { overflow-x:auto !important; }
+      /* CMDB: top-inc cards fit full width cleanly */
+      .ctc-sub { font-size:9px !important; }
+    }
+    /* ── Responsive: medium screens (laptop 900-1200px) ── */
+    @media (max-width: 1200px) {
+      #mpTabBar { width:100% !important; flex-wrap:wrap !important; }
+      .mp-tab { flex:1 1 auto; justify-content:center; min-width:100px; }
+    }
+    /* ── Responsive: altura pequeña — compactar nav para que todos los ítems sean visibles ── */
+    /* 768px CSS (pantalla 768px sin DPI / 960px con 125%) */
+    @media (max-height: 900px) {
+      #incSidebar .nav-item { padding:5px 14px !important; font-size:12.5px !important; }
+      #incSidebar .nav-section { font-size:9.5px !important; padding:3px 14px 2px !important; margin-top:5px !important; }
+      #incSidebar nav { padding:4px 0 !important; }
+      #incPanelTopbar { height:38px !important; }
+    }
+    /* 768px sin escala o 614px con 125% DPI */
+    @media (max-height: 780px) {
+      #incSidebar .nav-item { padding:3px 14px !important; font-size:12px !important; }
+      #incSidebar .nav-section { font-size:9px !important; padding:2px 14px 1px !important; margin-top:3px !important; }
+      #incSidebar nav { padding:3px 0 !important; }
+      #incPanelTopbar { height:36px !important; }
+    }
+    /* 614px o menos (150% DPI en pantallas 768px) */
+    @media (max-height: 650px) {
+      #incSidebar .nav-item { padding:2px 12px !important; font-size:11px !important; }
+      #incSidebar .nav-section { font-size:8px !important; padding:1px 12px 0 !important; margin-top:2px !important; }
+      #incSidebar nav { padding:2px 0 !important; }
+    }
+    @media (max-width: 480px) {
+      .tec-kpis,.sla-kpis,.hm-kpis { grid-template-columns:repeat(2,1fr) !important; }
+      .inc-kpi-grid { grid-template-columns:repeat(2,1fr) !important; }
+      .inc-ind-kpi-grid { grid-template-columns:repeat(2,1fr) !important; }
+      #execKpiRow { grid-template-columns:repeat(2,1fr) !important; }
+      #incScrollArea { padding:8px !important; }
+      .tec-chart-wrap { height:180px !important; }
+      .stat-card { min-width:60px !important; }
+      .hist-form { flex-direction:column !important; }
+      .hist-form input,.hist-form select { width:100% !important; }
+      #kpiChartsSection > div:first-child { height:180px !important; }
+      #kpiTechRow > div { height:170px !important; }
+      #kpiBreachRow > div:first-child { height:200px !important; }
+      #kpiBreachRow > div:nth-child(2) { height:170px !important; }
+      /* CMDB: stack stat cards vertically on very small screens */
+      #cmdbStatGrid { grid-template-columns:1fr !important; }
+    }
+  </style>
+
+  <div id="tabGestion" class="corp-tabpanel" style="display:none;">
+    <div id="incGestionLayout" style="display:flex;border-top:1px solid var(--border-soft);overflow:hidden;height:calc(100vh - 52px);">
+
+      <!-- SIDEBAR -->
+      <aside id="incSidebar" style="width:220px;min-width:220px;background:var(--bg-card);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:8px;padding:0 12px;height:46px;border-bottom:1px solid var(--border-soft);flex-shrink:0;overflow:hidden;">
+          <div style="width:26px;height:26px;background:linear-gradient(135deg,var(--primary),var(--purple));border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="bi bi-<%= locals.localView ? 'hdd-network-fill' : 'ticket-detailed-fill' %>" style="color:#fff;font-size:12px;"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-main);white-space:nowrap;">INC Manager</div>
+            <div style="font-size:9px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.4px;"><%= locals.localView ? 'Gestión Local' : 'Incidencias' %></div>
+          </div>
+        </div>
+        <nav style="flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 0;">
+
+          <!-- Buscar ticket: prominente y fijo al inicio -->
+          <div class="nav-item nav-search-pin" id="nav-buscar" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('buscar',this);loadAlertas();">
+            <span class="nav-icon ni-blue"><i class="bi bi-search"></i></span>
+            Buscar ticket
+            <i class="bi bi-chevron-right" style="margin-left:auto;font-size:10px;opacity:.5;"></i>
+          </div>
+
+          <!-- OPERACIÓN (siempre visible) -->
+          <div class="nav-section nav-sec-op">Operación</div>
+          <div class="nav-item" id="nav-misAsig" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('misAsig',this);loadMisAsig();">
+            <span class="nav-icon ni-blue"><i class="bi bi-person-fill"></i></span>
+            Mis asignados
+            <span class="nav-badge" id="badge-misAsig">—</span>
+            <span id="sla-badge-misAsig" style="display:none;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-family:monospace;" title="Tickets con SLA urgente"></span>
+          </div>
+          <div class="nav-item" id="nav-sinAsig" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('sinAsig',this);loadSinAsig();">
+            <span class="nav-icon ni-orange"><i class="bi bi-inbox-fill"></i></span>
+            Sin asignar
+            <span class="nav-badge" id="badge-sinAsig">—</span>
+          </div>
+          <div class="nav-item" id="nav-enCurso" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('enCurso',this);loadEnCurso();">
+            <span class="nav-icon ni-green"><i class="bi bi-play-circle-fill"></i></span>
+            En curso
+            <span class="nav-badge" id="badge-enCurso" style="display:none;">0</span>
+          </div>
+          <div class="nav-item" id="nav-kanban" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('kanban',this);loadKanban();">
+            <span class="nav-icon ni-purple"><i class="bi bi-kanban-fill"></i></span>
+            Kanban
+          </div>
+
+          <!-- MONITOREO -->
+          <div class="nav-section nav-sec-mon" id="sec-mon" onclick="toggleNavGroup('grp-mon',this)">Monitoreo<i class="bi bi-chevron-down nav-sec-chev" id="chev-mon"></i></div>
+          <div class="nav-group" id="grp-mon">
+            <div class="nav-item" id="nav-alertas" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('alertas',this);loadAlertasPanel();">
+              <span class="nav-icon ni-red"><i class="bi bi-bell-fill"></i></span>
+              Alertas
+              <span id="alertNavBadge" class="alert-pulse-anim" style="margin-left:auto;background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-family:monospace;display:none;"></span>
+            </div>
+            <div class="nav-item" id="nav-sla" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('sla',this);loadSlaPanel();">
+              <span class="nav-icon ni-cyan"><i class="bi bi-clock-history"></i></span>
+              SLA
+              <span id="slaBadge" style="display:none;" class="sla-nav-badge">0</span>
+            </div>
+            <div class="nav-item" id="nav-tecnicos" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('tecnicos',this);loadTecStats();">
+              <span class="nav-icon ni-green"><i class="bi bi-people-fill"></i></span>
+              Técnicos
+            </div>
+            <div class="nav-item" id="nav-heatmap" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('heatmap',this);loadHeatmap();">
+              <span class="nav-icon ni-pink"><i class="bi bi-grid-3x3-gap-fill"></i></span>
+              Mapa de Calor
+            </div>
+            <div class="nav-item" id="nav-sinCat" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('sinCat',this);loadSinCategorizar();">
+              <span class="nav-icon ni-amber"><i class="bi bi-tags-fill"></i></span>
+              Categorías
+              <span class="nav-badge" id="badge-sinCat" style="display:none;background:#f59e0b;">0</span>
+            </div>
+            <div class="nav-item" id="nav-cmdb" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('cmdb',this);loadCmdbPanel();">
+              <span class="nav-icon ni-violet"><i class="bi bi-pc-display-horizontal"></i></span>
+              Por Equipo
+              <span class="nav-badge" id="badge-cmdb-risk" style="display:none;background:#dc2626;">!</span>
+            </div>
+          </div>
+
+          <!-- ANÁLISIS -->
+          <div class="nav-section nav-sec-anl" id="sec-anl" onclick="toggleNavGroup('grp-anl',this)">Análisis<i class="bi bi-chevron-down nav-sec-chev" id="chev-anl"></i></div>
+          <div class="nav-group" id="grp-anl">
+            <div class="nav-item" id="nav-historico" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('historico',this);autoLoadHistorico();">
+              <span class="nav-icon ni-slate"><i class="bi bi-clock-history"></i></span>
+              Histórico
+            </div>
+            <div class="nav-item" id="nav-indicadores" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('indicadores',this);if(typeof loadStats==='function')loadStats();">
+              <span class="nav-icon ni-violet"><i class="bi bi-bar-chart-fill"></i></span>
+              Indicadores
+            </div>
+            <div class="nav-item" id="nav-semanal" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('semanal',this);loadWeekComp();">
+              <span class="nav-icon ni-blue"><i class="bi bi-calendar2-week-fill"></i></span>
+              Comparativa
+            </div>
+            <div class="nav-item" id="nav-reportes" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('reportes',this);initReportes();">
+              <span class="nav-icon ni-emerald"><i class="bi bi-file-earmark-bar-graph-fill"></i></span>
+              Reportes
+            </div>
+            <div class="nav-item" id="nav-analizador" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('analizador',this);initAnalizador();">
+              <span class="nav-icon ni-indigo"><i class="bi bi-bar-chart-line-fill"></i></span>
+              Analizador
+            </div>
+            <div class="nav-item" id="nav-paneles" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('paneles',this);loadMisPaneles();">
+              <span class="nav-icon ni-teal"><i class="bi bi-layout-wtf"></i></span>
+              Mis Paneles
+            </div>
+            <div class="nav-item" id="nav-ejecutivo" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('ejecutivo',this);loadEjecutivo();">
+              <span class="nav-icon ni-exec"><i class="bi bi-briefcase-fill"></i></span>
+              Ejecutivo
+            </div>
+          </div>
+
+          <!-- CONSULTAS EN VIVO -->
+          <div class="nav-section" style="margin-top:4px;">Consultas en vivo <span id="cciSideCount" style="display:none;background:#0891b2;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:4px;"></span></div>
+          <div class="nav-item" id="nav-consultas" onclick="showPanel('consultas',this);loadConsultasActivas();">
+            <span class="nav-icon" style="background:rgba(8,145,178,.1);"><i class="bi bi-chat-dots-fill" style="color:#0891b2;"></i></span>
+            Consultas activas
+          </div>
+          <div id="cciSideList" style="padding:0 8px 6px;">
+            <div id="cciSideEmpty" style="font-size:11px;color:var(--text-muted);padding:6px 6px 2px;">Sin consultas activas</div>
+          </div>
+
+          <!-- LOCAL VIEW NAV (solo visible en ?view=local) -->
+          <div class="nav-section local-nav" id="lnav-section" style="<%= locals.localView ? '' : 'display:none;' %>">Gestión Local</div>
+          <div class="nav-item local-nav" id="lnav-gestion" onclick="showPanel('todos',this);" style="<%= locals.localView ? '' : 'display:none;' %>">
+            <span class="nav-icon ni-blue"><i class="bi bi-list-task"></i></span>
+            Tickets
+          </div>
+          <div class="nav-item local-nav" id="lnav-indicadores" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('indicadores',this);if(typeof loadStats==='function')loadStats();" style="<%= locals.localView ? '' : 'display:none;' %>">
+            <span class="nav-icon ni-violet"><i class="bi bi-bar-chart-line-fill"></i></span>
+            Indicadores
+          </div>
+          <div class="nav-item local-nav" id="lnav-admin" onclick="document.getElementById('incPanel-todos').style.display='none';showPanel('admin',this);" style="<%= locals.localView ? '' : 'display:none;' %>">
+            <span class="nav-icon ni-red"><i class="bi bi-shield-lock-fill"></i></span>
+            Administración
+          </div>
+        </nav>
+
+      </aside>
+      <div id="incSidebarOverlay" onclick="incCloseSidebar()"></div>
+
+      <!-- MAIN -->
+      <main style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <div id="incPanelTopbar" style="padding:0 16px;height:42px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px;flex-shrink:0;">
+          <span style="font-size:14px;font-weight:600;color:var(--text-main);" id="incTopbarTitle">Todos los tickets</span>
+          <span style="font-size:12px;color:var(--text-muted);" id="incTopbarSub"></span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <div id="statsPeriodBtns" style="display:none;gap:3px;">
+              <button onclick="setStatsPeriod('hoy',this)" style="font-size:11px;padding:2px 9px;border:1px solid var(--border-soft);border-radius:4px;background:none;cursor:pointer;color:var(--text-muted);">Hoy</button>
+              <button onclick="setStatsPeriod('sem',this)" style="font-size:11px;padding:2px 9px;border:1px solid var(--jira-blue);border-radius:4px;background:none;cursor:pointer;color:var(--jira-blue);">Semana</button>
+              <button onclick="setStatsPeriod('mes',this)" style="font-size:11px;padding:2px 9px;border:1px solid var(--border-soft);border-radius:4px;background:none;cursor:pointer;color:var(--text-muted);">Mes</button>
+            </div>
+            <div style="width:1px;height:18px;background:var(--border-soft);display:none;" id="periodDivider"></div>
+            <button class="btn-outline-sm" id="btnSyncTickets" onclick="syncAndReload()" style="display:flex;align-items:center;gap:5px;"><i class="bi bi-arrow-clockwise" id="btnSyncIcon"></i><span id="btnSyncLabel">Actualizar</span></button>
+            <button class="btn-outline-sm" onclick="forceConfigJiraEmail()" title="Configurar correo Jira" style="padding:5px 8px;<%= locals.localView ? 'display:none;' : '' %>"><i class="bi bi-gear-fill" style="font-size:12px;opacity:.65;"></i></button>
+            <% if (locals.localView) { %>
+            <button class="btn-create" onclick="openCreateTkModal()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:6px 14px;">
+              <i class="bi bi-plus-circle-fill"></i> Crear Incidencia
+            </button>
+            <% } %>
+          </div>
+        </div>
+        <div id="incScrollArea" style="flex:1;overflow-y:auto;padding:8px 10px;">
+
+          <!-- PANEL: Consultas Activas -->
+          <div id="incPanel-consultas" style="display:none;">
+
+            <!-- Header -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+              <div style="background:linear-gradient(135deg,#0f766e,#0891b2);width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="bi bi-chat-dots-fill" style="color:#fff;font-size:16px;"></i>
+              </div>
+              <div>
+                <div style="font-size:15px;font-weight:800;color:var(--text-main);">Consultas</div>
+                <div style="font-size:11px;color:var(--text-muted);">Gestión y seguimiento de consultas en vivo</div>
+              </div>
+            </div>
+
+            <!-- Tabs -->
+            <div style="display:flex;gap:4px;border-bottom:2px solid var(--border-soft);margin-bottom:18px;">
+              <button id="cqTab-live" onclick="cqSwitchTab('live')" style="padding:8px 18px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#0891b2;border-bottom:2px solid #0891b2;margin-bottom:-2px;">
+                <i class="bi bi-broadcast"></i> En vivo
+              </button>
+              <button id="cqTab-hist" onclick="cqSwitchTab('hist')" style="padding:8px 18px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+                <i class="bi bi-clock-history"></i> Historial
+              </button>
+            </div>
+
+            <!-- TAB: EN VIVO -->
+            <div id="cqPane-live">
+              <!-- KPIs -->
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+                <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:34px;height:34px;background:rgba(8,145,178,.1);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="bi bi-hourglass-split" style="color:#0891b2;font-size:15px;"></i></div>
+                  <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">En espera</div><div id="consultKpiWaiting" style="font-size:22px;font-weight:800;color:#0891b2;line-height:1.1;">—</div></div>
+                </div>
+                <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:34px;height:34px;background:rgba(5,150,105,.1);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="bi bi-headset" style="color:#059669;font-size:15px;"></i></div>
+                  <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">En atención</div><div id="consultKpiActive" style="font-size:22px;font-weight:800;color:#059669;line-height:1.1;">—</div></div>
+                </div>
+                <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:34px;height:34px;background:rgba(245,158,11,.1);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="bi bi-clock" style="color:#d97706;font-size:15px;"></i></div>
+                  <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Tiempo prom. espera</div><div id="consultKpiAvg" style="font-size:22px;font-weight:800;color:#d97706;line-height:1.1;">—</div></div>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                <div style="position:relative;">
+                  <i class="bi bi-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;pointer-events:none;"></i>
+                  <input type="text" id="consultSearch" class="form-control-custom" placeholder="Buscar nombre, email o tema…" oninput="filterConsultas(this.value)" style="padding-left:30px;width:240px;font-size:12px;">
+                </div>
+                <button onclick="loadConsultasActivas()" style="display:flex;align-items:center;gap:5px;padding:7px 12px;border:1px solid var(--border-soft);border-radius:8px;background:var(--bg-card);color:var(--text-muted);font-size:12px;cursor:pointer;">
+                  <i class="bi bi-arrow-clockwise" id="consultRefreshIcon"></i> Actualizar
+                </button>
+              </div>
+              <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;">
+                <div id="consultTableWrap"><div style="display:flex;align-items:center;justify-content:center;padding:40px;gap:10px;color:var(--text-muted);font-size:13px;"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+              </div>
+            </div>
+
+            <!-- TAB: HISTORIAL -->
+            <div id="cqPane-hist" style="display:none;">
+              <!-- Filtros -->
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+                <div style="position:relative;flex:1;min-width:180px;">
+                  <i class="bi bi-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;pointer-events:none;"></i>
+                  <input type="text" id="cqHistSearch" class="form-control-custom" placeholder="Usuario, email o tema…" oninput="cqHistDebounce()" style="padding-left:30px;font-size:12px;">
+                </div>
+                <select id="cqHistStatus" class="form-select-custom" onchange="loadAdminConsultHist(1)" style="font-size:12px;width:140px;">
+                  <option value="">Todos los estados</option>
+                  <option value="waiting">En espera</option>
+                  <option value="active">En atención</option>
+                  <option value="resolved">Resuelta</option>
+                  <option value="converted">Ticket creado</option>
+                </select>
+                <button onclick="loadAdminConsultHist(1)" style="display:flex;align-items:center;gap:5px;padding:7px 12px;border:1px solid var(--border-soft);border-radius:8px;background:var(--bg-card);color:var(--text-muted);font-size:12px;cursor:pointer;">
+                  <i class="bi bi-arrow-clockwise" id="cqHistRefreshIcon"></i> Actualizar
+                </button>
+              </div>
+              <!-- Tabla historial -->
+              <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;">
+                <div id="cqHistTableWrap"><div style="display:flex;align-items:center;justify-content:center;padding:40px;gap:10px;color:var(--text-muted);font-size:13px;"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+              </div>
+              <!-- Paginación -->
+              <div id="cqHistPager" style="display:flex;justify-content:center;gap:6px;margin-top:14px;"></div>
+              <!-- Detalle conversación inline -->
+              <div id="cqHistDetail" style="display:none;margin-top:8px;border:1.5px solid var(--border-soft);border-radius:12px;overflow:hidden;">
+                <div style="background:linear-gradient(135deg,#0f766e,#0891b2);padding:12px 16px;display:flex;align-items:center;gap:10px;">
+                  <i class="bi bi-chat-dots-fill" style="color:#fff;"></i>
+                  <div style="flex:1;">
+                    <div id="cqHistDetailTitle" style="font-size:13px;font-weight:700;color:#fff;"></div>
+                    <div id="cqHistDetailSub" style="font-size:11px;color:rgba(255,255,255,.75);"></div>
+                  </div>
+                  <button onclick="document.getElementById('cqHistDetail').style.display='none'" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="bi bi-x-lg" style="font-size:11px;"></i></button>
+                </div>
+                <div id="cqHistMessages" style="padding:14px;display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto;background:#f4f6fb;"></div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- PANEL: Todos los tickets (gestión local) -->
+          <div id="incPanel-todos">
+            <!-- Barra de acciones local — el botón Crear Incidencia está en el topbar para LOCAL_VIEW -->
+            <div id="localActionBar" style="display:none;"></div>
+            <!-- KPI mini-bar -->
+            <div class="inc-kpi-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px;">
+              <div class="kpi-card"><div><div class="kpi-title">Total</div><div class="kpi-value primary" id="kpiTotal">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">Abiertos</div><div class="kpi-value warning" id="kpiOpen">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">En progreso</div><div class="kpi-value" id="kpiProgress">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">Cerrados</div><div class="kpi-value success" id="kpiClosed">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">P1 Críticos</div><div class="kpi-value danger" id="kpiCritical">—</div></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">Este mes</div><div class="kpi-value" id="kpiMonth">—</div></div></div>
+            </div>
+            <!-- Filtros -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+              <input type="text" id="searchInput" class="form-control-custom" placeholder="Buscar ticket, resumen, reporter..." oninput="filterTickets()" style="flex:1;min-width:160px;max-width:280px;">
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <button class="pill active" onclick="setPill(this,'all')">Todos</button>
+                <button class="pill" onclick="setPill(this,'open')">Abiertos</button>
+                <button class="pill" onclick="setPill(this,'progress')">En progreso</button>
+                <button class="pill" onclick="setPill(this,'closed')">Cerrados</button>
+                <button class="pill" onclick="setPill(this,'p1')">🔴 P1</button>
+                <button class="pill" onclick="setPill(this,'unassigned')">Sin asignar</button>
+                <button class="pill" onclick="setPill(this,'mine')">Mis tickets</button>
+              </div>
+            </div>
+            <!-- Tabla -->
+            <div id="tableWrap"><div class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando tickets...</div></div>
+            <!-- Paginación -->
+            <div id="paginationWrap" style="display:none;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;">
+              <span id="paginationInfo" style="font-size:12px;color:var(--text-muted);"></span>
+              <div id="paginationBtns" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+            </div>
+          </div>
+
+          <!-- PANEL: INDICADORES DE TÉCNICOS LOCALES -->
+          <div id="incPanel-indicadores" style="display:none;">
+            <!-- KPIs resumen -->
+            <div class="cards-6" style="margin-bottom:20px;">
+              <div class="kpi-card"><div><div class="kpi-title">Total tickets</div><div class="kpi-value primary" id="ls-kpiTotal">—</div></div><div class="kpi-icon"><i class="bi bi-ticket-detailed-fill primary"></i></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">Activos</div><div class="kpi-value warning" id="ls-kpiActivos">—</div></div><div class="kpi-icon"><i class="bi bi-hourglass-split warning"></i></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">Sin asignar</div><div class="kpi-value danger" id="ls-kpiSinAsignar">—</div></div><div class="kpi-icon"><i class="bi bi-person-dash danger"></i></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">Cerrados</div><div class="kpi-value success" id="ls-kpiCerrados">—</div></div><div class="kpi-icon"><i class="bi bi-check-circle-fill success"></i></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">P1 Activos</div><div class="kpi-value danger" id="ls-kpiP1">—</div></div><div class="kpi-icon"><i class="bi bi-exclamation-octagon-fill danger"></i></div></div>
+              <div class="kpi-card"><div><div class="kpi-title">% Cumpl. SLA</div><div class="kpi-value success" id="ls-kpiSla">—</div></div><div class="kpi-icon"><i class="bi bi-pie-chart-fill success"></i></div></div>
+            </div>
+            <!-- Cards por técnico -->
+            <div class="card-panel" style="margin-bottom:20px;">
+              <div class="card-panel-title" style="margin-bottom:14px;"><i class="bi bi-people-fill" style="color:#0052CC"></i> Carga de trabajo por técnico <button class="btn-outline-sm" onclick="loadLocalStats()" style="margin-left:8px;padding:3px 10px;font-size:10px;"><i class="bi bi-arrow-clockwise"></i></button></div>
+              <div id="ls-techCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;">
+                <div class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando técnicos...</div>
+              </div>
+            </div>
+            <!-- Tabla detallada -->
+            <div class="card-panel">
+              <div class="card-panel-title" style="margin-bottom:12px;"><i class="bi bi-table" style="color:#7c3aed"></i> Desempeño detallado</div>
+              <div id="ls-techTable" style="overflow-x:auto;">
+                <div class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL: ADMINISTRACIÓN LOCAL -->
+          <div id="incPanel-admin" style="display:none;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-radius:8px;font-size:12px;">
+                <i class="bi bi-shield-fill" style="color:#dc2626;"></i>
+                <div><strong>Administrador</strong><br><span style="color:var(--text-muted);">Acceso total al sistema</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(0,82,204,.08);border:1px solid rgba(0,82,204,.2);border-radius:8px;font-size:12px;">
+                <i class="bi bi-person-badge-fill" style="color:#0052CC;"></i>
+                <div><strong>Especialista</strong><br><span style="color:var(--text-muted);">Gestiona tickets y los resuelve</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:12px;">
+                <i class="bi bi-eye-fill" style="color:#10b981;"></i>
+                <div><strong>Visor</strong><br><span style="color:var(--text-muted);">Solo visualiza e indicadores</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(107,114,128,.08);border:1px solid rgba(107,114,128,.2);border-radius:8px;font-size:12px;">
+                <i class="bi bi-person" style="color:#6b7280;"></i>
+                <div><strong>Usuario</strong><br><span style="color:var(--text-muted);">Solo registra tickets</span></div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">
+              <div class="card-panel">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+                  <div class="card-panel-title" style="margin-bottom:0;"><i class="bi bi-people" style="color:#0052CC"></i> Usuarios del sistema</div>
+                  <input type="text" id="adminUserSearch" class="form-control-custom" style="max-width:240px;" placeholder="Buscar nombre, email..." oninput="filterAdminUsers(this.value)">
+                </div>
+                <div id="adminUserTable" style="overflow-x:auto;">
+                  <div class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+                </div>
+              </div>
+              <div class="card-panel" style="position:sticky;top:80px;">
+                <div class="card-panel-title"><i class="bi bi-person-plus" style="color:#0052CC"></i> Crear usuario</div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                  <div><div class="form-label-custom">Nombre completo *</div><input type="text" id="au_name" class="form-control-custom" placeholder="Juan Pérez"></div>
+                  <div><div class="form-label-custom">Usuario *</div><input type="text" id="au_username" class="form-control-custom" placeholder="jperez"></div>
+                  <div><div class="form-label-custom">Correo *</div><input type="email" id="au_email" class="form-control-custom" placeholder="jperez@empresa.com"></div>
+                  <div>
+                    <div class="form-label-custom">Perfil *</div>
+                    <select id="au_role" class="form-select-custom">
+                      <option value="usuario">Usuario — solo Registrar</option>
+                      <option value="visor">Visor — Registrar + Indicadores</option>
+                      <option value="especialista">Especialista — Registrar + Gestión + Indicadores</option>
+                      <option value="administrador">Administrador — Todo</option>
+                    </select>
+                  </div>
+                  <div><div class="form-label-custom">Contraseña temporal *</div><input type="password" id="au_pass" class="form-control-custom" placeholder="Mínimo 8 caracteres"></div>
+                  <button class="btn-create" style="width:100%;justify-content:center;margin-top:4px;" onclick="createAdminUser()">
+                    <i class="bi bi-person-plus-fill"></i> Crear usuario
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL: MIS ASIGNADOS -->
+          <div class="panel" id="panel-misAsig">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+              <button class="sa-pill active" onclick="misAsigFilter('activos',this)"><i class="bi bi-lightning-charge-fill"></i> Activos</button>
+              <button class="sa-pill" onclick="misAsigFilter('pendiente',this)"><i class="bi bi-pause-circle"></i> Pendiente</button>
+              <button class="sa-pill" onclick="misAsigFilter('resuelto',this)"><i class="bi bi-check-circle"></i> Resuelto</button>
+              <button class="sa-pill" onclick="misAsigFilter('cerrado',this)"><i class="bi bi-archive"></i> Cerrado</button>
+              <button class="sa-pill" onclick="misAsigFilter('todos',this)"><i class="bi bi-list-ul"></i> Todos</button>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:10px;font-size:10px;color:var(--text-muted);">
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ef4444;margin-right:3px;"></span>Vencido</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f59e0b;margin-right:3px;"></span>Crítico</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:3px;"></span>OK</span>
+              </div>
+            </div>
+            <div class="stats-row" id="stats-misAsig" style="margin-bottom:8px;"></div>
+            <div class="tc-mini-chart"><canvas id="chartMisAsigWeekly"></canvas></div>
+            <div class="ticket-list" id="list-misAsig"></div>
+          </div>
+
+          <!-- PANEL: SIN ASIGNAR -->
+          <div class="panel" id="panel-sinAsig">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+              <button class="sa-pill active" onclick="sinAsigFilter('sin_asignar',this)"><i class="bi bi-person-dash-fill"></i> Sin asignar</button>
+              <button class="sa-pill" onclick="sinAsigFilter('pendiente',this)"><i class="bi bi-pause-circle"></i> Pendiente</button>
+              <button class="sa-pill" onclick="sinAsigFilter('asignado_n2',this)"><i class="bi bi-person-check"></i> Asignado N2</button>
+              <button class="sa-pill" onclick="sinAsigFilter('todos',this)"><i class="bi bi-list-ul"></i> Todos activos</button>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:10px;font-size:10px;color:var(--text-muted);">
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ef4444;margin-right:3px;"></span>Vencido</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f59e0b;margin-right:3px;"></span>Crítico</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:3px;"></span>OK</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">Ordenar:</span>
+              <select id="sinAsigSort"
+                style="border:1.5px solid var(--border-soft);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--text-main);background:var(--bg-main);outline:none;cursor:pointer;"
+                onchange="loadSinAsig()">
+                <option value="DESC" selected>Más nuevos primero</option>
+                <option value="ASC">Más antiguos primero</option>
+              </select>
+            </div>
+            <div class="stats-row" id="stats-sinAsig" style="margin-bottom:8px;"></div>
+            <div class="tc-mini-chart"><canvas id="chartSinAsigWeekly"></canvas></div>
+            <div class="ticket-list" id="list-sinAsig"></div>
+          </div>
+
+          <!-- PANEL: EN CURSO -->
+          <div class="panel" id="panel-enCurso">
+            <!-- Status pills -->
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+              <button class="sa-pill active" onclick="enCursoFilter('activos',this)"><i class="bi bi-lightning-charge-fill"></i> Activos</button>
+              <button class="sa-pill" onclick="enCursoFilter('pendiente',this)"><i class="bi bi-pause-circle"></i> Pendiente</button>
+              <button class="sa-pill" onclick="enCursoFilter('en_progreso',this)"><i class="bi bi-play-circle"></i> En Progreso</button>
+              <button class="sa-pill" onclick="enCursoFilter('todos',this)"><i class="bi bi-list-ul"></i> Todos</button>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:10px;font-size:10px;color:var(--text-muted);">
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ef4444;margin-right:3px;"></span>Vencido</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f59e0b;margin-right:3px;"></span>Crítico</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:3px;"></span>OK</span>
+              </div>
+            </div>
+            <!-- Sort row -->
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">Ordenar:</span>
+              <button class="ec-sort-btn active" onclick="enCursoSetSort('sla',this)" title="Más urgentes según SLA primero"><i class="bi bi-flag-fill"></i> SLA urgente</button>
+              <button class="ec-sort-btn" onclick="enCursoSetSort('fecha_asc',this)" title="Tickets más antiguos primero"><i class="bi bi-sort-up-alt"></i> Más antiguos</button>
+              <button class="ec-sort-btn" onclick="enCursoSetSort('fecha_desc',this)" title="Tickets más recientes primero"><i class="bi bi-sort-down-alt"></i> Más recientes</button>
+            </div>
+            <!-- Technician filter pills (rendered dynamically) -->
+            <div id="enCursoTecRow" style="display:none;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;"><i class="bi bi-person-badge-fill" style="margin-right:3px;"></i>Técnico:</span>
+              <div id="enCursoTecPills" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
+            </div>
+            <div class="stats-row" id="stats-enCurso" style="margin-bottom:8px;"></div>
+            <div class="tc-mini-chart"><canvas id="chartEnCursoWeekly"></canvas></div>
+            <div class="ticket-list" id="list-enCurso"></div>
+          </div>
+
+          <!-- PANEL: CATEGORÍAS (ex-Sin Categorizar) -->
+          <div class="panel" id="panel-sinCat">
+            <!-- Header -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+              <i class="bi bi-tags-fill" style="color:#f59e0b;font-size:14px;flex-shrink:0;"></i>
+              <span style="font-size:13px;font-weight:700;color:var(--text-main);">Categorías — Análisis de incidencias resueltas</span>
+              <span id="sinCatProgress" style="font-size:11px;color:var(--text-muted);font-family:monospace;"></span>
+              <select id="sinCatPeriod" title="Período de búsqueda" onchange="loadSinCategorizar(true)" style="margin-left:auto;font-size:11px;padding:3px 8px;border:1px solid var(--border-soft);border-radius:6px;background:var(--bg-card);color:var(--text-main);cursor:pointer;">
+                <option value="7">Últimos 7 días</option>
+                <option value="30" selected>Últimos 30 días</option>
+                <option value="90">Últimos 90 días</option>
+                <option value="0">Todo (lento)</option>
+              </select>
+            </div>
+
+            <!-- Distribución por categoría (carga rápida desde BD) -->
+            <div id="catStatsWrap" style="margin-bottom:12px;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+                <i class="bi bi-bar-chart-fill"></i> Distribución por categoría (últimos 90 días) <span id="catStatsSub" style="font-weight:400;font-family:monospace;"></span>
+              </div>
+              <div id="catStatsPills" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+            </div>
+
+            <!-- Buscador por ticket o reporter -->
+            <div style="display:flex;gap:6px;margin-bottom:10px;">
+              <input id="sinCatSearchInput" type="text" placeholder="Buscar por INC-XXXX o correo del reporter..." autocomplete="off"
+                style="flex:1;border:1.5px solid var(--border-soft);border-radius:8px;padding:7px 11px;font-size:12px;color:var(--text-main);background:var(--bg-main);outline:none;"
+                oninput="sinCatSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';sinCatSearch('');}">
+              <button class="btn-outline-sm" style="padding:6px 12px;" onclick="sinCatSearch(document.getElementById('sinCatSearchInput').value)"><i class="bi bi-search"></i></button>
+            </div>
+
+            <!-- Stats (conteos de sin-categorizar) -->
+            <div class="stats-row" id="stats-sinCat" style="margin-bottom:8px;"></div>
+            <!-- Filtro por técnico -->
+            <div id="sinCatTecRow" style="display:none;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+              <span style="font-size:11px;font-weight:600;color:var(--text-muted);">Técnico:</span>
+              <div id="sinCatTecPills" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
+              <button class="btn-outline-sm" id="sinCatTecAll" style="font-size:10px;padding:2px 8px;" onclick="sinCatSetTec('',null);document.querySelectorAll('.sc-tec-btn').forEach(b=>b.classList.remove('active'))">Todos</button>
+            </div>
+            <div class="ticket-list" id="list-sinCat"></div>
+          </div>
+
+          <!-- PANEL: ALERTAS -->
+          <div class="panel" id="panel-alertas" style="flex-direction:column;">
+            <!-- KPI strip -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;" id="alrt-kpis">
+              <div class="alrt-kpi alrt-red" id="alrt-kpi-sla">
+                <div class="alrt-kpi-ico"><i class="bi bi-lightning-charge-fill"></i></div>
+                <div><div class="alrt-kpi-n" id="alrt-n-sla">—</div><div class="alrt-kpi-l">SLA Vencido</div></div>
+              </div>
+              <div class="alrt-kpi alrt-orange" id="alrt-kpi-p1">
+                <div class="alrt-kpi-ico"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div><div class="alrt-kpi-n" id="alrt-n-p1">—</div><div class="alrt-kpi-l">P1 Críticos</div></div>
+              </div>
+              <div class="alrt-kpi alrt-amber" id="alrt-kpi-sin">
+                <div class="alrt-kpi-ico"><i class="bi bi-person-x-fill"></i></div>
+                <div><div class="alrt-kpi-n" id="alrt-n-sin">—</div><div class="alrt-kpi-l">Sin asignar +30min</div></div>
+              </div>
+            </div>
+            <!-- Toolbar -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:10px;color:var(--text-muted);font-family:monospace;" id="alrt-lastupd">—</span>
+              <select id="alrtFilterCola" onchange="loadAlertasPanel(true)" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="wp" selected>WP-Soporte Presencial</option>
+                <option value="all">Todas las colas</option>
+              </select>
+            </div>
+            <!-- Sección SLA Vencido -->
+            <div class="alrt-section">
+              <div class="alrt-section-hdr alrt-hdr-red" onclick="toggleAlrtSection('alrt-body-sla',this)">
+                <i class="bi bi-lightning-charge-fill"></i> SLA Vencido — tickets activos con SLA incumplido
+                <i class="bi bi-chevron-down alrt-chev" style="margin-left:auto;"></i>
+              </div>
+              <div id="alrt-body-sla" class="alrt-body"><div class="alrt-loading">Cargando...</div></div>
+            </div>
+            <!-- Sección P1 Críticos -->
+            <div class="alrt-section">
+              <div class="alrt-section-hdr alrt-hdr-orange" onclick="toggleAlrtSection('alrt-body-p1',this)">
+                <i class="bi bi-exclamation-triangle-fill"></i> P1 / Críticos — tickets de alta prioridad sin resolver
+                <i class="bi bi-chevron-down alrt-chev" style="margin-left:auto;"></i>
+              </div>
+              <div id="alrt-body-p1" class="alrt-body"><div class="alrt-loading">Cargando...</div></div>
+            </div>
+            <!-- Sección Sin asignar -->
+            <div class="alrt-section">
+              <div class="alrt-section-hdr alrt-hdr-amber" onclick="toggleAlrtSection('alrt-body-sin',this)">
+                <i class="bi bi-person-x-fill"></i> Sin asignar +30min — tickets que llevan >30 min sin técnico
+                <i class="bi bi-chevron-down alrt-chev" style="margin-left:auto;"></i>
+              </div>
+              <div id="alrt-body-sin" class="alrt-body"><div class="alrt-loading">Cargando...</div></div>
+            </div>
+          </div>
+
+          <!-- PANEL: KANBAN -->
+          <div class="panel" id="panel-kanban" style="flex-direction:column;padding:14px 16px;overflow:hidden;">
+            <!-- Toolbar -->
+            <div class="kb-toolbar">
+              <span style="font-size:13px;font-weight:700;color:var(--text-main);">Tablero Kanban</span>
+              <select id="kbFilterCola" onchange="loadKanban(true)" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="wp" selected>WP-Soporte Presencial</option>
+                <option value="all">Todas las colas</option>
+              </select>
+              <select id="kbFilterPriority" onchange="_kbRenderBoard()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="">Todas las prioridades</option>
+                <option value="Critical">Crítica</option>
+                <option value="High">Alta</option>
+                <option value="Medium">Media</option>
+                <option value="Low">Baja</option>
+              </select>
+              <span id="kbLoadingSpinner" style="display:none;"><span class="kb-spin"></span></span>
+            </div>
+            <!-- Board -->
+            <div class="kb-board" id="kbBoard">
+              <!-- columns rendered by JS -->
+            </div>
+
+            <!-- Assign Picker overlay -->
+            <div id="kbAssignOverlay" style="display:none;position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.35);" onclick="kbCloseAssignPicker()"></div>
+            <div id="kbAssignPicker" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1201;width:300px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.2);overflow:hidden;">
+              <div style="padding:12px 14px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:8px;">
+                <i class="bi bi-person-plus-fill" style="color:var(--jira-blue);"></i>
+                <span style="font-size:13px;font-weight:700;color:var(--text-main);">Asignar técnico</span>
+                <span id="kbAssignKey" style="font-family:monospace;font-size:11px;color:var(--text-muted);margin-left:4px;"></span>
+                <button onclick="kbCloseAssignPicker()" style="margin-left:auto;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;">×</button>
+              </div>
+              <div style="padding:8px 10px;">
+                <input id="kbAssignSearch" type="text" placeholder="Buscar técnico..." oninput="kbFilterAgents()"
+                  style="width:100%;font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);box-sizing:border-box;">
+              </div>
+              <div id="kbAssignList" style="max-height:260px;overflow-y:auto;padding:4px 6px 8px;"></div>
+            </div>
+          </div>
+
+          <!-- PANEL: TÉCNICOS -->
+          <div class="panel" id="panel-tecnicos" style="flex-direction:column;padding:14px 16px;overflow:hidden;">
+            <!-- Toolbar -->
+            <div class="tec-toolbar">
+              <span style="font-size:13px;font-weight:700;color:var(--text-main);">Estadísticas por Técnico</span>
+              <select id="tecFilterCola" onchange="loadTecStats(true)" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="wp" selected>WP-Soporte Presencial</option>
+                <option value="all">Todas las colas</option>
+              </select>
+              <select id="tecFilterDays" onchange="loadTecStats(true)" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="7">Últimos 7 días</option>
+                <option value="14" selected>Últimos 14 días</option>
+                <option value="30">Últimos 30 días</option>
+              </select>
+              <span id="tecSpinner" style="display:none;"><span class="kb-spin"></span></span>
+              <span id="tecLastUpd" style="font-size:10px;color:var(--text-muted);font-family:monospace;">—</span>
+            </div>
+            <!-- KPI strip -->
+            <div class="tec-kpis" id="tecKpis"></div>
+            <!-- Scrollable body: tabla + chart -->
+            <div style="flex:1;overflow-y:auto;min-height:0;">
+              <div id="tecTableWrap"></div>
+              <div class="tec-chart-wrap" id="tecChartWrap" style="display:none;">
+                <div style="font-size:12px;font-weight:600;color:var(--text-main);margin-bottom:8px;">
+                  Tickets resueltos por día <span id="tecChartTitle" style="color:var(--text-muted);font-weight:400;font-size:11px;"></span>
+                </div>
+                <canvas id="tecChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL: SLA -->
+          <div class="panel" id="panel-sla" style="flex-direction:column;padding:14px 16px;overflow:hidden;">
+            <div class="sla-toolbar">
+              <span style="font-size:13px;font-weight:700;color:var(--text-main);">SLA en Tiempo Real</span>
+              <select id="slaFilterCola" onchange="loadSlaPanel(true)" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="wp" selected>WP-Soporte Presencial</option>
+                <option value="all">Todas las colas</option>
+              </select>
+              <select id="slaFilterPri" onchange="_slaRender()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="">Todas las prioridades</option>
+                <option value="Critical">Crítica</option>
+                <option value="High">Alta</option>
+                <option value="Medium">Media</option>
+                <option value="Low">Baja</option>
+              </select>
+              <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);cursor:pointer;">
+                <input type="checkbox" id="slaOnlyBreach" onchange="_slaRender()"> Solo vencidos
+              </label>
+              <span id="slaSpinner" style="display:none;"><span class="kb-spin"></span></span>
+              <span id="slaLastUpd" style="font-size:10px;color:var(--text-muted);font-family:monospace;">—</span>
+            </div>
+            <!-- SLA config strip -->
+            <div id="slaConfigStrip" style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;flex-shrink:0;">
+              <span style="font-size:10px;color:var(--text-muted);align-self:center;">SLA configurado:</span>
+              <span style="font-size:10px;font-weight:600;" id="slaConfigLabel">—</span>
+              <button onclick="toggleSlaConfig()" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;"><i class="bi bi-gear"></i> Editar</button>
+            </div>
+            <div id="slaConfigPanel" style="display:none;background:var(--bg-main);border:1px solid var(--border-soft);border-radius:8px;padding:10px 14px;margin-bottom:12px;flex-shrink:0;">
+              <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:11px;">
+                <label>Crítica <input id="slaHrCritical" type="number" min="1" max="168" value="4" style="width:50px;padding:3px 6px;border-radius:5px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);font-size:11px;"> h</label>
+                <label>Alta <input id="slaHrHigh" type="number" min="1" max="168" value="8" style="width:50px;padding:3px 6px;border-radius:5px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);font-size:11px;"> h</label>
+                <label>Media <input id="slaHrMedium" type="number" min="1" max="168" value="24" style="width:50px;padding:3px 6px;border-radius:5px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);font-size:11px;"> h</label>
+                <label>Baja <input id="slaHrLow" type="number" min="1" max="168" value="72" style="width:50px;padding:3px 6px;border-radius:5px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);font-size:11px;"> h</label>
+                <button onclick="_slaApplyConfig()" style="padding:4px 12px;border-radius:6px;background:var(--jira-blue);color:#fff;border:none;cursor:pointer;font-size:11px;font-weight:600;">Aplicar</button>
+              </div>
+            </div>
+            <!-- KPIs -->
+            <div class="sla-kpis" id="slaKpis"></div>
+            <!-- Table -->
+            <div style="flex:1;overflow-y:auto;min-height:0;" id="slaTableWrap"></div>
+          </div>
+
+          <!-- PANEL: HEATMAP -->
+          <div class="panel" id="panel-heatmap" style="flex-direction:column;padding:14px 16px;overflow:hidden;">
+            <!-- Toolbar -->
+            <div class="hm-toolbar">
+              <span style="font-size:13px;font-weight:700;color:var(--text-main);">Mapa de Calor de Incidencias</span>
+              <select id="hmFilterCola" onchange="loadHeatmap(true)" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="wp" selected>WP-Soporte Presencial</option>
+                <option value="all">Todas las colas</option>
+              </select>
+              <select id="hmFilterDays" onchange="loadHeatmap(true)" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="30">Últimos 30 días</option>
+                <option value="90" selected>Últimos 90 días</option>
+                <option value="180">Últimos 6 meses</option>
+                <option value="365">Último año</option>
+              </select>
+              <select id="hmFilterMetric" onchange="loadHeatmap(true)" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-soft);background:var(--bg-main);color:var(--text-main);">
+                <option value="created" selected>Creados</option>
+                <option value="resolved">Resueltos</option>
+              </select>
+              <span id="hmSpinner" style="display:none;"><span class="kb-spin"></span></span>
+              <span id="hmLastUpd" style="font-size:10px;color:var(--text-muted);font-family:monospace;">—</span>
+            </div>
+            <!-- KPIs -->
+            <div class="hm-kpis" id="hmKpis"></div>
+            <!-- Scrollable body -->
+            <div style="flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:14px;">
+              <div id="hmContent"></div>
+            </div>
+            <!-- Tooltip -->
+            <div id="hmTip" class="hm-tip"></div>
+          </div>
+
+          <!-- PANEL: CMDB VISUAL -->
+          <div class="panel" id="panel-cmdb">
+            <!-- Header + Buscador -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+              <i class="bi bi-pc-display-horizontal" style="color:#7c3aed;font-size:15px;flex-shrink:0;"></i>
+              <span style="font-size:13px;font-weight:700;color:var(--text-main);">Por Equipo — Historial de incidencias por dispositivo</span>
+            </div>
+
+
+            <!-- Buscador de equipo: código o correo -->
+            <div style="position:relative;display:flex;gap:8px;margin-bottom:14px;">
+              <div style="position:relative;flex:1;">
+                <input id="cmdbSearchInput" type="text" placeholder="Código de equipo (LP000220) o correo del usuario..." autocomplete="off"
+                  style="width:100%;box-sizing:border-box;border:1.5px solid var(--border-soft);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text-main);background:var(--bg-main);outline:none;"
+                  oninput="cmdbAc(this.value)" onkeydown="if(event.key==='Enter'){hideAc('cmdbAcDrop');cmdbSearch();}if(event.key==='Escape')hideAc('cmdbAcDrop');">
+                <div id="cmdbAcDrop" class="ac-dropdown"></div>
+              </div>
+              <button class="btn-outline-sm" style="padding:8px 14px;white-space:nowrap;" onclick="cmdbSearch()"><i class="bi bi-search"></i></button>
+            </div>
+
+            <!-- Loading indicator -->
+            <div id="cmdbLoading" style="display:none;text-align:center;padding:24px;color:var(--text-muted);font-size:12px;">
+              <div class="spinner-border spinner-border-sm me-2" style="width:14px;height:14px;border-width:2px;color:#7c3aed;"></div> Cargando CMDB...
+            </div>
+
+            <!-- Estado vacío inicial -->
+            <div id="cmdbEmptyState" class="cmdb-empty">
+
+              <!-- Header inline compacto -->
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border-soft);">
+                <div class="cmdb-empty-icon"><i class="bi bi-pc-display-horizontal"></i></div>
+                <div>
+                  <div class="cmdb-empty-title">Por Equipo — Historial de incidencias</div>
+                  <div class="cmdb-empty-sub">Busca por código de equipo o correo del usuario.</div>
+                </div>
+              </div>
+
+              <!-- Grid: izquierda stats/recientes | derecha top incidencias -->
+              <div class="cmdb-grid">
+
+                <!-- COLUMNA IZQ: stats + recientes -->
+                <div style="display:flex;flex-direction:column;gap:14px;">
+
+                  <!-- Stats incidencias 30d -->
+                  <div>
+                    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:5px;">
+                      <i class="bi bi-graph-up-arrow" style="color:#2563eb;"></i> Incidencias · 30 días
+                    </div>
+                    <div id="cmdbStatGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div id="qstat-inc-equip" class="cmdb-skel" style="height:76px;border-radius:12px;"></div>
+                      <div id="qstat-inc-email" class="cmdb-skel" style="height:76px;border-radius:12px;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Recientes (localStorage, 0ms) -->
+                  <div id="cmdbRecentWrap" style="display:none;">
+                    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:7px;display:flex;align-items:center;gap:5px;">
+                      <i class="bi bi-clock-history"></i> Consultados recientemente
+                    </div>
+                    <div id="cmdbRecentChips" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
+                  </div>
+
+                </div>
+
+                <!-- COLUMNA DER: top incidencias -->
+                <div>
+                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:9px;display:flex;align-items:center;gap:5px;">
+                    <i class="bi bi-fire" style="color:#ef4444;"></i> Top incidencias · últimos 30 días
+                  </div>
+                  <div id="cmdbTopIncCards" style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="cmdb-skel"></div>
+                    <div class="cmdb-skel"></div>
+                    <div class="cmdb-skel"></div>
+                    <div class="cmdb-skel"></div>
+                  </div>
+                  <div id="cmdbTopIncTs" style="display:none;text-align:right;font-size:9px;color:var(--text-muted);margin-top:5px;opacity:.7;"></div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Tabla de equipos calientes -->
+            <div id="cmdbHotTable" style="display:none;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <button onclick="cmdbGoBack()" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border-soft);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--text-muted);transition:all .15s;" onmouseover="this.style.borderColor='#7c3aed';this.style.color='#7c3aed';" onmouseout="this.style.borderColor='';this.style.color='';">
+                  <i class="bi bi-arrow-left"></i> Volver
+                </button>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
+                  <i class="bi bi-fire" style="color:#ef4444;"></i> Top equipos con más incidencias
+                </div>
+              </div>
+              <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border-soft);">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;" id="cmdbHotTableEl">
+                  <thead>
+                    <tr style="background:var(--bg-header,#f8f9fa);">
+                      <th style="padding:9px 12px;font-weight:700;color:var(--text-muted);text-align:left;white-space:nowrap;">Código</th>
+                      <th style="padding:9px 12px;font-weight:700;color:var(--text-muted);text-align:left;white-space:nowrap;">Marca / Modelo</th>
+                      <th style="padding:9px 12px;font-weight:700;color:var(--text-muted);text-align:center;white-space:nowrap;">Tipo</th>
+                      <th style="padding:9px 12px;font-weight:700;color:var(--text-muted);text-align:center;white-space:nowrap;">Inc. 30d</th>
+                      <th style="padding:9px 12px;font-weight:700;color:var(--text-muted);text-align:center;white-space:nowrap;">Inc. Total</th>
+                      <th style="padding:9px 12px;font-weight:700;color:var(--text-muted);text-align:center;white-space:nowrap;">Estado equipo</th>
+                      <th style="padding:9px 12px;font-weight:700;color:var(--text-muted);text-align:center;white-space:nowrap;">Riesgo</th>
+                      <th style="padding:9px 12px;font-weight:700;color:var(--text-muted);text-align:center;">Detalle</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cmdbHotBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Panel detalle de equipo (se muestra al hacer click o buscar) -->
+            <div id="cmdbDeviceDetail" style="display:none;margin-top:16px;border:1.5px solid var(--border-soft);border-radius:12px;overflow:hidden;">
+              <div id="cmdbDetailHeader" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <div>
+                  <div id="cmdbDetailTitle" style="font-size:14px;font-weight:800;color:var(--text-main);font-family:monospace;"></div>
+                  <div id="cmdbDetailSubtitle" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <span id="cmdbDetailRiskBadge" style="padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;"></span>
+                  <span id="cmdbDetailRecoBadge" style="display:none;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.3);">⚙ Considerar reemplazo</span>
+                  <button onclick="cmdbGoBack()" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border-soft);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--text-muted);transition:all .15s;" onmouseover="this.style.borderColor='#7c3aed';this.style.color='#7c3aed';" onmouseout="this.style.borderColor='';this.style.color='';"><i class="bi bi-arrow-left"></i> Volver</button>
+                </div>
+              </div>
+              <!-- Specs del equipo -->
+              <div id="cmdbDetailSpecs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:12px 18px;background:var(--bg-main);border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft);"></div>
+              <!-- Stats de incidencias -->
+              <div style="display:flex;gap:0;border-bottom:1px solid var(--border-soft);">
+                <div style="flex:1;text-align:center;padding:10px 8px;border-right:1px solid var(--border-soft);">
+                  <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">30 días</div>
+                  <div id="cmdbStat30" style="font-size:20px;font-weight:800;color:#dc2626;">0</div>
+                </div>
+                <div style="flex:1;text-align:center;padding:10px 8px;border-right:1px solid var(--border-soft);">
+                  <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">60 días</div>
+                  <div id="cmdbStat60" style="font-size:20px;font-weight:800;color:#d97706;">0</div>
+                </div>
+                <div style="flex:1;text-align:center;padding:10px 8px;border-right:1px solid var(--border-soft);">
+                  <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">90 días</div>
+                  <div id="cmdbStat90" style="font-size:20px;font-weight:800;color:#6366f1;">0</div>
+                </div>
+                <div style="flex:1;text-align:center;padding:10px 8px;">
+                  <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">Histórico</div>
+                  <div id="cmdbStatTotal" style="font-size:20px;font-weight:800;color:var(--text-main);">0</div>
+                </div>
+              </div>
+              <!-- Historial de tickets -->
+              <div style="padding:12px 18px;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px;">Historial de incidencias</div>
+                <div id="cmdbTicketHistWrap" style="overflow-y:auto;max-height:300px;">
+                  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead>
+                      <tr style="background:var(--bg-header,#f8f9fa);position:sticky;top:0;">
+                        <th style="padding:7px 10px;font-weight:700;color:var(--text-muted);text-align:left;">Ticket</th>
+                        <th style="padding:7px 10px;font-weight:700;color:var(--text-muted);text-align:left;">Resumen</th>
+                        <th style="padding:7px 10px;font-weight:700;color:var(--text-muted);text-align:center;">Prio</th>
+                        <th style="padding:7px 10px;font-weight:700;color:var(--text-muted);text-align:center;">Estado</th>
+                        <th style="padding:7px 10px;font-weight:700;color:var(--text-muted);text-align:left;">Técnico</th>
+                        <th style="padding:7px 10px;font-weight:700;color:var(--text-muted);text-align:left;">Fecha</th>
+                      </tr>
+                    </thead>
+                    <tbody id="cmdbTicketHistory"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Detalle de stat card (con equipo asignado / identificadas) -->
+            <div id="cmdbStatDetail" style="display:none;margin-top:4px;"></div>
+          </div>
+
+          <!-- PANEL: BUSCAR -->
+          <div class="panel" id="panel-buscar">
+            <div class="search-bar">
+              <div class="autocomplete-wrap" style="flex:1;position:relative;">
+              <input id="incSearchInput" type="text" placeholder="INC-1234, número o correo del reporter..." oninput="acIncSearch(this.value)" onkeydown="if(event.key==='Enter'){hideAc('acIncSearchDrop');buscarTicket();}else acKeydown(event,'acIncSearchDrop')" autocomplete="off" style="width:100%;">
+              <div id="acIncSearchDrop" class="ac-dropdown"></div>
+              </div>
+              <select id="incSearchSort" title="Orden de resultados"
+                style="border:1.5px solid var(--border-soft);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text-main);background:var(--bg-main);outline:none;cursor:pointer;white-space:nowrap;"
+                onchange="(function(){if((document.getElementById('incSearchInput').value||'').trim())buscarTicket();loadAlertas();})()"
+                <option value="DESC" selected>Más nuevos primero</option>
+                <option value="ASC">Más antiguos primero</option>
+              </select>
+              <button class="btn-outline-sm" style="padding:9px 16px;font-size:13px;" onclick="buscarTicket()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Buscar
+              </button>
+            </div>
+            <div id="result-buscar" style="margin-bottom:4px;"></div>
+
+            <!-- Sección: Tickets que requieren atención -->
+            <div id="section-alertas">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+                <span style="font-size:9px;font-family:monospace;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;">Requieren atención</span>
+                <div style="flex:1;height:1px;background:var(--border-soft);"></div>
+                <button class="sa-pill active" onclick="alertaFilter('sla_vencido',this)"><i class="bi bi-lightning-charge-fill" style="color:#ef4444;"></i> SLA Vencido</button>
+                <button class="sa-pill" onclick="alertaFilter('pendiente',this)"><i class="bi bi-pause-circle"></i> Pendiente</button>
+                <button class="sa-pill" onclick="alertaFilter('cancelado',this)"><i class="bi bi-x-circle"></i> Cancelado</button>
+                <button class="sa-pill" onclick="alertaFilter('observado',this)"><i class="bi bi-eye"></i> Observado</button>
+                <button class="sa-pill" onclick="alertaFilter('todos_prob',this)"><i class="bi bi-list-ul"></i> Todos</button>
+              </div>
+              <div class="stats-row" id="stats-alertas" style="margin-bottom:8px;"></div>
+              <div class="ticket-list" id="list-alertas"></div>
+            </div>
+          </div>
+
+          <!-- PANEL: HISTÓRICO -->
+          <div class="panel" id="panel-historico">
+            <div class="hist-form">
+              <div>
+                <label>CORREO JIRA</label>
+                <input id="histEmail" type="email" placeholder="usuario@empresa.com" onkeydown="if(event.key==='Enter') buscarHistorico()">
+              </div>
+              <div>
+                <label>BUSCAR COMO</label>
+                <select id="histRole">
+                  <option value="assignee" selected>Asignado (mi trabajo)</option>
+                  <option value="reporter">Reporter (mis tickets)</option>
+                </select>
+              </div>
+              <div>
+                <label>RANGO DE DÍAS</label>
+                <select id="histDays">
+                  <option value="7">Últimos 7 días</option>
+                  <option value="30" selected>Últimos 30 días</option>
+                  <option value="90">Últimos 90 días</option>
+                  <option value="0">Sin límite</option>
+                </select>
+              </div>
+              <button class="btn-outline-sm" style="padding:9px 16px;font-size:12px;" onclick="buscarHistorico()">
+                <i class="bi bi-search"></i> Buscar
+              </button>
+            </div>
+            <div id="result-historico"></div>
+          </div>
+
+          <!-- PANEL: INDICADORES (Jira) -->
+          <div class="panel" id="panel-indicadores" style="height:calc(100vh - 110px);overflow-y:auto;overflow-x:hidden;gap:8px;">
+            <!-- Modal importar assignees -->
+            <div id="modalImportAssignees" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+              <div style="background:var(--bg-card);border-radius:14px;padding:24px;width:580px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                  <strong style="font-size:14px;color:var(--text-main);"><i class="bi bi-people-fill" style="color:#3b82f6;"></i> Asignar técnicos a tickets</strong>
+                  <button onclick="document.getElementById('modalImportAssignees').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);line-height:1;">×</button>
+                </div>
+                <div style="background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text-muted);margin-bottom:14px;line-height:1.8;">
+                  Formato: una línea por ticket → <code style="background:var(--bg-main);padding:1px 5px;border-radius:4px;">INC-XXXXX, email@tecnico.com</code><br>
+                  <em>Desde Jira: Issues → Export CSV → columnas "Issue key" y "Assignee"</em>
+                </div>
+                <textarea id="csvAssigneeInput" rows="9"
+                  style="width:100%;font-size:12px;font-family:monospace;padding:10px;border:1px solid var(--border-soft);border-radius:8px;background:var(--bg-main);color:var(--text-main);resize:vertical;box-sizing:border-box;"
+                  placeholder="INC-135948, pmsalinas@stefanini.com&#10;INC-136441, fjoro@stefanini.com&#10;INC-137263, rabasurco@stefanini.com&#10;INC-138071, pmsalinas@stefanini.com"></textarea>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">También acepta CSV con encabezados "Issue key,Assignee"</div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+                  <button class="btn-outline-sm" onclick="document.getElementById('modalImportAssignees').style.display='none'">Cancelar</button>
+                  <button class="btn-create" onclick="importAssigneesCsv()" style="padding:8px 20px;font-size:12px;">
+                    <i class="bi bi-check2-circle"></i> Guardar asignaciones
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- alertasBanner oculto — info ya visible en KPI cards -->
+            <div id="alertasBanner" style="display:none;"></div>
+
+            <!-- KPI Cards -->
+            <div class="inc-ind-kpi-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;flex-shrink:0;">
+              <div class="kpi-stat-card ks-green" onclick="document.getElementById('kpiChartsSection').scrollIntoView({behavior:'smooth'})">
+                <div class="kpi-stat-icon"><i class="bi bi-shield-check-fill"></i></div>
+                <div class="kpi-stat-body">
+                  <div class="kpi-num" id="kpiDentroSla">—</div>
+                  <div class="kpi-lbl">Dentro SLA</div>
+                  <div class="kpi-hint">Ver evolución ↓</div>
+                </div>
+              </div>
+              <div class="kpi-stat-card ks-red" onclick="(document.getElementById('nav-sinAsig')||{click:()=>{}}).click()">
+                <div class="kpi-stat-icon"><i class="bi bi-clock-history"></i></div>
+                <div class="kpi-stat-body">
+                  <div class="kpi-num" id="kpiFueraSla">—</div>
+                  <div class="kpi-lbl">Fuera SLA</div>
+                  <div class="kpi-hint">Ir a cola →</div>
+                </div>
+              </div>
+              <div class="kpi-stat-card ks-red" onclick="(document.getElementById('nav-sinAsig')||{click:()=>{}}).click()">
+                <div class="kpi-stat-icon"><i class="bi bi-exclamation-octagon-fill"></i></div>
+                <div class="kpi-stat-body">
+                  <div class="kpi-num" id="kpiVencidosAbiertos">—</div>
+                  <div class="kpi-lbl">Vencidos abiertos</div>
+                  <div class="kpi-hint">Revisar urgentes →</div>
+                </div>
+              </div>
+              <div class="kpi-stat-card ks-amber" onclick="(document.getElementById('nav-sinAsig')||{click:()=>{}}).click()">
+                <div class="kpi-stat-icon"><i class="bi bi-person-dash-fill"></i></div>
+                <div class="kpi-stat-body">
+                  <div class="kpi-num" id="kpiSinAsignar30">—</div>
+                  <div class="kpi-lbl">Sin asignar &gt;30min</div>
+                  <div class="kpi-hint">Ir a cola →</div>
+                </div>
+              </div>
+              <div class="kpi-stat-card ks-blue" onclick="document.getElementById('kpiChartsSection').scrollIntoView({behavior:'smooth'})">
+                <div class="kpi-stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+                <div class="kpi-stat-body">
+                  <div class="kpi-num" id="kpiPctSla">—</div>
+                  <div class="kpi-lbl">% SLA cumplido</div>
+                  <div class="kpi-hint" id="kpiPctSlaTrend"></div>
+                </div>
+              </div>
+              <div class="kpi-stat-card ks-purple" onclick="document.getElementById('kpiByTechSection').scrollIntoView({behavior:'smooth'})">
+                <div class="kpi-stat-icon"><i class="bi bi-stopwatch-fill"></i></div>
+                <div class="kpi-stat-body">
+                  <div class="kpi-num" id="kpiMttr">—</div>
+                  <div class="kpi-lbl">MTTR promedio</div>
+                  <div class="kpi-hint" id="kpiMttrTrend">Ver técnicos ↓</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Charts row: Evolución + SLA Donut + Estado/Prioridad -->
+            <div id="kpiChartsSection" style="display:flex;gap:8px;flex:2;min-height:220px;">
+              <!-- Evolución -->
+              <div style="flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;overflow:hidden;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
+                  <span style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;">EVOLUCIÓN DE TICKETS
+                    <span style="font-weight:400;margin-left:8px;"><span style="color:#3b82f6;">—</span> Creados &nbsp;<span style="color:#10b981;">—</span> Cerrados</span>
+                  </span>
+                  <div style="display:flex;gap:3px;">
+                    <button id="chartPeriodDay"   onclick="setStatsPeriod('hoy',null);setChartPeriod('day',this)"   style="font-size:10px;padding:1px 6px;border:1px solid var(--border-soft);border-radius:4px;background:none;cursor:pointer;color:var(--text-muted);">Día</button>
+                    <button id="chartPeriodWeek"  onclick="setStatsPeriod('sem',null);setChartPeriod('week',this)"  style="font-size:10px;padding:1px 6px;border:1px solid var(--jira-blue);border-radius:4px;background:none;cursor:pointer;color:var(--jira-blue);">Sem</button>
+                    <button id="chartPeriodMonth" onclick="setStatsPeriod('mes',null);setChartPeriod('month',this)" style="font-size:10px;padding:1px 6px;border:1px solid var(--border-soft);border-radius:4px;background:none;cursor:pointer;color:var(--text-muted);">Mes</button>
+                  </div>
+                </div>
+                <div style="position:relative;flex:1;min-height:0;"><canvas id="chartEvolucion" style="position:absolute;inset:0;width:100%!important;height:100%!important;"></canvas></div>
+              </div>
+              <!-- SLA Donut -->
+              <div style="flex:0 0 175px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:4px;flex-shrink:0;">% SLA CUMPLIDO</div>
+                <div style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;">
+                  <canvas id="chartSlaDonut"></canvas>
+                  <div style="position:absolute;text-align:center;pointer-events:none;">
+                    <div id="chartSlaCenter" style="font-size:20px;font-weight:800;color:var(--text-main);">—</div>
+                    <div style="font-size:9px;color:var(--text-muted);">meta 95%</div>
+                  </div>
+                </div>
+              </div>
+              <!-- Estado + Prioridad -->
+              <div style="flex:0 0 230px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;overflow:hidden;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:5px;flex-shrink:0;">ESTADO</div>
+                <div id="kpiEstadoWrap" style="display:flex;flex-direction:column;gap:3px;flex:1;min-height:0;overflow:hidden;"></div>
+                <div style="font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:.05em;margin-top:6px;margin-bottom:3px;flex-shrink:0;">PRIORIDAD</div>
+                <div id="kpiPriorWrap" style="display:flex;gap:4px;align-items:flex-end;flex:0 0 32px;"></div>
+              </div>
+            </div>
+
+            <!-- Tablas técnicos + Rankings en fila -->
+            <div id="kpiTechRow" style="display:flex;gap:8px;flex:1.5;min-height:220px;">
+              <!-- Por técnico -->
+              <div id="kpiByTechSection" style="flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;overflow:hidden;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:6px;flex-shrink:0;">POR TÉCNICO <span style="font-weight:400;opacity:.5;">MTTR · FCR · ACTIVOS</span></div>
+                <div id="kpiByTechWrap" style="overflow-y:auto;flex:1;min-height:0;scrollbar-width:thin;scrollbar-color:var(--border-soft) transparent;"></div>
+              </div>
+              <!-- Semana/mes -->
+              <div style="flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;overflow:hidden;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:6px;flex-shrink:0;">SEMANA / MES POR ESPECIALISTA</div>
+                <div id="kpiWeeklyWrap" style="overflow-y:auto;flex:1;min-height:0;scrollbar-width:thin;scrollbar-color:var(--border-soft) transparent;"></div>
+              </div>
+              <!-- Top Reporters -->
+              <div style="flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:4px;flex-shrink:0;">TOP REPORTERS</div>
+                <div id="kpiTopReportersWrap" class="ranking-scroll"></div>
+              </div>
+              <!-- Top Equipos -->
+              <div style="flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:4px;flex-shrink:0;">TOP EQUIPOS</div>
+                <div id="kpiTopEquiposWrap" class="ranking-scroll"></div>
+              </div>
+              <!-- Top Categorías -->
+              <div style="flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:4px;flex-shrink:0;">TOP CATEGORÍAS</div>
+                <div id="kpiTopCatWrap" class="ranking-scroll"></div>
+              </div>
+            </div>
+
+            <!-- Tickets en Riesgo + MTTR + Metric boxes en fila -->
+            <div id="kpiBreachRow" style="display:flex;gap:8px;flex:2;min-height:260px;">
+              <!-- Breach table -->
+              <div style="flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;overflow:hidden;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
+                  <span style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;">TICKETS EN RIESGO / BREACH DE SLA</span>
+                  <span id="kpiBreachCount" style="font-size:10px;font-weight:700;color:#ef4444;background:rgba(239,68,68,.1);border-radius:8px;padding:1px 7px;display:none;"></span>
+                </div>
+                <div id="kpiBreachTable" style="flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border-soft) transparent;"><div style="text-align:center;color:var(--text-muted);padding:16px;font-size:12px;">Cargando...</div></div>
+              </div>
+              <!-- MTTR por categoría -->
+              <div style="flex:0 0 320px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:10px;display:flex;flex-direction:column;overflow:hidden;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:6px;flex-shrink:0;">MTTR POR CATEGORÍA</div>
+                <div style="position:relative;flex:1;min-height:0;"><canvas id="chartMttrCat" style="position:absolute;inset:0;width:100%!important;height:100%!important;"></canvas></div>
+              </div>
+              <!-- Metric boxes 2x2 -->
+              <div style="flex:0 0 280px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;overflow:hidden;">
+                <div class="metric-box">
+                  <div class="mb-lbl">FCR — Resolución N1</div>
+                  <div class="mb-val" id="mboxFcrVal">—</div>
+                  <div class="mb-meta" id="mboxFcrMeta">Meta &gt;70%</div>
+                </div>
+                <div class="metric-box">
+                  <div class="mb-lbl">Reapertura tickets</div>
+                  <div class="mb-val" id="mboxReopenVal">—</div>
+                  <div class="mb-meta">Meta &lt;5%</div>
+                </div>
+                <div class="metric-box">
+                  <div class="mb-lbl">MTTA promedio</div>
+                  <div class="mb-val" id="mboxMttaVal">—</div>
+                  <div class="mb-meta">Meta &lt;15 min</div>
+                </div>
+                <div class="metric-box">
+                  <div class="mb-lbl">CSAT promedio</div>
+                  <div class="mb-val" id="mboxCsatVal">—</div>
+                  <div class="mb-meta" id="mboxCsatMeta">Meta &gt;4.0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL: REPORTES -->
+          <div class="panel" id="panel-reportes" style="overflow-y:auto;max-height:calc(100vh - 110px);padding-right:4px;">
+            <!-- Header -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+              <div>
+                <div style="font-size:15px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+                  <i class="bi bi-file-earmark-bar-graph-fill" style="color:var(--jira-blue);"></i> Reportes · Exportar Métricas
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Filtra el backlog del servicio y exporta con métricas SLA profesionales</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-shrink:0;">
+                <button class="btn-outline-sm" id="btn-export-csv" onclick="exportarReporte('csv')" disabled title="Genera el reporte primero" style="opacity:.4;cursor:not-allowed;"><i class="bi bi-filetype-csv"></i> CSV</button>
+                <button class="btn-create" id="btn-export-xlsx" onclick="exportarReporte('xlsx')" disabled title="Genera el reporte primero" style="padding:7px 14px;font-size:12px;opacity:.4;cursor:not-allowed;"><i class="bi bi-file-earmark-excel-fill"></i> Excel</button>
+              </div>
+            </div>
+
+            <!-- Filtros -->
+            <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:16px;margin-bottom:14px;">
+              <div style="font-size:9px;font-family:monospace;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;"><i class="bi bi-funnel-fill" style="margin-right:4px;"></i>Filtros</div>
+
+              <!-- Periodo -->
+              <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+                <div><div class="meta-lbl" style="margin-bottom:4px;">Desde</div><input type="date" id="rpt-desde" class="rpt-input" style="width:140px;"></div>
+                <div><div class="meta-lbl" style="margin-bottom:4px;">Hasta</div><input type="date" id="rpt-hasta" class="rpt-input" style="width:140px;"></div>
+                <div style="display:flex;gap:4px;align-self:flex-end;">
+                  <button class="rpt-radio" data-grp="days" data-val="7"   onclick="rptRadioClick(this);rptSetDays(7)">7d</button>
+                  <button class="rpt-radio active" data-grp="days" data-val="30"  onclick="rptRadioClick(this);rptSetDays(30)">30d</button>
+                  <button class="rpt-radio" data-grp="days" data-val="90" onclick="rptRadioClick(this);rptSetDays(90)">90d</button>
+                  <button class="rpt-radio" data-grp="days" data-val="365" onclick="rptRadioClick(this);rptSetDays(365)">1 año</button>
+                  <button class="rpt-radio" data-grp="days" data-val="0"   onclick="rptRadioClick(this);rptSetDays(0)">Todo</button>
+                </div>
+              </div>
+
+              <!-- Estado -->
+              <div style="margin-bottom:14px;">
+                <div class="meta-lbl" style="margin-bottom:6px;">Estado <span style="font-size:9px;opacity:.6;">(selección múltiple)</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:5px;">
+                  <button class="rpt-pill active" data-grp="estado" data-val="Asignado N2"   onclick="this.classList.toggle('active')">Asignado N2</button>
+                  <button class="rpt-pill active" data-grp="estado" data-val="Asignado N1"   onclick="this.classList.toggle('active')">Asignado N1</button>
+                  <button class="rpt-pill active" data-grp="estado" data-val="En N2"         onclick="this.classList.toggle('active')">En N2</button>
+                  <button class="rpt-pill active" data-grp="estado" data-val="Pendiente"     onclick="this.classList.toggle('active')">Pendiente</button>
+                  <button class="rpt-pill active" data-grp="estado" data-val="Resuelto"      onclick="this.classList.toggle('active')">Resuelto</button>
+                  <button class="rpt-pill active" data-grp="estado" data-val="Cerrado"       onclick="this.classList.toggle('active')">Cerrado</button>
+                  <button class="rpt-pill"        data-grp="estado" data-val="Cancelado"     onclick="this.classList.toggle('active')">Cancelado</button>
+                  <button class="rpt-pill"        data-grp="estado" data-val="Observado"     onclick="this.classList.toggle('active')">Observado</button>
+                  <button class="rpt-pill"        data-grp="estado" data-val="En revisión"   onclick="this.classList.toggle('active')">En revisión</button>
+                </div>
+              </div>
+
+              <!-- Prioridad -->
+              <div style="margin-bottom:14px;">
+                <div class="meta-lbl" style="margin-bottom:6px;">Prioridad <span style="font-size:9px;opacity:.6;">(selección múltiple)</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:5px;">
+                  <button class="rpt-pill active" data-grp="prio" data-val="Highest" onclick="this.classList.toggle('active')" style="border-color:#ef4444;color:#ef4444;">P1 · Crítica</button>
+                  <button class="rpt-pill active" data-grp="prio" data-val="High"    onclick="this.classList.toggle('active')" style="border-color:#f59e0b;color:#b45309;">P2 · Alta</button>
+                  <button class="rpt-pill active" data-grp="prio" data-val="Medium"  onclick="this.classList.toggle('active')" style="border-color:#3b82f6;color:#1d4ed8;">P3 · Media</button>
+                  <button class="rpt-pill active" data-grp="prio" data-val="Low"     onclick="this.classList.toggle('active')" style="border-color:#10b981;color:#047857;">P4 · Baja</button>
+                  <button class="rpt-pill active" data-grp="prio" data-val="Lowest"  onclick="this.classList.toggle('active')">Sin prioridad</button>
+                </div>
+              </div>
+
+              <!-- SLA + Asignado + Reporter -->
+              <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:16px;align-items:start;flex-wrap:wrap;margin-bottom:14px;">
+                <div>
+                  <div class="meta-lbl" style="margin-bottom:6px;">SLA</div>
+                  <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <button class="rpt-radio active" data-grp="sla" data-val=""       onclick="rptRadioClick(this)">Todos</button>
+                    <button class="rpt-radio"        data-grp="sla" data-val="ok"     onclick="rptRadioClick(this)">Cumplido</button>
+                    <button class="rpt-radio"        data-grp="sla" data-val="breach" onclick="rptRadioClick(this)">Vencido</button>
+                    <button class="rpt-radio"        data-grp="sla" data-val="risk"   onclick="rptRadioClick(this)">En riesgo</button>
+                  </div>
+                </div>
+                <div>
+                  <div class="meta-lbl" style="margin-bottom:4px;">Asignado (correo)</div>
+                  <input type="email" id="rpt-assignee" class="rpt-input" placeholder="Todos los asignados...">
+                </div>
+                <div>
+                  <div class="meta-lbl" style="margin-bottom:4px;">Reporter (correo)</div>
+                  <input type="email" id="rpt-reporter" class="rpt-input" placeholder="Todos los reporters...">
+                </div>
+              </div>
+
+              <!-- Máx + Generar -->
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <div class="meta-lbl">Máx resultados:</div>
+                  <button class="rpt-radio"        data-grp="maxres" data-val="100"  onclick="rptRadioClick(this)">100</button>
+                  <button class="rpt-radio active" data-grp="maxres" data-val="500"  onclick="rptRadioClick(this)">500</button>
+                  <button class="rpt-radio"        data-grp="maxres" data-val="1000" onclick="rptRadioClick(this)">1 000</button>
+                  <button class="rpt-radio"        data-grp="maxres" data-val="2000" onclick="rptRadioClick(this)">Sin límite</button>
+                </div>
+                <button class="btn-create" style="padding:8px 20px;font-size:12px;" onclick="runReporte()">
+                  <i class="bi bi-search"></i> Generar reporte
+                </button>
+              </div>
+            </div>
+
+            <!-- Summary row -->
+            <div id="rpt-summary" style="display:none;margin-bottom:14px;"></div>
+
+            <!-- Preview table -->
+            <div id="rpt-preview"></div>
+          </div>
+
+        </div>
+
+        <!-- ── PANEL: ANALIZADOR ──────────────────────────────────────────── -->
+        <div class="panel" id="panel-analizador">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-size:16px;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+                <i class="bi bi-bar-chart-line-fill" style="color:var(--jira-blue);"></i> Analizador de datos
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Carga el CSV/Excel exportado desde Reportes y genera gráficos al instante</div>
+            </div>
+          </div>
+
+          <!-- Sub-tab bar -->
+          <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:4px;width:fit-content;">
+            <button class="an-stab active" id="anStab0" onclick="anSwitchTab(0)">
+              <i class="bi bi-file-earmark-spreadsheet-fill"></i> Excel / CSV
+            </button>
+            <button class="an-stab" id="anStab1" onclick="anSwitchTab(1)">
+              <i class="bi bi-terminal-fill"></i> SQL Playground
+            </button>
+          </div>
+
+          <!-- ── EXCEL/CSV TAB ── -->
+          <div id="anTab0">
+            <!-- Upload zone -->
+            <div id="anDataUpload" class="an-card">
+              <div class="an-card-head">
+                <span class="an-card-title"><i class="bi bi-file-earmark-spreadsheet-fill" style="color:#059669;"></i> Cargar archivos Excel / CSV</span>
+                <span style="font-size:11px;color:var(--text-muted);">Hasta 3 archivos · .xlsx .xls .csv · máx. 10MB c/u</span>
+              </div>
+              <div style="padding:16px;">
+                <div class="an-upload" id="anDzData"
+                     onclick="document.getElementById('anFileInput').click()"
+                     ondragover="anDragOver(event)" ondragleave="anDragLeave(event)" ondrop="anDropData(event)">
+                  <i class="bi bi-files" style="color:var(--jira-blue);font-size:38px;display:block;margin-bottom:10px;"></i>
+                  <p style="font-size:13px;color:var(--text-muted);margin:0;"><strong style="color:var(--jira-blue);">Haz clic o arrastra</strong> hasta 3 archivos Excel o CSV</p>
+                  <p style="font-size:11px;color:var(--text-muted);margin:6px 0 0;">Los datos de múltiples archivos se combinarán automáticamente</p>
+                </div>
+                <input type="file" id="anFileInput" style="display:none;" accept=".csv,.xlsx,.xls" multiple onchange="anLoadFiles(this.files)">
+                <div id="anFileChips" style="margin-top:10px;display:none;"></div>
+              </div>
+            </div>
+
+            <!-- ── Guía de análisis (visible hasta que se cargue un archivo) ── -->
+            <div id="anQuickGuide" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px;">
+              <!-- Cómo exportar -->
+              <div class="an-card">
+                <div class="an-card-head"><span class="an-card-title"><i class="bi bi-cloud-arrow-down-fill" style="color:#3b82f6;"></i> Cómo exportar desde Jira</span></div>
+                <div style="padding:14px;font-size:12px;color:var(--text-muted);line-height:1.9;">
+                  <ol style="margin:0 0 10px;padding-left:16px;">
+                    <li>Colas → aplicar filtro JQL</li>
+                    <li>Menú <strong style="color:var(--text-main);">Exportar</strong> → CSV / Excel</li>
+                    <li>Arrastra el archivo aquí arriba</li>
+                  </ol>
+                  <div style="background:var(--bg-main);border:1px solid var(--border-soft);border-radius:7px;padding:9px 11px;">
+                    <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;">Columnas clave</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                      <% ['Issue Key','Status','Priority','Assignee','Reporter','Created','Resolved','Time to resolve','Component'].forEach(function(c){ %>
+                        <span style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:4px;padding:1px 7px;font-size:10px;color:var(--text-muted);"><%= c %></span>
+                      <% }) %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Análisis disponibles -->
+              <div class="an-card">
+                <div class="an-card-head"><span class="an-card-title"><i class="bi bi-bar-chart-fill" style="color:#8b5cf6;"></i> Análisis disponibles</span></div>
+                <div style="padding:14px;display:flex;flex-direction:column;gap:8px;">
+                  <% [
+                    ['bi-graph-up-arrow','#3b82f6','Tendencias temporales automáticas'],
+                    ['bi-pie-chart-fill','#8b5cf6','Distribución por cualquier campo'],
+                    ['bi-people-fill','#10b981','Rankings de técnicos y reporteros'],
+                    ['bi-shield-check','#6366f1','Análisis de SLA y tiempos'],
+                    ['bi-funnel-fill','#f59e0b','Filtros multi-campo en tiempo real'],
+                    ['bi-graph-up','#ec4899','Gráficos de barras, línea y pie custom'],
+                    ['bi-download','#0ea5e9','Exportar datos filtrados a CSV']
+                  ].forEach(function(i){ %>
+                    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);">
+                      <i class="bi <%= i[0] %>" style="color:<%= i[1] %>;flex-shrink:0;"></i> <%= i[2] %>
+                    </div>
+                  <% }) %>
+                </div>
+              </div>
+              <!-- Plantillas rápidas -->
+              <div class="an-card">
+                <div class="an-card-head"><span class="an-card-title"><i class="bi bi-lightning-charge-fill" style="color:#f59e0b;"></i> Plantillas de análisis</span></div>
+                <div style="padding:14px;">
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Carga un archivo y aplica una plantilla para generar gráficos automáticamente:</div>
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <button class="an-btn" style="justify-content:flex-start;" onclick="anApplyTemplate('sla')"><i class="bi bi-shield-check" style="color:#6366f1;"></i> Reporte SLA</button>
+                    <button class="an-btn" style="justify-content:flex-start;" onclick="anApplyTemplate('tecnicos')"><i class="bi bi-people-fill" style="color:#10b981;"></i> Productividad Técnicos</button>
+                    <button class="an-btn" style="justify-content:flex-start;" onclick="anApplyTemplate('tendencia')"><i class="bi bi-graph-up-arrow" style="color:#3b82f6;"></i> Tendencia Mensual</button>
+                    <button class="an-btn" style="justify-content:flex-start;" onclick="anApplyTemplate('prioridad')"><i class="bi bi-flag-fill" style="color:#f59e0b;"></i> Análisis de Prioridades</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Auto-stats (aparece al cargar archivos) -->
+            <div id="anAutoStats" style="display:none;margin-top:12px;"></div>
+
+            <!-- Dashboard (hidden until files loaded) -->
+            <div id="anDashboard" style="display:none;">
+              <!-- Header card (always visible) -->
+              <div class="an-card" style="margin-bottom:10px;">
+                <div class="an-card-head">
+                  <span class="an-card-title"><i class="bi bi-bar-chart-fill" style="color:var(--jira-blue);"></i> <span id="anFileName">Análisis de datos</span></span>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button class="an-btn" onclick="document.getElementById('anFileInput').click()"><i class="bi bi-plus-circle"></i> Agregar</button>
+                    <button class="an-btn" onclick="anExportCSV()"><i class="bi bi-download"></i> CSV</button>
+                    <button class="an-btn" onclick="anDashTab(0);anAddChart()"><i class="bi bi-graph-up"></i> + Gráfico</button>
+                    <button class="an-btn" onclick="anReset()"><i class="bi bi-arrow-counterclockwise"></i> Limpiar</button>
+                  </div>
+                </div>
+                <!-- Inner tab switcher -->
+                <div style="display:flex;padding:0 12px;border-top:1px solid var(--border-soft);">
+                  <button id="anDashBtn0" class="an-dashtab active" onclick="anDashTab(0)"><i class="bi bi-graph-up-arrow"></i> Gráficos</button>
+                  <button id="anDashBtn1" class="an-dashtab" onclick="anDashTab(1)"><i class="bi bi-table"></i> Datos</button>
+                </div>
+              </div>
+
+              <!-- Tab 0: Gráficos -->
+              <div id="anTabViz">
+                <!-- Stats row -->
+                <div id="anStats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;"></div>
+                <!-- Chart area -->
+                <div id="anChartArea" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;"></div>
+              </div>
+
+              <!-- Tab 1: Datos -->
+              <div id="anTabData" style="display:none;">
+                <!-- Search + Filters -->
+                <div class="an-card" style="margin-bottom:10px;">
+                  <div style="padding:9px 16px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:8px;">
+                    <i class="bi bi-search" style="color:var(--text-muted);font-size:12px;"></i>
+                    <input type="text" id="anGlobalSearch" class="an-input" style="flex:1;" placeholder="Buscar en todos los campos…" oninput="anOnSearch(this.value)">
+                    <span id="anRowCount" style="font-size:11px;color:var(--text-muted);white-space:nowrap;"></span>
+                  </div>
+                  <div id="anFilterBar" style="padding:10px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;min-height:48px;"></div>
+                </div>
+                <!-- Data table -->
+                <div class="an-card">
+                  <div class="an-card-head">
+                    <span class="an-card-title"><i class="bi bi-table"></i> Datos</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <label style="font-size:11px;color:var(--text-muted);">Filas/pág:</label>
+                      <select id="anPageSize" class="an-input" style="width:70px;padding:3px 6px;" onchange="_an.pageSize=+this.value;_an.page=1;anRenderTable()">
+                        <option>25</option><option>50</option><option>100</option><option>250</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div id="anTableWrap" style="overflow-x:auto;overflow-y:auto;max-height:520px;"></div>
+                  <div id="anPagination" style="padding:8px 16px;display:flex;gap:5px;align-items:center;border-top:1px solid var(--border-soft);flex-wrap:wrap;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SQL PLAYGROUND TAB ── -->
+          <div id="anTab1" style="display:none;">
+            <div style="display:grid;grid-template-columns:170px 1fr 1fr;gap:12px;margin-bottom:12px;">
+              <!-- Schema Browser -->
+              <div class="an-card" style="overflow:hidden;">
+                <div class="an-card-head" style="padding:8px 12px;">
+                  <span class="an-card-title" style="font-size:11px;"><i class="bi bi-diagram-3-fill" style="color:#7c3aed;"></i> Esquema BD</span>
+                  <button class="an-btn" style="padding:2px 6px;font-size:10px;" onclick="anLoadSchema(true)" title="Recargar"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+                <div id="anSchemaTree" style="overflow-y:auto;max-height:320px;padding:6px;">
+                  <div style="font-size:11px;color:var(--text-muted);padding:16px 8px;text-align:center;"><span class="kb-spin" style="display:inline-block;"></span><br>Cargando…</div>
+                </div>
+              </div>
+              <!-- Editor -->
+              <div class="an-card">
+                <div class="an-card-head">
+                  <span class="an-card-title"><i class="bi bi-file-code-fill" style="color:#7c3aed;"></i> Editor SQL</span>
+                  <div style="display:flex;gap:6px;">
+                    <button class="an-btn" onclick="anSqlFormat()" title="Formatear SQL" style="padding:5px 8px;"><i class="bi bi-text-indent-left"></i></button>
+                    <button class="an-btn an-btn-primary" onclick="anRunSQL()"><i class="bi bi-play-fill"></i> Ejecutar</button>
+                  </div>
+                </div>
+                <div style="padding:12px;">
+                  <textarea id="anSqlEditor" class="sql-editor-an" rows="10"
+                    placeholder="-- Solo SELECT / SHOW permitidos&#10;-- Ej: SELECT assignee_name, COUNT(*) total FROM service_requests GROUP BY assignee_name ORDER BY total DESC LIMIT 10"></textarea>
+                </div>
+                <div style="padding:4px 12px 10px;border-top:1px solid var(--border-soft);">
+                  <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;margin-top:6px;">Consultas ITSM rápidas</div>
+                  <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                    <button class="an-btn" style="font-size:10px;" onclick="anSqlQuick(`SELECT assignee_name, COUNT(*) AS tickets, SUM(CASE WHEN status IN ('Closed','Resolved','Cerrado','Resuelto') THEN 1 ELSE 0 END) AS resueltos FROM service_requests WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) GROUP BY assignee_name ORDER BY tickets DESC LIMIT 15`)"><i class="bi bi-people-fill" style="color:#10b981;"></i> Por técnico</button>
+                    <button class="an-btn" style="font-size:10px;" onclick="anSqlQuick(`SELECT status, COUNT(*) AS total FROM service_requests GROUP BY status ORDER BY total DESC`)"><i class="bi bi-pie-chart-fill" style="color:#8b5cf6;"></i> Por estado</button>
+                    <button class="an-btn" style="font-size:10px;" onclick="anSqlQuick(`SELECT priority, COUNT(*) AS total, AVG(TIMESTAMPDIFF(HOUR, created_at, COALESCE(resolved_at, NOW()))) AS mttr_h FROM service_requests GROUP BY priority ORDER BY total DESC`)"><i class="bi bi-flag-fill" style="color:#f59e0b;"></i> SLA/prioridad</button>
+                    <button class="an-btn" style="font-size:10px;" onclick="anSqlQuick(`SELECT DATE_FORMAT(created_at,'%Y-%m') AS mes, COUNT(*) AS creados, SUM(CASE WHEN status IN ('Closed','Cerrado','Resolved') THEN 1 ELSE 0 END) AS cerrados FROM service_requests GROUP BY mes ORDER BY mes DESC LIMIT 12`)"><i class="bi bi-graph-up-arrow" style="color:#3b82f6;"></i> Mensual</button>
+                    <button class="an-btn" style="font-size:10px;" onclick="anSqlQuick(`SELECT * FROM employees LIMIT 20`)"><i class="bi bi-person-badge-fill" style="color:#6366f1;"></i> Empleados</button>
+                    <button class="an-btn" style="font-size:10px;" onclick="anSqlQuick('SHOW TABLES')"><i class="bi bi-list-ul"></i> Tablas</button>
+                  </div>
+                </div>
+              </div>
+              <!-- Results -->
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div class="an-card" style="flex:1;">
+                  <div class="an-card-head">
+                    <span class="an-card-title"><i class="bi bi-table" style="color:#10b981;"></i> Resultados</span>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                      <span id="anSqlRowCount" style="font-size:11px;color:var(--text-muted);"></span>
+                      <span id="anSqlTime" style="font-size:10px;color:var(--text-muted);"></span>
+                      <button class="an-btn" onclick="anDownloadSqlCSV()"><i class="bi bi-download"></i> CSV</button>
+                    </div>
+                  </div>
+                  <div id="anSqlTableWrap" style="overflow:auto;max-height:280px;">
+                    <div style="padding:36px;text-align:center;color:var(--text-muted);font-size:12px;">
+                      <i class="bi bi-terminal" style="font-size:26px;display:block;margin-bottom:8px;opacity:.4;"></i>
+                      Ejecuta una consulta para ver resultados
+                    </div>
+                  </div>
+                </div>
+                <div class="an-card" style="font-size:11px;color:var(--text-muted);padding:10px 14px;line-height:1.8;">
+                  <p style="margin:0 0 3px;"><i class="bi bi-shield-check" style="color:#10b981;"></i> Solo <strong>SELECT</strong> / <strong>SHOW</strong>. Máx. 500 filas.</p>
+                  <p style="margin:0;"><i class="bi bi-grid-3x3-gap-fill" style="color:var(--jira-blue);"></i> Cada ejecución agrega un panel al tablero (máx. 3).</p>
+                </div>
+              </div>
+            </div>
+            <!-- Query history -->
+            <div id="anSqlHistoryRow" style="display:none;margin-bottom:12px;">
+              <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;"><i class="bi bi-clock-history"></i> Historial reciente</div>
+              <div id="anSqlHistoryList" style="display:flex;flex-direction:column;gap:5px;"></div>
+            </div>
+            <!-- Report board -->
+            <div id="anSqlBoard" style="display:none;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:13px;font-weight:800;color:var(--text-main);"><i class="bi bi-grid-3x3-gap-fill" style="color:var(--jira-blue);margin-right:5px;"></i>Tablero visual</span>
+                  <span id="anBoardCount" style="background:var(--jira-blue);color:#fff;border-radius:20px;padding:1px 9px;font-size:10px;font-weight:800;"></span>
+                </div>
+              </div>
+              <div id="anBoardInner" style="display:grid;gap:12px;"></div>
+            </div>
+          </div>
+        </div>
+
+          <!-- PANEL: MIS PANELES -->
+          <div class="panel" id="panel-paneles">
+            <!-- Controls bar (excluded from export) -->
+            <div class="mp-hide-export" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+              <div>
+                <div style="font-size:15px;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+                  <i class="bi bi-layout-wtf" style="color:var(--jira-blue);"></i> Mis Paneles
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Personaliza tu dashboard · descarga como imagen para presentaciones PPT</div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <button class="mp-period-btn active" onclick="mpPeriod(30,this)">30d</button>
+                <button class="mp-period-btn" onclick="mpPeriod(90,this)">90d</button>
+                <button class="mp-period-btn" onclick="mpPeriod(365,this)">1 año</button>
+                <div style="width:1px;height:18px;background:var(--border-soft);margin:0 2px;"></div>
+                <button class="mp-dl-btn" onclick="mpDownload()"><i class="bi bi-download"></i> Descargar PNG</button>
+              </div>
+            </div>
+            <!-- Category tabs -->
+            <div id="mpTabBar" class="mp-hide-export" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;background:var(--bg-header);border:1px solid var(--border-soft);border-radius:10px;padding:4px;width:100%;box-sizing:border-box;">
+              <div class="mp-tab active" id="mpTab0" onclick="mpSwitchCat(0)"><i class="bi bi-ticket-detailed-fill"></i> Gestión de Incidencias</div>
+              <div class="mp-tab" id="mpTab1" onclick="mpSwitchCat(1)"><i class="bi bi-people-fill"></i> Productividad WP</div>
+              <div class="mp-tab" id="mpTab2" onclick="mpSwitchCat(2)"><i class="bi bi-grid-fill"></i> Vista Combinada</div>
+            </div>
+            <!-- Chart picker chips -->
+            <div id="mpChipBar" class="mp-hide-export" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--bg-header);border:1px solid var(--border-soft);border-radius:10px;min-height:42px;align-items:center;"></div>
+            <!-- Spinner -->
+            <div id="mpSpinner" style="display:none;padding:40px;text-align:center;">
+              <span class="kb-spin" style="display:inline-block;"></span>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Cargando datos de Jira...</div>
+            </div>
+            <!-- ═══ CAPTURE ZONE — this block is exported as PNG ═══ -->
+            <div id="mpCaptureZone">
+              <!-- Branded header -->
+              <div class="mp-branding-hd">
+                <div>
+                  <div style="font-size:15px;font-weight:800;color:var(--text-main);">Reporte · WP-Soporte Presencial</div>
+                  <div id="mpBrandSub" style="font-size:11px;color:var(--text-muted);margin-top:1px;"></div>
+                </div>
+                <div style="text-align:right;font-size:10px;color:var(--text-muted);">
+                  <div>Jira Service Management</div>
+                  <div id="mpBrandDate"></div>
+                </div>
+              </div>
+              <!-- KPI summary -->
+              <div id="mpKpiRow" class="mp-kpi-row"></div>
+              <!-- Chart grid -->
+              <div id="mpCanvas" class="mp-chart-grid"></div>
+            </div>
+          </div>
+
+          <!-- PANEL: COMPARATIVA SEMANA A SEMANA -->
+          <div class="panel" id="panel-semanal">
+            <div style="margin-bottom:14px;flex-shrink:0;">
+              <div style="font-size:15px;font-weight:800;color:var(--text-main);"><i class="bi bi-calendar2-week-fill" style="color:#3b82f6;margin-right:8px;"></i>Comparativa Semana a Semana</div>
+              <div id="swDateRange" style="font-size:11px;color:var(--text-muted);margin-top:3px;"></div>
+            </div>
+            <div id="swPanel" style="flex:1;overflow-y:auto;"></div>
+          </div>
+
+          <!-- ══ PANEL: DASHBOARD EJECUTIVO ══════════════════════════════ -->
+          <div class="panel" id="panel-ejecutivo" style="flex-direction:column;padding:20px 24px;overflow-y:auto;">
+
+            <!-- Controls (ocultos en export) -->
+            <div class="exec-hide-export" style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+              <div style="display:flex;gap:6px;">
+                <button class="exec-btn active" id="execPBtn0" onclick="execSetPeriod(0,this)">Este mes</button>
+                <button class="exec-btn" id="execPBtn1" onclick="execSetPeriod(1,this)">Mes anterior</button>
+                <button class="exec-btn" id="execPBtn3" onclick="execSetPeriod(3,this)">Último trimestre</button>
+              </div>
+              <div style="margin-left:auto;display:flex;gap:8px;">
+                <button class="exec-btn primary" onclick="execDownload()"><i class="bi bi-file-earmark-image"></i> Exportar PNG</button>
+              </div>
+            </div>
+
+            <!-- Capture zone -->
+            <div id="execCaptureZone" style="border-radius:16px;overflow:hidden;box-shadow:0 4px 28px rgba(0,0,0,.1);">
+
+              <!-- Header degradado Movistar -->
+              <div style="background:linear-gradient(135deg,#003fa5 0%,#0070cc 55%,#00a8e0 100%);padding:22px 32px;display:flex;align-items:center;gap:20px;">
+                <img src="/images/movistar-logo.png" style="height:42px;filter:brightness(0) invert(1);flex-shrink:0;" onerror="this.style.display='none'">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.12em;">Informe Ejecutivo</div>
+                  <div style="font-size:18px;font-weight:800;color:#fff;margin-top:2px;">Gestión de Incidencias · WP Soporte</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0;">
+                  <div id="execPeriodLabel" style="font-size:17px;font-weight:800;color:#fff;">—</div>
+                  <div id="execGenDate" style="font-size:10px;color:rgba(255,255,255,.55);margin-top:2px;"></div>
+                </div>
+              </div>
+
+              <!-- Spinner -->
+              <div id="execSpinner" style="display:none;background:var(--bg-main);padding:72px;text-align:center;">
+                <span class="kb-spin" style="display:inline-block;width:36px;height:36px;border-width:3px;"></span>
+                <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">Cargando datos del período…</div>
+              </div>
+
+              <!-- Contenido -->
+              <div id="execContent" style="background:var(--bg-main);padding:20px;display:none;">
+
+                <!-- KPI cards -->
+                <div id="execKpiRow" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px;"></div>
+
+                <!-- Gráficos 2×2 -->
+                <div class="exec-chart-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
+                  <div class="exec-chart-card">
+                    <div class="exec-chart-ttl"><i class="bi bi-graph-up-arrow" style="color:#3b82f6;"></i> Tendencia diaria</div>
+                    <div style="height:180px;position:relative;"><canvas id="execChart1"></canvas></div>
+                  </div>
+                  <div class="exec-chart-card">
+                    <div class="exec-chart-ttl"><i class="bi bi-flag-fill" style="color:#f59e0b;"></i> Distribución por prioridad</div>
+                    <div style="height:180px;position:relative;"><canvas id="execChart2"></canvas></div>
+                  </div>
+                  <div class="exec-chart-card">
+                    <div class="exec-chart-ttl"><i class="bi bi-people-fill" style="color:#10b981;"></i> Top técnicos (cerrados)</div>
+                    <div style="height:180px;position:relative;"><canvas id="execChart3"></canvas></div>
+                  </div>
+                  <div class="exec-chart-card">
+                    <div class="exec-chart-ttl"><i class="bi bi-pie-chart-fill" style="color:#8b5cf6;"></i> Estado actual</div>
+                    <div style="height:180px;position:relative;"><canvas id="execChart4"></canvas></div>
+                  </div>
+                </div>
+
+                <!-- Gamificación equipo técnico -->
+                <div id="execGamifSection" style="margin-bottom:18px;display:none;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                    <i class="bi bi-trophy-fill" style="color:#f59e0b;font-size:15px;"></i>
+                    <span style="font-size:13px;font-weight:700;color:var(--text-main);">Ranking del equipo técnico</span>
+                    <span id="execGamifPeriodLbl" style="font-size:11px;color:var(--text-muted);margin-left:2px;"></span>
+                  </div>
+                  <div id="execGamifCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;"></div>
+                </div>
+
+                <!-- Footer -->
+                <div style="border-top:1px solid var(--border-soft);padding-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--text-muted);">
+                  <span><i class="bi bi-shield-check-fill" style="color:#3b82f6;margin-right:4px;"></i>IT Platform · ITSM · Stefanini Movistar Perú</span>
+                  <span id="execFooterTs"></span>
+                </div>
+
+              </div><!-- /execContent -->
+            </div><!-- /execCaptureZone -->
+
+          </div><!-- /panel-ejecutivo -->
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ── DRAWER: Timeline de ticket ────────────────────────────────────── -->
+  <div id="tlOverlay" style="display:none;position:fixed;inset:0;z-index:1400;background:rgba(0,0,0,.3);" onclick="tlClose()"></div>
+  <div id="tlDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;z-index:1401;width:430px;max-width:96vw;background:var(--bg-card);box-shadow:-4px 0 32px rgba(0,0,0,.18);flex-direction:column;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:12px;flex-shrink:0;">
+      <div style="width:34px;height:34px;background:rgba(99,102,241,.12);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="bi bi-clock-history" style="color:#6366f1;font-size:15px;"></i>
+      </div>
+      <div style="min-width:0;flex:1;">
+        <div id="tlTitle" style="font-size:13px;font-weight:800;color:var(--text-main);font-family:monospace;letter-spacing:.5px;"></div>
+        <div id="tlSub" style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      </div>
+      <button onclick="tlClose()" title="Cerrar" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--bg-subtle,rgba(0,0,0,.06));border:1px solid var(--border-soft);border-radius:8px;cursor:pointer;color:var(--text-main);font-size:16px;flex-shrink:0;transition:background .15s;" onmouseover="this.style.background='rgba(239,68,68,.12)';this.style.color='#ef4444'" onmouseout="this.style.background='var(--bg-subtle,rgba(0,0,0,.06))';this.style.color='var(--text-main)'"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div id="tlBody" style="flex:1;overflow-y:auto;padding:18px 16px 20px 14px;"></div>
+  </div>
+
+<script>
+// ── Collapsible nav groups ────────────────────────────────────────────────
+function toggleNavGroup(grpId, secEl) {
+    var grp  = document.getElementById(grpId);
+    var chev = secEl.querySelector('.nav-sec-chev');
+    if (!grp) return;
+    var isCollapsed = grp.classList.toggle('collapsed');
+    if (chev) chev.style.transform = isCollapsed ? 'rotate(-90deg)' : '';
+    try { localStorage.setItem('navgrp_' + grpId, isCollapsed ? '0' : '1'); } catch(_) {}
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // MONITOREO y ANÁLISIS: colapsados por defecto, expandidos si el usuario los abrió antes
+    ['grp-mon','grp-anl'].forEach(function(id) {
+        var saved = null;
+        try { saved = localStorage.getItem('navgrp_' + id); } catch(_) {}
+        if (saved !== '1') {
+            var grp = document.getElementById(id);
+            if (grp) grp.classList.add('collapsed');
+            var chev = document.getElementById(id.replace('grp-','chev-'));
+            if (chev) chev.style.transform = 'rotate(-90deg)';
+        }
+    });
+
+    // Auto-expand group of the active nav item when showPanel activates it
+    var navObs = new MutationObserver(function(muts) {
+        muts.forEach(function(m) {
+            var el = m.target;
+            if (!el.classList.contains('nav-item') || !el.classList.contains('active')) return;
+            var grp = el.closest('.nav-group');
+            if (grp && grp.classList.contains('collapsed')) {
+                var grpId = grp.id;
+                var sec   = document.getElementById(grpId.replace('grp-','sec-'));
+                if (sec) toggleNavGroup(grpId, sec);
+            }
+        });
+    });
+    var nav = document.querySelector('nav');
+    if (nav) navObs.observe(nav, { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+    // CMDB empty state: hide when hot table, device detail, or stat detail become visible
+    function _updateCmdbEmpty() {
+        var es = document.getElementById('cmdbEmptyState');
+        if (!es) return;
+        var ht = document.getElementById('cmdbHotTable');
+        var dd = document.getElementById('cmdbDeviceDetail');
+        var sd = document.getElementById('cmdbStatDetail');
+        var hide = (ht && ht.style.display === 'block') || (dd && dd.style.display === 'block') || (sd && sd.style.display === 'block');
+        es.style.display = hide ? 'none' : '';
+    }
+    var _cmdbTargets = ['cmdbHotTable','cmdbDeviceDetail','cmdbStatDetail'];
+    var _cmdbObs = new MutationObserver(_updateCmdbEmpty);
+    _cmdbTargets.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) _cmdbObs.observe(el, { attributes: true, attributeFilter: ['style'] });
+    });
+
+    // Pre-cargar Categorías en segundo plano para que esté listo al hacer clic
+    setTimeout(function() {
+        if (typeof loadSinCategorizar === 'function') loadSinCategorizar(false);
+    }, 1500);
+
+    // Activar vista desde parámetro URL (?view=sin_asignar | ?view=tecnicos)
+    var _urlView = new URLSearchParams(window.location.search).get('view');
+    if (_urlView) {
+        setTimeout(function() {
+            if (_urlView === 'sin_asignar') {
+                var navEl = document.getElementById('nav-sinAsig');
+                document.getElementById('incPanel-todos').style.display = 'none';
+                if (typeof showPanel === 'function') showPanel('sinAsig', navEl);
+                if (typeof loadSinAsig === 'function') loadSinAsig();
+            } else if (_urlView === 'tecnicos') {
+                var navEl2 = document.getElementById('nav-tecnicos');
+                document.getElementById('incPanel-todos').style.display = 'none';
+                if (typeof showPanel === 'function') showPanel('tecnicos', navEl2);
+                if (typeof loadTecStats === 'function') loadTecStats();
+            } else if (_urlView === 'reportes') {
+                var navEl3 = document.getElementById('nav-reportes');
+                document.getElementById('incPanel-todos').style.display = 'none';
+                if (typeof showPanel === 'function') showPanel('reportes', navEl3);
+                if (typeof initReportes === 'function') initReportes();
+            }
+            // Limpiar param de la URL sin recargar
+            var clean = window.location.pathname;
+            window.history.replaceState({}, '', clean);
+        }, 400);
+    }
+});
+</script>
+
+<!-- Jira email config modal (replaces browser prompt) -->
+<div id="jiraEmailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-card);border-radius:14px;padding:24px;width:100%;max-width:420px;margin:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-gear-fill" style="font-size:16px;color:var(--primary);"></i>
+        <span style="font-size:15px;font-weight:800;color:var(--text-main);">Configurar correo Jira</span>
+      </div>
+      <button onclick="closeJiraEmailModal()" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--text-muted);line-height:1;padding:0;">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Ingresa tu correo EXACTO de Atlassian para poder asignarte tickets Jira.</p>
+    <input type="email" id="jiraEmailInput" class="form-ctrl" placeholder="tu@correo.com" style="width:100%;margin-bottom:16px;box-sizing:border-box;">
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn-outline-sm" onclick="closeJiraEmailModal()">Cancelar</button>
+      <button class="btn-sm btn-primary" onclick="saveJiraEmailModal()"><i class="bi bi-check2"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+<script>
+function closeJiraEmailModal() {
+  document.getElementById('jiraEmailModal').style.display = 'none';
+}
+function saveJiraEmailModal() {
+  var input = document.getElementById('jiraEmailInput');
+  var modal = document.getElementById('jiraEmailModal');
+  var email = (input ? input.value : '').trim();
+  if (email && email.includes('@')) {
+    localStorage.setItem('jira_email', email);
+    if (modal) modal.style.display = 'none';
+    if (typeof showToast === 'function') showToast('Correo Jira actualizado.', 'success');
+    if (typeof loadMisAsig === 'function') loadMisAsig();
+  } else {
+    if (input) { input.style.outline = '2px solid #ef4444'; setTimeout(function() { input.style.outline = ''; }, 1500); }
+  }
+}
+document.addEventListener('keydown', function(e) {
+  var modal = document.getElementById('jiraEmailModal');
+  if (!modal || modal.style.display === 'none') return;
+  if (e.key === 'Escape') closeJiraEmailModal();
+  if (e.key === 'Enter') saveJiraEmailModal();
+});
+</script>
+

@@ -1,0 +1,6 @@
+# Nunca subir claves SSL al repositorio
+*.key
+*.crt
+*.pem
+*.pfx
+*.p12

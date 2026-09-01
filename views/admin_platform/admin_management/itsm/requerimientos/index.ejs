@@ -1,0 +1,160 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Requerimientos · ITSM</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/core/style.css">
+  <link rel="stylesheet" href="../../css/modules/helpdesk.css">
+  <link rel="stylesheet" href="../../css/core/shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    html,body{background:var(--bg-main);margin:0;padding:0;}
+    .itsm-topbar{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--bg-card);border-bottom:1px solid var(--border-soft);position:sticky;top:0;z-index:100;}
+    .itsm-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-main);border:1px solid var(--border-soft);border-radius:20px;padding:5px 12px;text-decoration:none;transition:color .2s;}
+    .itsm-back:hover{color:var(--primary);}
+    .itsm-breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);}
+    .itsm-breadcrumb a{color:var(--text-muted);text-decoration:none;font-weight:500;transition:color .2s;}
+    .itsm-breadcrumb a:hover{color:var(--primary);}
+    .itsm-breadcrumb .sep{opacity:.4;}
+    .itsm-breadcrumb .current{color:var(--text-main);font-weight:700;}
+    .dashboard-content{padding:0;}
+    #tabGestionReq{display:block !important;}
+  </style>
+</head>
+<body>
+<%- include('../../../../shared/partials/theme-toggle') %>
+
+<!-- TOP BAR -->
+<div class="itsm-topbar">
+  <button id="reqMenuBtn" onclick="reqToggleSidebar()" title="Menú"><i class="bi bi-list" style="font-size:16px;"></i></button>
+  <a href="/itsm?tab=req" class="itsm-back"><i class="bi bi-arrow-left"></i> ITSM</a>
+  <div class="itsm-breadcrumb">
+    <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
+    <span class="sep">/</span>
+    <a href="/itsm?tab=req">ITSM</a>
+    <span class="sep">/</span>
+    <span class="current"><i class="bi bi-<%= locals.localView ? 'hdd-network-fill' : 'clipboard2-check-fill' %>"></i> <%= locals.localView ? 'Gestión Local' : 'Gestión de Requerimientos' %></span>
+  </div>
+</div>
+
+<div class="dashboard-content">
+  <%
+    const _role = user?.role || 'usuario';
+    const _isAdmin        = _role === 'administrador';
+    const _isEspecialista = ['especialista','agente','tecnico'].includes(_role);
+    const _isVisor        = _role === 'visor';
+  %>
+  <%- include('./tabs/gestion', { _isAdmin, _isEspecialista, _isVisor }) %>
+</div>
+
+<div class="toast-container-custom" id="toastContainer"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const CURRENT_USER_ID    = <%- JSON.stringify(locals.currentUserId || null) %>;
+const CURRENT_USER_ROLE  = <%- JSON.stringify(locals.user?.role || 'usuario') %>;
+const CURRENT_USER_NAME  = <%- JSON.stringify(locals.user?.full_name || locals.user?.nombre || locals.user?.username || '') %>;
+const CURRENT_USER_EMAIL = <%- JSON.stringify(locals.user?.email || locals.user?.username || '') %>;
+const REQ_LOCAL_VIEW     = <%- JSON.stringify(!!locals.localView) %>;
+</script>
+<script src="/js/requerimientos/app.js?v=1"></script>
+<script>
+function reqShowPanel(name, el) {
+  document.querySelectorAll('#tabGestionReq .panel').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('req-panel-' + name);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('#tabGestionReq .nav-item').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const titles = { misAsig:'Mis asignados', sinAsig:'Sin asignar', enCurso:'En curso', kanban:'Kanban', alertas:'Alertas', tecnicos:'Técnicos', sla:'SLA', categorias:'Categorías', porEquipo:'Por Equipo', buscar:'Buscar requerimiento', paneles:'Paneles', indicadores:'Indicadores', comparativa:'Comparativa semanal', reportes:'Reportes', historico:'Histórico' };
+  const t = document.getElementById('reqTopbarTitle'); if (t) t.textContent = titles[name] || name;
+  const s = document.getElementById('reqTopbarSub');   if (s) s.textContent = '';
+  // Period buttons — only for indicadores
+  const pb = document.getElementById('reqStatsPeriodBtns'), pd = document.getElementById('reqPeriodDivider');
+  if (pb) pb.style.display = name === 'indicadores' ? 'flex' : 'none';
+  if (pd) pd.style.display = name === 'indicadores' ? '' : 'none';
+  // Pre-fill historico email
+  if (name === 'historico') {
+    const histEl = document.getElementById('reqHistEmail');
+    if (histEl && !histEl.value) {
+      const saved = localStorage.getItem('jira_email') || CURRENT_USER_EMAIL || '';
+      if (saved) histEl.value = saved;
+    }
+  }
+  // Scroll content area to top + ensure active nav item is visible in sidebar
+  requestAnimationFrame(function() {
+    const sc = document.getElementById('reqScrollArea');
+    if (sc) sc.scrollTop = 0;
+    if (el) {
+      const nav = el.closest('nav');
+      if (nav) {
+        const elTop    = el.offsetTop;
+        const elBottom = elTop + el.offsetHeight;
+        if (elBottom > nav.scrollTop + nav.clientHeight) nav.scrollTop = elBottom - nav.clientHeight + 4;
+        else if (elTop < nav.scrollTop)                  nav.scrollTop = elTop - 4;
+      }
+    }
+  });
+}
+
+function reqHideLocal() {
+  const todos = document.getElementById('reqPanel-todos');
+  if (todos) todos.style.display = 'none';
+}
+
+function reqReloadCurrent() {
+  if (typeof reqForceReload === 'function') { reqForceReload(); return; }
+  const active = document.querySelector('#tabGestionReq .nav-item.active');
+  if (active) active.click();
+  else if (typeof reqLoadRequirements === 'function') reqLoadRequirements();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  const g = document.getElementById('tabGestionReq');
+  if (g) g.style.display = 'block';
+
+  // Pre-load alertas badge in background
+  setTimeout(function() { if (typeof reqLoadAlertas === 'function') reqLoadAlertas(); }, 2000);
+
+  if (REQ_LOCAL_VIEW) {
+    const jiraSections = document.querySelectorAll('#tabGestionReq .nav-section, #req-nav-misAsig, #req-nav-sinAsig, #req-nav-buscar, #req-nav-historico');
+    jiraSections.forEach(el => { if (el) el.style.display = 'none'; });
+    const todos = document.getElementById('reqPanel-todos');
+    if (todos) todos.style.display = '';
+    const title = document.getElementById('reqTopbarTitle');
+    if (title) title.textContent = 'Gestión Local';
+    if (typeof reqLoadRequirements === 'function') reqLoadRequirements();
+  } else {
+    const sinAsigBtn = document.getElementById('req-nav-sinAsig');
+    if (sinAsigBtn) sinAsigBtn.click();
+    else if (typeof reqLoadSinAsig === 'function') reqLoadSinAsig();
+  }
+});
+</script>
+<script>
+function reqToggleSidebar() {
+  var sb = document.getElementById('reqSidebar');
+  var ov = document.getElementById('reqSidebarOverlay');
+  if (sb) sb.classList.toggle('req-mob-open');
+  if (ov) ov.classList.toggle('req-mob-open');
+}
+function reqCloseSidebar() {
+  var sb = document.getElementById('reqSidebar');
+  var ov = document.getElementById('reqSidebarOverlay');
+  if (sb) sb.classList.remove('req-mob-open');
+  if (ov) ov.classList.remove('req-mob-open');
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('#reqSidebar .nav-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+      if (window.innerWidth <= 768) reqCloseSidebar();
+    });
+  });
+});
+</script>
+</body>
+</html>

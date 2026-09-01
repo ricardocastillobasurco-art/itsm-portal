@@ -1,0 +1,25 @@
+{
+  "$schema": "http://info.meshcentral.com/downloads/meshcentral-config-schema.json",
+  "settings": {
+    "Port": 4430,
+    "AliasPort": 4430,
+    "cert": "10.4.116.80",
+    "TLSOffload": false,
+    "SelfUpdate": false,
+    "MinifyCore": false,
+    "mongoDb": "mongodb://mongo-mesh:27017/meshcentral",
+    "AllowFraming": true,
+    "WebRTC": false,
+    "AgentPing": 30,
+    "AgentPong": 30
+  },
+  "domains": {
+    "": {
+      "title": "IT Platform RMM",
+      "title2": "Acceso Remoto",
+      "NewAccounts": false,
+      "LocalAccountsAuth": true,
+      "Footer": "IT Platform · Acceso Remoto"
+    }
+  }
+}

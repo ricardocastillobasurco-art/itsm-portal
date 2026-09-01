@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microsoft 365 · Panel de Administración</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<%- include('../../../shared/partials/autogestion/styles') %>
+<style>
+/* ── Layout ── */
+.ms-shell{display:flex;min-height:calc(100vh - 120px);gap:0;background:var(--bg-main);}
+.ms-sidebar{width:220px;flex-shrink:0;background:var(--bg-card);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;padding:16px 0;}
+.ms-sidebar-section{padding:0 12px;margin-bottom:4px;}
+.ms-sidebar-label{font-size:9.5px;font-weight:800;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;padding:10px 8px 4px;}
+.ms-nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;transition:all .15s;border:none;background:none;width:100%;text-align:left;}
+.ms-nav-item:hover{background:rgba(0,120,212,.06);color:#0078d4;}
+.ms-nav-item.active{background:rgba(0,120,212,.1);color:#0078d4;font-weight:700;}
+.ms-nav-item i{font-size:15px;width:18px;flex-shrink:0;}
+.ms-content{flex:1;overflow:auto;padding:24px;}
+.ms-panel{display:none;}
+.ms-panel.active{display:block;}
+
+/* ── KPI cards ── */
+.ms-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:24px;}
+.ms-kpi{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:6px;}
+.ms-kpi-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:4px;}
+.ms-kpi-val{font-size:28px;font-weight:800;color:var(--text-main);line-height:1;}
+.ms-kpi-label{font-size:11.5px;color:var(--text-muted);font-weight:600;}
+.ms-kpi-sub{font-size:10.5px;color:var(--text-muted);}
+
+/* ── Tabla ── */
+.ms-table-wrap{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:14px;overflow:hidden;}
+.ms-table-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border-soft);}
+.ms-table-title{font-size:13.5px;font-weight:700;color:var(--text-main);}
+.ms-search{padding:7px 12px;border:1.5px solid var(--border-soft);border-radius:8px;font-size:12px;background:var(--bg-main);color:var(--text-main);outline:none;width:220px;}
+.ms-search:focus{border-color:#0078d4;}
+table.ms-tbl{width:100%;border-collapse:collapse;}
+table.ms-tbl th{padding:9px 14px;font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border-soft);text-align:left;white-space:nowrap;}
+table.ms-tbl td{padding:10px 14px;font-size:12.5px;border-bottom:1px solid var(--border-soft);color:var(--text-main);vertical-align:middle;}
+table.ms-tbl tr:last-child td{border-bottom:none;}
+table.ms-tbl tr:hover td{background:var(--hover-row,rgba(0,120,212,.03));}
+
+/* ── Badges ── */
+.badge-on{background:rgba(16,185,129,.1);color:#059669;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;}
+.badge-off{background:rgba(239,68,68,.1);color:#dc2626;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;}
+.badge-warn{background:rgba(245,158,11,.1);color:#d97706;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;}
+.badge-neutral{background:var(--bg-main);color:var(--text-muted);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;border:1px solid var(--border-soft);}
+
+/* ── Licencias progress ── */
+.lic-bar-wrap{width:120px;height:6px;background:var(--bg-main);border-radius:3px;overflow:hidden;}
+.lic-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,#0078d4,#50e6ff);}
+
+/* ── Connect banner ── */
+.ms-connect-banner{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 24px;gap:16px;text-align:center;}
+.ms-connect-icon{width:72px;height:72px;background:linear-gradient(135deg,#0078d4,#50e6ff);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;margin-bottom:8px;}
+.ms-connect-title{font-size:20px;font-weight:800;color:var(--text-main);}
+.ms-connect-sub{font-size:13px;color:var(--text-muted);max-width:400px;line-height:1.6;}
+.ms-connect-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:linear-gradient(135deg,#0078d4,#106ebe);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;box-shadow:0 4px 16px rgba(0,120,212,.35);}
+.ms-connect-btn:hover{filter:brightness(1.1);}
+
+/* ── Pager ── */
+.ms-pager{display:flex;justify-content:center;gap:6px;padding:14px;}
+
+/* ── Spinner ── */
+.ms-loading{display:flex;align-items:center;justify-content:center;padding:48px;gap:10px;color:var(--text-muted);font-size:13px;}
+
+/* ── Back btn ── */
+.back-btn{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-card);border:1px solid var(--border-soft);border-radius:20px;padding:6px 14px;text-decoration:none;transition:color .2s;}
+.back-btn:hover{color:#0078d4;}
+
+@media(max-width:700px){
+  .ms-sidebar{display:none;}
+  .ms-kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .ms-search{width:140px;}
+}
+.ms-sidebar{overflow-y:auto;}
+table.ms-tbl tr:hover td{background:rgba(0,120,212,.03);}
+
+/* ── KPI clicable ── */
+.ms-kpi.clickable{cursor:pointer;transition:transform .15s,box-shadow .15s;}
+.ms-kpi.clickable:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,120,212,.12);}
+
+/* ── Export button ── */
+.ms-export-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:rgba(5,150,105,.08);color:#059669;border:1px solid rgba(5,150,105,.2);border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.ms-export-btn:hover{background:rgba(5,150,105,.15);}
+
+/* ── Refresh timestamp ── */
+.ms-last-refresh{font-size:10.5px;color:var(--text-muted);padding:0 4px;}
+
+/* ── Alert cards ── */
+.ms-alert{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-radius:12px;margin-bottom:8px;border:1px solid;}
+.ms-alert.critical{background:rgba(220,38,38,.05);border-color:rgba(220,38,38,.2);}
+.ms-alert.warning{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.2);}
+.ms-alert-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.ms-alert.critical .ms-alert-icon{background:rgba(220,38,38,.1);color:#dc2626;}
+.ms-alert.warning  .ms-alert-icon{background:rgba(245,158,11,.1);color:#d97706;}
+.ms-alert-title{font-size:12.5px;font-weight:700;color:var(--text-main);}
+.ms-alert-detail{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.ms-alert-date{font-size:10.5px;color:var(--text-muted);white-space:nowrap;margin-left:auto;flex-shrink:0;}
+.ms-alert-nav{font-size:11px;color:#0078d4;background:none;border:none;cursor:pointer;font-weight:700;padding:0;margin-top:4px;}
+
+/* ── Compliance donut-style bars ── */
+.ms-comp-bar{height:8px;border-radius:4px;background:var(--bg-main);overflow:hidden;margin-top:6px;}
+.ms-comp-fill{height:100%;border-radius:4px;transition:width .5s;}
+
+/* ── User detail modal sections ── */
+.ud-section{margin-bottom:18px;}
+.ud-section-title{font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;}
+.ud-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ud-item label{font-size:10px;color:var(--text-muted);display:block;margin-bottom:1px;}
+.ud-item span{font-size:12.5px;font-weight:600;color:var(--text-main);}
+
+/* ── Policy cards ── */
+.ms-policy-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.ms-policy-name{font-size:13px;font-weight:700;color:var(--text-main);}
+.ms-policy-desc{font-size:11px;color:var(--text-muted);margin-top:3px;}
+.ms-tab-bar{display:flex;gap:4px;margin-bottom:16px;}
+.ms-tab{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;border:1.5px solid var(--border-soft);background:var(--bg-card);color:var(--text-muted);cursor:pointer;}
+.ms-tab.active{background:#0078d4;color:#fff;border-color:#0078d4;}
+
+/* ── Copy button ── */
+.copy-btn{background:rgba(0,120,212,.08);color:#0078d4;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-weight:700;}
+.copy-btn:active{background:rgba(0,120,212,.2);}
+
+/* ── Trend bars ── */
+.trend-bar-wrap{display:flex;align-items:flex-end;gap:3px;height:60px;}
+.trend-bar{flex:1;background:linear-gradient(0deg,#0078d4,#50e6ff);border-radius:3px 3px 0 0;min-width:4px;transition:height .3s;}
+.trend-bar:hover{filter:brightness(1.15);}
+.trend-label{font-size:9px;color:var(--text-muted);text-align:center;margin-top:2px;}
+
+/* ── Row clickable ── */
+table.ms-tbl tr.clickable-row:hover td{background:rgba(0,120,212,.06);cursor:pointer;}
+
+/* ── Filter select ── */
+.ms-filter-select{padding:7px 10px;border:1.5px solid var(--border-soft);border-radius:8px;font-size:12px;background:var(--bg-main);color:var(--text-main);outline:none;cursor:pointer;}
+.ms-filter-select:focus{border-color:#0078d4;}
+
+/* ── Sidebar alerts badge ── */
+.sb-badge{background:#ef4444;color:#fff;font-size:9px;font-weight:800;border-radius:10px;padding:1px 6px;margin-left:auto;}
+
+</style>
+</head>
+<body>
+
+<div class="theme-toggle" onclick="toggleTheme()">
+  <i id="toggleIcon" class="bi bi-moon-stars-fill toggle-icon"></i>
+  <div class="toggle-track"><div class="toggle-knob"></div></div>
+  <span id="toggleLabel" class="toggle-label">Oscuro</span>
+</div>
+
+<div class="home-wrapper" style="padding-bottom:0;">
+
+  <!-- HERO -->
+  <div class="hero" style="margin-bottom:0;border-radius:16px 16px 0 0;">
+    <div class="hero-logo">
+      <div class="hero-logo-icon" style="background:linear-gradient(135deg,#0078d4,#50e6ff);">
+        <svg width="22" height="22" viewBox="0 0 23 23" fill="none"><path fill="#f25022" d="M1 1h10v10H1z"/><path fill="#7fba00" d="M12 1h10v10H12z"/><path fill="#00a4ef" d="M1 12h10v10H1z"/><path fill="#ffb900" d="M12 12h10v10H12z"/></svg>
+      </div>
+      <div class="hero-logo-text">MICROSOFT <span>365 + INTUNE</span></div>
+    </div>
+    <div class="hero-title">Usuarios · Dispositivos · Licencias · Seguridad · SharePoint · Teams</div>
+    <div class="hero-chip" style="background:rgba(0,120,212,.08);color:#0078d4;border-color:rgba(0,120,212,.2);">
+      <i class="bi bi-circle-fill" style="font-size:8px;color:#10b981;" id="msStatusDot"></i>
+      <span id="msStatusText">Verificando conexión…</span>
+    </div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:center;">
+      <a href="/administracion" class="back-btn"><i class="bi bi-arrow-left"></i> Administración</a>
+      <button onclick="msRefreshCurrent()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(0,120,212,.08);color:#0078d4;border:1px solid rgba(0,120,212,.2);border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;">
+        <i class="bi bi-arrow-clockwise" id="msRefreshIcon"></i> Actualizar
+      </button>
+      <span class="ms-last-refresh" id="msLastRefresh"></span>
+    </div>
+  </div>
+
+  <!-- SHELL: sidebar + contenido -->
+  <div class="ms-shell">
+
+    <!-- SIDEBAR -->
+    <nav class="ms-sidebar">
+      <div class="ms-sidebar-section">
+        <div class="ms-sidebar-label">General</div>
+        <button class="ms-nav-item active" onclick="msNav('dashboard',this)"><i class="bi bi-speedometer2"></i> Dashboard</button>
+        <button class="ms-nav-item" onclick="msNav('alerts',this)" id="sbAlerts"><i class="bi bi-bell-fill" style="color:#ef4444;"></i> Alertas <span class="sb-badge" id="alertsBadge" style="display:none;">0</span></button>
+      </div>
+      <div class="ms-sidebar-section">
+        <div class="ms-sidebar-label">Identidad</div>
+        <button class="ms-nav-item" onclick="msNav('users',this)"><i class="bi bi-people-fill"></i> Usuarios</button>
+        <button class="ms-nav-item" onclick="msNav('groups',this)"><i class="bi bi-diagram-3-fill"></i> Grupos</button>
+        <button class="ms-nav-item" onclick="msNav('security',this)"><i class="bi bi-shield-lock-fill"></i> Seguridad MFA</button>
+      </div>
+      <div class="ms-sidebar-section">
+        <div class="ms-sidebar-label">Licencias</div>
+        <button class="ms-nav-item" onclick="msNav('licenses',this)"><i class="bi bi-key-fill"></i> Licencias M365</button>
+      </div>
+      <div class="ms-sidebar-section">
+        <div class="ms-sidebar-label">Intune</div>
+        <button class="ms-nav-item" onclick="msNav('devices',this)"><i class="bi bi-laptop-fill"></i> Dispositivos</button>
+        <button class="ms-nav-item" onclick="msNav('compliance',this)"><i class="bi bi-check-circle-fill" style="color:#059669;"></i> Cumplimiento</button>
+      </div>
+      <div class="ms-sidebar-section">
+        <div class="ms-sidebar-label">Auditoría</div>
+        <button class="ms-nav-item" onclick="msNav('signins',this)"><i class="bi bi-box-arrow-in-right"></i> Inicios de sesión</button>
+        <button class="ms-nav-item" onclick="msNav('auditlog',this)"><i class="bi bi-journal-text"></i> Directorio</button>
+      </div>
+      <div class="ms-sidebar-section">
+        <div class="ms-sidebar-label">Seguridad avanzada</div>
+        <button class="ms-nav-item" onclick="msNav('condaccess',this)"><i class="bi bi-shield-fill-exclamation"></i> Acceso condicional</button>
+        <button class="ms-nav-item" onclick="msNav('riskyusers',this)"><i class="bi bi-person-fill-exclamation"></i> Usuarios en riesgo</button>
+      </div>
+      <div class="ms-sidebar-section">
+        <div class="ms-sidebar-label">Intune avanzado</div>
+        <button class="ms-nav-item" onclick="msNav('autopilot',this)"><i class="bi bi-rocket-takeoff-fill"></i> Autopilot</button>
+        <button class="ms-nav-item" onclick="msNav('policies',this)"><i class="bi bi-file-earmark-lock-fill" style="color:#7c3aed;"></i> Políticas</button>
+        <button class="ms-nav-item" onclick="msNav('managedapps',this)"><i class="bi bi-box-seam-fill" style="color:#059669;"></i> Apps gestionadas</button>
+        <button class="ms-nav-item" onclick="msNav('deviceapps',this)"><i class="bi bi-grid-3x3-gap-fill"></i> Apps por dispositivo</button>
+        <button class="ms-nav-item" onclick="msNav('bitlocker',this)"><i class="bi bi-lock-fill"></i> BitLocker</button>
+        <button class="ms-nav-item" onclick="msNav('winupdate',this)"><i class="bi bi-arrow-repeat" style="color:#0078d4;"></i> Windows Update</button>
+      </div>
+      <div class="ms-sidebar-section">
+        <div class="ms-sidebar-label">Colaboración</div>
+        <button class="ms-nav-item" onclick="msNav('teams',this)"><i class="bi bi-microsoft-teams"></i> Teams</button>
+        <button class="ms-nav-item" onclick="msNav('mailboxes',this)"><i class="bi bi-envelope-fill"></i> Buzones Exchange</button>
+      </div>
+      <div class="ms-sidebar-section">
+        <div class="ms-sidebar-label">Reportes M365</div>
+        <button class="ms-nav-item" onclick="msNav('reports',this)"><i class="bi bi-graph-up-arrow"></i> Uso de aplicaciones</button>
+        <button class="ms-nav-item" onclick="msNav('trends',this)"><i class="bi bi-bar-chart-fill" style="color:#7c3aed;"></i> Tendencias 30d</button>
+      </div>
+    </nav>
+
+    <!-- CONTENIDO -->
+    <main class="ms-content">
+
+      <!-- ── BANNER sin token ── -->
+      <div id="msPanelConnect" class="ms-panel" style="display:none;">
+        <div class="ms-connect-banner">
+          <div class="ms-connect-icon"><i class="bi bi-microsoft"></i></div>
+          <div class="ms-connect-title">Sesión Microsoft no vinculada</div>
+          <div class="ms-connect-sub">
+            Tu sesión no tiene credenciales Microsoft guardadas.<br><br>
+            <strong>Cierra sesión</strong> en la plataforma y vuelve a entrar usando<br>
+            <strong>"Continuar con Microsoft"</strong> — el panel cargará automáticamente.
+          </div>
+          <a href="/logout" class="ms-connect-btn" style="background:linear-gradient(135deg,#374151,#1f2937);">
+            <i class="bi bi-box-arrow-right"></i> Cerrar sesión para re-autenticar
+          </a>
+        </div>
+      </div>
+
+      <!-- ── DASHBOARD ── -->
+      <div id="msPanelDashboard" class="ms-panel active">
+        <div id="dashContent">
+          <div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando datos…</div>
+        </div>
+      </div>
+
+      <!-- ── USUARIOS ── -->
+      <div id="msPanelUsers" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-people-fill" style="color:#0078d4;"></i> Usuarios de Entra ID</span>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select id="usersStatusFilter" class="ms-filter-select" onchange="msUsersDebounce()">
+                <option value="">Todos</option>
+                <option value="active">Solo activos</option>
+                <option value="disabled">Solo deshabilitados</option>
+              </select>
+              <input type="text" class="ms-search" id="usersSearch" placeholder="Buscar usuario…" oninput="msUsersDebounce()">
+              <span id="usersTotalLabel" style="font-size:11px;color:var(--text-muted);white-space:nowrap;"></span>
+              <button class="ms-export-btn" onclick="_exportUsersCSV()"><i class="bi bi-download"></i> CSV</button>
+            </div>
+          </div>
+          <div id="usersTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+          <div id="usersPager" class="ms-pager"></div>
+        </div>
+      </div>
+
+      <!-- ── GRUPOS ── -->
+      <div id="msPanelGroups" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-diagram-3-fill" style="color:#0078d4;"></i> Grupos de Entra ID</span>
+            <input type="text" class="ms-search" id="groupsSearch" placeholder="Buscar grupo…" oninput="msGroupsDebounce()">
+          </div>
+          <div id="groupsTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+        </div>
+      </div>
+
+      <!-- ── SEGURIDAD MFA ── -->
+      <div id="msPanelSecurity" class="ms-panel">
+        <div id="mfaContent"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+      </div>
+
+      <!-- ── LICENCIAS ── -->
+      <div id="msPanelLicenses" class="ms-panel">
+        <div id="licContent"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+      </div>
+
+      <!-- ── DISPOSITIVOS ── -->
+      <div id="msPanelDevices" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-laptop-fill" style="color:#0078d4;"></i> Dispositivos Intune</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" class="ms-search" id="devicesSearch" placeholder="Buscar equipo…" oninput="msDevicesDebounce()">
+              <button class="ms-export-btn" onclick="_exportDevicesCSV()"><i class="bi bi-download"></i> CSV</button>
+            </div>
+          </div>
+          <div id="devicesTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+          <div id="devicesPager" class="ms-pager"></div>
+        </div>
+      </div>
+
+      <!-- ── INICIOS DE SESIÓN ── -->
+      <div id="msPanelSignins" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-box-arrow-in-right" style="color:#0078d4;"></i> Registros de inicio de sesión</span>
+            <button onclick="loadSignins()" style="font-size:11.5px;color:#0078d4;background:none;border:none;cursor:pointer;font-weight:700;"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+          </div>
+          <div id="signinsTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+        </div>
+      </div>
+
+      <!-- ── AUDITORÍA DIRECTORIO ── -->
+      <div id="msPanelAuditlog" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-journal-text" style="color:#7c3aed;"></i> Auditoría de directorio</span>
+            <button onclick="loadAuditLog()" style="font-size:11.5px;color:#7c3aed;background:none;border:none;cursor:pointer;font-weight:700;"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+          </div>
+          <div id="auditlogTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+        </div>
+      </div>
+
+      <!-- ── ACCESO CONDICIONAL ── -->
+      <div id="msPanelCondaccess" class="ms-panel">
+        <div id="condaccessContent"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+      </div>
+
+      <!-- ── USUARIOS EN RIESGO ── -->
+      <div id="msPanelRiskyusers" class="ms-panel">
+        <div id="riskyusersContent"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+      </div>
+
+      <!-- ── AUTOPILOT ── -->
+      <div id="msPanelAutopilot" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-rocket-takeoff-fill" style="color:#dc2626;"></i> Dispositivos Autopilot</span>
+          </div>
+          <div id="autopilotTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+        </div>
+      </div>
+
+      <!-- ── APPS POR DISPOSITIVO ── -->
+      <div id="msPanelDeviceapps" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-grid-3x3-gap-fill" style="color:#059669;"></i> Apps instaladas por dispositivo</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" class="ms-search" id="deviceappsSearch" placeholder="Buscar equipo…" oninput="msDeviceAppsDebounce()">
+            </div>
+          </div>
+          <div id="deviceappsTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando dispositivos…</div></div>
+          <div id="deviceappsPager" class="ms-pager"></div>
+        </div>
+      </div>
+
+      <!-- ── BITLOCKER ── -->
+      <div id="msPanelBitlocker" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-lock-fill" style="color:#d97706;"></i> Claves BitLocker</span>
+            <input type="text" class="ms-search" id="bitlockerSearch" placeholder="Buscar equipo…" oninput="msBitlockerDebounce()">
+          </div>
+          <div id="bitlockerTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando dispositivos…</div></div>
+          <div id="bitlockerPager" class="ms-pager"></div>
+        </div>
+      </div>
+
+      <!-- ── TEAMS ── -->
+      <div id="msPanelTeams" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-microsoft-teams" style="color:#6264a7;"></i> Teams activos</span>
+            <input type="text" class="ms-search" id="teamsSearch" placeholder="Buscar team…" oninput="msTeamsDebounce()">
+          </div>
+          <div id="teamsTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+        </div>
+      </div>
+
+      <!-- ── BUZONES EXCHANGE ── -->
+      <div id="msPanelMailboxes" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-envelope-fill" style="color:#0078d4;"></i> Buzones Exchange</span>
+            <input type="text" class="ms-search" id="mailboxesSearch" placeholder="Buscar usuario…" oninput="msMailboxesDebounce()">
+          </div>
+          <div id="mailboxesTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+        </div>
+      </div>
+
+      <!-- ── REPORTES M365 ── -->
+      <div id="msPanelReports" class="ms-panel">
+        <div id="reportsContent"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+      </div>
+
+      <!-- ── ALERTAS ── -->
+      <div id="msPanelAlerts" class="ms-panel">
+        <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text-main);">Centro de alertas</div>
+            <div style="font-size:12px;color:var(--text-muted);">Dispositivos no conformes · Usuarios en riesgo · Presión de licencias</div>
+          </div>
+          <button onclick="loadAlerts()" style="font-size:11.5px;color:#0078d4;background:none;border:none;cursor:pointer;font-weight:700;"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+        </div>
+        <div id="alertsContent"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando alertas…</div></div>
+      </div>
+
+      <!-- ── CUMPLIMIENTO ── -->
+      <div id="msPanelCompliance" class="ms-panel">
+        <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text-main);">Estado de cumplimiento</div>
+            <div style="font-size:12px;color:var(--text-muted);">Dispositivos gestionados por Intune</div>
+          </div>
+          <button onclick="_exportComplianceCSV()" class="ms-export-btn"><i class="bi bi-download"></i> CSV</button>
+        </div>
+        <div id="complianceSummary" style="margin-bottom:16px;"></div>
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title">Detalle de dispositivos</span>
+            <select id="complianceFilter" class="ms-filter-select" onchange="_complianceFilterChange()">
+              <option value="">Todos</option>
+              <option value="noncompliant">No conformes</option>
+              <option value="compliant">Conformes</option>
+              <option value="unknown">Desconocido</option>
+              <option value="inGracePeriod">En período de gracia</option>
+            </select>
+          </div>
+          <div id="complianceTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+          <div id="compliancePager" class="ms-pager"></div>
+        </div>
+      </div>
+
+      <!-- ── POLÍTICAS INTUNE ── -->
+      <div id="msPanelPolicies" class="ms-panel">
+        <div style="margin-bottom:16px;">
+          <div style="font-size:15px;font-weight:800;color:var(--text-main);margin-bottom:4px;">Políticas de Intune</div>
+          <div class="ms-tab-bar">
+            <button class="ms-tab active" onclick="_policiesTab('compliance',this)">Cumplimiento</button>
+            <button class="ms-tab" onclick="_policiesTab('configuration',this)">Configuración</button>
+          </div>
+        </div>
+        <div id="policiesContent"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+      </div>
+
+      <!-- ── APPS GESTIONADAS ── -->
+      <div id="msPanelManagedapps" class="ms-panel">
+        <div class="ms-table-wrap">
+          <div class="ms-table-head">
+            <span class="ms-table-title"><i class="bi bi-box-seam-fill" style="color:#059669;"></i> Aplicaciones gestionadas</span>
+            <input type="text" class="ms-search" id="managedappsSearch" placeholder="Buscar app…" oninput="msManagedAppsDebounce()">
+          </div>
+          <div id="managedappsTableWrap"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+        </div>
+      </div>
+
+      <!-- ── WINDOWS UPDATE ── -->
+      <div id="msPanelWinupdate" class="ms-panel">
+        <div style="margin-bottom:16px;">
+          <div style="font-size:15px;font-weight:800;color:var(--text-main);">Windows Update for Business</div>
+          <div style="font-size:12px;color:var(--text-muted);">Anillos de actualización y configuraciones</div>
+        </div>
+        <div id="winupdateContent"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div></div>
+      </div>
+
+      <!-- ── TENDENCIAS 30D ── -->
+      <div id="msPanelTrends" class="ms-panel">
+        <div style="margin-bottom:16px;">
+          <div style="font-size:15px;font-weight:800;color:var(--text-main);">Tendencias de actividad · 30 días</div>
+          <div style="font-size:12px;color:var(--text-muted);">Usuarios activos por servicio Microsoft 365</div>
+        </div>
+        <div id="trendsContent"><div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando datos de tendencias…</div></div>
+      </div>
+
+    </main>
+  </div><!-- /ms-shell -->
+</div><!-- /home-wrapper -->
+
+<!-- ── MODAL SIN ACCESO ── -->
+<div id="noAccessModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeNoAccessModal()">
+  <div style="background:var(--bg-card,#fff);border-radius:20px;padding:40px 32px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.25);text-align:center;position:relative;">
+    <div style="width:72px;height:72px;background:linear-gradient(135deg,#fee2e2,#fecaca);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 20px;">🔒</div>
+    <h3 style="font-size:18px;font-weight:800;color:var(--text-main,#0f172a);margin:0 0 10px;">Sin acceso a este módulo</h3>
+    <p style="font-size:13px;color:var(--text-muted,#64748b);line-height:1.7;margin:0 0 8px;">Tu cuenta de Microsoft no tiene los permisos necesarios en Azure Active Directory.</p>
+    <p id="noAccessDetail" style="font-size:12px;color:#dc2626;background:#fee2e2;border-radius:10px;padding:10px 14px;margin:0 0 24px;line-height:1.6;"></p>
+    <button onclick="closeNoAccessModal()" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:12px;padding:11px 32px;font-size:14px;font-weight:700;cursor:pointer;width:100%;">Entendido</button>
+  </div>
+</div>
+
+<!-- ── MODAL DETALLE APPS / BITLOCKER ── -->
+<div id="detailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeDetailModal()">
+  <div style="background:var(--bg-card,#fff);border-radius:20px;width:100%;max-width:700px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.25);">
+    <div style="padding:20px 24px;border-bottom:1px solid var(--border-soft,#e2e8f0);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <span id="detailModalTitle" style="font-size:15px;font-weight:800;"></span>
+      <button onclick="closeDetailModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted,#64748b);">✕</button>
+    </div>
+    <div id="detailModalBody" style="overflow-y:auto;padding:20px 24px;flex:1;"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ── estado ────────────────────────────────────────────────────────────────────
+let _msConnected = false;
+let _currentPanel = 'dashboard';
+let _usersNextLink = null, _usersPrevLinks = [], _usersCurrentCursor = null, _usersTimer = null;
+let _groupsSkip = 0, _groupsTimer = null;
+let _devSkip = 0, _devTimer = null;
+let _complianceSkip = 0, _complianceState = '';
+let _maTimer = null;
+const PAGE_SIZE = 50;
+// datos cacheados para exportar CSV
+let _usersData = [], _devicesData = [], _complianceData = [];
+
+// ── init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  await checkMsStatus();
+});
+
+async function checkMsStatus() {
+  try {
+    const r = await fetch('/api/ms/status', { credentials: 'include' });
+    const d = await r.json();
+    console.log('[MS Panel] status response:', r.status, JSON.stringify(d));
+    _msConnected = d.connected;
+    const dot  = document.getElementById('msStatusDot');
+    const txt  = document.getElementById('msStatusText');
+    if (_msConnected) {
+      dot.style.color = '#10b981';
+      txt.textContent = 'Conectado a Microsoft 365';
+      loadDashboard();
+      // Cargar conteo de alertas en segundo plano para mostrar badge
+      fetch('/api/ms/alerts', { credentials:'include' })
+        .then(r => r.json())
+        .then(d => { const b = document.getElementById('alertsBadge'); const n = d.data?.length||0; if (b && n) { b.textContent=n; b.style.display='inline'; } })
+        .catch(() => {});
+    } else {
+      dot.style.color = '#f59e0b';
+      txt.textContent = 'Sin sesión Microsoft';
+      showConnectBanner();
+    }
+  } catch(e) {
+    console.error('[MS Panel] status error:', e);
+    document.getElementById('msStatusText').textContent = 'Error al verificar conexión';
+    showConnectBanner();
+  }
+}
+
+function showConnectBanner() {
+  document.querySelectorAll('.ms-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('msPanelConnect').style.display = 'block';
+}
+
+// ── navegación ────────────────────────────────────────────────────────────────
+window.msNav = function(panel, el) {
+  if (!_msConnected) { showConnectBanner(); return; }
+  document.querySelectorAll('.ms-nav-item').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.ms-panel').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
+  const target = document.getElementById('msPanel' + panel.charAt(0).toUpperCase() + panel.slice(1));
+  if (target) { target.classList.add('active'); target.style.display = 'block'; }
+  _currentPanel = panel;
+  if (panel === 'dashboard') loadDashboard();
+  if (panel === 'users')    { _usersNextLink=null; _usersPrevLinks=[]; _usersCurrentCursor=null; loadUsers(); }
+  if (panel === 'groups')   { _groupsSkip = 0; loadGroups(); }
+  if (panel === 'security') loadMfa();
+  if (panel === 'licenses') loadLicenses();
+  if (panel === 'devices')  { _devSkip = 0; loadDevices(); }
+};
+
+window.msRefreshCurrent = function() {
+  if (_currentPanel === 'dashboard') loadDashboard();
+  if (_currentPanel === 'users')    loadUsers();
+  if (_currentPanel === 'groups')   loadGroups();
+  if (_currentPanel === 'security') loadMfa();
+  if (_currentPanel === 'licenses') loadLicenses();
+  if (_currentPanel === 'devices')  loadDevices();
+};
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function _setLoading(elId) {
+  const el = document.getElementById(elId);
+  if (el) el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+}
+function _handleMsReauth(d) {
+  if (d.msReauth) {
+    _msConnected = false;
+    const errMsg = d.error || 'Token Microsoft expirado';
+    document.getElementById('msStatusText').textContent = errMsg;
+    document.getElementById('msStatusDot').style.color = '#ef4444';
+    console.error('[MS Panel] reauth error:', errMsg);
+    // Mostrar error en el panel en lugar de solo el banner
+    document.getElementById('dashContent').innerHTML =
+      `<div style="padding:32px;text-align:center;color:var(--text-muted);">
+        <i class="bi bi-exclamation-triangle-fill" style="font-size:32px;color:#ef4444;display:block;margin-bottom:12px;"></i>
+        <div style="font-size:13px;font-weight:700;color:var(--text-main);margin-bottom:8px;">Error de token Microsoft</div>
+        <div style="font-size:12px;max-width:500px;margin:0 auto;line-height:1.6;">${errMsg}</div>
+        <div style="margin-top:16px;font-size:11px;color:var(--text-muted);">Revisa la consola del servidor para más detalles o visita <code>/api/ms/debug-token</code></div>
+      </div>`;
+    return true;
+  }
+  return false;
+}
+function _fmtDate(iso) { return iso ? new Date(iso).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
+function _fmtDateTime(iso) { return iso ? new Date(iso).toLocaleString('es-PE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—'; }
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  _setLoading('dashContent');
+  try {
+    const r = await fetch('/api/ms/dashboard', { credentials: 'include' });
+    const d = await r.json();
+    if (!d.success) { if (_handleMsReauth(d)) return; throw new Error(d.error); }
+    const { users, groups, devices, licenses, org } = d.data;
+    const licPct = licenses.total > 0 ? Math.round(licenses.used / licenses.total * 100) : 0;
+
+    document.getElementById('dashContent').innerHTML = `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:18px;font-weight:800;color:var(--text-main);">${org?.name || 'Tenant Microsoft 365'}</div>
+        <div style="font-size:12px;color:var(--text-muted);">${(org?.domains || []).join(' · ')}</div>
+      </div>
+      <div class="ms-kpi-grid">
+        <div class="ms-kpi clickable" onclick="msNav('users',document.querySelector('[onclick*=\\'users\\']'))">
+          <div class="ms-kpi-icon" style="background:rgba(0,120,212,.1);color:#0078d4;"><i class="bi bi-people-fill"></i></div>
+          <div class="ms-kpi-val">${(users||0).toLocaleString()}</div>
+          <div class="ms-kpi-label">Usuarios activos</div>
+          <div class="ms-kpi-sub">Entra ID habilitados → Ver listado</div>
+        </div>
+        <div class="ms-kpi clickable" onclick="msNav('groups',document.querySelector('[onclick*=\\'groups\\']'))">
+          <div class="ms-kpi-icon" style="background:rgba(124,58,237,.1);color:#7c3aed;"><i class="bi bi-diagram-3-fill"></i></div>
+          <div class="ms-kpi-val">${(groups||0).toLocaleString()}</div>
+          <div class="ms-kpi-label">Grupos</div>
+          <div class="ms-kpi-sub">Seguridad + M365 → Ver listado</div>
+        </div>
+        <div class="ms-kpi clickable" onclick="msNav('compliance',document.querySelector('[onclick*=\\'compliance\\']'))">
+          <div class="ms-kpi-icon" style="background:rgba(5,150,105,.1);color:#059669;"><i class="bi bi-laptop-fill"></i></div>
+          <div class="ms-kpi-val">${(devices||0).toLocaleString()}</div>
+          <div class="ms-kpi-label">Dispositivos</div>
+          <div class="ms-kpi-sub">Gestionados por Intune → Cumplimiento</div>
+        </div>
+        <div class="ms-kpi clickable" onclick="msNav('licenses',document.querySelector('[onclick*=\\'licenses\\']'))">
+          <div class="ms-kpi-icon" style="background:rgba(245,158,11,.1);color:#d97706;"><i class="bi bi-key-fill"></i></div>
+          <div class="ms-kpi-val">${licenses.used.toLocaleString()}<span style="font-size:14px;color:var(--text-muted);">/${licenses.total.toLocaleString()}</span></div>
+          <div class="ms-kpi-label">Licencias usadas</div>
+          <div class="ms-kpi-sub">${licenses.available} disponibles · ${licPct}% → Ver detalle</div>
+        </div>
+      </div>
+
+      <!-- Tabla de licencias en dashboard -->
+      <div class="ms-table-wrap">
+        <div class="ms-table-head">
+          <span class="ms-table-title"><i class="bi bi-key-fill" style="color:#0078d4;"></i> Resumen de suscripciones</span>
+          <button onclick="msNav('licenses', document.querySelector('.ms-nav-item[onclick*=licenses]'))" style="font-size:11.5px;color:#0078d4;background:none;border:none;cursor:pointer;font-weight:700;">Ver detalle →</button>
+        </div>
+        <table class="ms-tbl">
+          <thead><tr><th>Producto</th><th>Total</th><th>Usadas</th><th>Disponibles</th><th>Estado</th><th>Ocupación</th></tr></thead>
+          <tbody>${licenses.list.map(l => {
+            const pct = l.total > 0 ? Math.round(l.used/l.total*100) : 0;
+            const statusCls = l.status === 'Enabled' ? 'badge-on' : l.status === 'Warning' ? 'badge-warn' : 'badge-off';
+            return `<tr>
+              <td style="font-weight:700;">${l.sku}</td>
+              <td>${l.total.toLocaleString()}</td>
+              <td>${l.used.toLocaleString()}</td>
+              <td style="color:${l.available > 0 ? '#059669' : '#dc2626'};font-weight:700;">${l.available.toLocaleString()}</td>
+              <td><span class="${statusCls}">${l.status}</span></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div class="lic-bar-wrap"><div class="lic-bar" style="width:${pct}%;background:${pct>90?'#ef4444':pct>70?'#f59e0b':'#0078d4'};"></div></div>
+                  <span style="font-size:11px;color:var(--text-muted);">${pct}%</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+    _markRefresh();
+  } catch(e) {
+    document.getElementById('dashContent').innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`;
+  }
+}
+
+// ── USUARIOS ──────────────────────────────────────────────────────────────────
+window.msUsersDebounce = function() {
+  clearTimeout(_usersTimer);
+  _usersTimer = setTimeout(() => { _usersNextLink=null; _usersPrevLinks=[]; loadUsers(); }, 350);
+};
+
+async function loadUsers(cursorLink) {
+  _usersCurrentCursor = cursorLink || null;
+  _setLoading('usersTableWrap');
+  const q      = document.getElementById('usersSearch')?.value || '';
+  const status = document.getElementById('usersStatusFilter')?.value || '';
+  try {
+    let url = `/api/ms/users?top=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${status}`;
+    if (cursorLink) url += `&nextLink=${encodeURIComponent(cursorLink)}`;
+    const r = await fetch(url, { credentials:'include' });
+    const d = await r.json();
+    if (!d.success) { if (_handleMsReauth(d)) return; throw new Error(d.error); }
+    _usersData = d.data || [];
+    const lbl = document.getElementById('usersTotalLabel');
+    if (lbl && d.total) lbl.textContent = `${d.total.toLocaleString()} usuarios`;
+    const rows = _usersData.map(u => {
+      const lastLogin = u.signInActivity?.lastSignInDateTime;
+      const name = (u.displayName||'').replace(/'/g,"\\'");
+      const upn  = (u.userPrincipalName||'').replace(/'/g,"\\'");
+      return `<tr class="clickable-row" onclick="loadUserDetail('${u.id}','${upn}','${name}')">
+        <td><div style="font-weight:700;font-size:12.5px;">${u.displayName||'—'}</div><div style="font-size:10.5px;color:var(--text-muted);">${u.userPrincipalName||''}</div></td>
+        <td style="font-size:12px;">${u.department||'<span style="opacity:.4">—</span>'}</td>
+        <td style="font-size:12px;">${u.jobTitle||'<span style="opacity:.4">—</span>'}</td>
+        <td><span class="${u.accountEnabled?'badge-on':'badge-off'}">${u.accountEnabled?'Activo':'Deshabilitado'}</span></td>
+        <td style="font-size:11px;color:var(--text-muted);">${lastLogin?_fmtDateTime(lastLogin):'<span style="opacity:.4">Sin registro</span>'}</td>
+        <td><span class="badge-neutral">${(u.assignedLicenses||[]).length} lic.</span></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('usersTableWrap').innerHTML = `
+      <table class="ms-tbl">
+        <thead><tr><th>Nombre / UPN</th><th>Departamento</th><th>Cargo</th><th>Estado</th><th>Último acceso</th><th>Licencias</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Sin resultados</td></tr>'}</tbody>
+      </table>`;
+    // Paginación por cursor
+    _usersNextLink = d.next || null;
+    const pager = document.getElementById('usersPager');
+    if (pager) {
+      const hasPrev = _usersPrevLinks.length > 0;
+      pager.innerHTML = `
+        <button onclick="_usersPrev()" ${hasPrev?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">← Anterior</button>
+        <span style="font-size:11.5px;color:var(--text-muted);padding:0 8px;">${d.data?.length||0} registros</span>
+        <button onclick="_usersNext()" ${_usersNextLink?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">Siguiente →</button>`;
+    }
+    _markRefresh();
+  } catch(e) {
+    document.getElementById('usersTableWrap').innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`;
+  }
+}
+window._usersPrev = function() { const prev = _usersPrevLinks.pop(); loadUsers(prev||null); };
+window._usersNext = function() { if (_usersNextLink) { _usersPrevLinks.push(_usersCurrentCursor); loadUsers(_usersNextLink); } };
+window._exportUsersCSV = function() { _exportCSV(_usersData.map(u => ({ Nombre:u.displayName, UPN:u.userPrincipalName, Departamento:u.department||'', Cargo:u.jobTitle||'', Estado:u.accountEnabled?'Activo':'Deshabilitado', Licencias:(u.assignedLicenses||[]).length, UltimoAcceso:u.signInActivity?.lastSignInDateTime||'' })), 'usuarios_m365.csv'); };
+
+// ── UTILIDADES ────────────────────────────────────────────────────────────────
+function _markRefresh() {
+  const el = document.getElementById('msLastRefresh');
+  if (el) el.textContent = `· Actualizado ${new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})}`;
+}
+
+function _exportCSV(rows, filename) {
+  if (!rows?.length) return alert('Sin datos para exportar.');
+  const headers = Object.keys(rows[0]);
+  const esc = v => { const s = String(v??''); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => esc(r[h])).join(','))].join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// ── DRILL-DOWN USUARIO ────────────────────────────────────────────────────────
+window.loadUserDetail = async function(userId, upn, displayName) {
+  showDetailModal(`👤 ${displayName||upn}`, '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando perfil…</div>');
+  try {
+    const r = await fetch(`/api/ms/users/${userId}/detail?upn=${encodeURIComponent(upn)}`, { credentials:'include' });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Error al cargar perfil');
+    const p  = d.profile || {};
+    const mfa = d.mfa || {};
+    const compMap = { compliant:'badge-on', noncompliant:'badge-off', unknown:'badge-warn' };
+    const riskMap = { none:'badge-neutral', low:'badge-warn', high:'badge-off' };
+    const body = document.getElementById('detailModalBody');
+    body.innerHTML = `
+      <div class="ud-section">
+        <div class="ud-section-title">Perfil</div>
+        <div class="ud-grid">
+          <div class="ud-item"><label>Email</label><span>${p.mail||p.userPrincipalName||'—'}</span></div>
+          <div class="ud-item"><label>Departamento</label><span>${p.department||'—'}</span></div>
+          <div class="ud-item"><label>Cargo</label><span>${p.jobTitle||'—'}</span></div>
+          <div class="ud-item"><label>Teléfono</label><span>${p.mobilePhone||'—'}</span></div>
+          <div class="ud-item"><label>Oficina</label><span>${p.officeLocation||'—'}</span></div>
+          <div class="ud-item"><label>País</label><span>${p.country||'—'}</span></div>
+          <div class="ud-item"><label>Estado</label><span class="${p.accountEnabled?'badge-on':'badge-off'}">${p.accountEnabled?'Activo':'Deshabilitado'}</span></div>
+          <div class="ud-item"><label>Creado</label><span>${_fmtDate(p.createdDateTime)}</span></div>
+          <div class="ud-item"><label>Licencias</label><span>${(p.assignedLicenses||[]).length} asignadas</span></div>
+          <div class="ud-item"><label>Últ. cambio clave</label><span>${_fmtDate(p.lastPasswordChangeDateTime)}</span></div>
+        </div>
+      </div>
+      <div class="ud-section">
+        <div class="ud-section-title">Seguridad MFA</div>
+        ${mfa ? `<div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <span class="${mfa.isMfaRegistered?'badge-on':'badge-off'}">${mfa.isMfaRegistered?'MFA Activo':'Sin MFA'}</span>
+          ${mfa.defaultMfaMethod ? `<span class="badge-neutral">${mfa.defaultMfaMethod}</span>` : ''}
+          ${(mfa.methodsRegistered||[]).map(m=>`<span class="badge-neutral">${m}</span>`).join('')}
+        </div>` : '<span style="font-size:12px;color:var(--text-muted);">Sin datos MFA</span>'}
+      </div>
+      ${d.groups?.length ? `<div class="ud-section">
+        <div class="ud-section-title">Grupos (${d.groups.length})</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">${d.groups.map(g=>`<span class="badge-neutral">${g.displayName}</span>`).join('')}</div>
+      </div>` : ''}
+      ${d.devices?.length ? `<div class="ud-section">
+        <div class="ud-section-title">Dispositivos</div>
+        ${d.devices.map(dev=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-soft);">
+          <div><div style="font-weight:700;font-size:12px;">${dev.deviceName}</div><div style="font-size:10.5px;color:var(--text-muted);">${dev.operatingSystem||''}</div></div>
+          <span class="${compMap[dev.complianceState]||'badge-neutral'}">${dev.complianceState||'—'}</span>
+        </div>`).join('')}
+      </div>` : ''}
+      ${d.signins?.length ? `<div class="ud-section">
+        <div class="ud-section-title">Últimos inicios de sesión</div>
+        ${d.signins.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:11.5px;">
+          <div><span style="font-weight:600;">${s.appDisplayName||'—'}</span> · <span style="color:var(--text-muted);">${s.ipAddress||''} ${s.location?.city||''}</span></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="${s.status?.errorCode===0?'badge-on':'badge-off'}">${s.status?.errorCode===0?'OK':'Fallo'}</span>
+            <span style="color:var(--text-muted);font-size:10.5px;">${_fmtDateTime(s.createdDateTime)}</span>
+          </div>
+        </div>`).join('')}
+      </div>` : ''}`;
+  } catch(e) { document.getElementById('detailModalBody').innerHTML = `<div class="ms-loading" style="color:#ef4444;">${e.message}</div>`; }
+};
+
+// ── ALERTAS ───────────────────────────────────────────────────────────────────
+async function loadAlerts() {
+  const el = document.getElementById('alertsContent');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Analizando tenant…</div>';
+  try {
+    const r = await fetch('/api/ms/alerts', { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    const badge = document.getElementById('alertsBadge');
+    const total = d.data?.length || 0;
+    if (badge) { badge.textContent = total; badge.style.display = total ? 'inline' : 'none'; }
+    if (!total) {
+      el.innerHTML = `<div style="text-align:center;padding:48px;color:var(--text-muted);"><i class="bi bi-check-circle-fill" style="font-size:40px;color:#059669;display:block;margin-bottom:12px;"></i><div style="font-size:14px;font-weight:700;">Sin alertas activas</div><div style="font-size:12px;margin-top:6px;">El tenant cumple con todos los umbrales monitorizados.</div></div>`;
+      return;
+    }
+    const iconMap = { noncompliant:'bi-laptop-fill', risky:'bi-person-fill-exclamation', license:'bi-key-fill' };
+    const cards = (d.data||[]).map(a => `
+      <div class="ms-alert ${a.level}">
+        <div class="ms-alert-icon"><i class="bi ${iconMap[a.type]||'bi-exclamation-triangle-fill'}"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div class="ms-alert-title">${a.title}</div>
+          <div class="ms-alert-detail">${a.detail}</div>
+          ${a.panel?`<button class="ms-alert-nav" onclick="msNav('${a.panel}',document.querySelector('[onclick*=\\'${a.panel}\\']'))">Ver panel →</button>`:''}
+        </div>
+        ${a.date?`<div class="ms-alert-date">${_fmtDate(a.date)}</div>`:''}
+      </div>`).join('');
+    const c = d.counts||{};
+    el.innerHTML = `
+      <div class="ms-kpi-grid" style="grid-template-columns:repeat(3,1fr);max-width:500px;margin-bottom:20px;">
+        <div class="ms-kpi"><div class="ms-kpi-icon" style="background:rgba(239,68,68,.1);color:#dc2626;"><i class="bi bi-laptop-fill"></i></div><div class="ms-kpi-val">${c.noncompliant||0}</div><div class="ms-kpi-label">No conformes</div></div>
+        <div class="ms-kpi"><div class="ms-kpi-icon" style="background:rgba(245,158,11,.1);color:#d97706;"><i class="bi bi-person-fill-exclamation"></i></div><div class="ms-kpi-val">${c.risky||0}</div><div class="ms-kpi-label">En riesgo</div></div>
+        <div class="ms-kpi"><div class="ms-kpi-icon" style="background:rgba(220,38,38,.1);color:#dc2626;"><i class="bi bi-key-fill"></i></div><div class="ms-kpi-val">${c.licensePressure||0}</div><div class="ms-kpi-label">Lic. críticas</div></div>
+      </div>
+      ${cards}`;
+    _markRefresh();
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── CUMPLIMIENTO ──────────────────────────────────────────────────────────────
+window._complianceFilterChange = function() { _complianceState = document.getElementById('complianceFilter')?.value||''; _complianceSkip=0; loadCompliance(); };
+window._exportComplianceCSV = function() { _exportCSV(_complianceData.map(d => ({ Equipo:d.deviceName, Usuario:d.userDisplayName||'', UPN:d.userPrincipalName||'', Estado:d.complianceState, SO:d.operatingSystem||'', Version:d.osVersion||'', UltimaSync:d.lastSyncDateTime||'' })), 'cumplimiento_intune.csv'); };
+
+async function loadCompliance() {
+  const el = document.getElementById('complianceTableWrap');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    let url = `/api/ms/compliance?top=${PAGE_SIZE}&skip=${_complianceSkip}`;
+    if (_complianceState) url += `&state=${_complianceState}`;
+    const r = await fetch(url, { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    _complianceData = d.data || [];
+    // Resumen KPIs
+    const sum = d.summary || {};
+    const tot = d.total || 0;
+    const sumEl = document.getElementById('complianceSummary');
+    if (sumEl) {
+      const pctOk = tot > 0 ? Math.round((sum.compliant||0)/tot*100) : 0;
+      sumEl.innerHTML = `
+        <div class="ms-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr));">
+          <div class="ms-kpi clickable" onclick="document.getElementById('complianceFilter').value='compliant';_complianceFilterChange()"><div class="ms-kpi-icon" style="background:rgba(16,185,129,.1);color:#059669;"><i class="bi bi-check-circle-fill"></i></div><div class="ms-kpi-val">${sum.compliant||0}</div><div class="ms-kpi-label">Conformes</div></div>
+          <div class="ms-kpi clickable" onclick="document.getElementById('complianceFilter').value='noncompliant';_complianceFilterChange()"><div class="ms-kpi-icon" style="background:rgba(239,68,68,.1);color:#dc2626;"><i class="bi bi-x-circle-fill"></i></div><div class="ms-kpi-val">${sum.noncompliant||0}</div><div class="ms-kpi-label">No conformes</div></div>
+          <div class="ms-kpi clickable" onclick="document.getElementById('complianceFilter').value='unknown';_complianceFilterChange()"><div class="ms-kpi-icon" style="background:rgba(245,158,11,.1);color:#d97706;"><i class="bi bi-question-circle-fill"></i></div><div class="ms-kpi-val">${sum.unknown||0}</div><div class="ms-kpi-label">Desconocido</div></div>
+          <div class="ms-kpi clickable" onclick="document.getElementById('complianceFilter').value='inGracePeriod';_complianceFilterChange()"><div class="ms-kpi-icon" style="background:rgba(124,58,237,.1);color:#7c3aed;"><i class="bi bi-hourglass-split"></i></div><div class="ms-kpi-val">${sum.inGracePeriod||0}</div><div class="ms-kpi-label">Gracia</div></div>
+          <div class="ms-kpi"><div class="ms-kpi-icon" style="background:rgba(0,120,212,.1);color:#0078d4;"><i class="bi bi-percent"></i></div><div class="ms-kpi-val">${pctOk}%</div><div class="ms-kpi-label">Conformidad</div>
+            <div class="ms-comp-bar"><div class="ms-comp-fill" style="width:${pctOk}%;background:${pctOk>80?'#059669':pctOk>50?'#f59e0b':'#dc2626'};"></div></div>
+          </div>
+        </div>`;
+    }
+    const compBadge = { compliant:'badge-on', noncompliant:'badge-off', unknown:'badge-warn', notApplicable:'badge-neutral', inGracePeriod:'badge-warn', error:'badge-off' };
+    const rows = _complianceData.map(dev => `<tr>
+      <td><div style="font-weight:700;font-size:12.5px;">${dev.deviceName||'—'}</div><div style="font-size:10px;color:var(--text-muted);">${dev.manufacturer||''} ${dev.model||''}</div></td>
+      <td style="font-size:12px;">${dev.userDisplayName||'<span style="opacity:.4">Sin usuario</span>'}</td>
+      <td style="font-size:11.5px;">${dev.operatingSystem||'—'} ${dev.osVersion||''}</td>
+      <td><span class="${compBadge[dev.complianceState]||'badge-neutral'}">${dev.complianceState||'—'}</span></td>
+      <td style="font-size:11px;color:var(--text-muted);">${_fmtDateTime(dev.lastSyncDateTime)}</td>
+    </tr>`).join('');
+    el.innerHTML = `<table class="ms-tbl"><thead><tr><th>Dispositivo</th><th>Usuario</th><th>SO</th><th>Estado</th><th>Última sync</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">Sin dispositivos</td></tr>'}</tbody></table>`;
+    const pager = document.getElementById('compliancePager');
+    if (pager) pager.innerHTML = `
+      <button onclick="_compPrev()" ${_complianceSkip>0?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">← Anterior</button>
+      <span style="font-size:11.5px;color:var(--text-muted);padding:0 8px;">${_complianceData.length} registros</span>
+      <button onclick="_compNext()" ${d.next?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">Siguiente →</button>`;
+    _markRefresh();
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+window._compPrev = function() { _complianceSkip = Math.max(0,_complianceSkip-PAGE_SIZE); loadCompliance(); };
+window._compNext = function() { _complianceSkip += PAGE_SIZE; loadCompliance(); };
+
+// ── POLÍTICAS INTUNE ──────────────────────────────────────────────────────────
+let _policiesActiveTab = 'compliance';
+window._policiesTab = function(tab, el) {
+  _policiesActiveTab = tab;
+  document.querySelectorAll('.ms-tab').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  loadPolicies();
+};
+
+async function loadPolicies() {
+  const el = document.getElementById('policiesContent');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando políticas…</div>';
+  try {
+    const type = _policiesActiveTab || 'compliance';
+    const r = await fetch(`/api/ms/policies/${type}`, { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const cards = (d.data||[]).map(p => `
+      <div class="ms-policy-card">
+        <div style="flex:1;">
+          <div class="ms-policy-name"><i class="bi bi-file-earmark-lock-fill" style="color:#7c3aed;margin-right:6px;"></i>${p.displayName||'—'}</div>
+          ${p.description?`<div class="ms-policy-desc">${p.description.slice(0,100)}</div>`:''}
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:10.5px;color:var(--text-muted);">Modificado</div>
+          <div style="font-size:11.5px;">${_fmtDate(p.lastModifiedDateTime)}</div>
+        </div>
+      </div>`).join('') || '<div style="padding:32px;text-align:center;color:var(--text-muted);">Sin políticas configuradas</div>';
+    el.innerHTML = `<div style="margin-bottom:12px;font-size:12px;color:var(--text-muted);">${d.data?.length||0} política(s)</div>${cards}`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── APPS GESTIONADAS ──────────────────────────────────────────────────────────
+window.msManagedAppsDebounce = function() { clearTimeout(_maTimer); _maTimer = setTimeout(loadManagedApps, 350); };
+
+async function loadManagedApps() {
+  const el = document.getElementById('managedappsTableWrap');
+  const q  = document.getElementById('managedappsSearch')?.value || '';
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    const r = await fetch(`/api/ms/apps/managed?q=${encodeURIComponent(q)}`, { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const typeLabel = t => t?.includes('MicrosoftStoreApp')?'Store':t?.includes('Win32LobApp')?'LOB':t?.includes('IosLobApp')?'iOS':t?.includes('AndroidForWork')?'Android':t?.split('#')[1]?.replace('App','')||'App';
+    const rows = (d.data||[]).map(app => `<tr>
+      <td><div style="font-weight:700;font-size:12.5px;">${app.displayName||'—'}</div></td>
+      <td style="font-size:11.5px;">${app.publisher||'—'}</td>
+      <td><span class="badge-neutral">${typeLabel(app['@odata.type'])}</span></td>
+      <td><span class="${app.isAssigned?'badge-on':'badge-neutral'}">${app.isAssigned?'Asignada':'Sin asignar'}</span></td>
+      <td style="font-size:11px;color:var(--text-muted);">${_fmtDate(app.lastModifiedDateTime)}</td>
+    </tr>`).join('');
+    el.innerHTML = `<div style="padding:10px 14px;font-size:11.5px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);">${d.data?.length||0} aplicaciones</div>
+      <table class="ms-tbl"><thead><tr><th>Nombre</th><th>Editor</th><th>Tipo</th><th>Estado</th><th>Modificada</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">Sin aplicaciones</td></tr>'}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── WINDOWS UPDATE ────────────────────────────────────────────────────────────
+async function loadWinUpdate() {
+  const el = document.getElementById('winupdateContent');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    const r = await fetch('/api/ms/windows-update', { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const deferLabel = n => n>0?`${n} días deferidos`:'Sin diferimiento';
+    const boolLabel  = v => v?'<span class="badge-on">Sí</span>':'<span class="badge-off">No</span>';
+    const rings = (d.rings||[]).map(ring => `
+      <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:14px;padding:18px 20px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div style="font-size:13.5px;font-weight:800;"><i class="bi bi-arrow-repeat" style="color:#0078d4;margin-right:6px;"></i>${ring.displayName}</div>
+            ${ring.description?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${ring.description}</div>`:''}
+          </div>
+          <div style="font-size:10.5px;color:var(--text-muted);">Mod. ${_fmtDate(ring.lastModifiedDateTime)}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;font-size:12px;">
+          <div><span style="color:var(--text-muted);">Calidad</span><br><strong>${deferLabel(ring.qualityUpdatesDeferralPeriodInDays)}</strong></div>
+          <div><span style="color:var(--text-muted);">Funciones</span><br><strong>${deferLabel(ring.featureUpdatesDeferralPeriodInDays)}</strong></div>
+          <div><span style="color:var(--text-muted);">Solo prod.</span><br>${boolLabel(ring.businessReadyUpdatesOnly)}</div>
+          <div><span style="color:var(--text-muted);">Drivers excluidos</span><br>${boolLabel(ring.driversExcluded)}</div>
+        </div>
+      </div>`).join('') || '<div style="padding:32px;text-align:center;color:var(--text-muted);">Sin anillos de actualización configurados</div>';
+    el.innerHTML = `<div style="margin-bottom:12px;font-size:12px;color:var(--text-muted);">${d.rings?.length||0} anillo(s) de actualización</div>${rings}`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── TENDENCIAS 30D ────────────────────────────────────────────────────────────
+async function loadTrends() {
+  const el = document.getElementById('trendsContent');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando datos de uso…</div>';
+  try {
+    const r = await fetch('/api/ms/reports/trends', { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const active = d.active || [];
+    if (!active.length) {
+      el.innerHTML = '<div style="padding:48px;text-align:center;color:var(--text-muted);">Sin datos de tendencias disponibles. Verifica que el permiso <code>Reports.Read.All</code> esté concedido.</div>';
+      return;
+    }
+    // Columnas numéricas (excluir reportRefreshDate)
+    const cols = Object.keys(active[0]).filter(k => k.toLowerCase() !== 'reportrefreshdate' && k.toLowerCase() !== 'reportdate');
+    const recent = active.slice(-14); // últimos 14 puntos
+    const maxVal = Math.max(...recent.flatMap(row => cols.map(c => parseInt(row[c])||0)), 1);
+    const colors = ['#0078d4','#7c3aed','#059669','#d97706','#dc2626','#6264a7'];
+    const charts = cols.slice(0,6).map((col, i) => {
+      const vals = recent.map(row => parseInt(row[col])||0);
+      const bars = vals.map(v => `<div class="trend-bar" style="height:${Math.max(4, Math.round(v/maxVal*55))}px;background:${colors[i%colors.length]}22;border-top:2px solid ${colors[i%colors.length]};"></div>`).join('');
+      const lastVal = vals[vals.length-1]||0;
+      return `<div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:14px;padding:16px 18px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">${col.replace(/([A-Z])/g,' $1').trim()}</div>
+        <div style="font-size:24px;font-weight:800;color:${colors[i%colors.length]};">${lastVal.toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">usuarios activos hoy</div>
+        <div class="trend-bar-wrap">${bars}</div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:2px;"><span>14 días atrás</span><span>Hoy</span></div>
+      </div>`;
+    }).join('');
+    el.innerHTML = `<div style="margin-bottom:12px;font-size:12px;color:var(--text-muted);">Datos de los últimos 30 días · ${active.length} puntos de datos</div><div class="ms-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">${charts}</div>`;
+    _markRefresh();
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── GRUPOS ────────────────────────────────────────────────────────────────────
+window.msGroupsDebounce = function() { clearTimeout(_groupsTimer); _groupsTimer = setTimeout(() => { _groupsSkip=0; loadGroups(); }, 350); };
+
+async function loadGroups() {
+  _setLoading('groupsTableWrap');
+  const q = document.getElementById('groupsSearch')?.value || '';
+  try {
+    const r = await fetch(`/api/ms/groups?top=${PAGE_SIZE}&q=${encodeURIComponent(q)}`, { credentials:'include' });
+    const d = await r.json();
+    if (!d.success) { if (_handleMsReauth(d)) return; throw new Error(d.error); }
+    const rows = (d.data || []).map(g => {
+      const isDynamic = (g.groupTypes || []).includes('DynamicMembership');
+      const isM365    = (g.groupTypes || []).includes('Unified');
+      return `<tr>
+        <td style="font-weight:700;font-size:12.5px;">${g.displayName || '—'}</td>
+        <td>${isM365 ? '<span class="badge-on">Microsoft 365</span>' : g.securityEnabled ? '<span class="badge-neutral">Seguridad</span>' : '<span class="badge-neutral">Distribución</span>'}</td>
+        <td>${isDynamic ? '<span class="badge-warn">Dinámico</span>' : '<span class="badge-neutral">Asignado</span>'}</td>
+        <td style="font-size:11px;color:var(--text-muted);">${g.description ? g.description.slice(0,60)+(g.description.length>60?'…':'') : '<span style="opacity:.4">Sin descripción</span>'}</td>
+        <td style="font-size:11px;color:var(--text-muted);">${_fmtDate(g.createdDateTime)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('groupsTableWrap').innerHTML = `
+      <table class="ms-tbl">
+        <thead><tr><th>Nombre</th><th>Tipo</th><th>Membresía</th><th>Descripción</th><th>Creado</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">Sin resultados</td></tr>'}</tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('groupsTableWrap').innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`;
+  }
+}
+
+// ── SEGURIDAD MFA ─────────────────────────────────────────────────────────────
+async function loadMfa() {
+  _setLoading('mfaContent');
+  try {
+    const r = await fetch('/api/ms/security/mfa', { credentials:'include' });
+    const d = await r.json();
+    if (!d.success) { if (_handleMsReauth(d)) return; throw new Error(d.error); }
+    const { data, summary } = d;
+    const pct = summary.total > 0 ? Math.round(summary.mfaOn/summary.total*100) : 0;
+    const rows = (data || []).map(u => `<tr>
+      <td>
+        <div style="font-weight:700;font-size:12.5px;">${u.userDisplayName || '—'}</div>
+        <div style="font-size:10.5px;color:var(--text-muted);">${u.userPrincipalName || ''}</div>
+      </td>
+      <td><span class="${u.isMfaRegistered ? 'badge-on' : 'badge-off'}">${u.isMfaRegistered ? 'Habilitado' : 'Sin MFA'}</span></td>
+      <td style="font-size:12px;">${u.defaultMfaMethod || '<span style="opacity:.4">—</span>'}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${(u.methodsRegistered||[]).join(', ') || '—'}</td>
+    </tr>`).join('');
+    document.getElementById('mfaContent').innerHTML = `
+      <div class="ms-kpi-grid" style="grid-template-columns:repeat(3,1fr);max-width:600px;">
+        <div class="ms-kpi">
+          <div class="ms-kpi-icon" style="background:rgba(16,185,129,.1);color:#059669;"><i class="bi bi-shield-fill-check"></i></div>
+          <div class="ms-kpi-val">${summary.mfaOn}</div>
+          <div class="ms-kpi-label">Con MFA</div>
+        </div>
+        <div class="ms-kpi">
+          <div class="ms-kpi-icon" style="background:rgba(239,68,68,.1);color:#dc2626;"><i class="bi bi-shield-fill-x"></i></div>
+          <div class="ms-kpi-val">${summary.mfaOff}</div>
+          <div class="ms-kpi-label">Sin MFA</div>
+        </div>
+        <div class="ms-kpi">
+          <div class="ms-kpi-icon" style="background:rgba(0,120,212,.1);color:#0078d4;"><i class="bi bi-percent"></i></div>
+          <div class="ms-kpi-val">${pct}%</div>
+          <div class="ms-kpi-label">Cobertura MFA</div>
+        </div>
+      </div>
+      <div class="ms-table-wrap" style="margin-top:0;">
+        <div class="ms-table-head"><span class="ms-table-title">Detalle por usuario</span></div>
+        <table class="ms-tbl">
+          <thead><tr><th>Usuario</th><th>MFA</th><th>Método principal</th><th>Métodos registrados</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    document.getElementById('mfaContent').innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`;
+  }
+}
+
+// ── LICENCIAS ─────────────────────────────────────────────────────────────────
+async function loadLicenses() {
+  _setLoading('licContent');
+  try {
+    const r = await fetch('/api/ms/licenses', { credentials:'include' });
+    const d = await r.json();
+    if (!d.success) { if (_handleMsReauth(d)) return; throw new Error(d.error); }
+    const skus = d.data || [];
+    const cards = skus.map(s => {
+      const pct = s.total > 0 ? Math.round(s.used/s.total*100) : 0;
+      const barColor = pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#0078d4';
+      return `<div class="ms-kpi" style="gap:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;font-weight:800;color:var(--text-main);">${s.sku}</span>
+          <span class="${s.status==='Enabled'?'badge-on':s.status==='Warning'?'badge-warn':'badge-off'}">${s.status}</span>
+        </div>
+        <div style="display:flex;gap:16px;font-size:12px;">
+          <div><div style="font-size:22px;font-weight:800;">${s.used}</div><div style="color:var(--text-muted);font-size:10.5px;">Usadas</div></div>
+          <div><div style="font-size:22px;font-weight:800;color:${s.available>0?'#059669':'#dc2626'};">${s.available}</div><div style="color:var(--text-muted);font-size:10.5px;">Disponibles</div></div>
+          <div><div style="font-size:22px;font-weight:800;color:var(--text-muted);">${s.total}</div><div style="color:var(--text-muted);font-size:10.5px;">Total</div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--text-muted);margin-bottom:4px;"><span>Ocupación</span><span>${pct}%</span></div>
+          <div style="height:6px;background:var(--bg-main);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .4s;"></div></div>
+        </div>
+        ${s.services.length ? `<div style="font-size:10px;color:var(--text-muted);line-height:1.6;">${s.services.slice(0,4).join(', ')}${s.services.length>4?', +'+( s.services.length-4)+' más':''}</div>` : ''}
+      </div>`;
+    }).join('');
+    document.getElementById('licContent').innerHTML = `
+      <div style="margin-bottom:16px;font-size:13px;color:var(--text-muted);">${skus.length} suscripciones encontradas en el tenant</div>
+      <div class="ms-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));">${cards}</div>`;
+  } catch(e) {
+    document.getElementById('licContent').innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`;
+  }
+}
+
+// ── DISPOSITIVOS ──────────────────────────────────────────────────────────────
+window.msDevicesDebounce = function() { clearTimeout(_devTimer); _devTimer = setTimeout(() => { _devSkip=0; loadDevices(); }, 350); };
+
+async function loadDevices() {
+  _setLoading('devicesTableWrap');
+  const q = document.getElementById('devicesSearch')?.value || '';
+  try {
+    const r = await fetch(`/api/ms/devices?top=${PAGE_SIZE}&skip=${_devSkip}&q=${encodeURIComponent(q)}`, { credentials:'include' });
+    const d = await r.json();
+    if (!d.success) { if (_handleMsReauth(d)) return; throw new Error(d.error); }
+    _devicesData = d.data || [];
+    const compBadge = { compliant:'badge-on', noncompliant:'badge-off', unknown:'badge-warn', notApplicable:'badge-neutral', inGracePeriod:'badge-warn' };
+    const rows = _devicesData.map(dev => `<tr>
+      <td>
+        <div style="font-weight:700;font-size:12.5px;">${dev.deviceName || '—'}</div>
+        <div style="font-size:10.5px;color:var(--text-muted);">${dev.manufacturer||''} ${dev.model||''}</div>
+      </td>
+      <td>
+        <div style="font-size:12px;">${dev.userDisplayName || '<span style="opacity:.4">Sin usuario</span>'}</div>
+        <div style="font-size:10.5px;color:var(--text-muted);">${dev.userPrincipalName||''}</div>
+      </td>
+      <td style="font-size:12px;">${dev.operatingSystem||'—'} ${dev.osVersion||''}</td>
+      <td><span class="${compBadge[dev.complianceState]||'badge-neutral'}">${dev.complianceState||'—'}</span></td>
+      <td><span class="${dev.isEncrypted?'badge-on':'badge-off'}">${dev.isEncrypted?'Cifrado':'Sin cifrado'}</span></td>
+      <td style="font-size:11px;color:var(--text-muted);">${dev.totalGB ? dev.freeGB+'/'+dev.totalGB+' GB' : '—'}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${_fmtDateTime(dev.lastSyncDateTime)}</td>
+    </tr>`).join('');
+    document.getElementById('devicesTableWrap').innerHTML = `
+      <table class="ms-tbl">
+        <thead><tr><th>Equipo</th><th>Usuario</th><th>SO</th><th>Cumplimiento</th><th>Cifrado</th><th>Disco</th><th>Última sync</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">Sin dispositivos</td></tr>'}</tbody>
+      </table>`;
+    const pager = document.getElementById('devicesPager');
+    if (pager) {
+      const hasPrev = _devSkip > 0;
+      const hasNext = d.next;
+      pager.innerHTML = `
+        <button onclick="_devPrev()" ${hasPrev?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">← Anterior</button>
+        <span style="font-size:11.5px;color:var(--text-muted);padding:0 8px;">Mostrando ${_devSkip+1}–${_devSkip+(d.data?.length||0)}</span>
+        <button onclick="_devNext()" ${hasNext?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">Siguiente →</button>`;
+    }
+  } catch(e) {
+    document.getElementById('devicesTableWrap').innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`;
+  }
+}
+window._devPrev = function() { _devSkip = Math.max(0, _devSkip - PAGE_SIZE); loadDevices(); };
+window._devNext = function() { _devSkip += PAGE_SIZE; loadDevices(); };
+window._exportDevicesCSV = function() { _exportCSV(_devicesData.map(d => ({ Equipo:d.deviceName, Usuario:d.userDisplayName||'', UPN:d.userPrincipalName||'', SO:d.operatingSystem+' '+d.osVersion, Cumplimiento:d.complianceState, Cifrado:d.isEncrypted?'Sí':'No', UltimaSync:d.lastSyncDateTime||'' })), 'dispositivos_intune.csv'); };
+
+// ── MODAL NO ACCESO ───────────────────────────────────────────────────────────
+function showNoAccess(detail) {
+  document.getElementById('noAccessDetail').textContent = detail || 'Permiso insuficiente en Azure AD.';
+  const m = document.getElementById('noAccessModal');
+  m.style.display = 'flex';
+}
+window.closeNoAccessModal = function() {
+  document.getElementById('noAccessModal').style.display = 'none';
+};
+window.closeDetailModal = function() {
+  document.getElementById('detailModal').style.display = 'none';
+};
+function showDetailModal(title, html) {
+  document.getElementById('detailModalTitle').textContent = title;
+  document.getElementById('detailModalBody').innerHTML = html;
+  document.getElementById('detailModal').style.display = 'flex';
+}
+
+function _handleForbidden(d, el) {
+  if (d.forbidden || (d.success === false && !d.msReauth)) {
+    if (el) el.innerHTML = `<div style="padding:32px;text-align:center;">
+      <i class="bi bi-lock-fill" style="font-size:32px;color:#d97706;display:block;margin-bottom:12px;"></i>
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">Sin permisos para esta sección</div>
+      <div style="font-size:12px;color:var(--text-muted);">${d.error||'Permiso insuficiente en Azure AD.'}</div>
+      <button onclick="showNoAccess('${(d.error||'').replace(/'/g,'')}')" style="margin-top:14px;padding:7px 18px;background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Ver detalle</button>
+    </div>`;
+    return true;
+  }
+  return false;
+}
+
+// ── INICIOS DE SESIÓN ─────────────────────────────────────────────────────────
+async function loadSignins() {
+  const el = document.getElementById('signinsTableWrap');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    const r = await fetch('/api/ms/audit/signins?top=50', { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const riskColor = { none:'#64748b', low:'#d97706', medium:'#ea580c', high:'#dc2626' };
+    const statusBadge = s => s?.errorCode === 0 ? '<span class="badge-on">OK</span>' : `<span class="badge-off">${s?.failureReason?.slice(0,30)||'Error'}</span>`;
+    const rows = (d.data||[]).map(s => `<tr>
+      <td><div style="font-weight:700;font-size:12px;">${s.userDisplayName||'—'}</div><div style="font-size:10px;color:var(--text-muted);">${s.userPrincipalName||''}</div></td>
+      <td style="font-size:11.5px;">${s.appDisplayName||'—'}</td>
+      <td>${statusBadge(s.status)}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${s.ipAddress||'—'}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${s.location?.city||''} ${s.location?.countryOrRegion||''}</td>
+      <td style="font-size:11px;color:${riskColor[s.riskLevelDuringSignIn]||'#64748b'};font-weight:600;">${s.riskLevelDuringSignIn||'none'}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${_fmtDateTime(s.createdDateTime)}</td>
+    </tr>`).join('');
+    el.innerHTML = `<table class="ms-tbl"><thead><tr><th>Usuario</th><th>App</th><th>Estado</th><th>IP</th><th>Ubicación</th><th>Riesgo</th><th>Fecha</th></tr></thead><tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">Sin registros</td></tr>'}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── AUDITORÍA DIRECTORIO ──────────────────────────────────────────────────────
+async function loadAuditLog() {
+  const el = document.getElementById('auditlogTableWrap');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    const r = await fetch('/api/ms/audit/directory?top=50', { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const rows = (d.data||[]).map(a => {
+      const by = a.initiatedBy?.user?.userPrincipalName || a.initiatedBy?.app?.displayName || '—';
+      const targets = (a.targetResources||[]).map(t => t.displayName||t.userPrincipalName||t.id||'').filter(Boolean).join(', ');
+      return `<tr>
+        <td style="font-size:12px;font-weight:700;">${a.activityDisplayName||'—'}</td>
+        <td style="font-size:11px;color:var(--text-muted);">${a.category||'—'}</td>
+        <td style="font-size:11.5px;">${by}</td>
+        <td style="font-size:11px;color:var(--text-muted);">${targets.slice(0,50)||'—'}</td>
+        <td><span class="${a.result==='success'?'badge-on':a.result==='failure'?'badge-off':'badge-neutral'}">${a.result||'—'}</span></td>
+        <td style="font-size:11px;color:var(--text-muted);">${_fmtDateTime(a.activityDateTime)}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table class="ms-tbl"><thead><tr><th>Actividad</th><th>Categoría</th><th>Iniciado por</th><th>Objetivo</th><th>Resultado</th><th>Fecha</th></tr></thead><tbody>${rows||'<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Sin registros</td></tr>'}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── ACCESO CONDICIONAL ────────────────────────────────────────────────────────
+async function loadCondAccess() {
+  const el = document.getElementById('condaccessContent');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    const r = await fetch('/api/ms/security/conditional-access', { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const stateColor = { enabled:'#059669', disabled:'#dc2626', enabledForReportingButNotEnforced:'#d97706' };
+    const stateLabel = { enabled:'Activa', disabled:'Deshabilitada', enabledForReportingButNotEnforced:'Solo reporte' };
+    const cards = (d.data||[]).map(p => {
+      const usersIncl = p.conditions?.users?.includeUsers || [];
+      const usersExcl = p.conditions?.users?.excludeUsers || [];
+      const apps = p.conditions?.applications?.includeApplications || [];
+      const grant = (p.grantControls?.builtInControls||[]).join(', ') || 'Sin restricciones';
+      return `<div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:14px;padding:18px 20px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <span style="font-size:13.5px;font-weight:800;">${p.displayName||'—'}</span>
+          <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${stateColor[p.state]||'#64748b'}22;color:${stateColor[p.state]||'#64748b'};">${stateLabel[p.state]||p.state||'—'}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:11.5px;color:var(--text-muted);">
+          <div><div style="font-weight:700;color:var(--text-main);margin-bottom:2px;">Usuarios</div>${usersIncl.includes('All')?'Todos los usuarios':usersIncl.length+' usuario(s)'}</div>
+          <div><div style="font-weight:700;color:var(--text-main);margin-bottom:2px;">Apps</div>${apps.includes('All')?'Todas las apps':apps.length+' app(s)'}</div>
+          <div><div style="font-weight:700;color:var(--text-main);margin-bottom:2px;">Controles</div>${grant}</div>
+        </div>
+      </div>`;
+    }).join('') || '<div style="padding:32px;text-align:center;color:var(--text-muted);">Sin políticas configuradas</div>';
+    el.innerHTML = `<div style="margin-bottom:16px;font-size:13px;color:var(--text-muted);">${d.data?.length||0} política(s) de acceso condicional</div>${cards}`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── USUARIOS EN RIESGO ────────────────────────────────────────────────────────
+async function loadRiskyUsers() {
+  const el = document.getElementById('riskyusersContent');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    const r = await fetch('/api/ms/security/risky-users', { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const riskColor = { none:'badge-neutral', low:'badge-warn', medium:'badge-warn', high:'badge-off', hidden:'badge-neutral' };
+    const rows = (d.data||[]).map(u => `<tr>
+      <td><div style="font-weight:700;font-size:12.5px;">${u.userDisplayName||'—'}</div><div style="font-size:10.5px;color:var(--text-muted);">${u.userPrincipalName||''}</div></td>
+      <td><span class="${riskColor[u.riskLevel]||'badge-neutral'}">${u.riskLevel||'—'}</span></td>
+      <td><span class="badge-neutral">${u.riskState||'—'}</span></td>
+      <td style="font-size:11px;color:var(--text-muted);">${u.riskDetail||'—'}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${_fmtDateTime(u.riskLastUpdatedDateTime)}</td>
+    </tr>`).join('');
+    el.innerHTML = `<div class="ms-table-wrap"><div class="ms-table-head"><span class="ms-table-title"><i class="bi bi-person-fill-exclamation" style="color:#dc2626;"></i> Usuarios con riesgo detectado</span></div>
+      <table class="ms-tbl"><thead><tr><th>Usuario</th><th>Nivel</th><th>Estado</th><th>Detalle</th><th>Actualizado</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">Sin usuarios en riesgo</td></tr>'}</tbody></table></div>`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── AUTOPILOT ─────────────────────────────────────────────────────────────────
+async function loadAutopilot() {
+  const el = document.getElementById('autopilotTableWrap');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    const r = await fetch('/api/ms/devices/autopilot', { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const rows = (d.data||[]).map(dev => `<tr>
+      <td style="font-size:12px;font-weight:700;">${dev.serialNumber||'—'}</td>
+      <td style="font-size:12px;">${dev.displayName||dev.model||'—'}</td>
+      <td style="font-size:12px;">${dev.manufacturer||'—'}</td>
+      <td style="font-size:12px;">${dev.addressableUserName||'<span style="opacity:.4">Sin usuario</span>'}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${dev.groupTag||'—'}</td>
+      <td><span class="${dev.enrollmentState==='enrolled'?'badge-on':'badge-neutral'}">${dev.enrollmentState||'—'}</span></td>
+      <td style="font-size:11px;color:var(--text-muted);">${_fmtDate(dev.lastContactedDateTime)}</td>
+    </tr>`).join('');
+    el.innerHTML = `<table class="ms-tbl"><thead><tr><th>Nº Serie</th><th>Modelo</th><th>Fabricante</th><th>Usuario asignado</th><th>Grupo</th><th>Estado</th><th>Último contacto</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">Sin dispositivos Autopilot</td></tr>'}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── APPS POR DISPOSITIVO ──────────────────────────────────────────────────────
+let _daSkip = 0, _daTimer = null, _daDevices = [];
+window.msDeviceAppsDebounce = function() { clearTimeout(_daTimer); _daTimer = setTimeout(() => { _daSkip=0; loadDeviceAppsList(); }, 350); };
+
+async function loadDeviceAppsList() {
+  const el  = document.getElementById('deviceappsTableWrap');
+  const pager = document.getElementById('deviceappsPager');
+  const q   = document.getElementById('deviceappsSearch')?.value || '';
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando dispositivos…</div>';
+  try {
+    const r = await fetch(`/api/ms/devices?top=${PAGE_SIZE}&skip=${_daSkip}&q=${encodeURIComponent(q)}`, { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    _daDevices = d.data || [];
+    const rows = _daDevices.map(dev => `<tr>
+      <td><div style="font-weight:700;font-size:12.5px;">${dev.deviceName||'—'}</div><div style="font-size:10.5px;color:var(--text-muted);">${dev.userPrincipalName||''}</div></td>
+      <td style="font-size:12px;">${dev.operatingSystem||'—'} ${dev.osVersion||''}</td>
+      <td style="font-size:11.5px;">${dev.userDisplayName||'—'}</td>
+      <td><button onclick="loadAppsForDevice('${dev.id}','${(dev.deviceName||'').replace(/'/g,'')}')" style="padding:5px 12px;background:rgba(0,120,212,.1);color:#0078d4;border:none;border-radius:7px;font-size:11.5px;font-weight:700;cursor:pointer;"><i class="bi bi-grid-3x3-gap-fill"></i> Ver apps</button></td>
+    </tr>`).join('');
+    el.innerHTML = `<table class="ms-tbl"><thead><tr><th>Dispositivo</th><th>SO</th><th>Usuario</th><th>Acción</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted);">Sin dispositivos</td></tr>'}</tbody></table>`;
+    if (pager) {
+      pager.innerHTML = `
+        <button onclick="_daPrev()" ${_daSkip>0?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">← Anterior</button>
+        <span style="font-size:11.5px;color:var(--text-muted);padding:0 8px;">Mostrando ${_daSkip+1}–${_daSkip+_daDevices.length}</span>
+        <button onclick="_daNext()" ${d.next?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">Siguiente →</button>`;
+    }
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+window._daPrev = function() { _daSkip = Math.max(0, _daSkip-PAGE_SIZE); loadDeviceAppsList(); };
+window._daNext = function() { _daSkip += PAGE_SIZE; loadDeviceAppsList(); };
+
+window.loadAppsForDevice = async function(deviceId, deviceName) {
+  showDetailModal(`Apps instaladas: ${deviceName}`, '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>');
+  try {
+    const r = await fetch(`/api/ms/devices/${deviceId}/apps`, { credentials:'include' });
+    const d = await r.json();
+    if (d.forbidden) { document.getElementById('detailModalBody').innerHTML = `<div style="text-align:center;padding:32px;"><i class="bi bi-lock-fill" style="font-size:32px;color:#d97706;display:block;margin-bottom:12px;"></i><div style="font-size:13px;font-weight:700;margin-bottom:6px;">Sin permisos para BitLocker</div><div style="font-size:12px;color:var(--text-muted);">${d.error}</div></div>`; return; }
+    const apps = (d.data||[]).sort((a,b) => (a.displayName||'').localeCompare(b.displayName||''));
+    const hint = (d.hint||d._hint) ? `<div style="margin:0 0 12px;padding:12px 14px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);border-radius:10px;font-size:11px;color:#92400e;line-height:1.6;"><i class="bi bi-exclamation-triangle" style="color:#d97706;"></i> ${d.hint||d._hint}</div>` : '';
+
+    const buildRows = (list) => list.map(app => `<tr>
+      <td style="font-weight:700;font-size:12px;">${app.displayName||app.name||'—'}</td>
+      <td style="font-size:11.5px;color:var(--text-muted);">${app.publisher||'—'}</td>
+      <td style="font-size:11.5px;">${app.version||app.installedVersion||'—'}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${app.sizeInByte ? (app.sizeInByte/1048576).toFixed(1)+' MB' : '—'}</td>
+    </tr>`).join('');
+
+    document.getElementById('detailModalBody').innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;">
+        <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;"><span id="appsCount">${apps.length}</span> aplicaciones detectadas</span>
+        ${apps.length > 0 ? `<input id="appsFilter" type="text" placeholder="Buscar aplicación…" oninput="_filterApps(this.value)" style="flex:1;padding:6px 12px;border:1.5px solid var(--border-soft);border-radius:8px;font-size:12px;background:var(--bg-main);color:var(--text-main);outline:none;min-width:0;" autofocus>` : ''}
+        ${apps.length === 0 ? `<a href="https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DevicesMenu/~/mobileDevices" target="_blank" style="font-size:11px;color:#0078d4;font-weight:700;text-decoration:none;flex-shrink:0;"><i class="bi bi-box-arrow-up-right"></i> Abrir Intune</a>` : ''}
+      </div>
+      ${hint}
+      <table class="ms-tbl" id="appsTable">
+        <thead><tr><th>Nombre</th><th>Editor</th><th>Versión</th><th>Tamaño</th></tr></thead>
+        <tbody id="appsBody">${buildRows(apps)||'<tr><td colspan="4" style="text-align:center;padding:28px;"><i class="bi bi-app" style="font-size:24px;display:block;margin-bottom:8px;color:var(--text-muted);"></i><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">Sin aplicaciones detectadas</div><div style="font-size:11px;color:var(--text-muted);">Intune necesita al menos un ciclo de sincronización.</div></td></tr>'}</tbody>
+      </table>`;
+
+    // Guardar lista completa para el filtro
+    window._appsAll = apps;
+    window._filterApps = function(q) {
+      const term = q.toLowerCase().trim();
+      const filtered = term ? window._appsAll.filter(a => (a.displayName||a.name||'').toLowerCase().includes(term) || (a.publisher||'').toLowerCase().includes(term)) : window._appsAll;
+      document.getElementById('appsCount').textContent = filtered.length;
+      document.getElementById('appsBody').innerHTML = buildRows(filtered) || `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">Sin resultados para "${q}"</td></tr>`;
+    };
+  } catch(e) { document.getElementById('detailModalBody').innerHTML = `<div class="ms-loading" style="color:#ef4444;">${e.message}</div>`; }
+};
+
+// ── BITLOCKER ─────────────────────────────────────────────────────────────────
+let _blSkip = 0, _blTimer = null;
+window.msBitlockerDebounce = function() { clearTimeout(_blTimer); _blTimer = setTimeout(() => { _blSkip=0; loadBitlockerDevices(); }, 350); };
+
+async function loadBitlockerDevices() {
+  const el = document.getElementById('bitlockerTableWrap');
+  const pager = document.getElementById('bitlockerPager');
+  const q  = document.getElementById('bitlockerSearch')?.value || '';
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando dispositivos…</div>';
+  try {
+    const r = await fetch(`/api/ms/devices?top=${PAGE_SIZE}&skip=${_blSkip}&q=${encodeURIComponent(q)}`, { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const rows = (d.data||[]).filter(dev => dev.operatingSystem?.toLowerCase().includes('windows')).map(dev => `<tr>
+      <td><div style="font-weight:700;font-size:12.5px;">${dev.deviceName||'—'}</div><div style="font-size:10.5px;color:var(--text-muted);">${dev.serialNumber||''}</div></td>
+      <td style="font-size:12px;">${dev.userDisplayName||'—'}</td>
+      <td><span class="${dev.isEncrypted?'badge-on':'badge-off'}">${dev.isEncrypted?'Cifrado':'Sin cifrado'}</span></td>
+      <td><button onclick="loadBitlockerKey('${dev.id}','${(dev.deviceName||'').replace(/'/g,'')}')" style="padding:5px 12px;background:rgba(217,119,6,.1);color:#d97706;border:none;border-radius:7px;font-size:11.5px;font-weight:700;cursor:pointer;"><i class="bi bi-key-fill"></i> Ver clave</button></td>
+    </tr>`).join('');
+    el.innerHTML = `<table class="ms-tbl"><thead><tr><th>Dispositivo</th><th>Usuario</th><th>Cifrado</th><th>Clave</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted);">Sin dispositivos Windows</td></tr>'}</tbody></table>`;
+    if (pager) {
+      pager.innerHTML = `
+        <button onclick="_blPrev()" ${_blSkip>0?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">← Anterior</button>
+        <span style="font-size:11.5px;color:var(--text-muted);padding:0 8px;">${_blSkip+1}–${_blSkip+(d.data||[]).length}</span>
+        <button onclick="_blNext()" ${d.next?'':'disabled'} style="padding:5px 12px;border:1px solid var(--border-soft);border-radius:7px;background:var(--bg-card);font-size:12px;cursor:pointer;">Siguiente →</button>`;
+    }
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+window._blPrev = function() { _blSkip = Math.max(0,_blSkip-PAGE_SIZE); loadBitlockerDevices(); };
+window._blNext = function() { _blSkip += PAGE_SIZE; loadBitlockerDevices(); };
+
+window.loadBitlockerKey = async function(deviceId, deviceName) {
+  showDetailModal(`🔑 BitLocker: ${deviceName}`, '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Consultando Azure AD…</div>');
+  try {
+    const r = await fetch(`/api/ms/devices/${deviceId}/bitlocker`, { credentials:'include' });
+    const d = await r.json();
+    const body = document.getElementById('detailModalBody');
+    if (d.forbidden) {
+      body.innerHTML = `<div style="text-align:center;padding:32px;"><i class="bi bi-lock-fill" style="font-size:32px;color:#d97706;display:block;margin-bottom:12px;"></i><div style="font-size:13px;font-weight:700;margin-bottom:6px;">Sin permisos para BitLocker</div><div style="font-size:12px;color:var(--text-muted);">${d.error}</div><div style="margin-top:12px;font-size:11px;color:var(--text-muted);">Necesitas el permiso <code>BitLockerKey.ReadBasic.All</code> o <code>BitLockerKey.Read.All</code> en Azure AD.</div></div>`;
+      return;
+    }
+    if (!d.data?.length) {
+      body.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);"><i class="bi bi-key" style="font-size:32px;display:block;margin-bottom:12px;"></i>Sin claves BitLocker registradas para este equipo.</div>`;
+      return;
+    }
+    const rows = d.data.map(k => `<tr>
+      <td style="font-family:monospace;font-size:11.5px;word-break:break-all;">${k.id}<br><button class="copy-btn" onclick="navigator.clipboard.writeText('${k.id}').then(()=>{this.textContent='✓ Copiado';setTimeout(()=>this.textContent='Copiar',1500)})" style="margin-top:4px;">Copiar</button></td>
+      <td style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">${_fmtDate(k.createdDateTime)}</td>
+    </tr>`).join('');
+    body.innerHTML = `<div style="margin-bottom:12px;font-size:12px;color:var(--text-muted);">${d.data.length} clave(s) registrada(s) · Haz clic en "Copiar" para copiar el ID de recuperación</div>
+      <table class="ms-tbl"><thead><tr><th>ID de clave BitLocker</th><th>Registrada</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } catch(e) { document.getElementById('detailModalBody').innerHTML = `<div class="ms-loading" style="color:#ef4444;">${e.message}</div>`; }
+};
+
+// ── TEAMS ─────────────────────────────────────────────────────────────────────
+let _teamsTimer = null;
+window.msTeamsDebounce = function() { clearTimeout(_teamsTimer); _teamsTimer = setTimeout(loadTeams, 350); };
+
+async function loadTeams() {
+  const el = document.getElementById('teamsTableWrap');
+  const q  = document.getElementById('teamsSearch')?.value || '';
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    const r = await fetch(`/api/ms/teams?top=100&q=${encodeURIComponent(q)}`, { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const visBadge = { Public:'<span class="badge-on">Público</span>', Private:'<span class="badge-neutral">Privado</span>', HiddenMembership:'<span class="badge-warn">Oculto</span>' };
+    const rows = (d.data||[]).map(t => `<tr>
+      <td><div style="font-weight:700;font-size:12.5px;">${t.displayName||'—'}</div><div style="font-size:10px;color:var(--text-muted);">${t.mail||''}</div></td>
+      <td>${visBadge[t.visibility]||'<span class="badge-neutral">—</span>'}</td>
+      <td style="font-size:11.5px;color:var(--text-muted);">${t.description?.slice(0,60)||'—'}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${_fmtDate(t.createdDateTime)}</td>
+    </tr>`).join('');
+    el.innerHTML = `<table class="ms-tbl"><thead><tr><th>Team</th><th>Visibilidad</th><th>Descripción</th><th>Creado</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted);">Sin teams encontrados</td></tr>'}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── BUZONES EXCHANGE ──────────────────────────────────────────────────────────
+let _mbTimer = null;
+window.msMailboxesDebounce = function() { clearTimeout(_mbTimer); _mbTimer = setTimeout(loadMailboxes, 350); };
+
+async function loadMailboxes() {
+  const el = document.getElementById('mailboxesTableWrap');
+  const q  = document.getElementById('mailboxesSearch')?.value || '';
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando…</div>';
+  try {
+    const r = await fetch(`/api/ms/mailboxes?top=50&q=${encodeURIComponent(q)}`, { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const rows = (d.data||[]).map(u => {
+      const tz = u.mailboxSettings?.timeZone || '—';
+      const lang = u.mailboxSettings?.language?.displayName || '—';
+      return `<tr>
+        <td><div style="font-weight:700;font-size:12.5px;">${u.displayName||'—'}</div><div style="font-size:10.5px;color:var(--text-muted);">${u.userPrincipalName||''}</div></td>
+        <td style="font-size:11.5px;">${u.mail||'—'}</td>
+        <td style="font-size:11px;">${u.department||'—'}</td>
+        <td><span class="${u.accountEnabled?'badge-on':'badge-off'}">${u.accountEnabled?'Activo':'Deshabilitado'}</span></td>
+        <td style="font-size:11px;color:var(--text-muted);">${tz}</td>
+        <td><span class="badge-neutral">${(u.assignedLicenses||[]).length} lic.</span></td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table class="ms-tbl"><thead><tr><th>Usuario</th><th>Email</th><th>Departamento</th><th>Estado</th><th>Zona horaria</th><th>Licencias</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Sin buzones</td></tr>'}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── REPORTES M365 ─────────────────────────────────────────────────────────────
+async function loadReports() {
+  const el = document.getElementById('reportsContent');
+  el.innerHTML = '<div class="ms-loading"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando uso de aplicaciones…</div>';
+  try {
+    const r = await fetch('/api/ms/reports/trends', { credentials:'include' });
+    const d = await r.json();
+    if (d.msReauth && _handleMsReauth(d)) return;
+    if (_handleForbidden(d, el)) return;
+    const services = d.services || [];
+    if (!services.length) {
+      el.innerHTML = `<div style="padding:48px;text-align:center;color:var(--text-muted);">
+        <i class="bi bi-graph-up-arrow" style="font-size:40px;color:#0078d4;display:block;margin-bottom:12px;"></i>
+        <div style="font-weight:700;margin-bottom:8px;">Sin datos de uso disponibles</div>
+        <div style="font-size:12px;">Verifica el permiso <code>Reports.Read.All</code> en Azure AD.</div>
+        <div style="margin-top:16px;"><button onclick="_panelLoaders.trends()" style="padding:8px 18px;background:rgba(0,120,212,.08);color:#0078d4;border:1px solid rgba(0,120,212,.2);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Ver tendencias de 30 días</button></div>
+      </div>`;
+      return;
+    }
+    const cols = Object.keys(services[0]).filter(k => !k.toLowerCase().includes('date'));
+    const last  = services[services.length-1] || {};
+    const colors = ['#0078d4','#6264a7','#059669','#d97706','#dc2626','#7c3aed'];
+    const cards = cols.slice(0,8).map((col,i) => {
+      const val = parseInt(last[col])||0;
+      const prev = parseInt(services[services.length-8]?.[col])||0;
+      const trend = val > prev ? '↑' : val < prev ? '↓' : '→';
+      const trendColor = val > prev ? '#059669' : val < prev ? '#dc2626' : '#64748b';
+      return `<div class="ms-kpi"><div class="ms-kpi-icon" style="background:${colors[i%colors.length]}22;color:${colors[i%colors.length]};"><i class="bi bi-graph-up"></i></div>
+        <div class="ms-kpi-val" style="color:${colors[i%colors.length]};">${val.toLocaleString()} <span style="font-size:14px;color:${trendColor};">${trend}</span></div>
+        <div class="ms-kpi-label">${col.replace(/([A-Z])/g,' $1').trim()}</div>
+        <div class="ms-kpi-sub">usuarios activos últimos 30d</div></div>`;
+    }).join('');
+    el.innerHTML = `<div style="margin-bottom:16px;font-size:12px;color:var(--text-muted);">Actividad por servicio · Período de 30 días</div>
+      <div class="ms-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr));margin-bottom:20px;">${cards}</div>
+      <div style="text-align:center;"><button onclick="msNav('trends',document.querySelector('[onclick*=\\'trends\\']'))" style="padding:8px 18px;background:rgba(124,58,237,.08);color:#7c3aed;border:1px solid rgba(124,58,237,.2);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;"><i class="bi bi-bar-chart-fill"></i> Ver gráficos de tendencia 30d</button></div>`;
+  } catch(e) { el.innerHTML = `<div class="ms-loading" style="color:#ef4444;"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`; }
+}
+
+// ── NAV actualizado con todos los paneles ─────────────────────────────────────
+const _panelLoaders = {
+  dashboard:    loadDashboard,
+  alerts:       loadAlerts,
+  users:        () => { _usersNextLink=null; _usersPrevLinks=[]; _usersCurrentCursor=null; loadUsers(); },
+  groups:       () => { _groupsSkip=0; loadGroups(); },
+  security:     loadMfa,
+  licenses:     loadLicenses,
+  devices:      () => { _devSkip=0; loadDevices(); },
+  compliance:   () => { _complianceSkip=0; _complianceState=''; document.getElementById('complianceFilter').value=''; loadCompliance(); },
+  signins:      loadSignins,
+  auditlog:     loadAuditLog,
+  condaccess:   loadCondAccess,
+  riskyusers:   loadRiskyUsers,
+  autopilot:    loadAutopilot,
+  policies:     loadPolicies,
+  managedapps:  loadManagedApps,
+  deviceapps:   loadDeviceAppsList,
+  bitlocker:    loadBitlockerDevices,
+  winupdate:    loadWinUpdate,
+  teams:        loadTeams,
+  mailboxes:    loadMailboxes,
+  reports:      loadReports,
+  trends:       loadTrends,
+};
+
+// Sobrescribir msNav para usar el mapa centralizado
+window.msNav = function(panel, el) {
+  if (!_msConnected) { showConnectBanner(); return; }
+  document.querySelectorAll('.ms-nav-item').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.ms-panel').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
+  const panelId = 'msPanel' + panel.charAt(0).toUpperCase() + panel.slice(1);
+  const target  = document.getElementById(panelId);
+  if (target) { target.classList.add('active'); target.style.display = 'block'; }
+  _currentPanel = panel;
+  if (_panelLoaders[panel]) _panelLoaders[panel]();
+};
+
+window.msRefreshCurrent = function() {
+  if (_panelLoaders[_currentPanel]) _panelLoaders[_currentPanel]();
+};
+
+})();
+</script>
+
+<%- include('../../../shared/partials/theme-toggle') %>
+</body>
+</html>

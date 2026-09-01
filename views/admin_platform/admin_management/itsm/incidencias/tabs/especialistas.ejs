@@ -1,0 +1,43 @@
+<div id="tabEspecialistas" class="corp-tabpanel" style="display:none;">
+  <div class="page-header" style="margin-top:4px;">
+    <div class="page-title"><i class="bi bi-people-fill" style="color:#0052CC"></i> Especialistas de Soporte</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start;">
+    <!-- Lista -->
+    <div class="card-panel">
+      <div class="card-panel-title"><i class="bi bi-list-ul" style="color:#0052CC"></i> Equipo registrado</div>
+      <div id="specialistListWrap"><div class="spinner-wrap"><div class="spinner-border spinner-border-sm text-primary"></div></div></div>
+    </div>
+    <!-- Formulario -->
+    <div class="card-panel" style="position:sticky;top:80px;">
+      <div class="card-panel-title"><i class="bi bi-person-plus" style="color:#0052CC"></i> Nuevo Especialista</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div><div class="form-label-custom">Nombre completo *</div>
+          <input type="text" id="sp_name" class="form-control-custom" placeholder="Ej: Juan Pérez"></div>
+        <div><div class="form-label-custom">Usuario *</div>
+          <input type="text" id="sp_username" class="form-control-custom" placeholder="jperez (auto si vacío)"></div>
+        <div><div class="form-label-custom">Correo *</div>
+          <input type="email" id="sp_email" class="form-control-custom" placeholder="jperez@empresa.com"></div>
+        <div><div class="form-label-custom">Teléfono</div>
+          <input type="text" id="sp_phone" class="form-control-custom" placeholder="+51 999 999 999"></div>
+        <div><div class="form-label-custom">Especialidad</div>
+          <select id="sp_specialty" class="form-select-custom">
+            <option value="">Sin definir</option>
+            <option>Hardware</option>
+            <option>Software</option>
+            <option>Redes</option>
+            <option>ERP</option>
+            <option>Impresoras</option>
+            <option>Correo Corporativo</option>
+            <option>VPN / Accesos</option>
+          </select></div>
+        <div><div class="form-label-custom">Contraseña temporal *</div>
+          <input type="password" id="sp_pass" class="form-control-custom" placeholder="Mínimo 8 caracteres"></div>
+        <button class="btn-create" style="width:100%;justify-content:center;margin-top:4px;" onclick="createSpecialist()">
+          <i class="bi bi-person-plus-fill"></i> Registrar Especialista
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ TAB: ADMINISTRACIÓN ══ -->

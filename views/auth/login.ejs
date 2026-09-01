@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal TI — Sistema de Gestión</title>
+    <!-- Init tema sin flash — ANTES de cualquier CSS -->
+    <script>
+        (function () {
+            const saved = localStorage.getItem('dashboardTheme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        /* ══════════════════════════════════════════════
+           VARIABLES — mismo sistema que el dashboard
+        ══════════════════════════════════════════════ */
+        :root, [data-theme="light"] {
+            --bg-main:        #f5f7fa;
+            --bg-card:        #ffffff;
+            --border-soft:    #e2e8f0;
+            --text-main:      #1e293b;
+            --text-muted:     #64748b;
+            --primary:        #3b82f6;
+            --success:        #10b981;
+            --danger:         #ef4444;
+            --info:           #06b6d4;
+            --scrollbar-thumb:#cbd5e1;
+            --scrollbar-track:#f1f5f9;
+            /* login-specific */
+            --login-bg:       #ffffff;
+            --login-shadow:   rgba(0,0,0,.10);
+            --overlay-start:  rgba(30,91,168,.30);
+            --overlay-end:    rgba(59,130,246,.18);
+            --input-bg:       #f8fafc;
+            --input-bg-focus: #ffffff;
+            --label-color:    #475569;
+        }
+        [data-theme="dark"] {
+            --bg-main:        #0f172a;
+            --bg-card:        #1e293b;
+            --border-soft:    #2d3f55;
+            --text-main:      #e2e8f0;
+            --text-muted:     #94a3b8;
+            --primary:        #60a5fa;
+            --success:        #34d399;
+            --danger:         #f87171;
+            --info:           #22d3ee;
+            --scrollbar-thumb:#334155;
+            --scrollbar-track:#1e293b;
+            /* login-specific */
+            --login-bg:       #1e293b;
+            --login-shadow:   rgba(0,0,0,.40);
+            --overlay-start:  rgba(15,23,42,.60);
+            --overlay-end:    rgba(30,41,59,.50);
+            --input-bg:       #0f172a;
+            --input-bg-focus: #162032;
+            --label-color:    #94a3b8;
+        }
+
+        /* ══════════════════════════════════════════════
+           BASE
+        ══════════════════════════════════════════════ */
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background .3s, color .3s;
+        }
+
+        /* ══════════════════════════════════════════════
+           FONDO FOTOGRAFICO — izquierdo 60%
+        ══════════════════════════════════════════════ */
+        .telefonica-background {
+            position: fixed; top:0; left:0;
+            width: 60%; height: 100%;
+            background-image: url("https://telefonica.com.pe/wp-content/uploads/sites/5/2025/08/Integratel-Peru-continua-avanzando-en-la-transformacion-Foto-MOVISTAR.jpg?resize=1224,673");
+            background-size: cover;
+            background-position: center;
+            z-index: 1;
+        }
+        .telefonica-overlay {
+            position: fixed; top:0; left:0;
+            width: 60%; height: 100%;
+            background: linear-gradient(135deg, var(--overlay-start), var(--overlay-end));
+            z-index: 2;
+            transition: background .3s;
+        }
+
+        /* ══════════════════════════════════════════════
+           INFO SECTION — sobre la foto
+        ══════════════════════════════════════════════ */
+        .info-section {
+            position: fixed; left:0; top:0;
+            width: 60%; height: 100%;
+            z-index: 4;
+            display: flex; flex-direction: column;
+            justify-content: space-between;
+            padding: 60px;
+            color: white;
+        }
+        .telefonica-logo {
+            font-size: 2.2rem; font-weight: 700;
+            display: flex; align-items: center; gap: 14px;
+        }
+        .company-tagline {
+            font-size: 1rem; opacity: .85;
+            margin-top: 8px; font-weight: 300;
+        }
+        .team-info {
+            display: grid; grid-template-columns: repeat(3,1fr); gap: 28px;
+        }
+        .team-member h6 { font-weight:600; margin-bottom:4px; font-size:.95rem; }
+        .team-member p  { font-size:.82rem; opacity:.85; margin-bottom:2px; }
+        .team-member a  { color:white; text-decoration:none; font-size:.82rem; opacity:.85; transition:opacity .2s; }
+        .team-member a:hover { opacity:1; text-decoration:underline; }
+
+        /* ══════════════════════════════════════════════
+           THEME TOGGLE — identico al navbar del dashboard
+        ══════════════════════════════════════════════ */
+        .theme-toggle-wrap {
+            position: fixed; top: 14px; right: calc(40% + 14px);
+            display: flex; align-items: center; gap: 7px;
+            cursor: pointer; user-select: none;
+            padding: 4px 10px 4px 8px; border-radius: 20px;
+            transition: background .2s;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+            background: rgba(255,255,255,.18);
+        }
+        .theme-toggle-wrap:hover { background: rgba(255,255,255,.30); }
+
+        .theme-toggle-icon {
+            font-size: 14px; line-height: 1;
+            transition: transform .4s cubic-bezier(.4,0,.2,1);
+            display: flex; align-items: center;
+        }
+        .theme-toggle-wrap:hover .theme-toggle-icon { transform: rotate(20deg); }
+
+        .theme-switch {
+            width: 34px; height: 18px;
+            background: #cbd5e1; border-radius: 9px;
+            position: relative; transition: background .3s; flex-shrink: 0;
+        }
+        [data-theme="dark"] .theme-switch { background: #3b82f6; }
+
+        .theme-switch-knob {
+            width: 13px; height: 13px; background: #fff; border-radius: 50%;
+            position: absolute; top: 2.5px; left: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.25);
+            transition: transform .3s cubic-bezier(.4,0,.2,1);
+        }
+        [data-theme="dark"] .theme-switch-knob { transform: translateX(16px); }
+
+        .theme-toggle-label {
+            font-size: 12px; font-weight: 600;
+            color: rgba(255,255,255,.9); letter-spacing: .2px;
+            white-space: nowrap;
+        }
+
+        /* ══════════════════════════════════════════════
+           LOGIN PANEL — derecho 40%
+        ══════════════════════════════════════════════ */
+        .login-section {
+            position: fixed; right:0; top:0;
+            width: 40%; height: 100%;
+            background: var(--login-bg);
+            z-index: 3;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: -5px 0 30px var(--login-shadow);
+            transition: background .3s, box-shadow .3s;
+        }
+        .login-container { width:100%; max-width:420px; padding:44px 40px; }
+        .login-header    { text-align:center; margin-bottom:36px; }
+
+        .user-avatar {
+            width:76px; height:76px; border-radius:50%;
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            margin: 0 auto 18px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 1.9rem;
+            box-shadow: 0 4px 16px rgba(59,130,246,.30);
+        }
+        .login-title {
+            font-size: 1.75rem; font-weight: 700;
+            color: var(--primary); margin-bottom: 4px;
+            transition: color .3s;
+        }
+        .login-subtitle { font-size:.85rem; color:var(--text-muted); }
+
+        .form-label {
+            font-weight: 600; font-size: 13px;
+            color: var(--label-color); margin-bottom: 8px;
+            transition: color .3s;
+        }
+        .form-control {
+            border: 1px solid var(--border-soft); border-radius: 8px;
+            padding: 11px 14px; font-size: .9rem;
+            background: var(--input-bg); color: var(--text-main);
+            transition: border-color .2s, background .3s, color .3s, box-shadow .2s;
+        }
+        .form-control::placeholder { color: var(--text-muted); }
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+            background: var(--input-bg-focus);
+            color: var(--text-main); outline: none;
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            border: none; border-radius: 25px;
+            padding: 13px; font-weight: 700;
+            font-size: .95rem; width: 100%; color: white;
+            transition: all .25s; margin-top: 20px; letter-spacing: .3px;
+        }
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(59,130,246,.35);
+            color: white;
+        }
+        .btn-login:disabled { opacity:.75; cursor:not-allowed; }
+
+        .password-wrapper { position: relative; }
+        .password-toggle  {
+            cursor: pointer; position: absolute;
+            right: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--text-muted); z-index: 10; transition: color .2s;
+        }
+        .password-toggle:hover { color: var(--primary); }
+
+        /* Alerts — mismo estilo que toasts del dashboard */
+        .alert {
+            border-radius: 8px; border: none;
+            padding: 11px 14px; margin-bottom: 18px;
+            font-size: .875rem; display: flex; align-items: center; gap: 8px;
+        }
+        .alert-danger  { background:#fef2f2; border-left:4px solid var(--danger);  color:#991b1b; }
+        .alert-success { background:#ecfdf5; border-left:4px solid var(--success); color:#065f46; }
+        [data-theme="dark"] .alert-danger  { background:#2a0f0f; color:#fca5a5; }
+        [data-theme="dark"] .alert-success { background:#062918; color:#6ee7b7; }
+
+        .btn-microsoft {
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; width: 100%; padding: 11px;
+            background: var(--bg-card); border: 1.5px solid var(--border-soft);
+            border-radius: 25px; font-size: .88rem; font-weight: 600;
+            color: var(--text-main); text-decoration: none;
+            transition: all .22s; cursor: pointer;
+        }
+        .btn-microsoft:hover {
+            border-color: var(--primary); box-shadow: 0 4px 14px rgba(59,130,246,.15);
+            color: var(--text-main);
+        }
+        .pw-rule { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; transition: color .2s; }
+        .pw-rule.ok { color: var(--success); }
+        .pw-rule.ok i::before { content: "\F26A"; } /* bi-check-circle-fill */
+
+        *::-webkit-scrollbar       { width:6px; height:6px; }
+        *::-webkit-scrollbar-thumb { background:var(--scrollbar-thumb); border-radius:3px; }
+        *::-webkit-scrollbar-track { background:var(--scrollbar-track); }
+
+        /* ══════════════════════════════════════════════
+           RESPONSIVE
+        ══════════════════════════════════════════════ */
+        @media (max-width:1024px) {
+            .telefonica-background,
+            .telefonica-overlay,
+            .info-section  { width:50%; }
+            .login-section { width:50%; }
+            .theme-toggle-wrap { right:calc(50% + 14px); }
+            .info-section  { padding:40px; }
+            .team-info     { grid-template-columns:1fr; gap:18px; }
+        }
+        @media (max-width:768px) {
+            .telefonica-background,
+            .telefonica-overlay,
+            .info-section { display:none; }
+            .login-section { width:100%; position:relative; }
+            .theme-toggle-wrap {
+                right:16px;
+                background: rgba(59,130,246,.10);
+            }
+            .theme-toggle-wrap:hover { background:rgba(59,130,246,.18); }
+            .theme-toggle-label { color:var(--text-muted); }
+            .login-container { padding:36px 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="telefonica-background"></div>
+    <div class="telefonica-overlay"></div>
+
+    <!-- Info izquierda -->
+    <div class="info-section">
+        <div>
+            <div class="telefonica-logo">
+                <i class="bi bi-cpu"></i> <span id="leftTenantName">Portal TI</span>
+            </div>
+            <p class="company-tagline" id="leftTagline">Sistema de Gestión Informática</p>
+        </div>
+        <div>
+            <div class="team-info">
+                <div class="team-member">
+                    <h6>Soporte TI</h6>
+                    <p>Mesa de ayuda 24/7</p>
+                    <a href="#" id="leftContactEmail">soporte@empresa.pe</a>
+                </div>
+                <div class="team-member">
+                    <h6>Version</h6>
+                    <p>v2.4.1 — 2025</p>
+                    <a href="#">Ver novedades</a>
+                </div>
+                <div class="team-member">
+                    <h6 id="leftOrgName">Plataforma TI</h6>
+                    <p id="leftOrgDesc">Portal Corporativo</p>
+                    <a href="#" id="leftOrgUrl">gestion.ti</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle de tema — identico al navbar del dashboard -->
+    <div class="theme-toggle-wrap" id="themeToggle"
+         onclick="toggleTheme()" title="Cambiar tema"
+         role="button" aria-label="Cambiar modo claro/oscuro">
+        <i class="theme-toggle-icon" id="toggleIcon">🌙</i>
+        <div class="theme-switch">
+            <div class="theme-switch-knob" id="switchKnob"></div>
+        </div>
+        <span class="theme-toggle-label" id="toggleLabel">Oscuro</span>
+    </div>
+
+    <!-- Panel de login -->
+    <div class="login-section">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="user-avatar" id="avatarIcon">
+                    <i class="bi bi-person"></i>
+                </div>
+                <h2 class="login-title" id="loginTitle">Iniciar sesión</h2>
+                <p class="login-subtitle" id="loginSubtitle">Portal de Gestión TI</p>
+            </div>
+
+            <div id="alertContainer"></div>
+
+            <!-- PASO 1: Email -->
+            <div id="step1">
+                <div class="mb-3">
+                    <label class="form-label">Correo corporativo</label>
+                    <input type="email" class="form-control" id="emailInput"
+                        placeholder="usuario@integratel.com.pe"
+                        autocomplete="email" onkeydown="if(event.key==='Enter')checkEmail()">
+                </div>
+                <button class="btn btn-login" id="checkEmailBtn" onclick="checkEmail()">
+                    <span id="checkBtnText"><i class="bi bi-arrow-right-circle-fill me-2"></i>Continuar</span>
+                    <span id="checkBtnSpin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Verificando...</span>
+                </button>
+                <div style="display:flex;align-items:center;gap:10px;margin:18px 0;">
+                    <div style="flex:1;height:1px;background:var(--border-soft);"></div>
+                    <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">o continúa con</span>
+                    <div style="flex:1;height:1px;background:var(--border-soft);"></div>
+                </div>
+                <a href="/api/auth/microsoft" class="btn-microsoft">
+                    <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+                        <rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                    </svg>
+                    Continuar con Microsoft
+                </a>
+            </div>
+
+            <!-- PASO 2a: Contraseña existente -->
+            <div id="step2login" style="display:none;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:10px 14px;background:var(--input-bg);border:1px solid var(--border-soft);border-radius:8px;">
+                    <i class="bi bi-person-circle" style="font-size:20px;color:var(--primary);"></i>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:13px;font-weight:700;color:var(--text-main);" id="empNameLogin"></div>
+                        <div style="font-size:11px;color:var(--text-muted);" id="empEmailLogin"></div>
+                    </div>
+                    <button onclick="goBack()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;">Cambiar</button>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Contraseña</label>
+                    <div class="password-wrapper">
+                        <input type="password" class="form-control" id="passwordLogin"
+                            placeholder="Tu contraseña" autocomplete="current-password"
+                            onkeydown="if(event.key==='Enter')doLogin()">
+                        <i class="bi bi-eye password-toggle" id="togglePwLogin"></i>
+                    </div>
+                </div>
+                <button class="btn btn-login" id="loginBtn" onclick="doLogin()">
+                    <span id="loginBtnText"><i class="bi bi-box-arrow-in-right me-2"></i>Ingresar</span>
+                    <span id="loginBtnSpin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Iniciando sesión...</span>
+                </button>
+            </div>
+
+            <!-- PASO 2b: Crear contraseña (primer acceso) -->
+            <div id="step2create" style="display:none;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:var(--input-bg);border:1px solid var(--border-soft);border-radius:8px;">
+                    <i class="bi bi-person-circle" style="font-size:20px;color:var(--primary);"></i>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:13px;font-weight:700;color:var(--text-main);" id="empNameCreate"></div>
+                        <div style="font-size:11px;color:var(--text-muted);" id="empEmailCreate"></div>
+                    </div>
+                    <button onclick="goBack()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;">Cambiar</button>
+                </div>
+                <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.18);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-muted);">
+                    <i class="bi bi-info-circle" style="color:var(--primary);"></i> Primer acceso detectado. Crea tu contraseña para continuar.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Crear contraseña</label>
+                    <div class="password-wrapper">
+                        <input type="password" class="form-control" id="passwordCreate"
+                            placeholder="Mín. 6 caracteres" autocomplete="new-password"
+                            oninput="validatePwCreate()" onkeydown="if(event.key==='Enter')doCreate()">
+                        <i class="bi bi-eye password-toggle" id="togglePwCreate"></i>
+                    </div>
+                </div>
+                <div id="pwRules" style="margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+                    <div class="pw-rule" id="rl-len"><i class="bi bi-x-circle"></i> Mín. 6 caracteres</div>
+                    <div class="pw-rule" id="rl-up"><i class="bi bi-x-circle"></i> Una mayúscula</div>
+                    <div class="pw-rule" id="rl-num"><i class="bi bi-x-circle"></i> Un número</div>
+                    <div class="pw-rule" id="rl-sym"><i class="bi bi-x-circle"></i> Un símbolo</div>
+                </div>
+                <button class="btn btn-login" id="createBtn" onclick="doCreate()" disabled>
+                    <span id="createBtnText"><i class="bi bi-shield-lock-fill me-2"></i>Crear contraseña y acceder</span>
+                    <span id="createBtnSpin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Creando cuenta...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        /* ══════════════════════════════════════════════
+           TEMA — identico al navbar del dashboard
+        ══════════════════════════════════════════════ */
+        function toggleTheme() {
+            const html    = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next    = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('dashboardTheme', next);
+            _syncToggleUI(next);
+        }
+
+        function _syncToggleUI(theme) {
+            const icon  = document.getElementById('toggleIcon');
+            const label = document.getElementById('toggleLabel');
+            if (!icon || !label) return;
+            if (theme === 'dark') {
+                icon.textContent  = '☀️';
+                label.textContent = 'Claro';
+            } else {
+                icon.textContent  = '🌙';
+                label.textContent = 'Oscuro';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const saved = localStorage.getItem('dashboardTheme') || 'light';
+            _syncToggleUI(saved);
+        });
+
+        // show/hide password helpers
+        ['togglePwLogin','togglePwCreate'].forEach(function(id){
+            var el = document.getElementById(id);
+            if(!el) return;
+            var targetId = id === 'togglePwLogin' ? 'passwordLogin' : 'passwordCreate';
+            el.addEventListener('click', function(){
+                var inp = document.getElementById(targetId);
+                var isPass = inp.type === 'password';
+                inp.type = isPass ? 'text' : 'password';
+                this.classList.toggle('bi-eye', !isPass);
+                this.classList.toggle('bi-eye-slash', isPass);
+            });
+        });
+
+        function showAlert(msg, type) {
+            type = type || 'danger';
+            var icon = type === 'danger' ? 'exclamation-circle' : 'check-circle';
+            document.getElementById('alertContainer').innerHTML =
+                '<div class="alert alert-'+type+' alert-dismissible fade show" role="alert">' +
+                '<i class="bi bi-'+icon+'"></i> '+msg+
+                '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+            setTimeout(function(){ var el=document.querySelector('#alertContainer .alert'); if(el) bootstrap.Alert.getOrCreateInstance(el).close(); }, 5000);
+        }
+
+        function setBusy(textId, spinId, btnId, busy) {
+            document.getElementById(textId).classList.toggle('d-none', busy);
+            document.getElementById(spinId).classList.toggle('d-none', !busy);
+            document.getElementById(btnId).disabled = busy;
+        }
+
+        var _currentEmail = '', _currentName = '';
+
+        function goBack() {
+            document.getElementById('step2login').style.display  = 'none';
+            document.getElementById('step2create').style.display = 'none';
+            document.getElementById('step1').style.display       = 'block';
+            document.getElementById('loginTitle').textContent    = 'Iniciar sesión';
+            document.getElementById('loginSubtitle').textContent = 'Portal de Gestión TI';
+            document.getElementById('avatarIcon').innerHTML      = '<i class="bi bi-person"></i>';
+            document.getElementById('alertContainer').innerHTML  = '';
+        }
+
+        async function checkEmail() {
+            var email = document.getElementById('emailInput').value.trim();
+            if (!email) { showAlert('Ingresa tu correo corporativo'); return; }
+            setBusy('checkBtnText','checkBtnSpin','checkEmailBtn', true);
+            var ctrl = new AbortController();
+            var timer = setTimeout(function(){ ctrl.abort(); }, 10000);
+            try {
+                var r = await fetch('/api/auth/check-employee', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({email}),
+                    signal: ctrl.signal
+                });
+                clearTimeout(timer);
+                var d = await r.json();
+                if (!d.success) { showAlert(d.error || 'Correo no registrado'); return; }
+                _currentEmail = email;
+                _currentName  = d.name || email;
+                // Actualizar panel izquierdo con branding del tenant detectado
+                if (d.tenant) {
+                    var tn = d.tenant.name || 'Portal TI';
+                    var td = d.tenant.domain || '';
+                    document.getElementById('leftTenantName').textContent    = tn;
+                    document.getElementById('leftOrgName').textContent       = tn;
+                    document.getElementById('leftOrgDesc').textContent       = td ? td : 'Portal Corporativo';
+                    document.getElementById('leftOrgUrl').textContent        = td || 'gestion.ti';
+                    document.getElementById('leftOrgUrl').href               = td ? 'https://' + td : '#';
+                    document.getElementById('leftContactEmail').textContent  = td ? 'soporte@' + td : 'soporte@empresa.pe';
+                    document.getElementById('leftContactEmail').href         = td ? 'mailto:soporte@' + td : '#';
+                }
+                document.getElementById('step1').style.display = 'none';
+                document.getElementById('alertContainer').innerHTML = '';
+                document.getElementById('avatarIcon').innerHTML = '<i class="bi bi-person-check-fill"></i>';
+                if (d.hasAccount) {
+                    document.getElementById('loginTitle').textContent    = 'Bienvenido de vuelta';
+                    document.getElementById('loginSubtitle').textContent = _currentName;
+                    document.getElementById('empNameLogin').textContent  = _currentName;
+                    document.getElementById('empEmailLogin').textContent = _currentEmail;
+                    document.getElementById('step2login').style.display  = 'block';
+                    setTimeout(function(){ document.getElementById('passwordLogin').focus(); }, 100);
+                } else {
+                    document.getElementById('loginTitle').textContent    = 'Crear contraseña';
+                    document.getElementById('loginSubtitle').textContent = _currentName;
+                    document.getElementById('empNameCreate').textContent  = _currentName;
+                    document.getElementById('empEmailCreate').textContent = _currentEmail;
+                    document.getElementById('step2create').style.display  = 'block';
+                    setTimeout(function(){ document.getElementById('passwordCreate').focus(); }, 100);
+                }
+            } catch(e) {
+                clearTimeout(timer);
+                var msg = e.name === 'AbortError' ? 'El servidor tardó demasiado. Intenta nuevamente.' : 'Error de conexión';
+                showAlert(msg);
+            } finally {
+                setBusy('checkBtnText','checkBtnSpin','checkEmailBtn', false);
+            }
+        }
+
+        function validatePwCreate() {
+            var p = document.getElementById('passwordCreate').value;
+            var rules = {
+                'rl-len': p.length >= 6,
+                'rl-up':  /[A-Z]/.test(p),
+                'rl-num': /[0-9]/.test(p),
+                'rl-sym': /[^A-Za-z0-9]/.test(p)
+            };
+            var allOk = true;
+            Object.keys(rules).forEach(function(id){
+                var el = document.getElementById(id);
+                var ok = rules[id];
+                if(!ok) allOk = false;
+                el.classList.toggle('ok', ok);
+                el.querySelector('i').className = ok ? 'bi bi-check-circle-fill' : 'bi bi-x-circle';
+            });
+            document.getElementById('createBtn').disabled = !allOk;
+        }
+
+        function _roleRedirect(user) {
+            var role = (user.role || '').toLowerCase();
+            if (role === 'superadmin') return '/superadmin';
+            if (['admin','administrador','especialista','agente','tecnico'].indexOf(role) !== -1) return '/administracion';
+            return '/autogestion';
+        }
+
+        async function doLogin() {
+            var pw = document.getElementById('passwordLogin').value;
+            if (!pw) { showAlert('Ingresa tu contraseña'); return; }
+            setBusy('loginBtnText','loginBtnSpin','loginBtn', true);
+            var ctrl = new AbortController();
+            var timer = setTimeout(function(){ ctrl.abort(); }, 12000);
+            try {
+                var r = await fetch('/api/auth/login', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ username: _currentEmail, password: pw }),
+                    signal: ctrl.signal
+                });
+                clearTimeout(timer);
+                var d = await r.json();
+                if (r.ok && d.success) {
+                    localStorage.setItem('accessToken',  d.accessToken);
+                    localStorage.setItem('refreshToken', d.refreshToken);
+                    localStorage.setItem('user', JSON.stringify(d.user));
+                    showAlert('¡Bienvenido, ' + (d.user.full_name || d.user.username) + '!', 'success');
+                    window.location.href = _roleRedirect(d.user);
+                } else {
+                    showAlert(d.error || 'Contraseña incorrecta');
+                    setBusy('loginBtnText','loginBtnSpin','loginBtn', false);
+                }
+            } catch(e) {
+                clearTimeout(timer);
+                var msg = e.name === 'AbortError' ? 'El servidor tardó demasiado. Intenta nuevamente.' : 'Error de conexión';
+                showAlert(msg);
+                setBusy('loginBtnText','loginBtnSpin','loginBtn', false);
+            }
+        }
+
+        async function doCreate() {
+            var pw = document.getElementById('passwordCreate').value;
+            setBusy('createBtnText','createBtnSpin','createBtn', true);
+            var ctrl = new AbortController();
+            var timer = setTimeout(function(){ ctrl.abort(); }, 12000);
+            try {
+                var r = await fetch('/api/auth/employee-setup', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ email: _currentEmail, password: pw }),
+                    signal: ctrl.signal
+                });
+                clearTimeout(timer);
+                var d = await r.json();
+                if (r.ok && d.success) {
+                    localStorage.setItem('accessToken',  d.accessToken);
+                    localStorage.setItem('refreshToken', d.refreshToken);
+                    localStorage.setItem('user', JSON.stringify(d.user));
+                    showAlert('¡Cuenta creada! Redirigiendo...', 'success');
+                    window.location.href = _roleRedirect(d.user);
+                } else {
+                    showAlert(d.error || 'Error al crear cuenta');
+                    setBusy('createBtnText','createBtnSpin','createBtn', false);
+                }
+            } catch(e) {
+                clearTimeout(timer);
+                var msg = e.name === 'AbortError' ? 'El servidor tardó demasiado. Intenta nuevamente.' : 'Error de conexión';
+                showAlert(msg);
+                setBusy('createBtnText','createBtnSpin','createBtn', false);
+            }
+        }
+
+        // Handle SSO error param
+        (function(){
+            var params = new URLSearchParams(window.location.search);
+            var err = params.get('error');
+            if (err) showAlert(decodeURIComponent(err).replace(/_/g,' '));
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+# ============================================================================
+# docker-compose.yml — REFERENCIA PARA PRODUCCIÓN / NUBE
+# ============================================================================
+# En desarrollo/local el stack corre directamente en Windows:
+#   - Node.js app  → PM2  (pm2 start server.js --name equipment-app)
+#   - Base de datos → XAMPP MariaDB  (localhost:3306)
+#   - Redis/colas  → Memurai  (localhost:6379)
+#   - MeshCentral  → PM2  (C:\meshcentral)
+#
+# Este archivo se usa SOLO cuando se migre a producción en nube/contenedores.
+# NO ejecutar en el servidor físico actual.
+# ============================================================================
+
+services:
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${EQUIPMENT_PASSWORD}
+      MYSQL_DATABASE:      ${EQUIPMENT_DATABASE}
+      MYSQL_USER:          ${EQUIPMENT_USER}
+      MYSQL_PASSWORD:      ${EQUIPMENT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    env_file: .env
+    environment:
+      NODE_ENV:       production
+      EQUIPMENT_HOST: db
+      REDIS_HOST:     redis
+    ports:
+      - "3443:3443"
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - backend
+
+volumes:
+  db_data:
+  redis_data:
+  uploads:
+
+networks:
+  backend:
+    driver: bridge

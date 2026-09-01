@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<script>(function(){var t=localStorage.getItem('dashboardTheme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Compliance · RMM</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+:root,[data-theme="light"]{
+  --bg:#f1f5f9;--surface:#fff;--border:#e2e8f0;
+  --text:#0f172a;--muted:#64748b;--primary:#2563eb;--primary-dim:#dbeafe;
+  --success:#059669;--success-dim:#d1fae5;--danger:#dc2626;--danger-dim:#fee2e2;
+  --warning:#d97706;--warning-dim:#fef3c7;--info:#0891b2;--info-dim:#cffafe;
+  --sh:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);
+  --sh-md:0 4px 16px rgba(0,0,0,.1);--hdr:#f8fafc;
+}
+[data-theme="dark"]{
+  --bg:#080d1c;--surface:#111827;--border:#1e293b;
+  --text:#f1f5f9;--muted:#94a3b8;--primary:#3b82f6;--primary-dim:#1e3a5f;
+  --success:#10b981;--success-dim:#064e3b;--danger:#ef4444;--danger-dim:#450a0a;
+  --warning:#f59e0b;--warning-dim:#451a03;--info:#06b6d4;--info-dim:#083344;
+  --sh:0 1px 3px rgba(0,0,0,.3);--sh-md:0 4px 16px rgba(0,0,0,.4);--hdr:#141d2f;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;flex-direction:column;}
+
+/* Topbar */
+.topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 20px;flex-shrink:0;box-shadow:var(--sh);}
+.topbar-logo{display:flex;align-items:center;gap:10px;}
+.topbar-logo-icon{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#1e40af,#7c3aed);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;}
+.topbar-logo-text{font-size:14px;font-weight:800;letter-spacing:-.3px;}
+.topbar-logo-text span{color:var(--primary);}
+.topbar-sep{width:1px;height:24px;background:var(--border);margin:0 4px;}
+.topbar-title{font-size:13px;color:var(--muted);font-weight:500;}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.btn-icon{height:34px;border:1px solid var(--border);background:transparent;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:all .15s;font-size:13px;padding:0 12px;gap:6px;font-weight:500;}
+.btn-icon:hover{background:var(--primary-dim);color:var(--primary);border-color:var(--primary);}
+.btn-icon.sq{width:34px;padding:0;}
+.btn-back{color:var(--muted);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:5px;font-weight:500;transition:color .15s;}
+.btn-back:hover{color:var(--primary);}
+
+/* Main */
+.page{flex:1;padding:24px;max-width:1400px;margin:0 auto;width:100%;}
+.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.page-title{font-size:20px;font-weight:800;letter-spacing:-.4px;}
+.page-title small{font-size:13px;color:var(--muted);font-weight:400;margin-left:8px;}
+.export-btns{display:flex;gap:8px;}
+
+/* KPI cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--sh);transition:transform .15s;}
+.kpi-card:hover{transform:translateY(-2px);}
+.kpi-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);}
+.kpi-value{font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1;}
+.kpi-sub{font-size:11px;color:var(--muted);}
+.kpi-icon{font-size:20px;margin-bottom:2px;}
+.c-ok    {color:var(--success);}
+.c-warn  {color:var(--warning);}
+.c-crit  {color:var(--danger);}
+.c-info  {color:var(--info);}
+.c-muted {color:var(--muted);}
+
+/* Score ring */
+.score-ring{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;border:3px solid;}
+.ring-ok  {border-color:var(--success);color:var(--success);}
+.ring-warn{border-color:var(--warning);color:var(--warning);}
+.ring-crit{border-color:var(--danger); color:var(--danger);}
+
+/* Filters */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.filter-btn{padding:6px 14px;border:1px solid var(--border);border-radius:20px;background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:all .15s;}
+.filter-btn:hover,.filter-btn.active{background:var(--primary-dim);color:var(--primary);border-color:var(--primary);}
+.filter-btn.f-crit.active{background:var(--danger-dim);color:var(--danger);border-color:var(--danger);}
+.filter-btn.f-warn.active{background:var(--warning-dim);color:var(--warning);border-color:var(--warning);}
+.filter-btn.f-ok.active{background:var(--success-dim);color:var(--success);border-color:var(--success);}
+
+/* Search */
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.search-wrap{position:relative;flex:1;min-width:200px;max-width:360px;}
+.search-wrap input{width:100%;padding:8px 10px 8px 32px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:13px;outline:none;transition:border-color .15s;}
+.search-wrap input:focus{border-color:var(--primary);}
+.search-wrap .si{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none;}
+.count-label{font-size:12px;color:var(--muted);font-weight:500;margin-left:auto;}
+
+/* Table */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--sh);}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);background:var(--hdr);border-bottom:1px solid var(--border);white-space:nowrap;}
+.data-table td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.data-table tbody tr:last-child td{border-bottom:none;}
+.data-table tbody tr{transition:background .1s;}
+.data-table tbody tr:hover{background:var(--hdr);}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;}
+.badge-crit{background:var(--danger-dim);color:var(--danger);}
+.badge-warn{background:var(--warning-dim);color:var(--warning);}
+.badge-ok  {background:var(--success-dim);color:var(--success);}
+.badge-info{background:var(--info-dim);color:var(--info);}
+.online-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.dot-on {background:var(--success);box-shadow:0 0 0 2px rgba(5,150,105,.2);}
+.dot-off{background:var(--muted);}
+
+/* Issues list */
+.issue-tags{display:flex;flex-wrap:wrap;gap:4px;}
+.issue-tag{padding:2px 7px;border-radius:12px;font-size:10.5px;font-weight:600;}
+.itag-crit{background:var(--danger-dim);color:var(--danger);}
+.itag-warn{background:var(--warning-dim);color:var(--warning);}
+
+/* Empty state */
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+.empty h3{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;}
+
+/* Loading */
+.loading-row td{text-align:center;padding:40px;color:var(--muted);}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Last updated */
+.last-updated{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;}
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="topbar-logo-icon"><i class="bi bi-router"></i></div>
+    <div class="topbar-logo-text">ITSM<span>Platform</span></div>
+  </div>
+  <div class="topbar-sep"></div>
+  <span class="topbar-title">Compliance · RMM</span>
+  <div class="topbar-actions">
+    <span id="lastUpdatedLabel" class="last-updated" style="display:none;">
+      <i class="bi bi-clock"></i><span id="lastUpdatedText"></span>
+    </span>
+    <button class="btn-icon sq" onclick="loadData()" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
+    <button class="btn-icon sq" onclick="toggleTheme()" title="Cambiar tema"><i class="bi bi-moon-stars"></i></button>
+    <a href="/rmm" class="btn-back"><i class="bi bi-arrow-left"></i> Panel RMM</a>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="page">
+  <div class="page-head">
+    <div>
+      <div class="page-title">Dashboard de Compliance <small id="kpiTotal"></small></div>
+    </div>
+    <div class="export-btns">
+      <button class="btn-icon" onclick="exportFile('excel')"><i class="bi bi-file-earmark-spreadsheet"></i> Excel</button>
+      <button class="btn-icon" onclick="exportFile('pdf')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card" style="animation:none">
+      <div class="spinner" style="display:block;margin:8px auto;"></div>
+    </div>
+  </div>
+
+  <!-- Filters + Search -->
+  <div class="filters" id="filterBar">
+    <button class="filter-btn active" data-f="" onclick="setFilter(this,'')">Todos</button>
+    <button class="filter-btn f-crit" data-f="critical" onclick="setFilter(this,'critical')"><i class="bi bi-exclamation-octagon"></i> Crítico</button>
+    <button class="filter-btn f-warn" data-f="warning"  onclick="setFilter(this,'warning')"><i class="bi bi-exclamation-triangle"></i> Advertencia</button>
+    <button class="filter-btn f-ok"   data-f="ok"       onclick="setFilter(this,'ok')"><i class="bi bi-check-circle"></i> Correcto</button>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-wrap">
+      <i class="bi bi-search si"></i>
+      <input type="text" id="searchInput" placeholder="Buscar dispositivo, IP, OS…" oninput="renderTable()">
+    </div>
+    <span class="count-label" id="countLabel"></span>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Dispositivo</th>
+          <th>Estado</th>
+          <th>Score</th>
+          <th>Conectividad</th>
+          <th>Último parche</th>
+          <th>Discos</th>
+          <th>Alertas</th>
+          <th>Issues detectados</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr class="loading-row"><td colspan="8"><span class="spinner"></span> Cargando datos…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+var _allDevices = [];
+var _activeFilter = '';
+
+function toggleTheme() {
+    var cur = document.documentElement.getAttribute('data-theme') || 'light';
+    var next = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('dashboardTheme', next);
+}
+
+function setFilter(btn, f) {
+    _activeFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    renderTable();
+}
+
+async function loadData() {
+    document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="8"><span class="spinner"></span> Cargando datos…</td></tr>';
+    document.getElementById('kpiGrid').innerHTML = '<div class="kpi-card"><div class="spinner" style="display:block;margin:8px auto;"></div></div>';
+    try {
+        var r = await fetch('/api/rmm/compliance/summary');
+        var d = await r.json();
+        if (!d.ok) throw new Error(d.error);
+        _allDevices = d.devices || [];
+        renderKPIs(d.kpis);
+        renderTable();
+        document.getElementById('lastUpdatedLabel').style.display = 'flex';
+        document.getElementById('lastUpdatedText').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-PE');
+    } catch(e) {
+        document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="8" style="color:var(--danger)"><i class="bi bi-exclamation-triangle"></i> Error: ' + e.message + '</td></tr>';
+        document.getElementById('kpiGrid').innerHTML = '';
+    }
+}
+
+function renderKPIs(k) {
+    document.getElementById('kpiTotal').textContent = '(' + k.total + ' dispositivos)';
+    var ringColor = k.avgScore >= 80 ? 'ring-ok' : k.avgScore >= 60 ? 'ring-warn' : 'ring-crit';
+    document.getElementById('kpiGrid').innerHTML = [
+        kpiCard('bi-shield-check', 'Score Promedio',
+            '<span class="score-ring ' + ringColor + '">' + k.avgScore + '%</span>', '', ''),
+        kpiCard('bi-pc-display', 'Total Dispositivos', k.total, '', 'c-info'),
+        kpiCard('bi-exclamation-octagon-fill', 'Críticos', k.critical, 'Requieren atención inmediata', 'c-crit'),
+        kpiCard('bi-exclamation-triangle-fill', 'Advertencias', k.warning, 'Revisar próximamente', 'c-warn'),
+        kpiCard('bi-check-circle-fill', 'Correctos', k.ok, 'Cumplen todos los requisitos', 'c-ok'),
+        kpiCard('bi-wifi-off', 'Offline', k.offline, 'Sin conexión actualmente', 'c-muted'),
+        kpiCard('bi-patch-exclamation-fill', 'Sin parches', k.noPatch, 'Parches vencidos o desconocidos', 'c-warn'),
+        kpiCard('bi-hdd-fill', 'Disco crítico', k.diskIssue, 'Espacio libre bajo', 'c-crit'),
+    ].join('');
+}
+
+function kpiCard(icon, label, value, sub, colorCls) {
+    var valStr = typeof value === 'number' ? value : value;
+    return '<div class="kpi-card">'
+        + '<div class="kpi-icon ' + colorCls + '"><i class="bi ' + icon + '"></i></div>'
+        + '<div class="kpi-label">' + label + '</div>'
+        + '<div class="kpi-value ' + colorCls + '">' + valStr + '</div>'
+        + (sub ? '<div class="kpi-sub">' + sub + '</div>' : '')
+        + '</div>';
+}
+
+function renderTable() {
+    var q = (document.getElementById('searchInput').value || '').toLowerCase();
+    var filtered = _allDevices.filter(function(d) {
+        if (_activeFilter && d.status !== _activeFilter) return false;
+        if (q && !(
+            d.name.toLowerCase().includes(q) ||
+            (d.ip||'').toLowerCase().includes(q) ||
+            (d.os||'').toLowerCase().includes(q)
+        )) return false;
+        return true;
+    });
+
+    document.getElementById('countLabel').textContent = filtered.length + ' de ' + _allDevices.length + ' dispositivos';
+
+    if (!filtered.length) {
+        document.getElementById('tableBody').innerHTML =
+            '<tr><td colspan="8"><div class="empty"><div class="empty-icon">🛡️</div>'
+            + '<h3>Sin resultados</h3><p>Ajusta los filtros o busca otro término.</p></div></td></tr>';
+        return;
+    }
+
+    var rows = filtered.map(function(d) {
+        var statusBadge = d.status === 'critical'
+            ? '<span class="badge badge-crit"><i class="bi bi-exclamation-octagon"></i> Crítico</span>'
+            : d.status === 'warning'
+            ? '<span class="badge badge-warn"><i class="bi bi-exclamation-triangle"></i> Advertencia</span>'
+            : '<span class="badge badge-ok"><i class="bi bi-check-circle"></i> Correcto</span>';
+
+        var ringCls = d.score >= 80 ? 'ring-ok' : d.score >= 60 ? 'ring-warn' : 'ring-crit';
+        var scoreHtml = '<span class="score-ring ' + ringCls + '" style="width:36px;height:36px;font-size:11px;">' + d.score + '</span>';
+
+        var onlineHtml = d.online
+            ? '<span class="badge badge-ok"><span class="online-dot dot-on"></span> Online</span>'
+            : '<span class="badge" style="background:var(--hdr);color:var(--muted);"><span class="online-dot dot-off"></span> Offline</span>';
+
+        var patchHtml = d.lastPatch ? formatPatch(d.lastPatch) : '<span class="c-muted">Desconocido</span>';
+
+        var diskHtml = formatDisks(d.disks);
+
+        var alertHtml = d.alerts.count
+            ? '<span class="badge ' + (d.alerts.severity === 'critical' ? 'badge-crit' : 'badge-warn') + '">'
+              + '<i class="bi bi-bell-fill"></i> ' + d.alerts.count + '</span>'
+            : '<span class="c-muted" style="font-size:12px;">—</span>';
+
+        var issueHtml = d.issues.length
+            ? '<div class="issue-tags">' + d.issues.slice(0,4).map(function(i) {
+                return '<span class="issue-tag ' + (i.severity === 'critical' ? 'itag-crit' : 'itag-warn') + '">' + escHtml(i.label) + '</span>';
+              }).join('') + (d.issues.length > 4 ? '<span class="issue-tag itag-warn">+' + (d.issues.length-4) + ' más</span>' : '') + '</div>'
+            : '<span class="badge badge-ok" style="font-size:10px;">Sin problemas</span>';
+
+        return '<tr>'
+            + '<td><strong>' + escHtml(d.name) + '</strong>'
+            + (d.ip ? '<br><span style="font-size:11px;color:var(--muted);">' + escHtml(d.ip) + '</span>' : '')
+            + (d.os ? '<br><span style="font-size:10px;color:var(--muted);">' + escHtml(d.os.slice(0,40)) + '</span>' : '')
+            + '</td>'
+            + '<td>' + statusBadge + '</td>'
+            + '<td style="text-align:center;">' + scoreHtml + '</td>'
+            + '<td>' + onlineHtml + '</td>'
+            + '<td>' + patchHtml + '</td>'
+            + '<td>' + diskHtml + '</td>'
+            + '<td style="text-align:center;">' + alertHtml + '</td>'
+            + '<td>' + issueHtml + '</td>'
+            + '</tr>';
+    }).join('');
+
+    document.getElementById('tableBody').innerHTML = rows;
+}
+
+function formatPatch(dateStr) {
+    try {
+        var d = new Date(dateStr);
+        var days = Math.floor((Date.now() - d.getTime()) / 86400000);
+        var label = d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' });
+        var cls = days > 60 ? 'c-crit' : days > 30 ? 'c-warn' : 'c-ok';
+        return '<span class="' + cls + '" style="font-size:12px;">' + label + '</span>'
+             + '<br><span style="font-size:10px;color:var(--muted);">hace ' + days + ' días</span>';
+    } catch { return '<span class="c-muted">—</span>'; }
+}
+
+function formatDisks(disks) {
+    if (!disks || !disks.length) return '<span class="c-muted" style="font-size:12px;">—</span>';
+    return disks.slice(0,3).map(function(dk) {
+        var freePct = dk.t > 0 ? Math.round((dk.f / dk.t) * 100) : null;
+        if (freePct === null) return '';
+        var cls = freePct < 5 ? 'c-crit' : freePct < 15 ? 'c-warn' : 'c-ok';
+        return '<span style="font-size:11px;" class="' + cls + '">' + dk.d + ' ' + freePct + '%&nbsp;libre</span>';
+    }).filter(Boolean).join('<br>') || '<span class="c-muted">—</span>';
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function exportFile(type) {
+    window.location.href = '/api/rmm/compliance/export/' + type;
+}
+
+loadData();
+</script>
+</body>
+</html>

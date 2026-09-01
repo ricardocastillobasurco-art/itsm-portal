@@ -1,0 +1,105 @@
+<div id="tabAutomaciones" class="corp-tabpanel" style="display:none;">
+  <div class="page-header" style="margin-top:4px;">
+    <div class="page-title"><i class="bi bi-gear-wide-connected" style="color:#0052CC"></i> Automatizaciones</div>
+    <div class="page-actions">
+      <button class="btn-create" onclick="saveAutomations()"><i class="bi bi-floppy"></i> Guardar cambios</button>
+    </div>
+  </div>
+  <div style="max-width:720px;">
+
+    <!-- Escalación P1 -->
+    <div class="card-panel" style="margin-bottom:20px;">
+      <div class="card-panel-title" style="margin-bottom:16px;">
+        <i class="bi bi-alarm-fill" style="color:#dc2626"></i> Escalación automática P1
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px;">Notifica por email cuando un ticket P1 lleva N minutos sin técnico asignado</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <label class="auto-toggle-wrap">
+          <input type="checkbox" id="auto_p1_enabled" onchange="toggleAutoSection('p1')">
+          <span class="auto-toggle"></span>
+        </label>
+        <span style="font-size:13px;font-weight:600;color:var(--text-main);">Activar escalación P1</span>
+      </div>
+      <div id="auto_p1_section" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+          <div>
+            <div class="form-label-custom">Correo del jefe de área / supervisor <span style="color:var(--danger);">*</span></div>
+            <input type="email" id="auto_p1_email" class="form-control-custom" placeholder="jefe@empresa.com">
+          </div>
+          <div>
+            <div class="form-label-custom">Minutos sin asignar</div>
+            <input type="number" id="auto_p1_minutes" class="form-control-custom" value="30" min="5" max="120" style="width:100px;">
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:10px 14px;background:#fff7ed;border-radius:8px;font-size:12px;color:#92400e;border:1px solid #fed7aa;">
+          <i class="bi bi-info-circle me-1"></i>Se enviará un email de alerta al correo indicado. El sistema verifica cada 5 minutos.
+        </div>
+      </div>
+    </div>
+
+    <!-- Encuesta de satisfacción -->
+    <div class="card-panel" style="margin-bottom:20px;">
+      <div class="card-panel-title" style="margin-bottom:16px;">
+        <i class="bi bi-star-fill" style="color:#f59e0b"></i> Encuesta de satisfacción
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px;">Envía un email automático al reporter cuando se cierra su ticket</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <label class="auto-toggle-wrap">
+          <input type="checkbox" id="auto_sat_enabled" onchange="toggleAutoSection('sat')">
+          <span class="auto-toggle"></span>
+        </label>
+        <span style="font-size:13px;font-weight:600;color:var(--text-main);">Activar encuesta al cerrar ticket</span>
+      </div>
+      <div id="auto_sat_section" style="display:none;">
+        <div style="padding:10px 14px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#065f46;border:1px solid #bbf7d0;">
+          <i class="bi bi-check-circle me-1"></i>Se enviará al email del reporter con opciones de calificación 😞😐🙂😊🤩 (1-5 estrellas). Las respuestas se registran en el sistema.
+        </div>
+        <div style="margin-top:12px;">
+          <div class="form-label-custom">Vista previa del email</div>
+          <div style="background:var(--bg-header);border:1px solid var(--border-soft);border-radius:8px;padding:16px;text-align:center;font-size:13px;color:var(--text-muted);">
+            <div style="font-size:18px;font-weight:700;color:#0052CC;margin-bottom:6px;">¿Cómo fue tu experiencia?</div>
+            <div style="font-size:12px;margin-bottom:12px;">Tu ticket <strong>INC-XXXXX</strong> ha sido resuelto</div>
+            <div style="display:flex;justify-content:center;gap:10px;font-size:24px;">😞 😐 🙂 😊 🤩</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alertas SLA -->
+    <div class="card-panel" style="margin-bottom:20px;">
+      <div class="card-panel-title" style="margin-bottom:16px;">
+        <i class="bi bi-clock-history" style="color:#7c3aed"></i> Alertas de SLA por vencer
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px;">Notifica por email cuando un ticket está próximo a vencer SLA</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <label class="auto-toggle-wrap">
+          <input type="checkbox" id="auto_sla_enabled" onchange="toggleAutoSection('sla')">
+          <span class="auto-toggle"></span>
+        </label>
+        <span style="font-size:13px;font-weight:600;color:var(--text-main);">Activar alertas de SLA</span>
+      </div>
+      <div id="auto_sla_section" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+          <div>
+            <div class="form-label-custom">Correo de destino <span style="color:var(--danger);">*</span></div>
+            <input type="email" id="auto_sla_email" class="form-control-custom" placeholder="equipo@empresa.com">
+          </div>
+          <div>
+            <div class="form-label-custom">Minutos antes de vencer</div>
+            <input type="number" id="auto_sla_minutes" class="form-control-custom" value="10" min="5" max="60" style="width:100px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historial de encuestas -->
+    <div class="card-panel">
+      <div class="card-panel-title" style="margin-bottom:12px;">
+        <i class="bi bi-bar-chart-steps" style="color:#0052CC"></i> Resultados de encuestas
+      </div>
+      <div id="surveyResultsWrap"><div style="text-align:center;color:var(--text-muted);font-size:12px;padding:20px;">Cargando...</div></div>
+    </div>
+
+  </div>
+</div>
+<!-- ══ TAB 5: ESPECIALISTAS ══ -->

@@ -1,0 +1,2272 @@
+﻿<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<script>(function(){const t=localStorage.getItem('dashboardTheme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Super Admin · IT Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root,[data-theme="light"]{
+  --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--border-s:#cbd5e1;
+  --text:#0f172a;--text2:#1e293b;--muted:#64748b;--muted2:#94a3b8;
+  --primary:#2563eb;--primary-d:rgba(37,99,235,.1);
+  --success:#059669;--warn:#d97706;--danger:#dc2626;--purple:#7c3aed;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.04);
+  --nav:#fff;--radius:12px;--navbar-h:52px;
+}
+[data-theme="dark"]{
+  --bg:#080d1c;--card:#111827;--border:#1e293b;--border-s:#2d3f55;
+  --text:#f1f5f9;--text2:#e2e8f0;--muted:#94a3b8;--muted2:#64748b;
+  --primary:#3b82f6;--primary-d:rgba(59,130,246,.14);
+  --success:#10b981;--warn:#f59e0b;--danger:#ef4444;--purple:#8b5cf6;
+  --sh:0 1px 3px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
+  --nav:rgba(8,13,28,.97);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',-apple-system,sans-serif;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;}
+
+/* ── Navbar ─────────────────────────────────────────────────────────── */
+.navbar{position:fixed;top:0;left:0;right:0;z-index:500;height:var(--navbar-h);display:flex;align-items:center;gap:10px;padding:0 20px;background:var(--nav);border-bottom:1px solid var(--border);backdrop-filter:blur(12px);}
+.nav-logo{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:var(--primary);}
+.nav-logo i{font-size:18px;}
+.nav-badge{font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;background:linear-gradient(135deg,#7c3aed,#e11d48);color:#fff;letter-spacing:.5px;text-transform:uppercase;}
+.nav-divider{width:1px;height:18px;background:var(--border);}
+.nav-bc{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+.nav-bc a{color:var(--muted);font-weight:500;transition:color .15s;}
+.nav-bc a:hover{color:var(--primary);}
+.nav-bc .sep{opacity:.4;}
+.nav-space{flex:1;}
+.nav-theme{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;cursor:pointer;transition:background .15s;}
+.nav-theme:hover{background:var(--bg);}
+.nav-user{display:flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border-radius:20px;background:var(--bg);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text2);}
+.nav-av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#e11d48);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;flex-shrink:0;}
+.nav-exit{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;color:var(--muted);transition:all .15s;}
+.nav-exit:hover{color:var(--danger);background:rgba(220,38,38,.06);}
+
+/* ── Layout ─────────────────────────────────────────────────────────── */
+.page{margin-top:var(--navbar-h);padding:24px;max-width:1280px;margin-left:auto;margin-right:auto;}
+
+/* ── Stats strip ────────────────────────────────────────────────────── */
+.stats-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+@media(max-width:700px){.stats-strip{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;box-shadow:var(--sh);position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.sc-total::before{background:linear-gradient(90deg,#2563eb,#60a5fa);}
+.sc-active::before{background:linear-gradient(90deg,#059669,#6ee7b7);}
+.sc-trial::before{background:linear-gradient(90deg,#d97706,#fcd34d);}
+.sc-suspended::before{background:linear-gradient(90deg,#dc2626,#fca5a5);}
+.stat-val{font-size:28px;font-weight:800;color:var(--text);line-height:1;}
+.stat-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:3px;}
+
+/* ── Section header ─────────────────────────────────────────────────── */
+.sec-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.sec-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);flex:1;}
+.sec-line{flex:1;height:1px;background:var(--border);}
+.btn-primary{display:inline-flex;align-items:center;gap:6px;background:var(--primary);color:#fff;font-size:13px;font-weight:700;padding:8px 16px;border-radius:8px;transition:opacity .15s;}
+.btn-primary:hover{opacity:.9;}
+.btn-outline{display:inline-flex;align-items:center;gap:6px;background:var(--card);color:var(--muted);font-size:12px;font-weight:600;padding:6px 12px;border:1px solid var(--border);border-radius:7px;transition:all .15s;}
+.btn-outline:hover{color:var(--text);border-color:var(--border-s);}
+.btn-danger{background:rgba(220,38,38,.08);color:var(--danger);border-color:rgba(220,38,38,.2);}
+.btn-danger:hover{background:rgba(220,38,38,.15);}
+.btn-success{background:rgba(5,150,105,.08);color:var(--success);border-color:rgba(5,150,105,.2);}
+.btn-success:hover{background:rgba(5,150,105,.15);}
+
+/* ── Tenant grid ────────────────────────────────────────────────────── */
+#tenantGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;}
+.tenant-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--sh);transition:transform .2s,box-shadow .2s;}
+.tenant-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1);}
+.tc-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;}
+.tc-icon{width:42px;height:42px;border-radius:10px;background:var(--primary-d);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--primary);flex-shrink:0;}
+.tc-info{flex:1;min-width:0;}
+.tc-name{font-size:15px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tc-slug{font-size:11px;color:var(--muted);font-family:monospace;margin-top:1px;}
+.tc-domain{font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:4px;}
+.tc-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.2px;}
+.badge-trial{background:rgba(217,119,6,.12);color:#d97706;}
+.badge-starter{background:rgba(37,99,235,.1);color:#2563eb;}
+.badge-professional{background:rgba(124,58,237,.1);color:#7c3aed;}
+.badge-enterprise{background:rgba(5,150,105,.1);color:#059669;}
+.badge-active{background:rgba(5,150,105,.1);color:#059669;}
+.badge-suspended{background:rgba(220,38,38,.1);color:#dc2626;}
+.tc-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.tc-stat{background:var(--bg);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;}
+.tc-stat i{font-size:14px;color:var(--muted);}
+.tc-stat-val{font-size:14px;font-weight:700;color:var(--text);}
+.tc-stat-lbl{font-size:10px;color:var(--muted);}
+.tc-date{font-size:11px;color:var(--muted2);margin-bottom:14px;}
+.tc-actions{display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:14px;}
+
+/* ── Loading / empty ────────────────────────────────────────────────── */
+.skeleton{background:var(--border);border-radius:8px;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state i{font-size:48px;margin-bottom:12px;display:block;opacity:.3;}
+
+/* ── Modal base ─────────────────────────────────────────────────────── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 0;}
+.modal-title{font-size:16px;font-weight:800;color:var(--text);}
+.modal-close{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:all .15s;}
+.modal-close:hover{background:var(--bg);color:var(--text);}
+.modal-body{padding:20px 24px;}
+.modal-footer{padding:0 24px 20px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--border);padding-top:16px;}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid var(--border);}
+.modal-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+
+/* ── Form elements ─────────────────────────────────────────────────── */
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.form-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;transition:border-color .15s;}
+.form-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-d);}
+.form-hint{font-size:11px;color:var(--muted2);margin-top:4px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+select.form-input{cursor:pointer;}
+
+/* ── Import preview ─────────────────────────────────────────────────── */
+.preview-table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);max-height:200px;overflow-y:auto;}
+.preview-table{width:100%;border-collapse:collapse;font-size:12px;}
+.preview-table th{background:var(--bg);padding:7px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border);position:sticky;top:0;}
+.preview-table td{padding:6px 10px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;}
+.preview-table tr:last-child td{border-bottom:none;}
+.import-counter{font-size:13px;color:var(--muted);margin:10px 0;display:flex;align-items:center;gap:6px;}
+.import-results{background:var(--bg);border-radius:8px;padding:14px;margin-top:12px;}
+.res-row{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:4px;}
+.res-row:last-child{margin-bottom:0;}
+.errors-list{max-height:120px;overflow-y:auto;margin-top:10px;font-size:12px;color:var(--danger);}
+.errors-list div{padding:3px 0;border-bottom:1px dashed var(--border);}
+.file-drop{border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;color:var(--muted);}
+.file-drop:hover,.file-drop.drag{border-color:var(--primary);background:var(--primary-d);}
+.file-drop strong{font-size:13px;color:var(--text);}
+.section-card{background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s;text-align:left;}
+.section-card:hover{border-color:var(--border-s);background:var(--card);}
+.section-card.active{border-color:var(--primary);background:var(--primary-d);}
+.col-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;margin:2px;}
+.col-pill.req{background:rgba(37,99,235,.1);color:#2563eb;}
+.col-pill.opt{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.template-link{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--primary);font-weight:600;cursor:pointer;}
+.template-link:hover{text-decoration:underline;}
+
+/* ── Feature toggle switch ────────────────────────────────────────────── */
+.feat-toggle{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;cursor:pointer;}
+.feat-toggle input{opacity:0;width:0;height:0;position:absolute;}
+.feat-track{position:absolute;inset:0;border-radius:11px;background:var(--border-s);transition:background .2s;}
+.feat-toggle input:checked ~ .feat-track{background:var(--primary);}
+.feat-knob{position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.feat-toggle input:checked ~ .feat-track .feat-knob{transform:translateX(18px);}
+
+/* ── Health bar ─────────────────────────────────────────────────────── */
+.health-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:20px;box-shadow:var(--sh);}
+.hb-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--bg);border:1px solid var(--border);color:var(--text2);}
+.hb-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.hb-ok{background:#10b981;}.hb-warn{background:#f59e0b;}.hb-err{background:#ef4444;}
+.hb-divider{width:1px;height:20px;background:var(--border);}
+.hb-label{font-size:11px;color:var(--muted);font-weight:500;margin-right:2px;}
+
+/* ── Activity table ─────────────────────────────────────────────────── */
+.activity-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;box-shadow:var(--sh);overflow:hidden;}
+.activity-head{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+.activity-head:hover{background:var(--bg);}
+.activity-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--muted2);display:flex;align-items:center;gap:7px;}
+.act-table{width:100%;border-collapse:collapse;font-size:12px;}
+.act-table th{padding:8px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);border-bottom:1px solid var(--border);background:var(--bg);}
+.act-table td{padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2);}
+.act-table tr:last-child td{border-bottom:none;}
+.act-table tr:hover td{background:var(--bg);}
+.act-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:3px;min-width:60px;}
+.act-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#2563eb,#60a5fa);transition:width .4s;}
+.act-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;}
+
+/* ── Quota bar en tarjetas ──────────────────────────────────────────── */
+.quota-wrap{margin-bottom:12px;display:flex;flex-direction:column;gap:5px;}
+.quota-row{display:flex;align-items:center;gap:8px;}
+.quota-lbl{font-size:10px;font-weight:600;color:var(--muted);width:56px;flex-shrink:0;}
+.quota-bar{flex:1;height:5px;border-radius:3px;background:var(--border);overflow:hidden;}
+.quota-fill{height:100%;border-radius:3px;transition:width .4s;}
+.quota-ok{background:linear-gradient(90deg,#10b981,#6ee7b7);}
+.quota-warn{background:linear-gradient(90deg,#d97706,#fcd34d);}
+.quota-over{background:linear-gradient(90deg,#dc2626,#f87171);}
+.quota-num{font-size:10px;color:var(--muted);white-space:nowrap;min-width:40px;text-align:right;}
+
+/* ── Billing modal ──────────────────────────────────────────────────── */
+.bill-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;}
+.bill-status{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
+.bill-paid{background:rgba(5,150,105,.12);color:#059669;}
+.bill-pending{background:rgba(217,119,6,.12);color:#d97706;}
+.bill-overdue{background:rgba(220,38,38,.12);color:#dc2626;}
+
+/* ── Toast ──────────────────────────────────────────────────────────── */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;box-shadow:0 4px 16px rgba(0,0,0,.2);font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;pointer-events:auto;animation:slideIn .3s ease;}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.toast-ok{border-left:3px solid var(--success);color:var(--success);}
+.toast-err{border-left:3px solid var(--danger);color:var(--danger);}
+.toast-info{border-left:3px solid var(--primary);color:var(--primary);}
+</style>
+</head>
+<body>
+
+<!-- ══ NAVBAR ════════════════════════════════════════════════════════════ -->
+<nav class="navbar">
+  <div class="nav-logo"><i class="bi bi-shield-lock-fill"></i> IT Platform</div>
+  <span class="nav-badge">SUPER ADMIN</span>
+  <div class="nav-divider"></div>
+  <div class="nav-bc">
+    <a href="/administracion"><i class="bi bi-grid-1x2-fill"></i> Admin</a>
+    <span class="sep">/</span>
+    <span>Clientes SaaS</span>
+  </div>
+  <div class="nav-space"></div>
+  <button class="nav-theme" onclick="toggleTheme()" title="Cambiar tema">
+    <div id="themeTrack" style="width:28px;height:16px;border-radius:8px;background:#cbd5e1;position:relative;transition:background .3s;"><div id="themeKnob" style="width:12px;height:12px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .3s;"></div></div>
+    <i id="toggleIcon" class="bi bi-moon-stars-fill" style="font-size:13px;color:var(--muted);"></i>
+  </button>
+  <div class="nav-user">
+    <div class="nav-av"><%= (user?.full_name||user?.username||'A')[0].toUpperCase() %></div>
+    <span><%= user?.full_name || user?.username || 'Admin' %></span>
+  </div>
+  <a href="/logout" class="nav-exit"><i class="bi bi-box-arrow-right"></i> Salir</a>
+</nav>
+
+<!-- ══ CONTENIDO ════════════════════════════════════════════════════════ -->
+<div class="page" style="margin-top:calc(var(--navbar-h) + 24px);">
+
+  <!-- Stats -->
+  <div class="stats-strip" id="statsStrip">
+    <div class="stat-card sc-total"><div class="stat-val" id="st-total">—</div><div class="stat-lbl">Total Clientes</div></div>
+    <div class="stat-card sc-active"><div class="stat-val" id="st-active">—</div><div class="stat-lbl">Activos</div></div>
+    <div class="stat-card sc-trial"><div class="stat-val" id="st-trial">—</div><div class="stat-lbl">Plan Trial</div></div>
+    <div class="stat-card sc-suspended"><div class="stat-val" id="st-suspended">—</div><div class="stat-lbl">Suspendidos</div></div>
+  </div>
+
+  <!-- Health bar -->
+  <div class="health-bar" id="healthBar">
+    <span style="font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;">Estado</span>
+    <div class="hb-divider"></div>
+    <span class="hb-chip"><span class="hb-dot" id="hbDbDot" style="background:#94a3b8;"></span><span class="hb-label">BD</span><span id="hbDbTxt">—</span></span>
+    <span class="hb-chip"><i class="bi bi-memory" style="font-size:11px;color:var(--muted);"></i><span class="hb-label">MEM</span><span id="hbMem">—</span></span>
+    <span class="hb-chip"><i class="bi bi-clock" style="font-size:11px;color:var(--muted);"></i><span class="hb-label">UPTIME</span><span id="hbUptime">—</span></span>
+    <div class="hb-divider"></div>
+    <span class="hb-chip"><i class="bi bi-ticket-fill" style="font-size:11px;color:#2563eb;"></i><span class="hb-label">Tickets semana</span><span id="hbTickets">—</span></span>
+    <span class="hb-chip"><i class="bi bi-people-fill" style="font-size:11px;color:#059669;"></i><span class="hb-label">Usuarios activos</span><span id="hbUsers">—</span></span>
+    <span style="flex:1;"></span>
+    <button onclick="loadHealth()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:12px;" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
+  </div>
+
+  <!-- Activity panel -->
+  <div class="activity-wrap" id="activityWrap">
+    <div class="activity-head" onclick="toggleActivity()">
+      <span class="activity-title"><i class="bi bi-bar-chart-fill"></i> Actividad por cliente <span id="actPeriod" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">— últimos 7 / 30 días</span></span>
+      <i class="bi bi-chevron-down" id="actChevron" style="color:var(--muted);transition:transform .2s;"></i>
+    </div>
+    <div id="actBody" style="display:none;overflow-x:auto;">
+      <table class="act-table">
+        <thead><tr>
+          <th>Cliente</th><th>Plan</th>
+          <th>Tickets 7d</th><th>Tickets 30d</th><th>Resueltos 30d</th>
+          <th>Nuevos usuarios 30d</th><th>Usuarios totales</th>
+        </tr></thead>
+        <tbody id="actTbody"><tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Section header -->
+  <div class="sec-head">
+    <span class="sec-title"><i class="bi bi-buildings"></i> Clientes</span>
+    <div class="sec-line"></div>
+    <button class="btn-outline" onclick="openModal('modalBroadcast')" style="color:#7c3aed;border-color:#7c3aed;" title="Enviar comunicado a todos los clientes">
+      <i class="bi bi-megaphone-fill"></i> Comunicado
+    </button>
+    <button class="btn-primary" onclick="openModal('modalNew')">
+      <i class="bi bi-plus-lg"></i> Nuevo Cliente
+    </button>
+  </div>
+
+  <!-- Grid -->
+  <div id="tenantGrid"><div style="text-align:center;padding:40px;color:var(--muted);"><i class="bi bi-arrow-clockwise" style="animation:spin 1s linear infinite;display:inline-block;font-size:24px;"></i></div></div>
+
+</div>
+
+<!-- ══ MODAL: NUEVO CLIENTE ════════════════════════════════════════════ -->
+<div class="modal-bg" id="modalNew">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title"><i class="bi bi-plus-circle-fill" style="color:var(--primary);margin-right:6px;"></i>Nuevo Cliente</span>
+      <button class="modal-close" onclick="closeModal('modalNew')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre de la empresa *</label>
+          <input id="newName" class="form-input" placeholder="Ej: Petrotal S.A.C." oninput="autoSlug()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Slug (URL único) *</label>
+          <input id="newSlug" class="form-input" placeholder="petrotal" style="font-family:monospace;">
+          <div class="form-hint">Solo letras, números y guiones</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Dominio de correo</label>
+          <input id="newDomain" class="form-input" placeholder="petrotal.com.pe">
+          <div class="form-hint">@dominio.com para identificar usuarios</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email de contacto</label>
+          <input id="newEmail" class="form-input" type="email" placeholder="admin@petrotal.com.pe">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plan inicial</label>
+        <select id="newPlan" class="form-input">
+          <option value="trial">Trial (30 días gratis)</option>
+          <option value="starter">Starter</option>
+          <option value="professional">Professional</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+      <!-- Módulos del cliente -->
+      <div class="form-group" style="margin-bottom:4px;">
+        <label class="form-label">Integraciones del cliente</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);background:var(--bg);transition:border-color .15s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+            <input type="checkbox" id="featJira" style="accent-color:var(--primary);width:15px;height:15px;">
+            <i class="bi bi-ticket-fill" style="color:#0052cc;"></i> Jira
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);background:var(--bg);transition:border-color .15s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+            <input type="checkbox" id="featMicrosoft" style="accent-color:var(--primary);width:15px;height:15px;">
+            <i class="bi bi-microsoft" style="color:#0078d4;"></i> Microsoft (Teams/Intune)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);background:var(--bg);transition:border-color .15s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+            <input type="checkbox" id="featPrint" style="accent-color:var(--primary);width:15px;height:15px;">
+            <i class="bi bi-printer-fill" style="color:#64748b;"></i> Cola de Impresión
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);background:var(--bg);transition:border-color .15s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+            <input type="checkbox" id="featAzure" style="accent-color:var(--primary);width:15px;height:15px;">
+            <i class="bi bi-shield-lock-fill" style="color:#7c3aed;"></i> Azure AD (SSO)
+          </label>
+        </div>
+        <div class="form-hint" style="margin-top:6px;"><i class="bi bi-info-circle"></i> Sistema local TK- siempre activo. Integraciones configurables luego.</div>
+      </div>
+      <div id="newError" style="font-size:13px;color:var(--danger);margin-top:8px;display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeModal('modalNew')">Cancelar</button>
+      <button class="btn-primary" id="btnCreate" onclick="createTenant()">
+        <i class="bi bi-plus-lg"></i> Crear Cliente
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: PROVISIONING ══════════════════════════════════════════════ -->
+<div id="modalProvision" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border-radius:18px;padding:36px 32px;max-width:480px;width:94%;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+      <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="bi bi-cpu-fill" style="color:#fff;font-size:20px;"></i></div>
+      <div>
+        <div style="font-size:16px;font-weight:800;color:var(--text);">Configurando entorno</div>
+        <div style="font-size:12px;color:var(--muted);" id="provName">Nuevo cliente</div>
+      </div>
+    </div>
+    <!-- Barra de progreso -->
+    <div style="background:var(--border);border-radius:999px;height:10px;margin-bottom:6px;overflow:hidden;">
+      <div id="provBar" style="height:100%;background:linear-gradient(90deg,#2563eb,#7c3aed);border-radius:999px;transition:width .4s ease;width:0%;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:18px;">
+      <span id="provMsg" style="font-weight:600;">Iniciando...</span>
+      <span id="provPct" style="font-weight:700;color:var(--primary);">0%</span>
+    </div>
+    <!-- Log de pasos -->
+    <div id="provSteps" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;font-size:12px;"></div>
+    <button id="provDoneBtn" onclick="document.getElementById('modalProvision').style.display='none'"
+      style="display:none;margin-top:22px;width:100%;padding:11px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border-radius:10px;font-size:14px;font-weight:700;border:none;cursor:pointer;">
+      <i class="bi bi-check-circle-fill"></i> ¡Listo! Cerrar
+    </button>
+  </div>
+</div>
+<style>
+.prov-step{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:7px;background:var(--border);color:var(--muted);}
+.prov-step i{flex-shrink:0;}
+.prov-done{background:#d1fae5;color:#065f46;}
+.prov-error{background:#fee2e2;color:#991b1b;}
+</style>
+
+<!-- ══ MODAL: IMPORTAR CSV ══════════════════════════════════════════════ -->
+<div class="modal-bg" id="modalImport">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-head">
+      <span class="modal-title"><i class="bi bi-cloud-upload-fill" style="color:var(--purple);margin-right:6px;"></i>Importar datos · <span id="importTenantName">—</span></span>
+      <button class="modal-close" onclick="closeImport()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+
+      <!-- PASO 1: Sección -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</div>
+        <span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">¿Qué tipo de datos vas a subir?</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;" id="sectionCards">
+        <div class="section-card active" onclick="selectSection('users',this)" data-sec="users">
+          <i class="bi bi-people-fill" style="color:#2563eb;font-size:20px;margin-bottom:6px;display:block;"></i>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">Usuarios</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Personal de TI del cliente</div>
+        </div>
+        <div class="section-card" onclick="selectSection('config_items',this)" data-sec="config_items">
+          <i class="bi bi-laptop-fill" style="color:#d97706;font-size:20px;margin-bottom:6px;display:block;"></i>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">Equipos / Inventario</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">PCs, laptops, servidores</div>
+        </div>
+        <div class="section-card" onclick="selectSection('tickets',this)" data-sec="tickets">
+          <i class="bi bi-ticket-fill" style="color:#dc2626;font-size:20px;margin-bottom:6px;display:block;"></i>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">Incidencias históricas</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Tickets pasados (opcional)</div>
+        </div>
+        <div class="section-card" onclick="selectSection('kb_articles',this)" data-sec="kb_articles">
+          <i class="bi bi-book-fill" style="color:#7c3aed;font-size:20px;margin-bottom:6px;display:block;"></i>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">Artículos de KB</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Base de conocimiento</div>
+        </div>
+      </div>
+      <input type="hidden" id="importSection" value="users">
+
+      <!-- Info de columnas -->
+      <div id="colInfo" style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid var(--border);"></div>
+
+      <!-- PASO 2: Plantilla + archivo -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</div>
+        <span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Descarga la plantilla, llénala y súbela</span>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+        <button id="templateDownload" data-href="/api/admin/tenants/template-csv/users" data-file="plantilla_users.csv" onclick="downloadTemplate()"
+           style="display:inline-flex;align-items:center;gap:7px;background:var(--success);color:#fff;font-size:13px;font-weight:700;padding:9px 16px;border-radius:8px;border:none;cursor:pointer;transition:opacity .15s;">
+          <i class="bi bi-file-earmark-arrow-down-fill"></i> Descargar plantilla CSV
+        </button>
+        <span style="font-size:12px;color:var(--muted);">→ Ábrela en Excel, llénala y guárdala como .csv</span>
+      </div>
+
+      <div class="file-drop" id="fileDrop" onclick="document.getElementById('csvFile').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="onFileDrop(event)">
+        <input type="file" id="csvFile" accept=".csv,.txt" style="display:none" onchange="onFileSelect(event)">
+        <i class="bi bi-file-earmark-spreadsheet" style="font-size:32px;margin-bottom:8px;display:block;"></i>
+        <strong>Haz clic aquí o arrastra tu archivo CSV</strong>
+        <div style="font-size:12px;margin-top:6px;color:var(--muted2);">Formatos aceptados: .csv — Máximo 5000 filas</div>
+      </div>
+
+      <!-- PASO 3: Vista previa -->
+      <div id="previewArea" style="display:none;margin-top:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--success);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</div>
+          <span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Verifica que los datos se ven bien</span>
+        </div>
+        <div class="preview-table-wrap" id="previewTableWrap"></div>
+        <div class="import-counter" id="importCounter" style="margin-top:10px;"></div>
+      </div>
+
+      <div id="importResultArea" style="display:none;margin-top:12px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeImport()">Cerrar</button>
+      <button class="btn-primary" id="btnImport" onclick="doImport()" style="display:none;">
+        <i class="bi bi-cloud-upload"></i> Importar <span id="btnImportCount"></span> registros
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: MÓDULOS / FEATURES ════════════════════════════════════════ -->
+<div class="modal-bg" id="modalFeatures">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <span class="modal-title"><i class="bi bi-toggles" style="color:var(--purple);margin-right:6px;"></i>Módulos · <span id="featuresTenantName">—</span></span>
+      <button class="modal-close" onclick="closeModal('modalFeatures')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Activa o desactiva integraciones y módulos para este cliente. Los cambios aplican de inmediato.</p>
+      <div id="featuresGrid" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeModal('modalFeatures')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: CONEXIONES / INTEGRACIONES ════════════════════════════════ -->
+<div class="modal-bg" id="modalConexiones">
+  <div class="modal" style="max-width:900px;height:min(85vh,700px);display:flex;flex-direction:column;">
+    <div class="modal-head" style="flex-shrink:0;">
+      <span class="modal-title">
+        <i class="bi bi-plug-fill" style="color:#0891b2;margin-right:6px;"></i>
+        Conexiones · <span id="conexTenantName">—</span>
+      </span>
+      <button class="modal-close" onclick="closeModal('modalConexiones')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <!-- layout: lista izquierda + form derecha -->
+    <div style="display:flex;flex:1;overflow:hidden;">
+      <!-- ── Columna izquierda: lista de integraciones ── -->
+      <div id="conexList" style="width:260px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:12px 8px;">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 8px 8px;">Integraciones</div>
+      </div>
+      <!-- ── Columna derecha: formulario de edición ── -->
+      <div id="conexForm" style="flex:1;overflow-y:auto;padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);">
+          <div style="text-align:center;">
+            <i class="bi bi-plug" style="font-size:36px;opacity:.3;display:block;margin-bottom:12px;"></i>
+            <div style="font-size:14px;font-weight:600;">Selecciona una integración</div>
+            <div style="font-size:12px;margin-top:4px;">para ver y editar sus credenciales</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0;border-top:1px solid var(--border);">
+      <button class="btn-outline" onclick="closeModal('modalConexiones')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL USUARIOS ════════════════════════════════════════════════════ -->
+<div id="modalUsuarios" class="modal-bg">
+  <div class="modal-box" style="max-width:700px;height:85vh;display:flex;flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;">
+      <div>
+        <div class="modal-title"><i class="bi bi-people-fill" style="color:#2563eb;"></i> Usuarios — <span id="usuariosTenantName"></span></div>
+        <div class="modal-sub">Gestiona las cuentas de acceso de este cliente</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalUsuarios')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:20px;gap:16px;">
+      <!-- Formulario nuevo usuario -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;"><i class="bi bi-person-plus-fill"></i> Crear nuevo usuario</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Email *</label>
+            <input id="uEmail" type="email" placeholder="juan.garcia@empresa.com" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Nombre completo</label>
+            <input id="uNombre" type="text" placeholder="Juan García" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Username</label>
+            <input id="uUsername" type="text" placeholder="jgarcia" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Rol</label>
+            <select id="uRol" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;">
+              <option value="usuario">Usuario</option>
+              <option value="tecnico">Técnico</option>
+              <option value="agente">Agente</option>
+              <option value="especialista">Especialista</option>
+              <option value="administrador">Administrador</option>
+            </select></div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Contraseña <span style="color:var(--muted);font-weight:400;">(deja vacío para auto)</span></label>
+            <input id="uPass" type="text" placeholder="Auto: username@año" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;"></div>
+          <div style="display:flex;align-items:flex-end;">
+            <button onclick="crearUsuario()" style="width:100%;padding:9px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;"><i class="bi bi-person-plus-fill"></i> Crear usuario</button>
+          </div>
+        </div>
+        <div id="uResult" style="display:none;margin-top:10px;padding:10px 12px;border-radius:8px;font-size:13px;"></div>
+      </div>
+      <!-- Lista de usuarios -->
+      <div style="flex:1;overflow-y:auto;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;"><i class="bi bi-list-ul"></i> Usuarios existentes</div>
+        <div id="usuariosList" style="display:flex;flex-direction:column;gap:6px;">
+          <div style="text-align:center;padding:20px;color:var(--muted);"><i class="bi bi-arrow-clockwise" style="animation:spin 1s linear infinite;display:inline-block;"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0;border-top:1px solid var(--border);">
+      <button class="btn-outline" onclick="closeModal('modalUsuarios')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: COMUNICADO GLOBAL ═════════════════════════════════════════ -->
+<div id="modalBroadcast" class="modal-bg">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <span class="modal-title" style="color:#7c3aed;"><i class="bi bi-megaphone-fill" style="margin-right:6px;"></i>Comunicado Global</span>
+      <button class="modal-close" onclick="closeModal('modalBroadcast')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Destinatarios</label>
+        <select id="bcTarget" class="form-input" onchange="bcTargetChange()">
+          <option value="all">Todos los clientes activos</option>
+          <option value="one">Un cliente específico</option>
+        </select>
+      </div>
+      <div id="bcTenantWrap" style="display:none;" class="form-group">
+        <label class="form-label">Cliente</label>
+        <select id="bcTenantId" class="form-input"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Título del comunicado</label>
+        <input id="bcTitle" type="text" class="form-input" placeholder="Ej: Mantenimiento programado — Sábado 10pm">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Mensaje</label>
+        <textarea id="bcBody" class="form-input" rows="4" style="resize:vertical;" placeholder="Describe el comunicado para tus clientes..."></textarea>
+      </div>
+      <div id="bcError" style="font-size:13px;color:var(--danger);margin-top:10px;display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeModal('modalBroadcast')">Cancelar</button>
+      <button id="btnBroadcast" onclick="sendBroadcast()" style="background:#7c3aed;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+        <i class="bi bi-send-fill"></i> Enviar comunicado
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: BILLING ════════════════════════════════════════════════════ -->
+<div id="modalBilling" class="modal-bg">
+  <div class="modal-box" style="max-width:640px;max-height:88vh;display:flex;flex-direction:column;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="bi bi-credit-card-fill" style="color:#059669;"></i> Billing — <span id="billingTenantName"></span></div>
+        <div class="modal-sub">Historial de pagos y renovaciones</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalBilling')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div style="padding:18px 20px;border-bottom:1px solid var(--border);background:var(--bg);">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Renovación</label>
+          <input id="bRenewal" type="date" class="form-input" style="padding:6px 8px;font-size:12px;">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Monto (USD)</label>
+          <input id="bAmount" type="number" step="0.01" class="form-input" style="padding:6px 8px;font-size:12px;" placeholder="0.00">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Estado</label>
+          <select id="bStatus" class="form-input" style="padding:6px 8px;font-size:12px;">
+            <option value="pending">Pendiente</option>
+            <option value="paid">Pagado</option>
+            <option value="overdue">Vencido</option>
+          </select>
+        </div>
+        <button onclick="addBilling()" style="padding:7px 14px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;"><i class="bi bi-plus-lg"></i> Agregar</button>
+      </div>
+      <input id="bNotes" type="text" class="form-input" style="margin-top:8px;padding:6px 8px;font-size:12px;" placeholder="Notas (opcional)">
+      <div id="bAddError" style="font-size:12px;color:var(--danger);margin-top:6px;display:none;"></div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px 20px;">
+      <div id="billingList" style="display:flex;flex-direction:column;gap:8px;">
+        <div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div>
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0;border-top:1px solid var(--border);">
+      <button class="btn-outline" onclick="closeModal('modalBilling')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ELIMINAR CLIENTE ══════════════════════════════════════════ -->
+<div id="modalDelete" class="modal-bg">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-head">
+      <span class="modal-title" style="color:var(--danger);"><i class="bi bi-trash3-fill" style="margin-right:6px;"></i>Eliminar Cliente</span>
+      <button class="modal-close" onclick="closeModal('modalDelete')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+        <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:4px;"><i class="bi bi-exclamation-triangle-fill"></i> Esta acción es irreversible</div>
+        <div style="font-size:12px;color:#b91c1c;line-height:1.5;">
+          Se eliminará permanentemente el cliente <strong id="delTenantName" style="color:var(--danger);"></strong> y todos sus datos asociados: usuarios, comunidades, anuncios y configuración.
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Contraseña del Super Administrador</label>
+        <input id="delPassword" type="password" class="form-input" placeholder="Ingresa tu contraseña para confirmar" autocomplete="current-password" onkeydown="if(event.key==='Enter')confirmDelete()">
+      </div>
+      <div id="delError" style="font-size:13px;color:var(--danger);margin-top:10px;display:none;padding:8px 12px;background:rgba(220,38,38,.06);border-radius:7px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeModal('modalDelete')">Cancelar</button>
+      <button id="btnConfirmDelete" onclick="confirmDelete()" style="background:var(--danger);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity .15s;">
+        <i class="bi bi-trash3-fill"></i> Eliminar permanentemente
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: CAMBIAR PLAN ═══════════════════════════════════════════════ -->
+<div id="modalPlan" class="modal-bg">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <span class="modal-title"><i class="bi bi-arrow-repeat" style="margin-right:6px;color:var(--primary);"></i>Cambiar Plan</span>
+      <button class="modal-close" onclick="closeModal('modalPlan')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:10px;">
+        <i class="bi bi-building" style="font-size:20px;color:var(--primary);"></i>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);" id="planTenantName"></div>
+          <div style="font-size:11px;color:var(--muted2);">Plan actual: <strong id="planCurrentBadge" style="color:var(--primary);"></strong></div>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Nuevo plan</label>
+        <select id="planSelect" class="form-input" style="padding:10px 14px;height:auto;cursor:pointer;">
+          <option value="trial">Trial — hasta 5 usuarios · 200 tickets</option>
+          <option value="starter">Starter — hasta 20 usuarios · 1 000 tickets</option>
+          <option value="professional">Professional — hasta 50 usuarios · 5 000 tickets</option>
+          <option value="enterprise">Enterprise — usuarios y tickets ilimitados</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Contraseña del Super Administrador</label>
+        <input id="planPassword" type="password" class="form-input" placeholder="Confirma con tu contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')confirmPlan()">
+      </div>
+      <div id="planError" style="font-size:13px;color:var(--danger);margin-top:10px;display:none;padding:8px 12px;background:rgba(220,38,38,.06);border-radius:7px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeModal('modalPlan')">Cancelar</button>
+      <button id="btnConfirmPlan" onclick="confirmPlan()" style="background:var(--primary);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity .15s;">
+        <i class="bi bi-check2-circle"></i> Confirmar cambio
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ═════════════════════════════════════════════════════════════ -->
+<div id="toast"></div>
+
+<style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+
+<script>
+/* ── Estado ────────────────────────────────────────────────────────────── */
+let _tenants     = [];
+let _importId    = null;
+let _csvRows     = [];
+let _csvHeaders  = [];
+
+/* ── Tema ──────────────────────────────────────────────────────────────── */
+function _syncTheme(t) {
+  const dark = t === 'dark';
+  const icon = document.getElementById('toggleIcon');
+  const track = document.getElementById('themeTrack');
+  const knob  = document.getElementById('themeKnob');
+  if (icon)  icon.className = dark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+  if (track) track.style.background = dark ? '#3b82f6' : '#cbd5e1';
+  if (knob)  knob.style.transform   = dark ? 'translateX(13px)' : 'translateX(0)';
+}
+function toggleTheme() {
+  const n = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', n);
+  localStorage.setItem('dashboardTheme', n);
+  _syncTheme(n);
+}
+document.addEventListener('DOMContentLoaded', () => _syncTheme(localStorage.getItem('dashboardTheme') || 'light'));
+
+/* ── Modales ───────────────────────────────────────────────────────────── */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll && document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal-bg.open').forEach(m => m.classList.remove('open')); });
+
+/* ── Toast ─────────────────────────────────────────────────────────────── */
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast-item toast-${type}`;
+  const icons = { ok: 'bi-check-circle-fill', err: 'bi-x-circle-fill', info: 'bi-info-circle-fill' };
+  el.innerHTML = `<i class="bi ${icons[type] || icons.info}"></i>${msg}`;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+/* ── Cargar tenants ────────────────────────────────────────────────────── */
+async function loadTenants() {
+  try {
+    const r = await fetch('/api/admin/tenants/stats', { credentials: 'include' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    _tenants = Array.isArray(j.data) ? j.data : Array.isArray(j) ? j : [];
+    renderStats();
+    renderGrid();
+  } catch (e) {
+    console.error('[loadTenants] error:', e);
+    document.getElementById('tenantGrid').innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>Error cargando clientes</p><p style="font-size:11px;color:#6b7280;margin-top:4px;">' + e.message + '</p></div>';
+  }
+}
+
+function renderStats() {
+  const total     = _tenants.length;
+  const active    = _tenants.filter(t => t.is_active).length;
+  const trial     = _tenants.filter(t => t.plan === 'trial').length;
+  const suspended = _tenants.filter(t => !t.is_active).length;
+  document.getElementById('st-total').textContent     = total;
+  document.getElementById('st-active').textContent    = active;
+  document.getElementById('st-trial').textContent     = trial;
+  document.getElementById('st-suspended').textContent = suspended;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('tenantGrid');
+  if (!_tenants.length) {
+    grid.innerHTML = '<div class="empty-state"><i class="bi bi-buildings"></i><p>No hay clientes registrados.<br>Crea el primero con el botón <strong>Nuevo Cliente</strong>.</p></div>';
+    return;
+  }
+  grid.innerHTML = _tenants.map(t => tenantCard(t)).join('');
+}
+
+const PLAN_LIMITS = { trial:{users:5,tickets:200}, starter:{users:20,tickets:1000}, professional:{users:50,tickets:5000}, enterprise:{users:null,tickets:null} };
+
+function quotaBar(used, limit, label) {
+  if (!limit) return '';
+  const pct   = Math.min(100, Math.round((used/limit)*100));
+  const cls   = pct >= 90 ? 'quota-over' : pct >= 70 ? 'quota-warn' : 'quota-ok';
+  return `<div class="quota-row">
+    <span class="quota-lbl">${label}</span>
+    <div class="quota-bar"><div class="quota-fill ${cls}" style="width:${pct}%;"></div></div>
+    <span class="quota-num">${used}/${limit}</span>
+  </div>`;
+}
+
+function tenantCard(t) {
+  const planBadge  = `<span class="badge badge-${t.plan}">${t.plan.charAt(0).toUpperCase()+t.plan.slice(1)}</span>`;
+  const statusBadge = t.is_active
+    ? '<span class="badge badge-active"><i class="bi bi-circle-fill" style="font-size:7px;"></i> Activo</span>'
+    : '<span class="badge badge-suspended"><i class="bi bi-pause-circle-fill" style="font-size:7px;"></i> Suspendido</span>';
+  const domain     = t.domain ? `<div class="tc-domain"><i class="bi bi-at"></i>${t.domain}</div>` : '';
+  const created    = new Date(t.created_at).toLocaleDateString('es-PE', {year:'numeric',month:'short',day:'numeric'});
+  const suspendBtn = t.is_active
+    ? `<button class="btn-outline btn-danger" onclick="toggleStatus(${t.id},'suspend','${escHtml(t.name)}')"><i class="bi bi-pause-fill"></i> Suspender</button>`
+    : `<button class="btn-outline btn-success" onclick="toggleStatus(${t.id},'reactivate','${escHtml(t.name)}')"><i class="bi bi-play-fill"></i> Reactivar</button>`;
+  const lim    = PLAN_LIMITS[t.plan] || PLAN_LIMITS.trial;
+  const quotas = (lim.users || lim.tickets) ? `<div class="quota-wrap">
+    ${quotaBar(t.user_count||0, lim.users, 'Usuarios')}
+    ${quotaBar(t.ticket_count||0, lim.tickets, 'Tickets')}
+  </div>` : `<div style="font-size:10px;color:var(--muted);margin-bottom:12px;"><i class="bi bi-infinity"></i> Sin límites (Enterprise)</div>`;
+  return `
+  <div class="tenant-card" id="tc-${t.id}">
+    <div class="tc-head">
+      <div class="tc-icon"><i class="bi bi-building"></i></div>
+      <div class="tc-info">
+        <div class="tc-name">${escHtml(t.name)}</div>
+        <div class="tc-slug">/${escHtml(t.slug)}</div>
+        ${domain}
+      </div>
+    </div>
+    <div class="tc-badges">${planBadge}${statusBadge}
+    ${t.jira_enabled != 0
+      ? `<span data-mode-badge style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;"><i class="bi bi-kanban-fill"></i> Jira</span>`
+      : `<span data-mode-badge style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;"><i class="bi bi-hdd-fill"></i> Local</span>`}
+  </div>
+    <div class="tc-stats">
+      <div class="tc-stat"><i class="bi bi-people-fill"></i><div><div class="tc-stat-val">${t.employee_count||t.user_count||0}</div><div class="tc-stat-lbl">Registrados</div></div></div>
+      <div class="tc-stat"><i class="bi bi-ticket-fill"></i><div><div class="tc-stat-val">${t.ticket_count||0}</div><div class="tc-stat-lbl">Tickets</div></div></div>
+      <div class="tc-stat"><i class="bi bi-laptop-fill"></i><div><div class="tc-stat-val">${t.equipment_count||0}</div><div class="tc-stat-lbl">Equipos</div></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="openTenantPortal(${t.id},'autogestion')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:rgba(59,130,246,.08);color:#2563eb;border:1px solid rgba(59,130,246,.2);transition:background .15s;" onmouseover="this.style.background='rgba(59,130,246,.16)'" onmouseout="this.style.background='rgba(59,130,246,.08)'">
+        <i class="bi bi-person-circle"></i> Portal Usuario
+      </button>
+      <button onclick="openTenantPortal(${t.id},'administracion')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:rgba(124,58,237,.08);color:#7c3aed;border:1px solid rgba(124,58,237,.2);transition:background .15s;" onmouseover="this.style.background='rgba(124,58,237,.16)'" onmouseout="this.style.background='rgba(124,58,237,.08)'">
+        <i class="bi bi-shield-lock-fill"></i> Panel Admin
+      </button>
+    </div>
+    ${quotas}
+    <div class="tc-date"><i class="bi bi-calendar3"></i> Creado ${created}</div>
+    <div class="tc-actions">
+      <button class="btn-outline" onclick="openImport(${t.id},'${escHtml(t.name)}')"><i class="bi bi-cloud-upload"></i> Importar</button>
+      <button class="btn-outline" style="color:#2563eb;border-color:#2563eb;" onclick="openUsuarios(${t.id},'${escHtml(t.name)}')"><i class="bi bi-people-fill"></i> Usuarios</button>
+      <button class="btn-outline" onclick="openFeatures(${t.id},'${escHtml(t.name)}')"><i class="bi bi-toggles"></i> Módulos</button>
+      <button class="btn-outline" onclick="openConexiones(${t.id},'${escHtml(t.name)}')" style="color:#0891b2;border-color:#0891b2;" title="Configurar URIs y credenciales de integración"><i class="bi bi-plug-fill"></i> Conexiones</button>
+      <button class="btn-outline" onclick="changePlanUI(${t.id},'${escHtml(t.name)}','${t.plan}')"><i class="bi bi-arrow-repeat"></i> Plan</button>
+      <div style="position:relative;display:inline-block;">
+        <button class="btn-outline" onclick="toggleExportMenu(${t.id},this)"><i class="bi bi-download"></i> Exportar <i class="bi bi-chevron-down" style="font-size:10px;"></i></button>
+        <div id="exp-${t.id}" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:200px;z-index:200;overflow:hidden;">
+          <div style="padding:6px 0;">
+            <div style="font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;padding:6px 14px 4px;">Exportar como CSV</div>
+            <a href="/api/admin/tenants/${t.id}/export/csv/users"        download style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:13px;color:var(--text2);transition:background .12s;text-decoration:none;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''"><i class="bi bi-people-fill" style="color:#2563eb;width:16px;text-align:center;"></i> Usuarios</a>
+            <a href="/api/admin/tenants/${t.id}/export/csv/config_items" download style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:13px;color:var(--text2);transition:background .12s;text-decoration:none;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''"><i class="bi bi-laptop-fill" style="color:#d97706;width:16px;text-align:center;"></i> Equipos</a>
+            <a href="/api/admin/tenants/${t.id}/export/csv/tickets"      download style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:13px;color:var(--text2);transition:background .12s;text-decoration:none;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''"><i class="bi bi-ticket-fill" style="color:#dc2626;width:16px;text-align:center;"></i> Incidencias</a>
+            <a href="/api/admin/tenants/${t.id}/export/csv/kb_articles"  download style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:13px;color:var(--text2);transition:background .12s;text-decoration:none;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''"><i class="bi bi-book-fill" style="color:#7c3aed;width:16px;text-align:center;"></i> Artículos KB</a>
+            <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+            <div style="font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;padding:4px 14px 4px;">Copia de seguridad</div>
+            <a href="/api/admin/tenants/${t.id}/export" download style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:13px;color:var(--text2);transition:background .12s;text-decoration:none;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''"><i class="bi bi-archive-fill" style="color:var(--muted);width:16px;text-align:center;"></i> Todo (JSON)</a>
+          </div>
+        </div>
+      </div>
+      <button class="btn-outline" onclick="openBilling(${t.id},'${escHtml(t.name)}')" style="color:#059669;border-color:#059669;"><i class="bi bi-credit-card-fill"></i> Billing</button>
+      <button class="btn-outline" onclick="regenerateConfig(${t.id},'${escHtml(t.name)}')" style="color:#0891b2;border-color:#0891b2;" title="Regenerar archivos config.js e integrations.js del cliente"><i class="bi bi-file-earmark-code-fill"></i> Config</button>
+      ${suspendBtn}
+      <button class="btn-outline btn-danger" onclick="openDelete(${t.id},'${escHtml(t.name)}')"><i class="bi bi-trash3-fill"></i> Eliminar</button>
+    </div>
+  </div>`;
+}
+
+function escHtml(s) { return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function openTenantPortal(tenantId, target) {
+  window.open(`/api/admin/tenants/${tenantId}/enter?target=${target}`, '_blank');
+}
+
+/* ── Crear tenant ──────────────────────────────────────────────────────── */
+function autoSlug() {
+  const name = document.getElementById('newName').value;
+  document.getElementById('newSlug').value = name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0,100);
+}
+
+async function createTenant() {
+  const name         = document.getElementById('newName').value.trim();
+  const slug         = document.getElementById('newSlug').value.trim();
+  const domain       = document.getElementById('newDomain').value.trim();
+  const contactEmail = document.getElementById('newEmail').value.trim();
+  const plan         = document.getElementById('newPlan').value;
+  const errEl        = document.getElementById('newError');
+  const btn          = document.getElementById('btnCreate');
+
+  // Leer features seleccionadas
+  const features = {
+    jira:           document.getElementById('featJira').checked,
+    microsoftTools: document.getElementById('featMicrosoft').checked,
+    printQueue:     document.getElementById('featPrint').checked,
+    azureAD:        document.getElementById('featAzure').checked,
+    localTickets:   true,
+  };
+
+  if (!name) { errEl.textContent = 'El nombre es requerido'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation:spin 1s linear infinite;display:inline-block;"></i> Creando...';
+
+  try {
+    const r = await fetch('/api/admin/tenants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name, slug, plan, domain, contactEmail, settings: { features } }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || j.error || 'Error al crear');
+    closeModal('modalNew');
+    ['newName','newSlug','newDomain','newEmail'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('newPlan').value = 'trial';
+    ['featJira','featMicrosoft','featPrint','featAzure'].forEach(id => document.getElementById(id).checked = false);
+    // Abrir modal de provisioning y lanzar SSE
+    openProvisionModal(j.data.id, j.data.name || name, features);
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-plus-lg"></i> Crear Cliente';
+  }
+}
+
+function openProvisionModal(tenantId, tenantName, features) {
+  document.getElementById('provName').textContent = tenantName;
+  document.getElementById('provBar').style.width = '0%';
+  document.getElementById('provPct').textContent = '0%';
+  document.getElementById('provMsg').textContent = 'Iniciando...';
+  document.getElementById('provSteps').innerHTML = '';
+  document.getElementById('provDoneBtn').style.display = 'none';
+  document.getElementById('modalProvision').style.display = 'flex';
+
+  // Pasar features seleccionadas como query params para el provisioning
+  const featQ = features ? '?features=' + encodeURIComponent(JSON.stringify(features)) : '';
+  const es = new EventSource(`/api/admin/tenants/${tenantId}/provision${featQ}`, { withCredentials: true });
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (d.pct !== undefined) {
+      document.getElementById('provBar').style.width = d.pct + '%';
+      document.getElementById('provPct').textContent = d.pct + '%';
+    }
+    if (d.msg) {
+      document.getElementById('provMsg').textContent = d.msg;
+      const li = document.createElement('div');
+      li.className = 'prov-step' + (d.error ? ' prov-error' : (d.done ? ' prov-done' : ''));
+      li.innerHTML = `<i class="bi bi-${d.error ? 'x-circle-fill' : (d.done ? 'check-circle-fill' : 'arrow-right-circle')}"></i> ${d.msg}`;
+      document.getElementById('provSteps').appendChild(li);
+    }
+    if (d.done || d.error) {
+      es.close();
+      document.getElementById('provDoneBtn').style.display = 'block';
+      if (!d.error) loadTenants();
+    }
+  };
+  es.onerror = () => {
+    es.close();
+    document.getElementById('provMsg').textContent = 'Error de conexión — revisa el servidor';
+    document.getElementById('provDoneBtn').style.display = 'block';
+  };
+}
+
+/* ── Regenerar archivos de config del tenant ─────────────────────────────────── */
+async function regenerateConfig(tenantId, name) {
+  if (!confirm(`¿Regenerar los archivos de configuración de "${name}"?\nEsto sobreescribirá config.js e integrations.js del cliente.`)) return;
+  try {
+    const r = await fetch(`/api/admin/tenants/${tenantId}/regenerate-config`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || j.error || 'Error');
+    toast(`Archivos de config regenerados para "${name}"`, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+/* ── Suspender / reactivar ─────────────────────────────────────────────── */
+async function toggleStatus(tenantId, action, name) {
+  const confirmMsg = action === 'suspend'
+    ? `¿Suspender el cliente "${name}"? Sus usuarios no podrán acceder.`
+    : `¿Reactivar el cliente "${name}"?`;
+  if (!confirm(confirmMsg)) return;
+  try {
+    const r = await fetch(`/api/admin/tenants/${tenantId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ action }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error');
+    toast(action === 'suspend' ? `"${name}" suspendido` : `"${name}" reactivado`, 'ok');
+    await loadTenants();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+/* ── Eliminar cliente ─────────────────────────────────────────────────── */
+let _delTenantId = null;
+
+function openDelete(tenantId, name) {
+  _delTenantId = tenantId;
+  document.getElementById('delTenantName').textContent = name;
+  document.getElementById('delPassword').value = '';
+  const errEl = document.getElementById('delError');
+  errEl.style.display = 'none'; errEl.textContent = '';
+  const btn = document.getElementById('btnConfirmDelete');
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-trash3-fill"></i> Eliminar permanentemente';
+  openModal('modalDelete');
+  setTimeout(() => document.getElementById('delPassword').focus(), 150);
+}
+
+async function confirmDelete() {
+  const password = document.getElementById('delPassword').value;
+  const errEl = document.getElementById('delError');
+  errEl.style.display = 'none';
+
+  if (!password) {
+    errEl.textContent = 'Ingresa tu contraseña para confirmar.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('btnConfirmDelete');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Eliminando...';
+
+  try {
+    const r = await fetch(`/api/admin/tenants/${_delTenantId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ password }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || j.error || 'Error al eliminar');
+    closeModal('modalDelete');
+    toast(j.message || 'Cliente eliminado', 'ok');
+    await loadTenants();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-trash3-fill"></i> Eliminar permanentemente';
+  }
+}
+
+/* ── Cambiar plan ──────────────────────────────────────────────────────── */
+let _planTenantId = null, _planTenantName = '';
+
+function changePlanUI(tenantId, name, currentPlan) {
+  _planTenantId   = tenantId;
+  _planTenantName = name;
+  document.getElementById('planTenantName').textContent  = name;
+  document.getElementById('planCurrentBadge').textContent = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
+  document.getElementById('planSelect').value   = currentPlan;
+  document.getElementById('planPassword').value = '';
+  document.getElementById('planError').style.display = 'none';
+  const btn = document.getElementById('btnConfirmPlan');
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-check2-circle"></i> Confirmar cambio';
+  openModal('modalPlan');
+  setTimeout(() => document.getElementById('planPassword').focus(), 150);
+}
+
+async function confirmPlan() {
+  const plan     = document.getElementById('planSelect').value;
+  const password = document.getElementById('planPassword').value.trim();
+  const errEl    = document.getElementById('planError');
+  const btn      = document.getElementById('btnConfirmPlan');
+  errEl.style.display = 'none';
+  if (!password) { errEl.textContent = 'Ingresa tu contraseña para confirmar.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Aplicando...';
+  try {
+    const r = await fetch(`/api/admin/tenants/${_planTenantId}/plan`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ plan, password }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || j.error || 'Error');
+    closeModal('modalPlan');
+    toast(`Plan de "${_planTenantName}" actualizado a ${plan}`, 'ok');
+    await loadTenants();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check2-circle"></i> Confirmar cambio';
+  }
+}
+
+/* ── Definición de secciones ──────────────────────────────────────────── */
+const SECTION_META = {
+  users: {
+    file: 'plantilla_usuarios.csv',
+    cols: [
+      { name:'email',        req:true,  desc:'Correo corporativo del usuario' },
+      { name:'full_name',    req:false, desc:'Nombre completo' },
+      { name:'username',     req:false, desc:'Usuario (sin espacios). Si vacío, se genera del email' },
+      { name:'role',         req:false, desc:'usuario | agente | tecnico | especialista | administrador' },
+      { name:'employee_cip', req:false, desc:'Código de empleado (CIP / legajo)' },
+    ],
+    note: 'Contraseña temporal: <strong>username@2026</strong>. El usuario debe cambiarla al primer ingreso.',
+  },
+  config_items: {
+    file: 'plantilla_equipos.csv',
+    cols: [
+      { name:'name',          req:true,  desc:'Nombre del equipo (Ej: Laptop Dell Juan García)' },
+      { name:'ci_type_id',    req:false, desc:'1=Servidor  2=Laptop  3=PC  4=Impresora  5=Red. Default: 2' },
+      { name:'status',        req:false, desc:'activo | inactivo | en_mantenimiento | retirado' },
+      { name:'environment',   req:false, desc:'produccion | staging | desarrollo | dr. Default: produccion' },
+      { name:'location',      req:false, desc:'Ubicación física (Ej: Oficina Lima - Piso 3)' },
+      { name:'serial_number', req:false, desc:'Número de serie del equipo' },
+      { name:'ip_address',    req:false, desc:'Dirección IP (puede dejarse vacío)' },
+    ],
+    note: 'Los equipos quedan registrados en el inventario CMDB del cliente.',
+  },
+  tickets: {
+    file: 'plantilla_incidencias.csv',
+    cols: [
+      { name:'titulo',      req:true,  desc:'Título breve del ticket' },
+      { name:'descripcion', req:false, desc:'Descripción detallada del problema' },
+      { name:'tipo',        req:false, desc:'incidente | solicitud | cambio | problema' },
+      { name:'priority',    req:false, desc:'P1 (crítico) | P2 (alto) | P3 (medio) | P4 (bajo)' },
+      { name:'status',      req:false, desc:'abierto | en_progreso | resuelto | cerrado. Default: cerrado' },
+    ],
+    note: 'Para migrar historial de otro sistema. Se importan como tickets cerrados por defecto.',
+  },
+  kb_articles: {
+    file: 'plantilla_kb_articulos.csv',
+    cols: [
+      { name:'title',   req:true,  desc:'Título del artículo' },
+      { name:'content', req:true,  desc:'Contenido. Si tiene comas, enciérralo entre comillas dobles ""' },
+      { name:'excerpt', req:false, desc:'Resumen corto (se genera automáticamente si se deja vacío)' },
+      { name:'tags',    req:false, desc:'Etiquetas separadas por punto y coma: contraseña;vpn;acceso' },
+      { name:'status',  req:false, desc:'borrador | publicado | archivado. Default: borrador' },
+    ],
+    note: 'Los artículos en "borrador" solo los ven los agentes hasta que los publiques.',
+  },
+};
+
+/* ── Plantillas CSV embebidas — sep=, fuerza comas en Excel con locale español ── */
+const CSV_TEMPLATES = {
+  users: [
+    'sep=,',
+    'email,full_name,username,role,employee_cip',
+    'juan.garcia@empresa.pe,Juan Garcia,jgarcia,usuario,10001',
+    'ana.torres@empresa.pe,Ana Torres,atorres,agente,10002',
+    'carlos.ramos@empresa.pe,Carlos Ramos,cramos,especialista,10003',
+    'lucia.mendez@empresa.pe,Lucia Mendez,lmendez,administrador,10004',
+    'pedro.silva@empresa.pe,Pedro Silva,psilva,tecnico,10005',
+  ].join('\r\n'),
+  config_items: [
+    'sep=,',
+    'name,ci_type_id,status,environment,location,serial_number,ip_address',
+    'Servidor HPE ProLiant ML350 Principal,1,activo,produccion,Data Center - Piso 1,SN-SRV-001,10.0.0.1',
+    'Laptop Dell Latitude Juan Garcia,2,activo,produccion,Oficina Lima - Piso 3,SN-DELL-001,192.168.1.101',
+    'Laptop HP ProBook Ana Torres,2,activo,produccion,Sede Miraflores,SN-HP-001,192.168.1.102',
+    'PC Escritorio Carlos Ramos,3,activo,produccion,Oficina Lima - Piso 2,SN-PC-001,192.168.1.50',
+    'Impresora HP LaserJet Recepcion,4,activo,produccion,Recepcion - Piso 1,SN-IMP-001,192.168.1.200',
+    'Switch Cisco Catalyst Core,5,activo,produccion,Sala de Comunicaciones,SN-SW-001,10.0.0.10',
+    'Laptop Lenovo ThinkPad Pedro Silva,2,activo,produccion,Oficina Lima - Piso 4,SN-LEN-001,192.168.1.103',
+    'Servidor Backup NAS Synology,1,activo,produccion,Data Center - Piso 1,SN-NAS-001,10.0.0.5',
+  ].join('\r\n'),
+  tickets: [
+    'sep=,',
+    'titulo,descripcion,tipo,priority,status',
+    'Falla de red en piso 3,Red caida en area de ventas afecta 10 usuarios,incidente,P2,cerrado',
+    'Solicitud acceso VPN,Nuevo colaborador requiere acceso remoto,solicitud,P3,resuelto',
+    'Impresora no imprime,La impresora HP de recepcion no responde,incidente,P3,cerrado',
+    'Instalacion Office 365,Instalar suite Office en equipo nuevo,solicitud,P4,resuelto',
+  ].join('\r\n'),
+  kb_articles: [
+    'sep=,',
+    'title,content,excerpt,tags,status',
+    '"Como resetear contrasena","1. Ve a login. 2. Clic en Olvide contrasena. 3. Ingresa correo. 4. Sigue instrucciones del email.","Guia rapida para recuperar acceso","contrasena;acceso;login",publicado',
+    '"Configurar VPN corporativa","Descarga el cliente VPN desde el portal IT. Configura con vpn.empresa.pe. Usa credenciales de red.","Pasos para conectarse desde casa","vpn;acceso remoto;red",publicado',
+  ].join('\r\n'),
+};
+
+/* ── Descarga CSV — convierte a data:URI para evitar bloqueo de Chrome en HTTPS autofirmado ── */
+function downloadTemplate() {
+  var sec  = document.getElementById('importSection').value || 'users';
+  var csv  = CSV_TEMPLATES[sec];
+  if (!csv) { alert('Plantilla no disponible para esta seccion.'); return; }
+  var btn  = document.getElementById('templateDownload');
+  var file = btn.getAttribute('data-file') || ('plantilla_' + sec + '.csv');
+  var uri  = 'data:text/csv;charset=utf-8,%EF%BB%BF' + encodeURIComponent(csv);
+  var a    = document.createElement('a');
+  a.setAttribute('href', uri);
+  a.setAttribute('download', file);
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ document.body.removeChild(a); }, 100);
+}
+
+/* ── Import CSV ────────────────────────────────────────────────────────── */
+function openImport(tenantId, name) {
+  _importId = tenantId;
+  _csvRows  = [];
+  _csvHeaders = [];
+  document.getElementById('importTenantName').textContent = name;
+  document.getElementById('previewArea').style.display = 'none';
+  document.getElementById('importResultArea').style.display = 'none';
+  document.getElementById('btnImport').style.display = 'none';
+  resetFileDrop();
+  selectSection('users', document.querySelector('.section-card[data-sec="users"]'));
+  openModal('modalImport');
+}
+
+function closeImport() {
+  closeModal('modalImport');
+  _importId = null; _csvRows = []; _csvHeaders = [];
+}
+
+function selectSection(sec, card) {
+  document.querySelectorAll('.section-card').forEach(c => c.classList.remove('active'));
+  if (card) card.classList.add('active');
+  document.getElementById('importSection').value = sec;
+  _csvRows = []; _csvHeaders = [];
+  document.getElementById('previewArea').style.display = 'none';
+  document.getElementById('btnImport').style.display = 'none';
+  document.getElementById('importResultArea').style.display = 'none';
+  resetFileDrop();
+  renderColInfo(sec);
+  const meta = SECTION_META[sec];
+  const dl = document.getElementById('templateDownload');
+  if (dl && meta) { dl.setAttribute('data-href', `/api/admin/tenants/template-csv/${sec}`); dl.setAttribute('data-file', `plantilla_${sec}.csv`); }
+}
+
+function renderColInfo(sec) {
+  const meta = SECTION_META[sec];
+  if (!meta) return;
+  const pills = meta.cols.map(c =>
+    `<span class="col-pill ${c.req?'req':'opt'}" title="${c.desc}">
+      ${c.req?'<i class="bi bi-asterisk" style="font-size:8px;"></i>':'<i class="bi bi-dash" style="font-size:8px;"></i>'}
+      ${c.name}</span>`
+  ).join('');
+  const rows = meta.cols.map(c =>
+    `<tr>
+      <td style="padding:4px 8px;font-family:monospace;font-size:12px;font-weight:700;color:${c.req?'var(--primary)':'var(--muted)'};">${c.name}</td>
+      <td style="padding:4px 8px;font-size:11px;">${c.req?'<span style="color:var(--danger);font-weight:700;">Requerido</span>':'<span style="color:var(--muted);">Opcional</span>'}</td>
+      <td style="padding:4px 8px;font-size:12px;color:var(--text2);">${c.desc}</td>
+    </tr>`
+  ).join('');
+  document.getElementById('colInfo').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Columnas del archivo</span>
+      <span style="font-size:10px;color:var(--muted2);"><i class="bi bi-asterisk" style="font-size:8px;color:var(--primary);"></i> requerido &nbsp;·&nbsp; — opcional</span>
+    </div>
+    <div style="margin-bottom:8px;">${pills}</div>
+    <table style="width:100%;border-collapse:collapse;">${rows}</table>
+    <div style="margin-top:10px;padding:8px 10px;background:rgba(37,99,235,.07);border-radius:7px;font-size:12px;color:var(--text2);border-left:3px solid var(--primary);">
+      <i class="bi bi-info-circle-fill" style="color:var(--primary);margin-right:5px;"></i>${meta.note}
+    </div>`;
+}
+
+function onSectionChange() {}
+
+function resetFileDrop() {
+  const fd = document.getElementById('fileDrop');
+  if (!fd) return;
+  fd.classList.remove('drag');
+  fd.innerHTML = `<input type="file" id="csvFile" accept=".csv,.txt" style="display:none" onchange="onFileSelect(event)">
+    <i class="bi bi-file-earmark-spreadsheet" style="font-size:32px;margin-bottom:8px;display:block;"></i>
+    <strong>Haz clic aquí o arrastra tu archivo CSV</strong>
+    <div style="font-size:12px;margin-top:6px;color:var(--muted2);">Formatos aceptados: .csv — Máximo 5000 filas</div>`;
+  fd.onclick = () => document.getElementById('csvFile').click();
+}
+
+function handleDragOver(e)  { e.preventDefault(); document.getElementById('fileDrop').classList.add('drag'); }
+function handleDragLeave()   { document.getElementById('fileDrop').classList.remove('drag'); }
+
+function onFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('fileDrop').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) readCSVFile(file);
+}
+
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) readCSVFile(file);
+}
+
+function readCSVFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => parseAndPreview(ev.target.result, file.name);
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => !l.trim().startsWith('sep='));
+  if (lines.length < 2) return { headers: [], rows: [] };
+  // Auto-detectar delimitador: si hay más ";" que "," en la primera línea, usar ";"
+  const firstLine = lines[0];
+  const delim = (firstLine.split(';').length > firstLine.split(',').length) ? ';' : ',';
+  const headers = firstLine.split(delim).map(h => h.trim().replace(/^﻿/,'').replace(/^"|"$/g,'').toLowerCase().replace(/\s+/g,'_'));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const vals = [];
+    let cur = '', inQ = false;
+    for (let c = 0; c < line.length; c++) {
+      if (line[c] === '"') { inQ = !inQ; continue; }
+      if (line[c] === delim && !inQ) { vals.push(cur.trim()); cur = ''; continue; }
+      cur += line[c];
+    }
+    vals.push(cur.trim());
+    const row = {};
+    headers.forEach((h, idx) => row[h] = vals[idx] || '');
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
+function parseAndPreview(text, filename) {
+  const { headers, rows } = parseCSV(text);
+  _csvHeaders = headers;
+  _csvRows    = rows;
+
+  // Actualizar el file drop
+  document.getElementById('fileDrop').innerHTML = `<input type="file" id="csvFile" accept=".csv,.txt" style="display:none" onchange="onFileSelect(event)">
+    <i class="bi bi-file-check-fill" style="font-size:32px;color:var(--success);margin-bottom:8px;display:block;"></i>
+    <strong style="color:var(--success);">${filename}</strong>
+    <div style="font-size:12px;margin-top:6px;color:var(--muted2);">${rows.length} filas detectadas · Haz clic para cambiar el archivo</div>`;
+  document.getElementById('fileDrop').onclick = () => document.getElementById('csvFile').click();
+
+  // Preview tabla (primeras 5 filas)
+  const preview = rows.slice(0, 5);
+  let tableHTML = `<table class="preview-table"><thead><tr>${headers.map(h=>`<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>`;
+  preview.forEach(row => {
+    tableHTML += `<tr>${headers.map(h=>`<td>${escHtml(row[h]||'')}</td>`).join('')}</tr>`;
+  });
+  tableHTML += '</tbody></table>';
+  document.getElementById('previewTableWrap').innerHTML = tableHTML;
+  document.getElementById('previewArea').style.display = 'block';
+  document.getElementById('importCounter').innerHTML = `<i class="bi bi-table"></i> <strong>${rows.length}</strong> filas listas para importar`;
+  document.getElementById('importResultArea').style.display = 'none';
+
+  if (rows.length > 0) {
+    const btnImport = document.getElementById('btnImport');
+    btnImport.style.display = 'inline-flex';
+    document.getElementById('btnImportCount').textContent = rows.length;
+  }
+}
+
+async function doImport() {
+  if (!_importId || !_csvRows.length) return;
+  const section = document.getElementById('importSection').value;
+  const btn = document.getElementById('btnImport');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation:spin 1s linear infinite;display:inline-block;"></i> Importando...';
+
+  try {
+    const r = await fetch(`/api/admin/tenants/${_importId}/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ section, rows: _csvRows }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error en la importación');
+    const res = j.data || j;
+    const ra = document.getElementById('importResultArea');
+    ra.style.display = 'block';
+    ra.innerHTML = `
+      <div class="import-results">
+        <div class="res-row"><i class="bi bi-check-circle-fill" style="color:var(--success);"></i><span><strong>${res.inserted}</strong> registros importados</span></div>
+        <div class="res-row"><i class="bi bi-skip-forward-fill" style="color:var(--warn);"></i><span><strong>${res.skipped}</strong> filas omitidas</span></div>
+        <div class="res-row"><i class="bi bi-hash" style="color:var(--muted);"></i><span>Total procesado: <strong>${res.total}</strong></span></div>
+        ${res.errors?.length ? `<div class="errors-list">${res.errors.slice(0,20).map(e=>`<div>Fila ${e.row}: ${escHtml(e.error)}</div>`).join('')}${res.errors.length>20?`<div>...y ${res.errors.length-20} más</div>`:''}</div>` : ''}
+      </div>`;
+    toast(`Importación completada: ${res.inserted} registros`, 'ok');
+    btn.style.display = 'none';
+    await loadTenants();
+  } catch (e) {
+    toast(e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Importar <span id="btnImportCount">' + _csvRows.length + '</span> filas';
+  }
+}
+
+/* ── Export dropdown ───────────────────────────────────────────────────── */
+function toggleExportMenu(id, btn) {
+  const menu = document.getElementById(`exp-${id}`);
+  const allMenus = document.querySelectorAll('[id^="exp-"]');
+  allMenus.forEach(m => { if (m !== menu) m.style.display = 'none'; });
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('[id^="exp-"]') && !e.target.closest('button')) {
+    document.querySelectorAll('[id^="exp-"]').forEach(m => m.style.display = 'none');
+  }
+});
+
+/* ── Features / Módulos ────────────────────────────────────────────────── */
+let _featTenantId = null;
+let _featState    = {};
+
+const FEATURE_CATALOG = [
+  { key:'jira',               label:'Modo Integración Jira', icon:'bi-kanban-fill',      color:'#2563eb', desc:'ON = tickets crean INC-XXXX en Jira · OFF = modo local TK-XXXX en BD propia' },
+  { key:'microsoft_teams',    label:'Microsoft Teams',    icon:'bi-chat-square-dots-fill', color:'#7c3aed', desc:'Notificaciones y alertas en canales de Teams' },
+  { key:'intune',             label:'Microsoft Intune',   icon:'bi-shield-check-fill',  color:'#059669', desc:'Gestión de dispositivos móviles y endpoints' },
+  { key:'outlook_sync',       label:'Outlook / Email',    icon:'bi-envelope-fill',      color:'#d97706', desc:'Sincronización de calendario y correo corporativo' },
+  { key:'cmdb',               label:'CMDB / Inventario',  icon:'bi-laptop-fill',        color:'#dc2626', desc:'Gestión de activos y configuración de red' },
+  { key:'sla_automatico',     label:'SLA Automático',     icon:'bi-clock-fill',         color:'#059669', desc:'Cálculo automático de tiempos y alertas de SLA' },
+  { key:'encuestas',          label:'Encuestas CSAT',     icon:'bi-star-fill',          color:'#d97706', desc:'Encuestas de satisfacción al cerrar tickets' },
+  { key:'kb_publico',         label:'KB Público',         icon:'bi-book-fill',          color:'#7c3aed', desc:'Base de conocimiento accesible sin iniciar sesión' },
+  { key:'reportes_avanzados', label:'Reportes Avanzados', icon:'bi-graph-up-arrow',     color:'#2563eb', desc:'Dashboard BI y exportación de reportes personalizados' },
+  { key:'api_externa',        label:'API / Webhooks',     icon:'bi-plug-fill',          color:'#dc2626', desc:'Integración con sistemas externos via API' },
+];
+
+const FEAT_DEFAULTS = { jira: true, sla_automatico: true, encuestas: true, cmdb: true };
+
+const INTEGRATION_SCHEMAS = {
+  jira:            { label:'Jira Software',         fields:[
+    {key:'base_url',     label:'URL de instancia',   type:'url',      placeholder:'https://empresa.atlassian.net',           required:true},
+    {key:'project_key',  label:'Clave de proyecto',  type:'text',     placeholder:'IT',                                      required:false},
+    {key:'username',     label:'Email de API',       type:'email',    placeholder:'admin@empresa.com',                       required:true},
+    {key:'api_token',    label:'API Token',          type:'password', placeholder:'Token de Jira Cloud',                     required:true, sensitive:true},
+  ]},
+  microsoft_teams: { label:'Microsoft Teams',       fields:[
+    {key:'tenant_id',    label:'Azure Tenant ID',   type:'text',     placeholder:'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',     required:true},
+    {key:'client_id',    label:'Client ID (App)',   type:'text',     placeholder:'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',     required:true},
+    {key:'client_secret',label:'Client Secret',     type:'password', placeholder:'••••••••',                                required:true, sensitive:true},
+    {key:'webhook_url',  label:'Webhook URL',       type:'url',      placeholder:'https://outlook.office.com/webhooks/...', required:false},
+  ]},
+  intune:          { label:'Microsoft Intune',      fields:[
+    {key:'tenant_id',    label:'Azure Tenant ID',   type:'text',     placeholder:'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',     required:true},
+    {key:'client_id',    label:'Client ID (App)',   type:'text',     placeholder:'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',     required:true},
+    {key:'client_secret',label:'Client Secret',     type:'password', placeholder:'••••••••',                                required:true, sensitive:true},
+  ]},
+  outlook_sync:    { label:'Outlook / Email',       fields:[
+    {key:'tenant_id',    label:'Azure Tenant ID',   type:'text',     placeholder:'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',     required:true},
+    {key:'client_id',    label:'Client ID (App)',   type:'text',     placeholder:'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',     required:true},
+    {key:'client_secret',label:'Client Secret',     type:'password', placeholder:'••••••••',                                required:true, sensitive:true},
+    {key:'shared_mailbox',label:'Buzón compartido', type:'email',    placeholder:'it@empresa.com',                          required:false},
+  ]},
+  api_externa:     { label:'API Externa / Webhook', fields:[
+    {key:'base_url',     label:'URL base de la API', type:'url',     placeholder:'https://api.sistema.com/v1',              required:true},
+    {key:'api_key',      label:'API Key',            type:'password',placeholder:'••••••••',                                required:false, sensitive:true},
+    {key:'webhook_secret',label:'Webhook Secret',   type:'password', placeholder:'••••••••',                               required:false, sensitive:true},
+  ]},
+};
+
+async function openFeatures(tenantId, name) {
+  _featTenantId = tenantId;
+  document.getElementById('featuresTenantName').textContent = name;
+  document.getElementById('featuresGrid').innerHTML =
+    '<div style="text-align:center;padding:20px;color:var(--muted);"><i class="bi bi-arrow-clockwise" style="animation:spin 1s linear infinite;display:inline-block;font-size:20px;"></i></div>';
+  openModal('modalFeatures');
+  try {
+    const r = await fetch(`/api/admin/tenants/${tenantId}/features`, { credentials: 'include' });
+    const j = await r.json();
+    _featState = j.data || {};
+    renderFeaturesGrid();
+  } catch (e) {
+    document.getElementById('featuresGrid').innerHTML = '<p style="color:var(--danger);">Error cargando módulos</p>';
+  }
+}
+
+function renderFeaturesGrid() {
+  document.getElementById('featuresGrid').innerHTML = FEATURE_CATALOG.map(f => {
+    const rec       = _featState[f.key];
+    const enabled   = rec !== undefined ? rec.enabled : (FEAT_DEFAULTS[f.key] ?? false);
+    const hasSchema = !!INTEGRATION_SCHEMAS[f.key];
+    return `
+    <div style="background:var(--bg);border-radius:10px;border:1px solid var(--border);overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;">
+        <div style="width:36px;height:36px;border-radius:8px;background:${f.color}1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="bi ${f.icon}" style="color:${f.color};font-size:16px;"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${f.label}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px;">${f.desc}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          ${hasSchema ? `<button onclick="toggleConfigForm('${f.key}')" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;" title="Configurar URI y credenciales"><i class="bi bi-sliders"></i></button>` : ''}
+          <label class="feat-toggle" title="${enabled?'Desactivar':'Activar'} ${f.label}">
+            <input type="checkbox" ${enabled?'checked':''} onchange="toggleFeature('${f.key}',this.checked)">
+            <span class="feat-track"><span class="feat-knob"></span></span>
+          </label>
+        </div>
+      </div>
+      ${hasSchema ? `<div id="fcfg-${f.key}" style="display:none;border-top:1px solid var(--border);padding:14px;background:var(--card);">${renderCfgFields(f.key, rec?.config||{})}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderCfgFields(key, config) {
+  const schema = INTEGRATION_SCHEMAS[key];
+  if (!schema) return '';
+  const fields = schema.fields.map(f => {
+    const raw = config[f.key] || '';
+    const val = (f.sensitive && raw) ? '••••••• (guardado)' : raw;
+    return `<div style="margin-bottom:10px;">
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">
+        ${f.label}${f.required?'<span style="color:var(--danger);margin-left:2px;">*</span>':''}
+      </label>
+      <input id="sacfg-${key}-${f.key}" type="${f.type==='password'?'password':'text'}"
+        class="form-input" placeholder="${f.placeholder}" value="${escHtml(val)}">
+    </div>`;
+  }).join('');
+  return `${fields}<button onclick="saveFeatureConfig('${key}')"
+    style="width:100%;padding:8px;border-radius:7px;background:var(--primary);color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer;margin-top:2px;">
+    <i class="bi bi-floppy-fill"></i> Guardar configuración
+  </button>`;
+}
+
+function toggleConfigForm(key) {
+  const el = document.getElementById(`fcfg-${key}`);
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+async function saveFeatureConfig(key) {
+  const schema = INTEGRATION_SCHEMAS[key];
+  const config = {};
+  for (const f of schema.fields) {
+    const el = document.getElementById(`sacfg-${key}-${f.key}`);
+    if (el) config[f.key] = el.value;
+  }
+  try {
+    const feat = _featState[key] || {};
+    const r = await fetch(`/api/admin/tenants/${_featTenantId}/features/${key}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'}, credentials: 'include',
+      body: JSON.stringify({ enabled: feat.enabled ?? false, config }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error');
+    if (!_featState[key]) _featState[key] = {};
+    _featState[key].config = config;
+    document.getElementById(`fcfg-${key}`).style.display = 'none';
+    toast(`${schema.label}: configuración guardada`, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+/* ── Conexiones (modal dedicado a URIs/credenciales) ─────────────────────── */
+let _conexTenantId  = null;
+let _conexState     = {};  // { [key]: { enabled, source, configured, effectiveUri, modules, config } }
+let _conexActiveKey = null;
+
+async function openConexiones(tenantId, name) {
+  _conexTenantId  = tenantId;
+  _conexActiveKey = null;
+  document.getElementById('conexTenantName').textContent = name;
+  document.getElementById('conexList').innerHTML =
+    '<div style="text-align:center;padding:20px;color:var(--muted);"><i class="bi bi-arrow-clockwise" style="animation:spin 1s linear infinite;display:inline-block;font-size:20px;"></i></div>';
+  document.getElementById('conexForm').innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);"><div style="text-align:center;"><i class="bi bi-plug" style="font-size:36px;opacity:.3;display:block;margin-bottom:12px;"></i><div style="font-size:14px;font-weight:600;">Selecciona una integración</div></div></div>';
+  openModal('modalConexiones');
+  try {
+    const r = await fetch(`/api/admin/tenants/${tenantId}/integrations`, { credentials: 'include' });
+    const j = await r.json();
+    _conexState = j.data || {};
+    renderConexList();
+  } catch (e) {
+    document.getElementById('conexList').innerHTML = '<p style="color:var(--danger);padding:12px;font-size:12px;">Error cargando integraciones</p>';
+  }
+}
+
+/* ── Columna izquierda: lista de integraciones con indicadores ─────────────── */
+function renderConexList() {
+  const integrations = FEATURE_CATALOG.filter(f => !!INTEGRATION_SCHEMAS[f.key]);
+  document.getElementById('conexList').innerHTML = integrations.map(f => {
+    const s        = _conexState[f.key] || {};
+    const enabled  = s.enabled  ?? false;
+    const cfgOk    = s.configured ?? false;
+    const source   = s.source   || 'global';
+    const uri      = s.effectiveUri || '—';
+    const modules  = s.modules  || [];
+    const isActive = _conexActiveKey === f.key;
+
+    return `<div onclick="selectConex('${f.key}')"
+      style="padding:10px 12px;border-radius:10px;cursor:pointer;margin-bottom:4px;transition:all .15s;
+             background:${isActive ? f.color + '12' : 'transparent'};
+             border:1px solid ${isActive ? f.color + '55' : 'transparent'};"
+      onmouseover="if('${f.key}'!==_conexActiveKey)this.style.background='var(--bg-subtle)'"
+      onmouseout="if('${f.key}'!==_conexActiveKey)this.style.background='transparent'">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;border-radius:8px;background:${f.color}1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="bi ${f.icon}" style="color:${f.color};font-size:14px;"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${INTEGRATION_SCHEMAS[f.key]?.label || f.label}</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:2px;flex-wrap:wrap;">
+            ${enabled
+              ? `<span style="font-size:9px;font-weight:700;color:#059669;background:#d1fae5;padding:1px 5px;border-radius:10px;">● ON</span>`
+              : `<span style="font-size:9px;font-weight:600;color:var(--muted);background:var(--bg-subtle);padding:1px 5px;border-radius:10px;">○ OFF</span>`}
+            ${cfgOk
+              ? `<span style="font-size:9px;font-weight:600;color:#0891b2;background:#e0f2fe;padding:1px 5px;border-radius:10px;">✓ Config</span>`
+              : `<span style="font-size:9px;font-weight:600;color:#d97706;background:#fef3c7;padding:1px 5px;border-radius:10px;">! Sin config</span>`}
+            ${source === 'global' ? `<span style="font-size:9px;color:var(--muted2);">global</span>` : `<span style="font-size:9px;color:#7c3aed;">tenant</span>`}
+          </div>
+          ${uri !== '—' ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${uri}</div>` : ''}
+        </div>
+      </div>
+      ${modules.length ? `<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:3px;">
+        ${modules.slice(0,3).map(m => `<span style="font-size:9px;color:${m.color};background:${m.color}18;padding:1px 6px;border-radius:8px;font-weight:600;">
+          <i class="bi ${m.icon}" style="font-size:8px;"></i> ${m.name}</span>`).join('')}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/* ── Panel derecho: formulario de la integración seleccionada ──────────────── */
+function selectConex(key) {
+  _conexActiveKey = key;
+  renderConexList(); // actualizar selección visual
+
+  const f      = FEATURE_CATALOG.find(f => f.key === key);
+  const schema = INTEGRATION_SCHEMAS[key];
+  const s      = _conexState[key] || {};
+  const enabled = s.enabled ?? false;
+  const cfg    = s.config  || {};
+  const modules = s.modules || [];
+  const source  = s.source || 'global';
+
+  const fieldSource = s.fieldSource || {};
+
+  const fields = schema.fields.map(fld => {
+    const raw       = cfg[fld.key] || '';        // valor efectivo (ya viene del servidor)
+    const src       = fieldSource[fld.key] || 'empty'; // 'tenant' | 'global' | 'empty'
+    const isSecret  = fld.sensitive;
+    const inputType = isSecret ? 'password' : (fld.type === 'url' ? 'url' : fld.type === 'email' ? 'email' : 'text');
+
+    // Badge de fuente
+    const srcBadge = src === 'tenant'
+      ? `<span style="font-size:10px;font-weight:700;color:#7c3aed;background:#f5f3ff;padding:1px 6px;border-radius:10px;margin-left:4px;"><i class="bi bi-person-fill" style="font-size:9px;"></i> Personalizado</span>`
+      : src === 'global'
+      ? `<span style="font-size:10px;font-weight:600;color:#0891b2;background:#e0f2fe;padding:1px 6px;border-radius:10px;margin-left:4px;"><i class="bi bi-globe" style="font-size:9px;"></i> Global (.env)</span>`
+      : `<span style="font-size:10px;font-weight:600;color:#d97706;background:#fef3c7;padding:1px 6px;border-radius:10px;margin-left:4px;">Sin configurar</span>`;
+
+    // Para secretos con valor: mostrar placeholder descriptivo, NO el valor enmascarado en el input
+    const inputVal = (isSecret && raw) ? '' : raw;
+    const inputPlaceholder = (isSecret && raw)
+      ? '••••••• Guardado — escribe para reemplazar'
+      : fld.placeholder;
+
+    return `<div style="margin-bottom:14px;">
+      <label style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">
+        ${fld.label}${fld.required ? '<span style="color:var(--danger);margin-left:2px;">*</span>' : ''}
+        ${srcBadge}
+      </label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input id="cx-${key}-${fld.key}" type="${inputType}" class="form-input"
+          style="flex:1;${src!=='empty'?'border-color:'+(src==='tenant'?'#7c3aed':'#0891b2')+';':''}"
+          placeholder="${escHtml(inputPlaceholder)}"
+          value="${escHtml(inputVal)}">
+        ${isSecret ? `<button type="button" onclick="cxToggleVis('cx-${key}-${fld.key}',this)"
+          style="flex-shrink:0;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:13px;cursor:pointer;"
+          title="Mostrar/ocultar"><i class="bi bi-eye"></i></button>` : ''}
+      </div>
+      ${!isSecret && raw ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;padding:3px 8px;background:var(--bg-subtle);border-radius:6px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(raw)}">${escHtml(raw)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('conexForm').innerHTML = `
+    <div>
+      <!-- Cabecera -->
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+        <div style="width:44px;height:44px;border-radius:11px;background:${f.color}1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="bi ${f.icon}" style="color:${f.color};font-size:20px;"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:16px;font-weight:800;color:var(--text);">${schema.label}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap;">
+            ${enabled
+              ? `<span style="font-size:11px;font-weight:700;color:#059669;background:#d1fae5;padding:2px 8px;border-radius:20px;"><i class="bi bi-check-circle-fill" style="font-size:10px;"></i> Habilitado para este cliente</span>`
+              : `<span style="font-size:11px;font-weight:600;color:var(--muted);background:var(--bg-subtle);padding:2px 8px;border-radius:20px;"><i class="bi bi-circle" style="font-size:10px;"></i> Deshabilitado</span>`}
+            <span style="font-size:11px;font-weight:600;color:${source==='tenant'?'#7c3aed':'var(--muted)'};background:${source==='tenant'?'#f5f3ff':'var(--bg-subtle)'};padding:2px 8px;border-radius:20px;">
+              ${source === 'tenant' ? '🔧 Configuración propia del cliente' : '🌐 Usando configuración global (.env)'}
+            </span>
+          </div>
+        </div>
+        <label class="feat-toggle" title="${enabled?'Deshabilitar':'Habilitar'}">
+          <input type="checkbox" ${enabled?'checked':''} onchange="conexToggle('${key}',this.checked)">
+          <span class="feat-track"><span class="feat-knob"></span></span>
+        </label>
+      </div>
+
+      <!-- Módulos que usan esta integración -->
+      ${modules.length ? `<div style="margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Módulos del sistema que usan esta integración</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${modules.map(m => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:${m.color};background:${m.color}18;padding:4px 10px;border-radius:20px;border:1px solid ${m.color}33;">
+            <i class="bi ${m.icon}" style="font-size:11px;"></i> ${m.name}
+          </span>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Campos de configuración -->
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Credenciales y URIs</div>
+      ${fields}
+
+      <!-- Acciones -->
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button id="cxbtn-${key}" onclick="saveConexConfig('${key}',this)"
+          style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:9px;background:${f.color};color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;transition:opacity .15s;"
+          onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          <i class="bi bi-floppy-fill"></i> ${s.configured ? 'Actualizar credenciales' : 'Guardar credenciales'}
+        </button>
+        <button onclick="testConexConfig('${key}',this)"
+          style="display:flex;align-items:center;gap:5px;padding:10px 16px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;"
+          title="Probar conexión">
+          <i class="bi bi-lightning-charge-fill"></i> Probar conexión
+        </button>
+      </div>
+    </div>`;
+}
+
+/* ── renderConexGrid (legacy — ya no se usa directamente) ────────────────── */
+function renderConexGrid() {
+  const integrations = FEATURE_CATALOG.filter(f => !!INTEGRATION_SCHEMAS[f.key]);
+  document.getElementById('conexGrid').innerHTML = integrations.map(f => {
+    const schema   = INTEGRATION_SCHEMAS[f.key];
+    const rec      = _conexState[f.key];
+    const enabled  = rec !== undefined ? rec.enabled : false;
+    const cfg      = rec?.config || {};
+    const hasCfg   = Object.keys(cfg).length > 0;
+    const allReqOk = schema.fields.filter(x => x.required).every(x => cfg[x.key]);
+
+    const statusDot = enabled
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#059669;background:#d1fae5;padding:2px 8px;border-radius:20px;">
+           <i class="bi bi-check-circle-fill" style="font-size:10px;"></i> Habilitado
+         </span>`
+      : `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--muted);background:var(--bg-subtle);padding:2px 8px;border-radius:20px;">
+           <i class="bi bi-circle" style="font-size:10px;"></i> Deshabilitado
+         </span>`;
+
+    const cfgBadge = allReqOk
+      ? `<span style="font-size:10px;font-weight:700;color:#0891b2;background:#e0f2fe;padding:2px 7px;border-radius:20px;margin-left:6px;"><i class="bi bi-check2" style="margin-right:2px;"></i>Configurado</span>`
+      : `<span style="font-size:10px;font-weight:600;color:#d97706;background:#fef3c7;padding:2px 7px;border-radius:20px;margin-left:6px;"><i class="bi bi-exclamation" style="margin-right:2px;"></i>Sin configurar</span>`;
+
+    const fields = schema.fields.map(fld => {
+      const raw       = cfg[fld.key] || '';
+      const isSecret  = fld.sensitive;
+      const hasValue  = !!raw;
+      const dispVal   = (isSecret && hasValue) ? '••••••• (guardado)' : raw;
+      const inputType = isSecret ? 'password' : (fld.type === 'url' ? 'url' : fld.type === 'email' ? 'email' : 'text');
+      const savedBadge = hasValue
+        ? `<span style="font-size:10px;font-weight:700;color:#059669;background:#d1fae5;padding:1px 6px;border-radius:10px;margin-left:4px;"><i class="bi bi-check-lg"></i> Guardado</span>`
+        : `<span style="font-size:10px;color:var(--muted2);margin-left:4px;">Sin valor</span>`;
+
+      return `<div style="margin-bottom:12px;">
+        <label style="display:flex;align-items:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">
+          ${fld.label}${fld.required ? '<span style="color:var(--danger);margin-left:2px;">*</span>' : ''}
+          ${savedBadge}
+        </label>
+        <div style="position:relative;display:flex;align-items:center;gap:6px;">
+          <input id="cx-${f.key}-${fld.key}"
+            type="${inputType}"
+            class="form-input"
+            style="flex:1;${hasValue ? 'border-color:#059669;' : ''}"
+            placeholder="${hasValue ? (isSecret ? 'Nuevo valor (dejar vacío para mantener)' : fld.placeholder) : fld.placeholder}"
+            value="${escHtml(dispVal)}">
+          ${isSecret ? `<button type="button" onclick="cxToggleVis('cx-${f.key}-${fld.key}',this)"
+            style="flex-shrink:0;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:13px;cursor:pointer;"
+            title="Mostrar/ocultar"><i class="bi bi-eye"></i></button>` : ''}
+        </div>
+        ${hasValue && !isSecret ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(raw)}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    return `
+    <div style="background:var(--card);border:1px solid ${enabled ? f.color + '44' : 'var(--border)'};border-radius:14px;overflow:hidden;transition:border-color .2s;" id="cxcard-${f.key}">
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:${enabled ? f.color + '08' : 'transparent'};">
+        <div style="width:40px;height:40px;border-radius:10px;background:${f.color}1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="bi ${f.icon}" style="color:${f.color};font-size:18px;"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+            ${schema.label} ${cfgBadge}
+          </div>
+          <div style="margin-top:4px;">${statusDot}</div>
+        </div>
+        <label class="feat-toggle" title="${enabled ? 'Deshabilitar' : 'Habilitar'} ${schema.label}">
+          <input type="checkbox" ${enabled ? 'checked' : ''} onchange="conexToggle('${f.key}',this.checked)">
+          <span class="feat-track"><span class="feat-knob"></span></span>
+        </label>
+      </div>
+      <div style="padding:16px;border-top:1px solid var(--border);">
+        ${fields}
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button id="cxbtn-${f.key}" onclick="saveConexConfig('${f.key}',this)"
+            style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:9px;background:${f.color};color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;transition:opacity .15s;"
+            onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            <i class="bi bi-floppy-fill"></i>
+            ${hasCfg ? 'Actualizar credenciales' : 'Guardar credenciales'}
+          </button>
+          <button onclick="testConexConfig('${f.key}',this)"
+            style="display:flex;align-items:center;gap:5px;padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;"
+            title="Probar conexión" onmouseover="this.style.borderColor='${f.color}';this.style.color='${f.color}'" onmouseout="this.style.borderColor='';this.style.color=''">
+            <i class="bi bi-lightning-charge-fill"></i> Probar
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function cxToggleVis(inputId, btn) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  if (el.type === 'password') {
+    el.type = 'text';
+    btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+  } else {
+    el.type = 'password';
+    btn.innerHTML = '<i class="bi bi-eye"></i>';
+  }
+}
+
+async function conexToggle(key, enabled) {
+  try {
+    const current = _conexState[key] || {};
+    const r = await fetch(`/api/admin/tenants/${_conexTenantId}/features/${key}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ enabled, config: current.config || {} }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error');
+    if (!_conexState[key]) _conexState[key] = {};
+    _conexState[key].enabled = enabled;
+    const f = FEATURE_CATALOG.find(f => f.key === key);
+    toast(`${f?.label || key} ${enabled ? 'habilitado' : 'deshabilitado'}`, 'ok');
+    renderConexList();
+    selectConex(key);
+  } catch (e) {
+    toast(e.message, 'err');
+    if (_conexActiveKey) selectConex(_conexActiveKey);
+  }
+}
+
+async function saveConexConfig(key, btn) {
+  const schema = INTEGRATION_SCHEMAS[key];
+  const config = {};
+  for (const fld of schema.fields) {
+    const el = document.getElementById(`cx-${key}-${fld.key}`);
+    if (el) config[fld.key] = el.value.trim();
+  }
+
+  const orig = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation:spin .7s linear infinite;display:inline-block;"></i> Guardando...'; }
+
+  try {
+    const current = _conexState[key] || {};
+    const r = await fetch(`/api/admin/tenants/${_conexTenantId}/features/${key}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ enabled: current.enabled ?? false, config }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error guardando');
+
+    // Actualizar estado local — merge preservando sensibles
+    if (!_conexState[key]) _conexState[key] = {};
+    const current2 = _conexState[key].config || {};
+    const PLACEHOLDER = '••••••• (guardado)';
+    const merged2 = { ...current2 };
+    for (const [k, v] of Object.entries(config)) {
+      if (v === PLACEHOLDER || v === '') continue;
+      merged2[k] = v;
+    }
+    _conexState[key].config = merged2;
+    _conexState[key].configured = true;
+    _conexState[key].source = 'tenant';
+
+    const f = FEATURE_CATALOG.find(f => f.key === key);
+    toast(`${f?.label || key}: credenciales guardadas ✓`, 'ok');
+    renderConexList();
+    selectConex(key); // Re-render formulario con badges actualizados
+  } catch (e) {
+    toast(e.message, 'err');
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+}
+
+async function testConexConfig(key, btn) {
+  const f = FEATURE_CATALOG.find(f => f.key === key);
+  const orig = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation:spin .7s linear infinite;display:inline-block;"></i>'; }
+  toast(`Probando conexión con ${f?.label || key}...`, 'ok');
+  await new Promise(r => setTimeout(r, 1200));
+  if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+}
+
+async function toggleFeature(key, enabled) {
+  try {
+    const r = await fetch(`/api/admin/tenants/${_featTenantId}/features/${key}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ enabled }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error');
+    if (!_featState[key]) _featState[key] = {};
+    _featState[key].enabled = enabled;
+    const f = FEATURE_CATALOG.find(f => f.key === key);
+    toast(`${f?.label || key} ${enabled ? 'activado' : 'desactivado'}`, 'ok');
+    // Actualizar badge modo Jira/Local en la card del tenant
+    if (key === 'jira') {
+      const card = document.getElementById(`tc-${_featTenantId}`);
+      if (card) {
+        const badgesEl = card.querySelector('.tc-badges');
+        if (badgesEl) {
+          const modeBadge = badgesEl.querySelector('[data-mode-badge]');
+          if (modeBadge) modeBadge.outerHTML = enabled
+            ? `<span data-mode-badge style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;"><i class="bi bi-kanban-fill"></i> Jira</span>`
+            : `<span data-mode-badge style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;"><i class="bi bi-hdd-fill"></i> Local</span>`;
+        }
+      }
+    }
+  } catch (e) {
+    toast(e.message, 'err');
+    renderFeaturesGrid(); // revertir UI al estado anterior
+  }
+}
+
+/* ── Usuarios por tenant ───────────────────────────────────────────────── */
+let _usuariosTenantId = null;
+
+async function openUsuarios(tenantId, name) {
+  _usuariosTenantId = tenantId;
+  document.getElementById('usuariosTenantName').textContent = name;
+  document.getElementById('uEmail').value = '';
+  document.getElementById('uNombre').value = '';
+  document.getElementById('uUsername').value = '';
+  document.getElementById('uRol').value = 'usuario';
+  document.getElementById('uPass').value = '';
+  document.getElementById('uResult').style.display = 'none';
+  openModal('modalUsuarios');
+  await cargarUsuarios();
+}
+
+async function cargarUsuarios() {
+  const lista = document.getElementById('usuariosList');
+  lista.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);"><i class="bi bi-arrow-clockwise" style="animation:spin 1s linear infinite;display:inline-block;"></i></div>';
+  try {
+    const r = await fetch(`/api/admin/tenants/${_usuariosTenantId}/users`, { credentials: 'include' });
+    const j = await r.json();
+    const users = j.data || [];
+    if (!users.length) {
+      lista.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;"><i class="bi bi-people" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>Sin usuarios aún</div>';
+      return;
+    }
+    const ROLE_COLOR = { administrador:'#dc2626', agente:'#2563eb', especialista:'#7c3aed', tecnico:'#d97706', usuario:'#059669' };
+    lista.innerHTML = users.map(u => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#2563eb1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="bi bi-person-fill" style="color:#2563eb;font-size:16px;"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(u.full_name||u.username)}</div>
+          <div style="font-size:11px;color:var(--muted2);">${escHtml(u.email)}</div>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:${ROLE_COLOR[u.role]||'#64748b'};background:${ROLE_COLOR[u.role]||'#64748b'}1a;padding:2px 8px;border-radius:20px;white-space:nowrap;">${u.role}</span>
+        <button onclick="toggleUsuario('${u.id}',${u.is_active?0:1},'${escHtml(u.full_name||u.email)}')"
+          style="padding:4px 10px;font-size:11px;border-radius:6px;border:1px solid ${u.is_active?'#dc2626':'#059669'};color:${u.is_active?'#dc2626':'#059669'};background:transparent;cursor:pointer;">
+          ${u.is_active ? 'Desactivar' : 'Activar'}
+        </button>
+      </div>`).join('');
+  } catch (e) {
+    lista.innerHTML = '<div style="color:#dc2626;padding:12px;font-size:13px;">Error cargando usuarios</div>';
+  }
+}
+
+async function crearUsuario() {
+  const email    = document.getElementById('uEmail').value.trim();
+  const nombre   = document.getElementById('uNombre').value.trim();
+  const username = document.getElementById('uUsername').value.trim();
+  const rol      = document.getElementById('uRol').value;
+  const pass     = document.getElementById('uPass').value.trim();
+  const res      = document.getElementById('uResult');
+
+  if (!email) { res.style.display='block'; res.style.background='#fee2e2'; res.style.color='#dc2626'; res.innerHTML='<i class="bi bi-exclamation-circle-fill"></i> El email es obligatorio'; return; }
+
+  try {
+    const r = await fetch(`/api/admin/tenants/${_usuariosTenantId}/users`, {
+      method: 'POST', headers: { 'Content-Type':'application/json' }, credentials: 'include',
+      body: JSON.stringify({ email, full_name: nombre, username, role: rol, password: pass }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error');
+    res.style.display = 'block';
+    res.style.background = '#d1fae5';
+    res.style.color = '#065f46';
+    const tmp = j.data?.tempPassword;
+    res.innerHTML = `<i class="bi bi-check-circle-fill"></i> Usuario creado: <strong>${escHtml(j.data?.email)}</strong>${tmp ? ` — Contraseña temporal: <code style="background:#fff;padding:2px 6px;border-radius:4px;">${escHtml(tmp)}</code>` : ''}`;
+    document.getElementById('uEmail').value = '';
+    document.getElementById('uNombre').value = '';
+    document.getElementById('uUsername').value = '';
+    document.getElementById('uPass').value = '';
+    toast('Usuario creado exitosamente', 'ok');
+    await cargarUsuarios();
+    await loadTenants();
+  } catch (e) {
+    res.style.display = 'block'; res.style.background = '#fee2e2'; res.style.color = '#dc2626';
+    res.innerHTML = `<i class="bi bi-exclamation-circle-fill"></i> ${escHtml(e.message)}`;
+  }
+}
+
+async function toggleUsuario(userId, newActive, nombre) {
+  try {
+    const r = await fetch(`/api/admin/tenants/${_usuariosTenantId}/users/${userId}`, {
+      method: 'PATCH', headers: { 'Content-Type':'application/json' }, credentials: 'include',
+      body: JSON.stringify({ is_active: newActive }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error');
+    toast(`${nombre}: ${newActive ? 'activado' : 'desactivado'}`, 'ok');
+    await cargarUsuarios();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+/* ── Health ────────────────────────────────────────────────────────────── */
+async function loadHealth() {
+  try {
+    const r = await fetch('/api/admin/tenants/health', { credentials: 'include' });
+    const j = await r.json();
+    const h = j.data || j;
+    const dot = document.getElementById('hbDbDot');
+    dot.className = 'hb-dot ' + (h.db?.ok ? 'hb-ok' : 'hb-err');
+    document.getElementById('hbDbTxt').textContent    = h.db?.ok ? `OK ${h.db.latencyMs}ms` : 'ERROR';
+    document.getElementById('hbMem').textContent      = `${h.node?.memUsedMb}/${h.node?.memTotalMb} MB`;
+    document.getElementById('hbUptime').textContent   = h.node?.uptimeStr || '—';
+    document.getElementById('hbTickets').textContent  = h.platform?.tickets_week ?? '—';
+    document.getElementById('hbUsers').textContent    = h.platform?.users_active  ?? '—';
+  } catch (_) {}
+}
+
+/* ── Actividad ─────────────────────────────────────────────────────────── */
+let _actOpen = false;
+
+function toggleActivity() {
+  _actOpen = !_actOpen;
+  document.getElementById('actBody').style.display = _actOpen ? 'block' : 'none';
+  document.getElementById('actChevron').style.transform = _actOpen ? 'rotate(180deg)' : '';
+  if (_actOpen) loadActivity();
+}
+
+async function loadActivity() {
+  const tbody = document.getElementById('actTbody');
+  try {
+    const r = await fetch('/api/admin/tenants/activity', { credentials: 'include' });
+    const j = await r.json();
+    const rows = j.data || j || [];
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px;">Sin datos</td></tr>'; return; }
+    const maxT7  = Math.max(...rows.map(r => r.tickets_7d  || 0), 1);
+    const maxT30 = Math.max(...rows.map(r => r.tickets_30d || 0), 1);
+    tbody.innerHTML = rows.map(r => {
+      const pBadge = { trial:'#d97706', starter:'#2563eb', professional:'#7c3aed', enterprise:'#059669' };
+      const pc = pBadge[r.plan] || '#94a3b8';
+      return `<tr>
+        <td><strong>${escHtml(r.name)}</strong></td>
+        <td><span class="act-badge" style="background:${pc}22;color:${pc};">${r.plan}</span></td>
+        <td>
+          <div style="font-weight:700;">${r.tickets_7d||0}</div>
+          <div class="act-bar"><div class="act-bar-fill" style="width:${Math.round(((r.tickets_7d||0)/maxT7)*100)}%;"></div></div>
+        </td>
+        <td>
+          <div style="font-weight:700;">${r.tickets_30d||0}</div>
+          <div class="act-bar"><div class="act-bar-fill" style="width:${Math.round(((r.tickets_30d||0)/maxT30)*100)}%;background:linear-gradient(90deg,#7c3aed,#a78bfa);"></div></div>
+        </td>
+        <td><span style="color:#059669;font-weight:700;">${r.resolved_30d||0}</span></td>
+        <td>${r.new_users_30d||0}</td>
+        <td>${r.total_users||0}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:16px;">${e.message}</td></tr>`;
+  }
+}
+
+/* ── Broadcast ─────────────────────────────────────────────────────────── */
+function bcTargetChange() {
+  const isOne = document.getElementById('bcTarget').value === 'one';
+  document.getElementById('bcTenantWrap').style.display = isOne ? '' : 'none';
+}
+
+function openModal_broadcast() {
+  const sel = document.getElementById('bcTenantId');
+  sel.innerHTML = (_tenants||[]).filter(t => t.is_active).map(t => `<option value="${t.id}">${escHtml(t.name)}</option>`).join('');
+  document.getElementById('bcTitle').value = '';
+  document.getElementById('bcBody').value  = '';
+  document.getElementById('bcTarget').value = 'all';
+  document.getElementById('bcTenantWrap').style.display = 'none';
+  document.getElementById('bcError').style.display = 'none';
+  const btn = document.getElementById('btnBroadcast');
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send-fill"></i> Enviar comunicado';
+  document.getElementById('modalBroadcast').classList.add('open');
+}
+
+async function sendBroadcast() {
+  const title  = document.getElementById('bcTitle').value.trim();
+  const body   = document.getElementById('bcBody').value.trim();
+  const target = document.getElementById('bcTarget').value;
+  const errEl  = document.getElementById('bcError');
+  errEl.style.display = 'none';
+
+  if (!title || !body) { errEl.textContent = 'Título y mensaje son requeridos.'; errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('btnBroadcast');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Enviando...';
+
+  try {
+    const payload = { title, body };
+    if (target === 'one') {
+      payload.tenantIds = [parseInt(document.getElementById('bcTenantId').value)];
+    }
+    const r = await fetch('/api/admin/tenants/broadcast', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error');
+    closeModal('modalBroadcast');
+    toast(j.message || 'Comunicado enviado', 'ok');
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send-fill"></i> Enviar comunicado';
+  }
+}
+
+/* ── Billing ───────────────────────────────────────────────────────────── */
+let _billingTenantId = null;
+
+async function openBilling(tenantId, name) {
+  _billingTenantId = tenantId;
+  document.getElementById('billingTenantName').textContent = name;
+  document.getElementById('bRenewal').value = '';
+  document.getElementById('bAmount').value  = '';
+  document.getElementById('bStatus').value  = 'pending';
+  document.getElementById('bNotes').value   = '';
+  document.getElementById('bAddError').style.display = 'none';
+  openModal('modalBilling');
+  await loadBillingList();
+}
+
+async function loadBillingList() {
+  const list = document.getElementById('billingList');
+  list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div>';
+  try {
+    const r = await fetch(`/api/admin/tenants/${_billingTenantId}/billing`, { credentials: 'include' });
+    const j = await r.json();
+    const rows = j.data || j || [];
+    if (!rows.length) {
+      list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;"><i class="bi bi-inbox" style="font-size:24px;display:block;margin-bottom:8px;"></i>Sin registros de billing</div>';
+      return;
+    }
+    const statusLabel = { paid:'Pagado', pending:'Pendiente', overdue:'Vencido' };
+    list.innerHTML = rows.map(b => {
+      const cls  = { paid:'bill-paid', pending:'bill-pending', overdue:'bill-overdue' }[b.status] || 'bill-pending';
+      const date = b.renewal_date ? new Date(b.renewal_date).toLocaleDateString('es-PE', {year:'numeric',month:'short',day:'numeric'}) : '—';
+      const overdueWarn = b.status === 'overdue' ? ' <i class="bi bi-exclamation-triangle-fill" style="color:#dc2626;"></i>' : '';
+      return `<div class="bill-row">
+        <div style="flex:1;">
+          <div style="font-weight:700;color:var(--text);">${date}${overdueWarn}</div>
+          ${b.notes ? `<div style="color:var(--muted);font-size:11px;margin-top:1px;">${escHtml(b.notes)}</div>` : ''}
+        </div>
+        <div style="font-size:14px;font-weight:800;color:var(--text);min-width:80px;text-align:right;">${b.amount != null ? '$'+parseFloat(b.amount).toFixed(2) : '—'}</div>
+        <span class="bill-status ${cls}">${statusLabel[b.status]||b.status}</span>
+        <select onchange="updateBillingStatus(${b.id}, this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);cursor:pointer;">
+          <option value="pending" ${b.status==='pending'?'selected':''}>Pendiente</option>
+          <option value="paid"    ${b.status==='paid'   ?'selected':''}>Pagado</option>
+          <option value="overdue" ${b.status==='overdue'?'selected':''}>Vencido</option>
+        </select>
+        <button onclick="deleteBilling(${b.id})" style="border:none;background:none;cursor:pointer;color:var(--muted);padding:4px;" title="Eliminar"><i class="bi bi-trash3"></i></button>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = `<div style="color:var(--danger);text-align:center;padding:20px;">${e.message}</div>`;
+  }
+}
+
+async function addBilling() {
+  const renewal = document.getElementById('bRenewal').value;
+  const amount  = document.getElementById('bAmount').value;
+  const status  = document.getElementById('bStatus').value;
+  const notes   = document.getElementById('bNotes').value.trim();
+  const errEl   = document.getElementById('bAddError');
+  errEl.style.display = 'none';
+
+  if (!renewal && !amount) { errEl.textContent = 'Ingresa al menos la fecha de renovación o el monto.'; errEl.style.display = 'block'; return; }
+
+  try {
+    const r = await fetch(`/api/admin/tenants/${_billingTenantId}/billing`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ renewal_date: renewal || null, amount: amount || null, status, notes }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error');
+    document.getElementById('bRenewal').value = '';
+    document.getElementById('bAmount').value  = '';
+    document.getElementById('bNotes').value   = '';
+    await loadBillingList();
+    toast('Registro agregado', 'ok');
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+}
+
+async function updateBillingStatus(billingId, status) {
+  try {
+    await fetch(`/api/admin/tenants/${_billingTenantId}/billing/${billingId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', body: JSON.stringify({ status }),
+    });
+    await loadBillingList();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function deleteBilling(billingId) {
+  if (!confirm('¿Eliminar este registro de billing?')) return;
+  try {
+    await fetch(`/api/admin/tenants/${_billingTenantId}/billing/${billingId}`, {
+      method: 'DELETE', credentials: 'include',
+    });
+    await loadBillingList();
+    toast('Registro eliminado', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+/* ── Init ──────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => { loadTenants(); loadHealth(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOC · Centro de Operaciones</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --bg:     #0a0f1a;
+      --card:   #111827;
+      --border: #1e293b;
+      --text:   #e2e8f0;
+      --muted:  #64748b;
+      --p1:     #ef4444;
+      --p2:     #f97316;
+      --p3:     #3b82f6;
+      --p4:     #6b7280;
+      --green:  #10b981;
+      --blue:   #2563eb;
+      --orange: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; overflow: hidden;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+    .noc-layout { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── Header ── */
+    .noc-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #0f1f3d, #0d2158);
+      border-bottom: 2px solid #1e3a6e;
+      flex-shrink: 0;
+    }
+    .noc-brand { display: flex; align-items: center; gap: 12px; }
+    .noc-logo { height: 32px; opacity: .9; }
+    .noc-title { font-size: 16px; font-weight: 700; letter-spacing: .5px; color: #93c5fd; }
+    .noc-sub   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .noc-time  { text-align: right; }
+    .noc-clock { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; color: #93c5fd; letter-spacing: 1px; }
+    .noc-date  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .noc-refresh-badge {
+      background: #1e293b; border: 1px solid #334155; border-radius: 20px;
+      padding: 4px 12px; font-size: 11px; color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .noc-refresh-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: nocPulse 2s infinite; }
+    @keyframes nocPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+
+    /* ── KPI Strip ── */
+    .noc-kpis {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+      padding: 12px 24px 8px; flex-shrink: 0;
+    }
+    .kpi {
+      background: var(--card); border-radius: 10px; padding: 16px 12px;
+      border: 1px solid var(--border); text-align: center; position: relative; overflow: hidden;
+    }
+    .kpi::before { content: ''; position: absolute; inset: 0; opacity: .04; }
+    .kpi.kpi-blue::before   { background: var(--blue); }
+    .kpi.kpi-red::before    { background: var(--p1); }
+    .kpi.kpi-green::before  { background: var(--green); }
+    .kpi.kpi-orange::before { background: var(--orange); }
+    .kpi.kpi-p1::before     { background: #dc2626; }
+    .kpi.kpi-alert { border-color: rgba(239,68,68,.4); animation: breachBlink 1.5s infinite; }
+    @keyframes breachBlink { 0%,100%{border-color:rgba(239,68,68,.4)} 50%{border-color:rgba(239,68,68,.9)} }
+    .kpi-lbl  { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .kpi-num  { font-size: 48px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+    .kpi-blue .kpi-num   { color: #60a5fa; }
+    .kpi-red .kpi-num    { color: #f87171; }
+    .kpi-green .kpi-num  { color: #34d399; }
+    .kpi-orange .kpi-num { color: #fbbf24; }
+    .kpi-p1 .kpi-num     { color: #f87171; }
+    .kpi-icon { font-size: 22px; margin-bottom: 6px; opacity: .6; }
+
+    /* ── Body Panels ── */
+    .noc-body { display: grid; grid-template-columns: 260px 1fr; gap: 10px; padding: 0 24px 12px; flex: 1; min-height: 0; }
+
+    .noc-panel {
+      background: var(--card); border-radius: 10px; border: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .noc-panel-header {
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    }
+    .noc-panel-body { flex: 1; overflow-y: auto; padding: 8px 0; scrollbar-width: none; }
+    .noc-panel-body::-webkit-scrollbar { display: none; }
+
+    /* Tech rows */
+    .tech-row {
+      display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .tech-row:last-child { border-bottom: none; }
+    .tech-rank { font-size: 11px; font-weight: 700; color: var(--muted); width: 16px; text-align: right; flex-shrink: 0; }
+    .tech-rank.gold   { color: #f59e0b; }
+    .tech-rank.silver { color: #94a3b8; }
+    .tech-rank.bronze { color: #b45309; }
+    .tech-avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      background: #1e3a5f; display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #93c5fd;
+    }
+    .tech-name { font-size: 12px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tech-count {
+      font-size: 13px; font-weight: 800; color: var(--green);
+      background: rgba(16,185,129,.1); border-radius: 6px; padding: 2px 8px;
+      flex-shrink: 0; font-variant-numeric: tabular-nums;
+    }
+    .tech-empty { padding: 24px 14px; font-size: 12px; color: var(--muted); text-align: center; }
+
+    /* Ticket rows */
+    .tkt-row {
+      display: grid; grid-template-columns: auto 1fr auto; gap: 10px; padding: 9px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.04); align-items: start;
+    }
+    .tkt-row:last-child { border-bottom: none; }
+    .tkt-key { font-family: monospace; font-size: 11px; font-weight: 700; color: #93c5fd; white-space: nowrap; }
+    .tkt-sum { font-size: 11px; color: var(--text); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
+    .tkt-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .tkt-prio { font-size: 9px; font-weight: 700; letter-spacing: .5px; padding: 2px 5px; border-radius: 4px; white-space: nowrap; }
+    .tkt-prio.P1 { background: rgba(239,68,68,.15); color: #f87171; }
+    .tkt-prio.P2 { background: rgba(249,115,22,.15); color: #fb923c; }
+    .tkt-prio.P3 { background: rgba(59,130,246,.15); color: #60a5fa; }
+    .tkt-prio.P4 { background: rgba(107,114,128,.15); color: #9ca3af; }
+
+    /* ── Priority bar footer ── */
+    .noc-footer {
+      display: flex; align-items: center; gap: 20px; padding: 8px 24px;
+      background: var(--card); border-top: 1px solid var(--border); flex-shrink: 0;
+      font-size: 11px;
+    }
+    .prio-item { display: flex; align-items: center; gap: 6px; }
+    .prio-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .prio-dot.P1 { background: var(--p1); }
+    .prio-dot.P2 { background: var(--p2); }
+    .prio-dot.P3 { background: var(--p3); }
+    .prio-dot.P4 { background: var(--p4); }
+    .prio-val { font-weight: 700; }
+    .footer-sep { width: 1px; height: 14px; background: var(--border); }
+    .noc-ts { color: var(--muted); margin-left: auto; font-size: 10px; }
+
+    /* Skeleton */
+    .noc-skel { background: linear-gradient(90deg,#1e293b 25%,#263347 50%,#1e293b 75%); background-size: 200% 100%; animation: skelShim 1.4s infinite; border-radius: 6px; }
+    @keyframes skelShim { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* Notification grant bar */
+    #nocNotifBar {
+      display: none; background: #1e3a5f; border-bottom: 1px solid #2563eb;
+      padding: 8px 24px; font-size: 12px; color: #93c5fd;
+      align-items: center; gap: 12px; flex-shrink: 0;
+    }
+    #nocNotifBar button {
+      background: #2563eb; color: #fff; border: none; border-radius: 6px;
+      padding: 4px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    #nocNotifBar button:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+<div class="noc-layout">
+
+  <!-- Notification permission bar -->
+  <div id="nocNotifBar">
+    <i class="bi bi-bell-fill"></i>
+    Activa las notificaciones del navegador para recibir alertas de SLA en tiempo real.
+    <button onclick="nocReqNotif()">Activar notificaciones</button>
+    <span style="margin-left:auto;cursor:pointer;opacity:.6" onclick="document.getElementById('nocNotifBar').style.display='none'">✕</span>
+  </div>
+
+  <!-- Header -->
+  <div class="noc-header">
+    <div class="noc-brand">
+      <img src="/images/movistar-logo.png" class="noc-logo" alt="logo" onerror="this.style.display='none'">
+      <div>
+        <div class="noc-title"><i class="bi bi-display-fill" style="margin-right:6px;font-size:13px;"></i>NOC · Centro de Operaciones</div>
+        <div class="noc-sub">Incidencias en tiempo real</div>
+      </div>
+    </div>
+    <div class="noc-refresh-badge">
+      <span class="noc-refresh-dot"></span>
+      Actualizando en <span id="nocCountdown" style="font-weight:700;color:var(--text);min-width:20px;text-align:right;">60</span>s
+    </div>
+    <div class="noc-time">
+      <div class="noc-clock" id="nocClock">--:--:--</div>
+      <div class="noc-date" id="nocDateStr">--</div>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="noc-kpis">
+    <div class="kpi kpi-blue">
+      <div class="kpi-icon"><i class="bi bi-ticket-detailed-fill" style="color:#60a5fa;"></i></div>
+      <div class="kpi-lbl">Abiertos</div>
+      <div class="kpi-num" id="kpi-abiertos">—</div>
+    </div>
+    <div class="kpi kpi-red" id="kpi-breach-card">
+      <div class="kpi-icon"><i class="bi bi-exclamation-octagon-fill" style="color:#f87171;"></i></div>
+      <div class="kpi-lbl">En Breach</div>
+      <div class="kpi-num" id="kpi-breach">—</div>
+    </div>
+    <div class="kpi kpi-green">
+      <div class="kpi-icon"><i class="bi bi-check-circle-fill" style="color:#34d399;"></i></div>
+      <div class="kpi-lbl">Resueltos Hoy</div>
+      <div class="kpi-num" id="kpi-resueltos">—</div>
+    </div>
+    <div class="kpi kpi-orange">
+      <div class="kpi-icon"><i class="bi bi-person-x-fill" style="color:#fbbf24;"></i></div>
+      <div class="kpi-lbl">Sin Asignar</div>
+      <div class="kpi-num" id="kpi-sin">—</div>
+    </div>
+    <div class="kpi kpi-p1">
+      <div class="kpi-icon"><i class="bi bi-fire" style="color:#f87171;"></i></div>
+      <div class="kpi-lbl">P1 Críticos</div>
+      <div class="kpi-num" id="kpi-p1">—</div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="noc-body">
+    <!-- Left: Top Técnicos -->
+    <div class="noc-panel">
+      <div class="noc-panel-header">
+        <i class="bi bi-trophy-fill" style="color:#f59e0b;"></i> Top Técnicos Hoy
+      </div>
+      <div class="noc-panel-body" id="nocTechs">
+        <div class="tech-empty"><div class="noc-skel" style="height:12px;width:80%;margin:auto;"></div></div>
+      </div>
+    </div>
+
+    <!-- Right: Últimas incidencias -->
+    <div class="noc-panel">
+      <div class="noc-panel-header">
+        <i class="bi bi-clock-history" style="color:#60a5fa;"></i> Últimas Incidencias Abiertas
+      </div>
+      <div class="noc-panel-body" id="nocRecientes">
+        <% for(let i=0;i<5;i++) { %>
+        <div class="tkt-row">
+          <div><div class="noc-skel" style="height:11px;width:70px;margin-bottom:4px;"></div></div>
+          <div><div class="noc-skel" style="height:11px;width:90%;"></div></div>
+          <div><div class="noc-skel" style="height:18px;width:28px;border-radius:4px;"></div></div>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="noc-footer">
+    <div class="prio-item"><div class="prio-dot P1"></div><span>P1</span> <span class="prio-val" id="fp1">—</span></div>
+    <div class="prio-item"><div class="prio-dot P2"></div><span>P2</span> <span class="prio-val" id="fp2">—</span></div>
+    <div class="prio-item"><div class="prio-dot P3"></div><span>P3</span> <span class="prio-val" id="fp3">—</span></div>
+    <div class="prio-item"><div class="prio-dot P4"></div><span>P4</span> <span class="prio-val" id="fp4">—</span></div>
+    <div class="footer-sep"></div>
+    <a href="/itsm/incidencias/gestion" style="font-size:11px;color:var(--muted);text-decoration:none;"><i class="bi bi-arrow-left" style="margin-right:4px;"></i>Volver a gestión</a>
+    <span class="noc-ts">Última actualización: <span id="nocTs">—</span></span>
+  </div>
+
+</div>
+
+<script>
+// ── Clock ──
+(function _clock() {
+  const DAYS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  function tick() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('nocClock').textContent = `${h}:${m}:${s}`;
+    document.getElementById('nocDateStr').textContent =
+      `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  }
+  tick(); setInterval(tick, 1000);
+})();
+
+// ── Notifications ──
+let _nocNotifiedKeys = new Set();
+function nocReqNotif() {
+  Notification.requestPermission().then(p => {
+    if (p === 'granted') document.getElementById('nocNotifBar').style.display = 'none';
+  });
+}
+(function _checkNotifBar() {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission === 'default') {
+    document.getElementById('nocNotifBar').style.display = 'flex';
+  }
+})();
+
+// ── Render helpers ──
+const PRIO_COLOR = { P1:'#ef4444', P2:'#f97316', P3:'#3b82f6', P4:'#6b7280' };
+const RANK_CLASS = ['gold','silver','bronze'];
+
+function _renderTechs(list) {
+  const el = document.getElementById('nocTechs');
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="tech-empty"><i class="bi bi-emoji-smile" style="font-size:20px;opacity:.3;display:block;margin-bottom:6px;"></i>Sin resoluciones hoy aún</div>';
+    return;
+  }
+  el.innerHTML = list.map((t, i) => `
+    <div class="tech-row">
+      <span class="tech-rank ${RANK_CLASS[i]||''}">${i+1}</span>
+      <div class="tech-avatar">${(t.nombre||'?').charAt(0).toUpperCase()}</div>
+      <span class="tech-name">${_esc(t.nombre||'Desconocido')}</span>
+      <span class="tech-count">${t.resueltos}</span>
+    </div>`).join('');
+}
+
+function _renderRecientes(list) {
+  const el = document.getElementById('nocRecientes');
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="tech-empty">Sin incidencias abiertas</div>';
+    return;
+  }
+  el.innerHTML = list.map(t => `
+    <div class="tkt-row">
+      <div>
+        <div class="tkt-key">${_esc(t.ticket_key||'')}</div>
+        <div class="tkt-meta">${_esc(t.assigned_to_name||'Sin asignar')}</div>
+      </div>
+      <div class="tkt-sum">${_esc((t.summary||'').slice(0,80))}</div>
+      <div><span class="tkt-prio ${t.priority||'P4'}">${_esc(t.priority||'—')}</span></div>
+    </div>`).join('');
+}
+
+function _renderPrioBars(list) {
+  const map = {};
+  (list||[]).forEach(r => { map[r.priority] = r.n; });
+  ['P1','P2','P3','P4'].forEach(p => {
+    const el = document.getElementById('f'+p.toLowerCase());
+    if (el) el.textContent = map[p] !== undefined ? map[p] : '0';
+  });
+}
+
+function _esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Data fetch ──
+let _countdown = 60;
+let _prevBreach = 0;
+
+async function nocFetch() {
+  try {
+    const r = await fetch('/api/jira/noc/stats', { credentials: 'include' });
+    const j = await r.json();
+    if (!j.success) return;
+    const d = j.data;
+
+    // KPIs
+    document.getElementById('kpi-abiertos').textContent = d.abiertos;
+    document.getElementById('kpi-breach').textContent   = d.breach;
+    document.getElementById('kpi-resueltos').textContent = d.resueltos_hoy;
+    document.getElementById('kpi-sin').textContent      = d.sin_asignar;
+    document.getElementById('kpi-p1').textContent       = d.p1_criticos;
+
+    // Blink breach card when active
+    const breachCard = document.getElementById('kpi-breach-card');
+    if (d.breach > 0) breachCard.classList.add('kpi-alert');
+    else              breachCard.classList.remove('kpi-alert');
+
+    // Browser notification for new breach tickets (NOC-level, by count delta)
+    if (Notification.permission === 'granted' && d.breach > _prevBreach) {
+      const delta = d.breach - _prevBreach;
+      try {
+        new Notification('🔴 SLA Breach NOC', {
+          body: `${d.breach} ticket${d.breach!==1?'s':''} en breach de SLA`,
+          icon: '/images/movistar-logo.png',
+          tag: 'noc-breach',
+          requireInteraction: false
+        });
+      } catch(_) {}
+    }
+    _prevBreach = d.breach;
+
+    _renderTechs(d.top_tecnicos);
+    _renderRecientes(d.recientes);
+    _renderPrioBars(d.por_prioridad);
+
+    const ts = j.ts ? new Date(j.ts).toLocaleTimeString('es') : '—';
+    document.getElementById('nocTs').textContent = ts;
+
+    _countdown = 60;
+  } catch(e) {
+    console.error('[NOC]', e.message);
+  }
+}
+
+// ── Auto-refresh countdown ──
+nocFetch();
+setInterval(function() {
+  _countdown--;
+  const el = document.getElementById('nocCountdown');
+  if (el) el.textContent = Math.max(0, _countdown);
+  if (_countdown <= 0) { _countdown = 60; nocFetch(); }
+}, 1000);
+</script>
+</body>
+</html>

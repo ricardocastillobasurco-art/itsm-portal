@@ -1,0 +1,293 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "description": "ITSM Platform — Observabilidad operacional",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "HTTP",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 100 },
+            { "color": "red", "value": 500 }
+          ]}
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Requests / min",
+      "type": "stat",
+      "targets": [{
+        "expr": "round(sum(rate(itsm_http_requests_total[1m])) * 60)",
+        "legendFormat": "req/min"
+      }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "unit": "percentunit",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 0.01 },
+            { "color": "red", "value": 0.05 }
+          ]}
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Error Rate (5xx)",
+      "type": "stat",
+      "targets": [{
+        "expr": "sum(rate(itsm_http_errors_total{status_code=~'5..'}[5m])) / sum(rate(itsm_http_requests_total[5m]))",
+        "legendFormat": "error rate"
+      }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 1 },
+          { "color": "red", "value": 3 }
+        ]}
+      }},
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Latencia p95",
+      "type": "stat",
+      "targets": [{
+        "expr": "histogram_quantile(0.95, sum(rate(itsm_http_request_duration_seconds_bucket[5m])) by (le))",
+        "legendFormat": "p95"
+      }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "id": 10,
+      "title": "Requests por ruta (top 10)",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "topk(10, sum by (route, method) (rate(itsm_http_requests_total[5m])))",
+        "legendFormat": "{{method}} {{route}}"
+      }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "id": 11,
+      "title": "Latencia por ruta (p95)",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "histogram_quantile(0.95, sum by (le, route) (rate(itsm_http_request_duration_seconds_bucket[5m])))",
+        "legendFormat": "{{route}}"
+      }]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 101,
+      "title": "ITSM — Negocio",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 50 },
+          { "color": "red", "value": 200 }
+        ]}
+      }},
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 14 },
+      "id": 20,
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Tickets abiertos",
+      "type": "stat",
+      "targets": [{
+        "expr": "sum(itsm_open_tickets)",
+        "legendFormat": "abiertos"
+      }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 14 },
+      "id": 21,
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Tickets creados (1h)",
+      "type": "stat",
+      "targets": [{
+        "expr": "round(increase(itsm_tickets_created_total[1h]))",
+        "legendFormat": "creados"
+      }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 1 },
+          { "color": "red", "value": 5 }
+        ]}
+      }},
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 14 },
+      "id": 22,
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "SLA Breaches (1h)",
+      "type": "stat",
+      "targets": [{
+        "expr": "round(increase(itsm_sla_breaches_total[1h]))",
+        "legendFormat": "breaches"
+      }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "id": 30,
+      "title": "Tickets creados por prioridad",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "sum by (priority) (increase(itsm_tickets_created_total[30m]))",
+        "legendFormat": "{{priority}}"
+      }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "id": 31,
+      "title": "SLA Breaches por tenant",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "sum by (tenant, priority) (increase(itsm_sla_breaches_total[30m]))",
+        "legendFormat": "{{tenant}} — {{priority}}"
+      }]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 102,
+      "title": "IA (Groq)",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+      "id": 40,
+      "title": "Duración llamadas IA (p50 / p95 / p99)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(itsm_ai_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(itsm_ai_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(itsm_ai_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+      "id": 41,
+      "title": "Clasificaciones IA por operación",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "sum by (operation) (rate(itsm_ai_request_duration_seconds_count[5m]))",
+        "legendFormat": "{{operation}}"
+      }]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "id": 103,
+      "title": "Proceso Node.js",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "id": 50,
+      "title": "Memoria heap Node.js",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "itsm_nodejs_heap_size_used_bytes",
+          "legendFormat": "heap used"
+        },
+        {
+          "expr": "itsm_nodejs_heap_size_total_bytes",
+          "legendFormat": "heap total"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "id": 51,
+      "title": "Event Loop Lag",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "rate(itsm_nodejs_eventloop_lag_seconds_sum[1m])",
+        "legendFormat": "event loop lag"
+      }]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["itsm", "node", "prometheus"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": "Prometheus",
+        "definition": "label_values(itsm_http_requests_total, tenant)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Tenant",
+        "multi": true,
+        "name": "tenant",
+        "query": "label_values(itsm_http_requests_total, tenant)",
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "ITSM Platform — Overview",
+  "uid": "itsm-overview-v1",
+  "version": 1
+}

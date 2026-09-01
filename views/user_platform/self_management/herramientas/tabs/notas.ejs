@@ -1,0 +1,59 @@
+  <!-- ─── TAB 1: NOTAS ────────────────────────────────────────────────────── -->
+  <div class="section-tab" id="toolTab1">
+    <div style="display:flex;flex-direction:column;height:72vh;min-height:520px;background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <!-- Header: título + acciones -->
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;background:var(--hdr);">
+        <input type="text" id="noteTitleInput" placeholder="Título de la nota…"
+          style="flex:1;font-size:16px;font-weight:800;border:none;background:transparent;color:var(--text);outline:none;"
+          oninput="notesAutoSave()">
+        <button class="btn-sm btn-outline" onclick="notesDownloadTXT()" title="Descargar TXT"><i class="bi bi-filetype-txt"></i></button>
+        <button class="btn-sm" style="background:#6366f1;color:#fff;border:none;" onclick="notesDownloadPNG()" title="Descargar imagen PNG"><i class="bi bi-image"></i> PNG</button>
+      </div>
+      <!-- Toolbar de formato -->
+      <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;gap:2px;flex-wrap:wrap;align-items:center;background:var(--hdr);">
+        <button class="nfmt" onclick="notesFmt('bold')"          title="Negrita"><b>B</b></button>
+        <button class="nfmt" onclick="notesFmt('italic')"        title="Cursiva"><i>I</i></button>
+        <button class="nfmt" onclick="notesFmt('underline')"     title="Subrayar"><u>U</u></button>
+        <button class="nfmt" onclick="notesFmt('strikeThrough')" title="Tachado"><s>S</s></button>
+        <div class="nfmt-sep"></div>
+        <button class="nfmt" onclick="notesFmt('formatBlock','h2')" title="Título grande">H2</button>
+        <button class="nfmt" onclick="notesFmt('formatBlock','h3')" title="Subtítulo">H3</button>
+        <button class="nfmt" onclick="notesFmt('formatBlock','p')"  title="Párrafo normal">P</button>
+        <div class="nfmt-sep"></div>
+        <button class="nfmt" onclick="notesFmt('insertUnorderedList')" title="Lista viñetas"><i class="bi bi-list-ul"></i></button>
+        <button class="nfmt" onclick="notesFmt('insertOrderedList')"   title="Lista numerada"><i class="bi bi-list-ol"></i></button>
+        <div class="nfmt-sep"></div>
+        <button class="nfmt" onclick="notesFmt('justifyLeft')"   title="Izquierda"><i class="bi bi-text-left"></i></button>
+        <button class="nfmt" onclick="notesFmt('justifyCenter')" title="Centro"><i class="bi bi-text-center"></i></button>
+        <button class="nfmt" onclick="notesFmt('justifyRight')"  title="Derecha"><i class="bi bi-text-right"></i></button>
+        <div class="nfmt-sep"></div>
+        <label class="nfmt" title="Color de texto" style="cursor:pointer;gap:2px;display:flex;align-items:center;">
+          <span style="font-size:11px;font-weight:700;text-decoration:underline;text-decoration-color:#ef4444;">A</span>
+          <input type="color" style="width:0;height:0;opacity:0;position:absolute;" onchange="notesFmt('foreColor',this.value)">
+        </label>
+        <label class="nfmt" title="Resaltar" style="cursor:pointer;display:flex;align-items:center;">
+          <i class="bi bi-highlighter" style="font-size:11px;"></i>
+          <input type="color" value="#fef08a" style="width:0;height:0;opacity:0;position:absolute;" onchange="notesFmt('hiliteColor',this.value)">
+        </label>
+        <div class="nfmt-sep"></div>
+        <button class="nfmt" onclick="notesFmt('undo')" title="Deshacer"><i class="bi bi-arrow-counterclockwise"></i></button>
+        <button class="nfmt" onclick="notesFmt('redo')"  title="Rehacer"><i class="bi bi-arrow-clockwise"></i></button>
+        <div class="nfmt-sep"></div>
+        <select onchange="notesFmt('fontSize',this.value)" style="font-size:11px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);padding:2px 4px;cursor:pointer;" title="Tamaño">
+          <option value="2">Pequeño</option>
+          <option value="3" selected>Normal</option>
+          <option value="4">Grande</option>
+          <option value="5">Muy grande</option>
+        </select>
+      </div>
+      <!-- Área de edición -->
+      <div id="noteEditorWrap" style="flex:1;overflow-y:auto;background:var(--bg);">
+        <div id="noteEditor" contenteditable="true" spellcheck="true"
+          style="min-height:100%;padding:20px 28px;outline:none;font-size:14px;line-height:1.75;color:var(--text);max-width:780px;margin:0 auto;"
+          oninput="notesAutoSave()"></div>
+      </div>
+      <div style="padding:5px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);">
+        <i class="bi bi-cloud-check-fill" style="color:#10b981;"></i> <span id="notesSavedLabel">Guardado automáticamente en este dispositivo</span>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,709 @@
+﻿<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal de Licenciamiento M365</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/core/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>(function(){const s=localStorage.getItem('dashboardTheme')||'light';document.documentElement.setAttribute('data-theme',s);})();</script>
+<style>
+:root,[data-theme="light"]{
+  --bg:#f0f4f8;--card:#ffffff;--hdr:#f8fafc;--border:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;
+  --primary:#3b82f6;--success:#10b981;--warning:#f59e0b;
+  --danger:#ef4444;--info:#06b6d4;--purple:#8b5cf6;
+  --hover:#f1f5f9;--input-bg:#f8fafc;
+  --sh:0 1px 3px rgba(0,0,0,.07);--sh-md:0 4px 16px rgba(0,0,0,.1);
+  --mono:'JetBrains Mono',monospace;
+}
+[data-theme="dark"]{
+  --bg:#0f172a;--card:#1e293b;--hdr:#162032;--border:#2d3f55;
+  --text:#e2e8f0;--muted:#94a3b8;
+  --primary:#60a5fa;--success:#34d399;--warning:#fbbf24;
+  --danger:#f87171;--info:#22d3ee;--purple:#a78bfa;
+  --hover:#243348;--input-bg:#162032;
+  --sh:0 1px 3px rgba(0,0,0,.3);--sh-md:0 4px 16px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;transition:background .3s,color .3s;}
+.pg{margin-top:60px;padding:18px 22px;display:flex;flex-direction:column;gap:14px;max-width:1700px;margin-left:auto;margin-right:auto;}
+
+/* KPI */
+.kpi-row{display:grid;gap:10px;}
+.kpi-row-6{grid-template-columns:repeat(6,1fr);}
+.kpi-row-4{grid-template-columns:repeat(4,1fr);}
+@media(max-width:1200px){.kpi-row-6{grid-template-columns:repeat(3,1fr);}.kpi-row-4{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:640px){.kpi-row-6,.kpi-row-4{grid-template-columns:repeat(2,1fr);}}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;
+    position:relative;overflow:hidden;box-shadow:var(--sh);transition:transform .2s,box-shadow .2s;}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--sh-md);}
+.kpi-lbl{font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:5px;}
+.kpi-val{font-size:24px;font-weight:900;line-height:1;letter-spacing:-1px;font-family:var(--mono);}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:3px;}
+.kpi-ico{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:28px;opacity:.08;}
+.kpi-trend{font-size:10px;margin-top:4px;display:flex;align-items:center;gap:4px;}
+.cg{color:var(--success);}.cr{color:var(--danger);}.ca{color:var(--warning);}
+.cb{color:var(--primary);}.cp{color:var(--purple);}.ci{color:var(--info);}
+
+/* Savings highlight */
+.kpi.kpi-savings{border-color:rgba(16,185,129,.3);background:linear-gradient(135deg,var(--card),rgba(16,185,129,.04));}
+.kpi.kpi-warn{border-color:rgba(239,68,68,.25);background:linear-gradient(135deg,var(--card),rgba(239,68,68,.03));}
+
+/* Card */
+.card-ui{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--sh);}
+.card-head{padding:12px 18px;background:var(--hdr);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.card-head .title{display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px;font-weight:700;}
+.card-body{padding:16px;}
+
+/* Tab nav */
+.tab-bar{display:flex;gap:3px;background:var(--hdr);padding:5px;border-radius:12px;border:1px solid var(--border);flex-wrap:wrap;}
+.tab-btn{padding:8px 14px;border:none;border-radius:8px;background:transparent;color:var(--muted);
+    font-size:12px;font-weight:700;cursor:pointer;transition:all .18s;white-space:nowrap;
+    display:flex;align-items:center;gap:6px;}
+.tab-btn.active{background:var(--card);color:var(--primary);box-shadow:var(--sh);}
+.tab-btn:hover:not(.active){background:var(--hover);}
+.tab-panel{display:none;}.tab-panel.active{display:flex;flex-direction:column;gap:14px;}
+
+/* Table */
+.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl thead th{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700;
+    padding:10px 14px;background:var(--hdr);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:1;}
+.tbl tbody td{padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+.tbl tbody tr:last-child td{border-bottom:none;}
+.tbl tbody tr:hover td{background:var(--hover);}
+.tbl-wrap{overflow:auto;max-height:460px;}
+.mono{font-family:var(--mono);font-size:11px;}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-ok    {background:rgba(16,185,129,.12);color:#059669;}
+.badge-warn  {background:rgba(245,158,11,.12);color:#b45309;}
+.badge-bad   {background:rgba(239,68,68,.12); color:#dc2626;}
+.badge-muted {background:rgba(100,116,139,.1);color:var(--muted);}
+.badge-blue  {background:rgba(59,130,246,.1); color:var(--primary);}
+.badge-purple{background:rgba(139,92,246,.1); color:var(--purple);}
+
+/* Progress bar */
+.pbar-wrap{background:var(--border);border-radius:4px;height:7px;overflow:hidden;min-width:60px;}
+.pbar-fill{height:100%;border-radius:4px;transition:width .4s;}
+
+/* Sync panel */
+.sync-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:var(--sh);}
+.sync-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.sync-dot.idle   {background:var(--muted);}
+.sync-dot.running{background:var(--warning);animation:pulse .8s infinite;}
+.sync-dot.ok     {background:var(--success);}
+.sync-dot.err    {background:var(--danger);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-progress{flex:1;min-width:200px;}
+.sync-pbar-bg{background:var(--border);border-radius:4px;height:6px;overflow:hidden;margin-top:6px;}
+.sync-pbar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--primary),var(--info));transition:width .4s;}
+
+/* Group cards */
+.grp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;}
+.grp-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;
+    box-shadow:var(--sh);transition:transform .18s,box-shadow .18s;cursor:pointer;}
+.grp-card:hover{transform:translateY(-2px);box-shadow:var(--sh-md);}
+.grp-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+
+/* Drill-down Dirección */
+.dir-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
+.dir-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;
+    box-shadow:var(--sh);transition:transform .18s,box-shadow .18s;cursor:pointer;position:relative;overflow:hidden;}
+.dir-card:hover{transform:translateY(-3px);box-shadow:var(--sh-md);border-color:var(--primary);}
+.dir-card-name{font-size:13px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;line-height:1.3;}
+.dir-card-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;}
+.dir-kpi{text-align:center;}
+.dir-kpi-val{font-size:18px;font-weight:900;font-family:var(--mono);line-height:1;}
+.dir-kpi-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-top:1px;}
+.dir-pbar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin:6px 0 4px;}
+.dir-pbar-fill{height:100%;border-radius:4px;transition:width .6s;}
+.dir-card-footer{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);}
+.dir-card-footer .cost{font-weight:700;font-family:var(--mono);color:var(--success);}
+.dir-card .arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:20px;
+    opacity:.12;transition:opacity .2s;}
+.dir-card:hover .arrow{opacity:.4;}
+
+/* Breadcrumb */
+.bc-item{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;cursor:pointer;
+    color:var(--muted);padding:2px 4px;border-radius:6px;transition:color .15s,background .15s;}
+.bc-item:hover,.bc-item.bc-root:hover{color:var(--primary);background:rgba(59,130,246,.07);}
+.bc-sep{color:var(--border);margin:0 2px;font-size:14px;user-select:none;}
+.bc-current{color:var(--text);cursor:default;font-weight:800;}
+.bc-current:hover{background:transparent;color:var(--text);}
+
+/* Dept bars */
+.dept-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.dept-row:last-child{border-bottom:none;}
+.dept-name{width:160px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dept-bar-bg{flex:1;background:var(--border);border-radius:4px;height:10px;overflow:hidden;}
+.dept-bar-fill{height:100%;border-radius:4px;transition:width .5s;}
+.dept-pct{width:36px;font-size:11px;font-weight:700;text-align:right;}
+
+/* Rec cards */
+.rec-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--sh);}
+.rec-card.alta   {border-left:4px solid var(--danger);}
+.rec-card.media  {border-left:4px solid var(--warning);}
+.rec-card.baja   {border-left:4px solid var(--info);}
+.rec-type-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.rec-eliminar{background:rgba(239,68,68,.1);color:#dc2626;}
+.rec-degradar{background:rgba(245,158,11,.1);color:#b45309;}
+.rec-revisar {background:rgba(6,182,212,.1); color:#0891b2;}
+
+/* Buttons */
+.btn-sm-act{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:8px;
+    font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all .18s;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:#2563eb;}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed;}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--muted);}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary);}
+.btn-success{background:var(--success);color:#fff;}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-danger:hover{background:#dc2626;}
+
+/* Search / filter bar */
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.sinp{padding:7px 10px 7px 32px;border:1px solid var(--border);border-radius:8px;font-size:12px;
+    background:var(--input-bg);color:var(--text);outline:none;transition:border-color .2s;}
+.sinp:focus{border-color:var(--primary);}
+.sinp-wrap{position:relative;}
+.sinp-wrap i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none;}
+.fsel{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;
+    background:var(--input-bg);color:var(--text);outline:none;}
+
+/* Skeleton */
+.skel{background:linear-gradient(90deg,var(--border) 25%,var(--hover) 50%,var(--border) 75%);
+    background-size:200%;animation:shim 1.3s infinite;border-radius:8px;}
+@keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Toast */
+#toastBox{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.t-item{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:12px;
+    padding:10px 16px;font-size:13px;font-weight:500;box-shadow:var(--sh-md);
+    display:flex;align-items:center;gap:10px;min-width:240px;pointer-events:auto;animation:tin .2s ease;}
+.t-ok{border-left:4px solid var(--success);}.t-err{border-left:4px solid var(--danger);}
+.t-inf{border-left:4px solid var(--info);}
+@keyframes tin{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+
+/* Modal */
+.modal-ov{display:none;position:fixed;inset:0;z-index:1050;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:20px;}
+.modal-ov.open{display:flex;}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:18px;width:100%;
+    max-width:700px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--sh-md);}
+.modal-hdr{padding:14px 20px;background:var(--hdr);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;}
+.modal-body{padding:18px;overflow-y:auto;flex:1;}
+.modal-close{background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;line-height:1;padding:4px 8px;border-radius:6px;}
+.modal-close:hover{background:var(--hover);}
+
+/* Pagination */
+.pagination{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.page-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s;}
+.page-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.page-btn:hover:not(.active):not(:disabled){border-color:var(--primary);color:var(--primary);}
+.page-btn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* Cost config table */
+.cost-inp{width:90px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;
+    font-size:12px;font-family:var(--mono);background:var(--input-bg);color:var(--text);text-align:right;}
+.cost-inp:focus{outline:none;border-color:var(--primary);}
+
+/* Empty state */
+.empty{text-align:center;padding:36px;color:var(--muted);}
+.empty i{font-size:36px;opacity:.2;display:block;margin-bottom:8px;}
+
+/* Alert cards */
+.alrt-card{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:12px;border:1px solid;margin-bottom:8px;}
+.alrt-card.critical{background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.2);}
+.alrt-card.warning{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.2);}
+.alrt-ico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.alrt-card.critical .alrt-ico{background:rgba(239,68,68,.1);color:var(--danger);}
+.alrt-card.warning  .alrt-ico{background:rgba(245,158,11,.1);color:var(--warning);}
+.alrt-title{font-size:12.5px;font-weight:700;color:var(--text);}
+.alrt-detail{font-size:11px;color:var(--muted);margin-top:2px;}
+.alrt-date{font-size:10.5px;color:var(--muted);white-space:nowrap;margin-left:auto;flex-shrink:0;}
+
+*::-webkit-scrollbar{width:5px;height:5px;}
+*::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+*::-webkit-scrollbar-track{background:transparent;}
+</style>
+</head>
+<body>
+<div id="toastBox"></div>
+
+<!-- Topbar mínimo -->
+<div style="position:fixed;top:0;left:0;right:0;height:48px;background:var(--card);border-bottom:1px solid var(--border);
+     display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:900;box-shadow:var(--sh);">
+  <a href="/administracion" style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;
+     color:var(--muted);text-decoration:none;padding:5px 12px;border:1px solid var(--border);border-radius:20px;
+     background:var(--input-bg);transition:color .2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--muted)'">
+    <i class="bi bi-arrow-left"></i> Administración
+  </a>
+  <div onclick="toggleTheme()" title="Cambiar tema" style="display:flex;align-items:center;gap:7px;cursor:pointer;
+       padding:5px 12px;border-radius:20px;user-select:none;transition:background .2s;"
+       onmouseover="this.style.background='rgba(0,0,0,.05)'" onmouseout="this.style.background='transparent'">
+    <i id="themeIcon" class="bi bi-moon-stars-fill" style="font-size:14px;color:var(--muted);"></i>
+    <div style="width:32px;height:17px;background:#cbd5e1;border-radius:9px;position:relative;transition:background .3s;" id="themeTrack">
+      <div style="width:12px;height:12px;background:#fff;border-radius:50%;position:absolute;top:2.5px;left:2.5px;
+           box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .3s;" id="themeKnob"></div>
+    </div>
+    <span id="themeLabel" style="font-size:12px;font-weight:600;color:var(--muted);">Oscuro</span>
+  </div>
+</div>
+
+<div class="pg" style="margin-top:60px;">
+
+  <!-- ══ HEADER ══ -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-size:19px;font-weight:800;display:flex;align-items:center;gap:10px;">
+        <span style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#0052CC,#2684FF);
+            display:inline-flex;align-items:center;justify-content:center;">
+          <i class="bi bi-microsoft" style="color:#fff;font-size:16px;"></i>
+        </span>
+        Portal de Licenciamiento M365
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+        Costos · Usuarios · Dirección · Recomendaciones · Tendencias — datos desde caché DB
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn-sm-act btn-success" id="btnSync" onclick="startSync()">
+        <i class="bi bi-arrow-clockwise" id="syncIco"></i> Sincronizar con Azure
+      </button>
+      <a href="/api/licenses/export" class="btn-sm-act btn-outline" target="_blank">
+        <i class="bi bi-download"></i> Exportar CSV
+      </a>
+      <button class="btn-sm-act btn-outline" onclick="openCostModal()">
+        <i class="bi bi-currency-dollar"></i> Costos
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ SYNC STATUS ══ -->
+  <div class="sync-panel" id="syncPanel">
+    <div class="sync-dot idle" id="syncDot"></div>
+    <div class="sync-progress">
+      <div style="font-size:12px;font-weight:600;" id="syncMsg">Listo · datos en caché local</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;" id="syncSub">Sincroniza para obtener datos actualizados de Azure AD</div>
+      <div class="sync-pbar-bg" id="syncBarWrap" style="display:none;">
+        <div class="sync-pbar-fill" id="syncBar" style="width:0%;"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-align:right;" id="syncTime"></div>
+  </div>
+
+  <!-- ══ KPI ROW ══ -->
+  <div class="kpi-row kpi-row-6" id="kpiRow">
+    <% for(let i=0;i<6;i++){ %><div class="kpi skel" style="height:80px;"></div><% } %>
+  </div>
+
+  <!-- ══ TABS ══ -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('resumen',this)"><i class="bi bi-pie-chart-fill"></i> Resumen</button>
+    <button class="tab-btn" onclick="switchTab('usuarios',this)"><i class="bi bi-people-fill"></i> Usuarios</button>
+    <button class="tab-btn" onclick="switchTab('areas',this)"><i class="bi bi-diagram-3"></i> Dirección</button>
+    <button class="tab-btn" onclick="switchTab('recom',this)"><i class="bi bi-lightbulb-fill"></i> Recomendaciones</button>
+    <button class="tab-btn" onclick="switchTab('historico',this)"><i class="bi bi-graph-up"></i> Histórico</button>
+    <button class="tab-btn" onclick="switchTab('grupos',this)"><i class="bi bi-collection-fill"></i> Grupos</button>
+    <button class="tab-btn" onclick="switchTab('sharepoint',this)"><i class="bi bi-cloud-fill"></i> SharePoint</button>
+    <button class="tab-btn" id="tabBtnAlertas" onclick="switchTab('alertas',this)">
+      <i class="bi bi-bell-fill" style="color:var(--danger);"></i> Alertas
+      <span id="alertasTabBadge" style="display:none;background:var(--danger);color:#fff;font-size:9px;font-weight:800;border-radius:10px;padding:1px 6px;margin-left:2px;"></span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('usoapps',this)"><i class="bi bi-graph-up-arrow"></i> Uso de apps</button>
+    <button class="tab-btn" onclick="switchTab('tendencias',this)"><i class="bi bi-bar-chart-fill"></i> Tendencias 30d</button>
+  </div>
+
+  <!-- ══ TAB: RESUMEN ══ -->
+  <div id="tab-resumen" class="tab-panel active">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <!-- SKU Cost table -->
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-key-fill cb"></i> SKUs suscritos y costo</span></div>
+        <div class="tbl-wrap" style="max-height:340px;">
+          <table class="tbl">
+            <thead><tr><th>SKU</th><th style="text-align:center;">Total</th><th style="text-align:center;">Usadas</th><th style="text-align:center;">Disp.</th><th>Uso</th><th style="text-align:right;">$/mes</th></tr></thead>
+            <tbody id="skuBody"><tr><td colspan="6" class="empty"><div class="skel" style="height:12px;width:200px;margin:0 auto;"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Cost donut + savings -->
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="card-ui">
+          <div class="card-head"><span class="title"><i class="bi bi-pie-chart-fill cp"></i> Distribución de costo</span></div>
+          <div class="card-body" style="height:200px;"><canvas id="costChart"></canvas></div>
+        </div>
+        <div class="card-ui" style="border-color:rgba(16,185,129,.3);">
+          <div class="card-head" style="background:rgba(16,185,129,.06);border-color:rgba(16,185,129,.2);">
+            <span class="title" style="color:var(--success);"><i class="bi bi-piggy-bank-fill"></i> Ahorro potencial estimado</span>
+          </div>
+          <div class="card-body">
+            <div style="font-size:36px;font-weight:900;font-family:var(--mono);color:var(--success);" id="savingsHero">—</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="savingsSub">por mes eliminando licencias sin uso</div>
+            <div style="margin-top:12px;font-size:11px;color:var(--muted);" id="savingsBreakdown"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: USUARIOS ══ -->
+  <div id="tab-usuarios" class="tab-panel">
+    <div class="card-ui">
+      <div class="card-head">
+        <span class="title"><i class="bi bi-people-fill cb"></i> Gestión de licencias por usuario</span>
+        <div class="filter-bar">
+          <div class="sinp-wrap"><i class="bi bi-search"></i>
+            <input class="sinp" style="width:200px;" id="userQ" placeholder="Nombre, email, UPN..." oninput="debounceUsers()">
+          </div>
+          <select class="fsel" id="userDept" onchange="loadUsers(1)"><option value="">Todos los dep.</option></select>
+          <select class="fsel" id="userGroup" onchange="loadUsers(1)">
+            <option value="">Todas las licencias</option>
+            <option>M365 E1</option><option>M365 E3</option><option>M365 E5</option>
+            <option>Power BI Pro</option><option>Power BI Premium</option>
+            <option>Visio P2</option><option>Project P3</option>
+            <option>Power Apps Premium</option><option>Power Automate</option><option>M365 EOP1</option>
+          </select>
+          <select class="fsel" id="userStatus" onchange="loadUsers(1)">
+            <option value="">Todos los estados</option>
+            <option value="ACTIVO">Activo</option>
+            <option value="BAJO USO">Bajo uso</option>
+            <option value="INACTIVO">Inactivo</option>
+            <option value="SIN USO">Sin uso</option>
+          </select>
+          <select class="fsel" id="userInactive" onchange="loadUsers(1)">
+            <option value="">Todos los días</option>
+            <option value="30">+30 días inactivo</option>
+            <option value="60">+60 días inactivo</option>
+            <option value="90">+90 días inactivo</option>
+          </select>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr>
+            <th>Nombre</th><th>Departamento</th><th>Licencias</th>
+            <th style="text-align:center;">Última actividad</th>
+            <th style="text-align:center;">Días inactivo</th>
+            <th style="text-align:center;">30d</th><th style="text-align:center;">60d</th><th style="text-align:center;">90d</th>
+            <th style="text-align:center;">Estado</th>
+            <th style="text-align:right;">$/mes</th>
+          </tr></thead>
+          <tbody id="usersBody"><tr><td colspan="10" class="empty"><i class="bi bi-people"></i>Cargando usuarios...</td></tr></tbody>
+        </table>
+      </div>
+      <div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);flex-wrap:wrap;gap:8px;">
+        <div style="font-size:11px;color:var(--muted);" id="usersPagInfo"></div>
+        <div class="pagination" id="usersPag"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: DIRECCIÓN (drill-down) ══ -->
+  <div id="tab-areas" class="tab-panel">
+    <!-- Breadcrumb -->
+    <div class="card-ui" style="padding:10px 16px;" id="dirBreadcrumb">
+      <span class="bc-item bc-root" onclick="drillDir(0)"><i class="bi bi-diagram-3"></i> Direcciones</span>
+    </div>
+
+    <!-- KPI strip for current level -->
+    <div class="kpi-row kpi-row-4" id="dirKpiRow" style="display:none;"></div>
+
+    <!-- Level 0: Direcciones cards -->
+    <div id="dirLevel0">
+      <div class="dir-grid" id="dirGrid">
+        <% for(let i=0;i<6;i++){ %><div class="skel" style="height:130px;border-radius:12px;"></div><% } %>
+      </div>
+    </div>
+
+    <!-- Level 1: Áreas dentro de una dirección -->
+    <div id="dirLevel1" style="display:none;">
+      <div class="dir-grid" id="areaGrid"></div>
+    </div>
+
+    <!-- Level 2: Usuarios en un área -->
+    <div id="dirLevel2" style="display:none; flex-direction:column; gap:12px;">
+      <!-- Filters row -->
+      <div class="card-ui">
+        <div class="card-head" style="flex-wrap:wrap;gap:8px;">
+          <span class="title"><i class="bi bi-funnel cb"></i> Filtros</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <select class="sinp" id="dirUsrStatus" onchange="loadDirUsers(1)" style="width:130px;padding:6px 10px;">
+              <option value="">Todos los estados</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="BAJO USO">Bajo uso</option>
+              <option value="INACTIVO">Inactivo</option>
+              <option value="SIN USO">Sin uso</option>
+            </select>
+            <select class="sinp" id="dirUsrGroup" onchange="loadDirUsers(1)" style="width:170px;padding:6px 10px;">
+              <option value="">Todas las licencias</option>
+            </select>
+            <select class="sinp" id="dirUsrInactive" onchange="loadDirUsers(1)" style="width:150px;padding:6px 10px;">
+              <option value="">Todos</option>
+              <option value="30">Sin uso +30 días</option>
+              <option value="60">Sin uso +60 días</option>
+              <option value="90">Sin uso +90 días</option>
+            </select>
+            <div class="sinp-wrap"><i class="bi bi-search"></i>
+              <input class="sinp" id="dirUsrQ" placeholder="Buscar usuario..." oninput="debDirQ()" style="width:180px;">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart + KPI fila -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:12px;">
+        <div class="card-ui">
+          <div class="card-head"><span class="title"><i class="bi bi-bar-chart-fill cp"></i> Distribución por días inactivos</span></div>
+          <div class="card-body" style="padding:12px;"><canvas id="dirInactChart" height="160"></canvas></div>
+        </div>
+        <div class="card-ui">
+          <div class="card-head"><span class="title"><i class="bi bi-pie-chart-fill ci"></i> Estado de uso</span></div>
+          <div class="card-body" style="padding:12px;"><canvas id="dirStatusChart" height="160"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Users table -->
+      <div class="card-ui">
+        <div class="card-head">
+          <span class="title"><i class="bi bi-people-fill cb"></i> Usuarios</span>
+          <span id="dirUsrCount" style="font-size:11px;color:var(--muted);"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr>
+              <th>Usuario</th><th>Cargo</th><th>Licencias</th>
+              <th style="text-align:center;">Última actividad</th>
+              <th style="text-align:center;">Días inactivo</th>
+              <th style="text-align:center;">Estado</th>
+              <th style="text-align:right;">$/mes</th>
+            </tr></thead>
+            <tbody id="dirUsrBody"><tr><td colspan="7" class="empty">Selecciona un área</td></tr></tbody>
+          </table>
+        </div>
+        <div id="dirUsrPag" style="padding:10px 16px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: RECOMENDACIONES ══ -->
+  <div id="tab-recom" class="tab-panel">
+    <!-- Savings summary -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;" id="recKpis">
+      <div class="kpi skel" style="height:70px;"></div>
+      <div class="kpi skel" style="height:70px;"></div>
+      <div class="kpi skel" style="height:70px;"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;" id="recList">
+      <div class="empty" style="padding:40px;"><i class="bi bi-lightbulb"></i>Cargando recomendaciones...</div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: HISTÓRICO ══ -->
+  <div id="tab-historico" class="tab-panel">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-graph-up cb"></i> Licencias consumidas (tendencia)</span></div>
+        <div class="card-body"><canvas id="histChart" height="220"></canvas></div>
+      </div>
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-currency-dollar cg"></i> Costo mensual (tendencia)</span></div>
+        <div class="card-body"><canvas id="costHistChart" height="220"></canvas></div>
+      </div>
+    </div>
+    <div class="card-ui">
+      <div class="card-head"><span class="title"><i class="bi bi-table"></i> Snapshots históricos</span></div>
+      <div class="tbl-wrap" style="max-height:300px;">
+        <table class="tbl">
+          <thead><tr><th>Fecha</th><th style="text-align:center;">Total licencias</th><th style="text-align:center;">Consumidas</th><th style="text-align:right;">Costo mensual USD</th></tr></thead>
+          <tbody id="histBody"><tr><td colspan="4" class="empty"><i class="bi bi-clock-history"></i>Sin datos históricos</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: GRUPOS ══ -->
+  <div id="tab-grupos" class="tab-panel">
+    <div class="grp-grid" id="groupsGrid">
+      <% for(let i=0;i<10;i++){ %><div class="skel" style="height:110px;border-radius:12px;"></div><% } %>
+    </div>
+  </div>
+
+  <!-- ══ TAB: SHAREPOINT ══ -->
+  <div id="tab-sharepoint" class="tab-panel">
+    <!-- Banner: falta permiso Sites.Read.All -->
+    <div id="spPermWarn" style="display:none;align-items:center;gap:10px;padding:10px 16px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:10px;font-size:12px;color:var(--warning);">
+      <i class="bi bi-shield-exclamation" style="font-size:18px;flex-shrink:0;"></i>
+      <span></span>
+      <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" style="margin-left:auto;font-weight:700;color:var(--warning);white-space:nowrap;">→ Azure AD Permisos</a>
+    </div>
+    <div class="kpi-row kpi-row-4" id="spKpiRow">
+      <% for(let i=0;i<4;i++){ %><div class="kpi skel" style="height:75px;"></div><% } %>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 280px;gap:14px;">
+      <div class="card-ui">
+        <div class="card-head">
+          <span class="title"><i class="bi bi-cloud-fill ci"></i> Sitios SharePoint</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="sinp-wrap"><i class="bi bi-search"></i>
+              <input class="sinp" style="width:170px;" id="spSearch" placeholder="Buscar sitio..." oninput="filterSp(this.value)">
+            </div>
+            <button id="spRefreshBtn" class="btn-sm-act btn-outline" onclick="spRefreshCache()" title="Limpiar caché y recargar nombres de sitios desde Graph API">
+              <i class="bi bi-arrow-clockwise"></i> Actualizar SP
+            </button>
+            <button class="btn-sm-act btn-outline" onclick="spExportCSV()"><i class="bi bi-download"></i> CSV</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr>
+              <th>Nombre del sitio</th>
+              <th>Propietario</th>
+              <th style="text-align:right;">Asignado</th>
+              <th style="min-width:120px;">% Usado</th>
+              <th style="text-align:center;">Vistas</th>
+              <th style="text-align:center;">Archivos</th>
+              <th style="text-align:center;">Creado</th>
+              <th style="text-align:center;">Última activ.</th>
+            </tr></thead>
+            <tbody id="spBody"><tr><td colspan="8" class="empty"><i class="bi bi-cloud"></i>Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-pie-chart-fill cp"></i> Top almacenamiento</span></div>
+        <div class="card-body"><canvas id="spChart" height="280"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: ALERTAS ══ -->
+  <div id="tab-alertas" class="tab-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div>
+        <div style="font-size:14px;font-weight:800;color:var(--text);">Centro de alertas</div>
+        <div style="font-size:11px;color:var(--muted);">Dispositivos no conformes · Usuarios en riesgo · Presión de licencias</div>
+      </div>
+      <button class="btn-sm-act btn-outline" onclick="loadAlerts(true)"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+    </div>
+    <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);" id="alertKpiRow">
+      <div class="kpi skel" style="height:75px;"></div>
+      <div class="kpi skel" style="height:75px;"></div>
+      <div class="kpi skel" style="height:75px;"></div>
+    </div>
+    <div id="alertsList">
+      <div class="empty" style="padding:40px;"><i class="bi bi-bell"></i>Cargando alertas…</div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: USO DE APLICACIONES ══ -->
+  <div id="tab-usoapps" class="tab-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div>
+        <div style="font-size:14px;font-weight:800;color:var(--text);">Uso de aplicaciones M365</div>
+        <div style="font-size:11px;color:var(--muted);">Usuarios activos por servicio · Período de 30 días</div>
+      </div>
+      <button class="btn-sm-act btn-outline" onclick="loadLicReports(true)"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+    </div>
+    <div id="licReportsContent">
+      <div class="empty" style="padding:40px;"><i class="bi bi-graph-up-arrow"></i> Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: TENDENCIAS 30D ══ -->
+  <div id="tab-tendencias" class="tab-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div>
+        <div style="font-size:14px;font-weight:800;color:var(--text);">Tendencias de actividad · 30 días</div>
+        <div style="font-size:11px;color:var(--muted);">Usuarios activos por servicio Microsoft 365</div>
+      </div>
+      <button class="btn-sm-act btn-outline" onclick="loadLicTrends(true)"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+    </div>
+    <div id="licTrendsContent">
+      <div class="empty" style="padding:40px;"><i class="bi bi-bar-chart-fill"></i> Cargando…</div>
+    </div>
+  </div>
+
+</div><!-- /.pg -->
+
+<!-- ══ MODAL: Detalle grupo ══ -->
+<div class="modal-ov" id="groupModal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="mGrpIco" class="grp-icon"></div>
+        <div><div id="mGrpTitle" style="font-size:14px;font-weight:700;"></div><div id="mGrpSub" style="font-size:11px;color:var(--muted);"></div></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('groupModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="sinp-wrap" style="margin-bottom:10px;"><i class="bi bi-search"></i>
+        <input class="sinp" style="width:100%;" id="mGrpQ" placeholder="Buscar miembro..." oninput="filterGrpMembers(this.value)">
+      </div>
+      <div class="tbl-wrap" style="max-height:440px;">
+        <table class="tbl">
+          <thead><tr><th>Nombre</th><th>Email</th><th>Departamento</th><th>Estado</th></tr></thead>
+          <tbody id="mGrpBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Configuración de costos ══ -->
+<div class="modal-ov" id="costModal">
+  <div class="modal-box" style="max-width:580px;">
+    <div class="modal-hdr">
+      <div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-currency-dollar" style="color:var(--success);"></i> Configurar costo por usuario (USD/mes)
+      </div>
+      <button class="modal-close" onclick="closeModal('costModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px;padding:8px 12px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:8px;">
+        <i class="bi bi-info-circle me-1"></i>
+        Define el costo mensual por usuario para cada SKU. Estos valores se usan para calcular el costo total y el ahorro potencial.
+      </div>
+      <table class="tbl">
+        <thead><tr><th>SKU</th><th>Nombre</th><th style="text-align:right;">$/usuario/mes</th><th style="text-align:center;">Guardar</th></tr></thead>
+        <tbody id="costCfgBody"><tr><td colspan="4" class="empty">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/core/api.js"></script>
+<script src="/js/licenses-dashboard.js"></script>
+<script>
+function toggleTheme(){
+  const h=document.documentElement, n=h.getAttribute('data-theme')==='dark'?'light':'dark';
+  h.setAttribute('data-theme',n); localStorage.setItem('dashboardTheme',n); _syncThemeUI(n);
+}
+function _syncThemeUI(t){
+  const icon=document.getElementById('themeIcon'), lbl=document.getElementById('themeLabel'),
+        track=document.getElementById('themeTrack'), knob=document.getElementById('themeKnob');
+  if(!icon) return;
+  const dark = t==='dark';
+  icon.className = dark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+  if(lbl)   lbl.textContent  = dark ? 'Claro'  : 'Oscuro';
+  if(track) track.style.background = dark ? '#3b82f6' : '#cbd5e1';
+  if(knob)  knob.style.transform   = dark ? 'translateX(15px)' : 'translateX(0)';
+}
+document.addEventListener('DOMContentLoaded', function(){
+  _syncThemeUI(localStorage.getItem('dashboardTheme')||'light');
+  const _t = new URLSearchParams(location.search).get('tab');
+  if(_t){ const _b = document.querySelector('.tab-btn[onclick*="\''+_t+'\'"]'); if(_b) _b.click(); }
+});
+</script>
+</body>
+</html>

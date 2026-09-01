@@ -1,0 +1,120 @@
+  <!-- HEADER -->
+  <div class="page-hdr">
+    <% if (embed) { %>
+    <div class="page-hdr-icon" style="background:linear-gradient(135deg,#059669,#0d9488);">
+      <i class="bi bi-tools" style="color:#fff;"></i>
+    </div>
+    <div>
+      <h1>Herramientas TI</h1>
+      <p>Productividad y gestión del equipo</p>
+    </div>
+    <% } else { %>
+    <div class="page-hdr-icon" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);">
+      <i class="bi bi-printer-fill" style="color:#fff;"></i>
+    </div>
+    <div>
+      <h1>Mis Impresiones</h1>
+      <p>Envía y gestiona tus trabajos de impresión</p>
+    </div>
+    <div class="page-hdr-right">
+      <div class="user-chip" id="userChip" style="display:none;">
+        <div class="user-chip-av" id="userAvatar">?</div>
+        <span id="userNameChip"></span>
+      </div>
+      <button class="btn-sm btn-outline ht-btn-volver" onclick="history.back()" style="text-decoration:none;">
+        <i class="bi bi-arrow-left"></i> Volver
+      </button>
+      <div class="theme-toggle" onclick="toggleTheme()" role="button" tabindex="0">
+        <div class="toggle-track"><div class="toggle-knob"></div></div>
+        <span class="toggle-label" id="htToggleLabel">Oscuro</span>
+      </div>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- TABS — oculto en modo embed (navegación via sidebar) -->
+  <% if (!embed) { %>
+  <div class="ht-tabs-wrap">
+    <button class="ht-tabs-toggle" id="htTabsToggle" onclick="toggleHtTabsMenu(event)">
+      <i class="bi bi-grid-3x3-gap-fill"></i>
+      <span id="htTabsToggleLabel">Menú</span>
+      <i class="bi bi-chevron-down" style="margin-left:auto;font-size:11px;"></i>
+    </button>
+    <div class="tool-tabs" id="toolTabs">
+      <button class="tool-tab active" id="tabBtn8r" onclick="switchToolTab(8)">
+        <i class="bi bi-bar-chart-steps"></i> Reportes
+      </button>
+      <button class="tool-tab" id="tabBtn13r" onclick="switchToolTab(13)">
+        <i class="bi bi-pencil-square"></i> Anotador
+      </button>
+      <button class="tool-tab" id="tabBtn3r" onclick="switchToolTab(3)">
+        <i class="bi bi-diagram-2-fill"></i> Flujos
+      </button>
+      <button class="tool-tab" id="tabBtn9r" onclick="switchToolTab(9)">
+        <i class="bi bi-stickies-fill"></i> Pizarra
+      </button>
+      <button class="tool-tab" id="tabBtn2r" onclick="switchToolTab(2)">
+        <i class="bi bi-diagram-3-fill"></i> Proyectos
+      </button>
+      <button class="tool-tab" id="tabBtn1r" onclick="switchToolTab(1)">
+        <i class="bi bi-journal-richtext"></i> Notas
+      </button>
+      <button class="tool-tab" id="tabBtn10r" onclick="switchToolTab(10)">
+        <i class="bi bi-diagram-3"></i> Mapas
+      </button>
+      <button class="tool-tab" id="tabBtn7r" onclick="switchToolTab(7)">
+        <i class="bi bi-folder2-open"></i> Archivos
+      </button>
+      <button class="tool-tab" id="tabBtn11r" onclick="switchToolTab(11)">
+        <i class="bi bi-calendar2-week-fill"></i> Turnos
+      </button>
+      <button class="tool-tab" id="tabBtn12r" onclick="switchToolTab(12)">
+        <i class="bi bi-stopwatch-fill"></i> Pomodoro
+      </button>
+      <button class="tool-tab" id="tabBtn14r" onclick="switchToolTab(14)">
+        <i class="bi bi-calendar-heart-fill"></i> Eventos <span class="badge-new">NEW</span>
+      </button>
+      <button class="tool-tab" id="tabBtn15r" onclick="switchToolTab(15)">
+        <i class="bi bi-qr-code-scan"></i> QR <span class="badge-new">NEW</span>
+      </button>
+    </div>
+    <div class="ht-tabs-dropdown" id="htTabsDropdown">
+      <button class="tool-tab active" id="tabBtn8d" onclick="switchToolTab(8);closeHtTabsMenu()">
+        <i class="bi bi-bar-chart-steps"></i> Reportes
+      </button>
+      <button class="tool-tab" id="tabBtn13d" onclick="switchToolTab(13);closeHtTabsMenu()">
+        <i class="bi bi-pencil-square"></i> Anotador
+      </button>
+      <button class="tool-tab" id="tabBtn3d" onclick="switchToolTab(3);closeHtTabsMenu()">
+        <i class="bi bi-diagram-2-fill"></i> Flujos
+      </button>
+      <button class="tool-tab" id="tabBtn9d" onclick="switchToolTab(9);closeHtTabsMenu()">
+        <i class="bi bi-stickies-fill"></i> Pizarra
+      </button>
+      <button class="tool-tab" id="tabBtn2d" onclick="switchToolTab(2);closeHtTabsMenu()">
+        <i class="bi bi-diagram-3-fill"></i> Proyectos
+      </button>
+      <button class="tool-tab" id="tabBtn1d" onclick="switchToolTab(1);closeHtTabsMenu()">
+        <i class="bi bi-journal-richtext"></i> Notas
+      </button>
+      <button class="tool-tab" id="tabBtn10d" onclick="switchToolTab(10);closeHtTabsMenu()">
+        <i class="bi bi-diagram-3"></i> Mapas
+      </button>
+      <button class="tool-tab" id="tabBtn7d" onclick="switchToolTab(7);closeHtTabsMenu()">
+        <i class="bi bi-folder2-open"></i> Archivos
+      </button>
+      <button class="tool-tab" id="tabBtn11d" onclick="switchToolTab(11);closeHtTabsMenu()">
+        <i class="bi bi-calendar2-week-fill"></i> Turnos
+      </button>
+      <button class="tool-tab" id="tabBtn12d" onclick="switchToolTab(12);closeHtTabsMenu()">
+        <i class="bi bi-stopwatch-fill"></i> Pomodoro
+      </button>
+      <button class="tool-tab" id="tabBtn14d" onclick="switchToolTab(14);closeHtTabsMenu()">
+        <i class="bi bi-calendar-heart-fill"></i> Eventos <span class="badge-new">NEW</span>
+      </button>
+      <button class="tool-tab" id="tabBtn15d" onclick="switchToolTab(15);closeHtTabsMenu()">
+        <i class="bi bi-qr-code-scan"></i> QR <span class="badge-new">NEW</span>
+      </button>
+    </div>
+  </div>
+  <% } %>

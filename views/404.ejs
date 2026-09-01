@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <script>(function(){var t=localStorage.getItem('dashboardTheme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>INC-404 · Recurso No Encontrado</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    /* ── Variables ─────────────────────────────────────────────────── */
+    :root,[data-theme="light"]{
+      --bg:        #f1f5f9;
+      --card:      #ffffff;
+      --card2:     #f8fafc;
+      --border:    #e2e8f0;
+      --text:      #0f172a;
+      --muted:     #64748b;
+      --primary:   #3b82f6;
+      --purple:    #6366f1;
+      --red:       #ef4444;
+      --green:     #22c55e;
+      --amber:     #f59e0b;
+      --shadow:    0 8px 40px rgba(15,23,42,.10);
+      --shadow-sm: 0 2px 12px rgba(15,23,42,.07);
+      --grad:      linear-gradient(135deg,#1e3a5f 0%,#6366f1 60%,#3b82f6 100%);
+    }
+    [data-theme="dark"]{
+      --bg:        #0f172a;
+      --card:      #1e293b;
+      --card2:     #172032;
+      --border:    #334155;
+      --text:      #e2e8f0;
+      --muted:     #94a3b8;
+      --primary:   #60a5fa;
+      --purple:    #818cf8;
+      --shadow:    0 8px 40px rgba(0,0,0,.40);
+      --shadow-sm: 0 2px 12px rgba(0,0,0,.30);
+    }
+
+    /* ── Reset ──────────────────────────────────────────────────────── */
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;position:relative;overflow-x:hidden;}
+
+    /* ── Fondo animado ─────────────────────────────────────────────── */
+    .bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.35;}
+    .bg-glow{position:fixed;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.12) 0%,transparent 70%);top:-150px;right:-150px;pointer-events:none;z-index:0;animation:pulse-glow 6s ease-in-out infinite;}
+    .bg-glow2{position:fixed;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.09) 0%,transparent 70%);bottom:-100px;left:-80px;pointer-events:none;z-index:0;}
+    @keyframes pulse-glow{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.15);opacity:.7;}}
+
+    /* ── Contenedor principal ───────────────────────────────────────── */
+    .wrap{position:relative;z-index:1;width:100%;max-width:680px;}
+
+    /* ── Ticket card ────────────────────────────────────────────────── */
+    .ticket{background:var(--card);border-radius:20px;box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--border);}
+
+    /* Header del ticket */
+    .ticket-head{background:var(--grad);padding:22px 28px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+    .ticket-head-left{display:flex;flex-direction:column;gap:4px;}
+    .ticket-system{font-size:10px;font-weight:700;letter-spacing:.12em;color:rgba(255,255,255,.55);text-transform:uppercase;}
+    .ticket-code{font-size:28px;font-weight:800;color:#fff;font-family:'Courier New',monospace;letter-spacing:-1px;line-height:1;}
+    .ticket-title{font-size:13px;color:rgba(255,255,255,.8);font-weight:500;margin-top:2px;}
+    .ticket-badges{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+    .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+    .badge-red{background:rgba(239,68,68,.25);color:#fca5a5;border:1px solid rgba(239,68,68,.35);}
+    .badge-amber{background:rgba(245,158,11,.25);color:#fcd34d;border:1px solid rgba(245,158,11,.35);}
+    .badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 1.4s ease-in-out infinite;}
+    @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+    /* Cuerpo del ticket */
+    .ticket-body{padding:24px 28px;display:flex;flex-direction:column;gap:20px;}
+
+    /* ── Terminal diagnóstico ───────────────────────────────────────── */
+    .terminal{background:#0d1117;border-radius:12px;padding:16px 18px;font-family:'Courier New',monospace;font-size:12px;line-height:1.7;border:1px solid #30363d;position:relative;overflow:hidden;}
+    .terminal::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e,#3b82f6,#6366f1);animation:scan 3s linear infinite;}
+    @keyframes scan{0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+    .term-bar{display:flex;align-items:center;gap:6px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #21262d;}
+    .term-dot{width:10px;height:10px;border-radius:50%;}
+    .term-label{font-size:10px;color:#484f58;margin-left:4px;flex:1;letter-spacing:.04em;}
+    .t-gray{color:#484f58;}
+    .t-green{color:#3fb950;}
+    .t-red{color:#f85149;}
+    .t-amber{color:#e3b341;}
+    .t-blue{color:#79c0ff;}
+    .t-purple{color:#d2a8ff;}
+    .t-white{color:#e6edf3;}
+    .term-line{display:flex;gap:8px;align-items:baseline;}
+    .term-line .prompt{color:#484f58;user-select:none;}
+    .cursor{display:inline-block;width:8px;height:13px;background:#e6edf3;animation:cursor-blink .85s step-end infinite;vertical-align:text-bottom;margin-left:2px;}
+    @keyframes cursor-blink{0%,100%{opacity:1;}50%{opacity:0;}}
+
+    /* ── Buscador ───────────────────────────────────────────────────── */
+    .search-section label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:block;margin-bottom:8px;}
+    .search-wrap{position:relative;}
+    .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px;pointer-events:none;}
+    .search-input{width:100%;padding:12px 48px 12px 42px;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;font-size:14px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;}
+    .search-input::placeholder{color:var(--muted);}
+    .search-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,130,246,.12);}
+    .search-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--primary);border:none;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:15px;transition:background .2s;}
+    .search-btn:hover{background:var(--purple);}
+
+    .search-results{margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;}
+    .search-item{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text);transition:all .15s;cursor:pointer;}
+    .search-item:hover{border-color:var(--primary);background:rgba(59,130,246,.06);transform:translateX(3px);}
+    .search-item-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+    .search-item-info{flex:1;min-width:0;}
+    .search-item-name{font-size:13px;font-weight:600;color:var(--text);}
+    .search-item-path{font-size:11px;color:var(--muted);font-family:monospace;}
+    .search-item-arrow{color:var(--muted);font-size:12px;flex-shrink:0;}
+    .search-empty{text-align:center;padding:16px;color:var(--muted);font-size:12px;}
+    mark{background:rgba(99,102,241,.2);color:var(--purple);border-radius:3px;padding:0 2px;}
+
+    /* ── Accesos rápidos ────────────────────────────────────────────── */
+    .quick-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px;}
+    .quick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
+    .quick-card{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;text-decoration:none;color:var(--text);font-size:12px;font-weight:600;transition:all .18s;cursor:pointer;}
+    .quick-card:hover{border-color:var(--primary);box-shadow:0 4px 16px rgba(59,130,246,.12);transform:translateY(-2px);}
+    .quick-card i{font-size:16px;flex-shrink:0;}
+
+    /* ── Timeline lateral ───────────────────────────────────────────── */
+    .timeline{display:flex;flex-direction:column;gap:0;}
+    .tl-item{display:flex;gap:12px;padding-bottom:14px;position:relative;}
+    .tl-item:last-child{padding-bottom:0;}
+    .tl-item:not(:last-child) .tl-line-wrap::after{content:'';position:absolute;left:11px;top:24px;bottom:0;width:1.5px;background:var(--border);}
+    .tl-line-wrap{position:relative;flex-shrink:0;}
+    .tl-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+    .tl-dot-red{background:rgba(239,68,68,.15);color:var(--red);}
+    .tl-dot-amber{background:rgba(245,158,11,.15);color:var(--amber);}
+    .tl-dot-blue{background:rgba(59,130,246,.15);color:var(--primary);}
+    .tl-dot-green{background:rgba(34,197,94,.15);color:var(--green);}
+    .tl-content{flex:1;min-width:0;}
+    .tl-msg{font-size:12px;color:var(--text);font-weight:500;line-height:1.4;}
+    .tl-time{font-size:10px;color:var(--muted);margin-top:2px;}
+
+    /* ── Footer del ticket ──────────────────────────────────────────── */
+    .ticket-footer{padding:14px 28px;background:var(--card2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    .ticket-footer-info{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+    .ticket-footer-info i{font-size:13px;}
+    .sla-bar{display:flex;align-items:center;gap:6px;}
+    .sla-label{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.04em;}
+    .sla-track{width:80px;height:5px;background:var(--border);border-radius:10px;overflow:hidden;}
+    .sla-fill{height:100%;background:linear-gradient(90deg,#22c55e,#f59e0b);border-radius:10px;animation:sla-grow 2.5s cubic-bezier(.4,0,.2,1) forwards;}
+    @keyframes sla-grow{from{width:0;}to{width:35%;}}
+
+    /* ── Divisor ────────────────────────────────────────────────────── */
+    .divider{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}
+    .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media(max-width:520px){
+      .ticket-head{padding:18px 20px;}
+      .ticket-body{padding:18px 20px;}
+      .ticket-footer{padding:12px 20px;}
+      .ticket-code{font-size:22px;}
+      .quick-grid{grid-template-columns:1fr 1fr;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+<div class="bg-glow2"></div>
+
+<div class="wrap">
+  <div class="ticket">
+
+    <!-- ── Cabecera tipo ticket ITSM ── -->
+    <div class="ticket-head">
+      <div class="ticket-head-left">
+        <span class="ticket-system"><i class="bi bi-shield-lock-fill"></i> &nbsp;ITSM · Service Desk Automático</span>
+        <span class="ticket-code">INC-404</span>
+        <span class="ticket-title">Recurso no encontrado en el sistema</span>
+      </div>
+      <div class="ticket-badges">
+        <span class="badge badge-red"><span class="badge-dot"></span> P1 · Crítico</span>
+        <span class="badge badge-amber">Sin resolver</span>
+      </div>
+    </div>
+
+    <!-- ── Cuerpo ── -->
+    <div class="ticket-body">
+
+      <!-- Terminal diagnóstico -->
+      <div class="terminal">
+        <div class="term-bar">
+          <div class="term-dot" style="background:#ff5f57;"></div>
+          <div class="term-dot" style="background:#febc2e;"></div>
+          <div class="term-dot" style="background:#28c840;"></div>
+          <span class="term-label">diagnóstico.sh — ITSM Kernel v4.2.1</span>
+        </div>
+        <div id="termOutput"></div>
+      </div>
+
+      <!-- Buscador -->
+      <div class="search-section">
+        <label><i class="bi bi-search" style="margin-right:5px;"></i>¿Qué estabas buscando?</label>
+        <div class="search-wrap">
+          <i class="bi bi-search search-icon"></i>
+          <input type="text" class="search-input" id="searchInput" placeholder="Portal, tickets, reportes, almacén..." autocomplete="off" autofocus>
+          <button class="search-btn" onclick="doSearch()"><i class="bi bi-arrow-right"></i></button>
+        </div>
+        <div class="search-results" id="searchResults"></div>
+      </div>
+
+      <div class="divider">o ir directamente a</div>
+
+      <!-- Quick links -->
+      <div>
+        <div class="quick-title">Accesos rápidos</div>
+        <div class="quick-grid" id="quickGrid"></div>
+      </div>
+
+      <!-- Timeline de lo que pasó -->
+      <div>
+        <div class="quick-title" style="margin-bottom:14px;">Línea de tiempo del incidente</div>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-line-wrap">
+              <div class="tl-dot tl-dot-red"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            </div>
+            <div class="tl-content">
+              <div class="tl-msg">Ruta <code style="font-size:11px;background:rgba(99,102,241,.1);padding:1px 5px;border-radius:4px;" id="tlPath"></code> no encontrada en el sistema</div>
+              <div class="tl-time" id="tlTime"></div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-line-wrap">
+              <div class="tl-dot tl-dot-amber"><i class="bi bi-cpu-fill"></i></div>
+            </div>
+            <div class="tl-content">
+              <div class="tl-msg">Motor de diagnóstico iniciado — sin coincidencias en el árbol de rutas</div>
+              <div class="tl-time">+0.3 ms</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-line-wrap">
+              <div class="tl-dot tl-dot-blue"><i class="bi bi-person-fill"></i></div>
+            </div>
+            <div class="tl-content">
+              <div class="tl-msg">Incidente asignado automáticamente — pendiente de acción del usuario</div>
+              <div class="tl-time">+0.5 ms</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-line-wrap">
+              <div class="tl-dot tl-dot-green"><i class="bi bi-check2-circle"></i></div>
+            </div>
+            <div class="tl-content">
+              <div class="tl-msg">Página de recuperación generada — opciones de navegación disponibles</div>
+              <div class="tl-time">+1.2 ms</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /ticket-body -->
+
+    <!-- ── Pie del ticket ── -->
+    <div class="ticket-footer">
+      <div class="ticket-footer-info">
+        <i class="bi bi-robot"></i>
+        Agente: <strong>Sistema Automático</strong> &nbsp;·&nbsp;
+        <% if (locals.user) { %>Reportado por: <strong><%= user.nombre || user.full_name || user.username %></strong><% } else { %>Sin autenticación<% } %>
+      </div>
+      <div class="sla-bar">
+        <span class="sla-label">SLA</span>
+        <div class="sla-track"><div class="sla-fill"></div></div>
+      </div>
+    </div>
+
+  </div><!-- /ticket -->
+</div><!-- /wrap -->
+
+<script>
+// ── Catálogo completo de rutas del sistema ────────────────────────────────
+const PAGES = [
+  // ── Autogestión / Portal usuario
+  { name:'Autogestión',               path:'/autogestion',                     icon:'bi-house-heart-fill',       color:'#6366f1', bg:'rgba(99,102,241,.12)', cat:'Portal', tags:'inicio home portal autoservicio usuario' },
+  { name:'Portal de Autoservicio',    path:'/portal',                          icon:'bi-person-circle',          color:'#6366f1', bg:'rgba(99,102,241,.12)', cat:'Portal', tags:'portal usuario autoservicio mis cosas' },
+  { name:'Mis Tickets',               path:'/portal/tickets',                  icon:'bi-ticket-detailed-fill',   color:'#3b82f6', bg:'rgba(59,130,246,.12)', cat:'Portal', tags:'mis tickets estado seguimiento portal' },
+  { name:'Herramientas TI',           path:'/herramientas',                    icon:'bi-tools',                  color:'#8b5cf6', bg:'rgba(139,92,246,.12)', cat:'Portal', tags:'herramientas ti eventos gantt proyectos notas diseñador sql analisis' },
+  { name:'Base de Conocimiento',      path:'/knowledge-base',                  icon:'bi-book-half',              color:'#06b6d4', bg:'rgba(6,182,212,.12)',   cat:'Portal', tags:'conocimiento articulos faq guias documentacion base kb' },
+  { name:'Preguntas Frecuentes',      path:'/preguntas-frecuentes',            icon:'bi-question-circle-fill',   color:'#10b981', bg:'rgba(16,185,129,.12)', cat:'Portal', tags:'faq preguntas frecuentes ayuda soporte' },
+  { name:'Anuncios Corporativos',     path:'/anuncios',                        icon:'bi-megaphone-fill',         color:'#f59e0b', bg:'rgba(245,158,11,.12)', cat:'Portal', tags:'anuncios noticias corporativo comunicados avisos' },
+  { name:'Devolución de Equipos',     path:'/devolucion',                      icon:'bi-box-arrow-left',         color:'#ef4444', bg:'rgba(239,68,68,.12)',   cat:'Portal', tags:'devolucion devolución equipo recupero entregar' },
+  { name:'Garantías de Equipo',       path:'/warranty',                        icon:'bi-shield-check-fill',      color:'#10b981', bg:'rgba(16,185,129,.12)', cat:'Portal', tags:'garantia warranty equipo soporte estado' },
+  // ── ITSM — Incidencias
+  { name:'Hub ITSM',                  path:'/itsm',                            icon:'bi-grid-3x3-gap-fill',      color:'#3b82f6', bg:'rgba(59,130,246,.12)', cat:'ITSM',   tags:'itsm hub centro servicios service desk' },
+  { name:'Gestión de Incidencias',    path:'/itsm/incidencias/gestion',        icon:'bi-exclamation-triangle-fill', color:'#ef4444', bg:'rgba(239,68,68,.12)', cat:'ITSM', tags:'incidencias gestion tickets jira cola asignados sin asignar kanban sla' },
+  { name:'Registrar Incidencia',      path:'/itsm/incidencias/registrar',      icon:'bi-plus-circle-fill',       color:'#ef4444', bg:'rgba(239,68,68,.12)',   cat:'ITSM',   tags:'nueva incidencia crear registrar ticket abrir reportar' },
+  { name:'Formulario de Incidencia',  path:'/incidencias',                     icon:'bi-file-earmark-plus-fill', color:'#ef4444', bg:'rgba(239,68,68,.12)',   cat:'ITSM',   tags:'formulario incidencia embed reportar problema' },
+  // ── ITSM — Requerimientos
+  { name:'Gestión de Requerimientos', path:'/itsm/requerimientos/gestion',     icon:'bi-clipboard2-check-fill',  color:'#f59e0b', bg:'rgba(245,158,11,.12)', cat:'ITSM',   tags:'requerimientos solicitudes gestion jira cola kanban' },
+  { name:'Registrar Requerimiento',   path:'/itsm/requerimientos/registrar',   icon:'bi-plus-square-fill',       color:'#f59e0b', bg:'rgba(245,158,11,.12)', cat:'ITSM',   tags:'nuevo requerimiento solicitud crear registrar' },
+  { name:'Formulario de Requerimiento', path:'/requerimientos',                icon:'bi-file-earmark-text-fill', color:'#f59e0b', bg:'rgba(245,158,11,.12)', cat:'ITSM',   tags:'formulario requerimiento solicitud embed' },
+  { name:'Catálogo de Servicios',     path:'/catalogo',                        icon:'bi-collection-fill',        color:'#06b6d4', bg:'rgba(6,182,212,.12)',   cat:'ITSM',   tags:'catalogo servicios solicitudes catalogo servicios ti' },
+  { name:'Gestión de Cambios',        path:'/cambios',                         icon:'bi-arrow-repeat',           color:'#8b5cf6', bg:'rgba(139,92,246,.12)', cat:'ITSM',   tags:'cambios change management itil rfcs' },
+  { name:'Gestión de Problemas',      path:'/problemas',                       icon:'bi-bug-fill',               color:'#dc2626', bg:'rgba(220,38,38,.12)',   cat:'ITSM',   tags:'problemas problem management causa raiz incidencias recurrentes' },
+  { name:'NOC · Centro de Operaciones', path:'/itsm/noc',                      icon:'bi-broadcast-pin',          color:'#10b981', bg:'rgba(16,185,129,.12)', cat:'ITSM',   tags:'noc monitoreo centro operaciones red alertas disponibilidad' },
+  { name:'Dashboard TV · Cola',       path:'/tickets/tv',                      icon:'bi-display-fill',           color:'#3b82f6', bg:'rgba(59,130,246,.12)', cat:'ITSM',   tags:'tv dashboard cola tickets pantalla display sala' },
+  // ── Activos y Almacén
+  { name:'Almacén de Equipos',        path:'/almacen',                         icon:'bi-box-seam-fill',          color:'#f97316', bg:'rgba(249,115,22,.12)', cat:'Activos', tags:'almacen equipos inventario stock bodega hardware' },
+  { name:'Gestión de Equipos',        path:'/equipment',                       icon:'bi-pc-display-horizontal',  color:'#f97316', bg:'rgba(249,115,22,.12)', cat:'Activos', tags:'equipos computadoras hardware inventario activos pc laptop' },
+  { name:'CMDB',                      path:'/cmdb',                            icon:'bi-diagram-3-fill',         color:'#06b6d4', bg:'rgba(6,182,212,.12)',   cat:'Activos', tags:'cmdb inventario configuracion activos ci items base datos' },
+  { name:'Asignaciones',              path:'/assignments',                     icon:'bi-person-check-fill',      color:'#10b981', bg:'rgba(16,185,129,.12)', cat:'Activos', tags:'asignaciones equipos empleados activos asignado' },
+  { name:'Recupero de Equipos',       path:'/recoveries',                      icon:'bi-arrow-counterclockwise', color:'#8b5cf6', bg:'rgba(139,92,246,.12)', cat:'Activos', tags:'recupero equipos devolucion recuperar activos' },
+  { name:'SCCM',                      path:'/sccm',                            icon:'bi-hdd-network-fill',       color:'#3b82f6', bg:'rgba(59,130,246,.12)', cat:'Activos', tags:'sccm microsoft software despliegue configuracion red' },
+  { name:'Licenciamiento M365',       path:'/licencias',                       icon:'bi-microsoft',              color:'#0078d4', bg:'rgba(0,120,212,.12)',   cat:'Activos', tags:'licencias microsoft 365 office m365 licenciamiento' },
+  // ── Colaboradores
+  { name:'Colaboradores',             path:'/colaboradores',                   icon:'bi-people-fill',            color:'#6366f1', bg:'rgba(99,102,241,.12)', cat:'Personas', tags:'colaboradores empleados personal directorio usuarios rrhh' },
+  { name:'Active Directory / AD',     path:'/soporte',                         icon:'bi-windows',                color:'#3b82f6', bg:'rgba(59,130,246,.12)', cat:'Personas', tags:'active directory ad usuarios cuentas windows soporte ldap' },
+  // ── Dashboards y Analítica
+  { name:'Dashboard Principal',       path:'/dashboard',                       icon:'bi-speedometer2',           color:'#10b981', bg:'rgba(16,185,129,.12)', cat:'Analytics', tags:'dashboard principal inicio estadisticas resumen kpi' },
+  { name:'Panel de Agente',           path:'/agent-dashboard',                 icon:'bi-headset',                color:'#6366f1', bg:'rgba(99,102,241,.12)', cat:'Analytics', tags:'agente dashboard panel mis tickets soporte tecnico' },
+  { name:'Panel Administrador',       path:'/admin-dashboard',                 icon:'bi-person-workspace',       color:'#8b5cf6', bg:'rgba(139,92,246,.12)', cat:'Analytics', tags:'administrador dashboard panel control total' },
+  { name:'Analytics',                 path:'/analytics',                       icon:'bi-graph-up-arrow',         color:'#06b6d4', bg:'rgba(6,182,212,.12)',   cat:'Analytics', tags:'analytics analitica datos graficos estadisticas tendencias' },
+  { name:'Indicadores',               path:'/indicators',                      icon:'bi-bar-chart-line-fill',    color:'#10b981', bg:'rgba(16,185,129,.12)', cat:'Analytics', tags:'indicadores kpi metricas rendimiento performance' },
+  { name:'Mejora Continua (CSI)',     path:'/csi',                             icon:'bi-arrow-up-circle-fill',   color:'#f59e0b', bg:'rgba(245,158,11,.12)', cat:'Analytics', tags:'csi mejora continua calidad itil servicio' },
+  // ── Reportes
+  { name:'Reportes ITSM',             path:'/reports-itsm',                    icon:'bi-file-earmark-bar-graph-fill', color:'#06b6d4', bg:'rgba(6,182,212,.12)', cat:'Reportes', tags:'reportes itsm incidencias requerimientos estadisticas pdf' },
+  { name:'Reportes',                  path:'/reports',                         icon:'bi-bar-chart-fill',         color:'#3b82f6', bg:'rgba(59,130,246,.12)', cat:'Reportes', tags:'reportes equipos asignaciones exportar datos' },
+  { name:'Listas de Distribución',    path:'/report-lists',                    icon:'bi-list-ul',                color:'#8b5cf6', bg:'rgba(139,92,246,.12)', cat:'Reportes', tags:'listas distribucion correo email reportes envio' },
+  { name:'Distribución de Reportes',  path:'/reports-distribution',            icon:'bi-send-fill',              color:'#10b981', bg:'rgba(16,185,129,.12)', cat:'Reportes', tags:'distribucion reportes envio correo programado' },
+  { name:'Envío de Reportes',         path:'/send-reports',                    icon:'bi-envelope-paper-fill',    color:'#f59e0b', bg:'rgba(245,158,11,.12)', cat:'Reportes', tags:'envio reportes email correo exportar enviar' },
+  { name:'Cola de Impresión',         path:'/print-queue',                     icon:'bi-printer-fill',           color:'#6366f1', bg:'rgba(99,102,241,.12)', cat:'Reportes', tags:'impresion cola printer imprimir documentos' },
+  // ── Administración y Configuración
+  { name:'Administración',            path:'/administracion',                  icon:'bi-shield-lock-fill',       color:'#8b5cf6', bg:'rgba(139,92,246,.12)', cat:'Admin',   tags:'administracion panel configuracion sistema gestion' },
+  { name:'Panel Admin',               path:'/admin',                           icon:'bi-person-workspace',       color:'#8b5cf6', bg:'rgba(139,92,246,.12)', cat:'Admin',   tags:'admin panel usuarios roles permisos sistema administrador' },
+  { name:'Motor de Reglas',           path:'/admin/reglas',                    icon:'bi-gear-wide-connected',    color:'#ef4444', bg:'rgba(239,68,68,.12)',   cat:'Admin',   tags:'reglas motor business rules automatizacion configurar' },
+  { name:'Gestión Documental',        path:'/gestion-documental',              icon:'bi-folder2-open',           color:'#f97316', bg:'rgba(249,115,22,.12)', cat:'Admin',   tags:'documental documentos archivos gestion almacenamiento' },
+  { name:'Importar CSV',              path:'/import-csv',                      icon:'bi-filetype-csv',           color:'#10b981', bg:'rgba(16,185,129,.12)', cat:'Admin',   tags:'importar csv datos carga masiva archivo subir' },
+  { name:'Mis Permisos',              path:'/permissions',                     icon:'bi-key-fill',               color:'#f59e0b', bg:'rgba(245,158,11,.12)', cat:'Admin',   tags:'permisos acceso roles mi cuenta privilegios' },
+  // ── Perfil
+  { name:'Mi Perfil',                 path:'/profile',                         icon:'bi-person-badge-fill',      color:'#6366f1', bg:'rgba(99,102,241,.12)', cat:'Perfil',  tags:'perfil usuario cuenta datos personales mi perfil' },
+  { name:'Iniciar sesión',            path:'/login',                           icon:'bi-box-arrow-in-right',     color:'#3b82f6', bg:'rgba(59,130,246,.12)', cat:'Perfil',  tags:'login iniciar sesion entrar acceder autenticacion' },
+];
+
+const QUICK = [
+  { name:'Autogestión',       path:'/autogestion',                   icon:'bi-house-heart-fill',        color:'#6366f1' },
+  { name:'Mis Tickets',       path:'/portal/tickets',                icon:'bi-ticket-detailed-fill',    color:'#3b82f6' },
+  { name:'Incidencias',       path:'/itsm/incidencias/gestion',      icon:'bi-exclamation-triangle-fill', color:'#ef4444' },
+  { name:'Dashboard',         path:'/dashboard',                     icon:'bi-speedometer2',            color:'#10b981' },
+  { name:'Reportes',          path:'/reports-itsm',                  icon:'bi-bar-chart-fill',          color:'#06b6d4' },
+  { name:'Administración',    path:'/administracion',                icon:'bi-shield-lock-fill',        color:'#8b5cf6' },
+];
+
+// ── Ruta solicitada ────────────────────────────────────────────────────────
+const requestedPath = '<%= (requestedPath || "/").replace(/'/g, "\\'") %>';
+document.getElementById('tlPath').textContent = requestedPath;
+document.getElementById('tlTime').textContent = new Date().toLocaleString('es-PE',{dateStyle:'medium',timeStyle:'short'});
+
+// ── Terminal animada ───────────────────────────────────────────────────────
+const termLines = [
+  {delay:0,   html:'<span class="t-gray">$</span> <span class="t-green">itsm-router</span> resolve --path <span class="t-amber">"'+requestedPath+'"</span>'},
+  {delay:400, html:'<span class="t-gray">→</span> Buscando en árbol de rutas... <span class="t-amber">⟳</span>'},
+  {delay:900, html:'<span class="t-gray">→</span> Revisando alias y redirecciones...'},
+  {delay:1400,html:'<span class="t-red">✗</span> <span class="t-white">ERROR 404:</span> <span class="t-red">Route not found</span>'},
+  {delay:1800,html:'<span class="t-gray">$</span> <span class="t-blue">incident</span> open --code INC-404 --priority P1 --auto'},
+  {delay:2200,html:'<span class="t-green">✓</span> Ticket <span class="t-purple">INC-404</span> creado · Agente asignado: <span class="t-green">Sistema Automático</span>'},
+  {delay:2700,html:'<span class="t-gray">$</span> <span class="t-blue">recovery-page</span> render --suggestions --search-enabled <span class="cursor"></span>'},
+];
+
+const out = document.getElementById('termOutput');
+termLines.forEach(function(l) {
+  setTimeout(function() {
+    var line = document.createElement('div');
+    line.className = 'term-line';
+    line.innerHTML = l.html;
+    out.appendChild(line);
+    // Quitar cursor del anterior
+    out.querySelectorAll('.cursor').forEach(function(c,i,arr) { if (i < arr.length-1) c.remove(); });
+  }, l.delay);
+});
+
+// ── Quick grid ─────────────────────────────────────────────────────────────
+var qg = document.getElementById('quickGrid');
+QUICK.forEach(function(p) {
+  var a = document.createElement('a');
+  a.href = p.path;
+  a.className = 'quick-card';
+  a.innerHTML = '<i class="bi '+p.icon+'" style="color:'+p.color+';"></i> '+p.name;
+  qg.appendChild(a);
+});
+
+// ── Búsqueda ───────────────────────────────────────────────────────────────
+function highlight(text, query) {
+  if (!query) return text;
+  var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+  return text.replace(re, '<mark>$1</mark>');
+}
+
+function scoreMatch(p, q) {
+  var n = p.name.toLowerCase(), pa = p.path.toLowerCase(), t = (p.tags||'').toLowerCase(), c = (p.cat||'').toLowerCase();
+  if (n === q) return 100;
+  if (n.startsWith(q)) return 80;
+  if (n.includes(q)) return 60;
+  if (pa.includes(q)) return 50;
+  if (t.split(' ').some(function(w){ return w.startsWith(q); })) return 40;
+  if (t.includes(q)) return 30;
+  if (c.toLowerCase().includes(q)) return 20;
+  return 0;
+}
+
+function renderResults(items, query) {
+  var container = document.getElementById('searchResults');
+  container.innerHTML = '';
+  if (!query) return;
+  if (!items.length) {
+    container.innerHTML = '<div class="search-empty"><i class="bi bi-search" style="font-size:20px;display:block;margin-bottom:6px;opacity:.3;"></i>Sin resultados para "<strong>'+query+'</strong>"<br><span style="font-size:11px;margin-top:4px;display:block;">Prueba: portal · tickets · almacén · itsm · reportes · dashboard</span></div>';
+    return;
+  }
+  items.forEach(function(p) {
+    var a = document.createElement('a');
+    a.href = p.path;
+    a.className = 'search-item';
+    a.innerHTML =
+      '<div class="search-item-icon" style="background:'+p.bg+';color:'+p.color+';"><i class="bi '+p.icon+'"></i></div>'+
+      '<div class="search-item-info">'+
+        '<div class="search-item-name">'+highlight(p.name, query)+'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(0,0,0,.05);color:var(--muted);margin-left:7px;text-transform:uppercase;letter-spacing:.04em;">'+p.cat+'</span></div>'+
+        '<div class="search-item-path">'+highlight(p.path, query)+'</div>'+
+      '</div>'+
+      '<i class="bi bi-arrow-right search-item-arrow"></i>';
+    container.appendChild(a);
+  });
+}
+
+document.getElementById('searchInput').addEventListener('input', function() {
+  var q = this.value.trim().toLowerCase();
+  if (!q) { document.getElementById('searchResults').innerHTML = ''; return; }
+  var scored = PAGES.map(function(p){ return { p:p, s:scoreMatch(p,q) }; }).filter(function(x){ return x.s > 0; });
+  scored.sort(function(a,b){ return b.s - a.s; });
+  renderResults(scored.map(function(x){ return x.p; }).slice(0,8), this.value.trim());
+});
+
+document.getElementById('searchInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doSearch();
+  if (e.key === 'ArrowDown') {
+    var first = document.querySelector('.search-item'); if (first) { e.preventDefault(); first.focus(); }
+  }
+});
+
+document.getElementById('searchResults').addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowDown') { var n = document.activeElement.nextElementSibling; if (n) { e.preventDefault(); n.focus(); } }
+  if (e.key === 'ArrowUp')   { var p = document.activeElement.previousElementSibling; if (p && p.classList.contains('search-item')) { e.preventDefault(); p.focus(); } else { e.preventDefault(); document.getElementById('searchInput').focus(); } }
+  if (e.key === 'Escape')    { document.getElementById('searchInput').focus(); document.getElementById('searchResults').innerHTML = ''; }
+});
+
+function doSearch() {
+  var q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!q) return;
+  var scored = PAGES.map(function(p){ return { p:p, s:scoreMatch(p,q) }; }).filter(function(x){ return x.s > 0; });
+  scored.sort(function(a,b){ return b.s - a.s; });
+  var match = scored.length ? scored[0].p : null;
+  if (match) { window.location.href = match.path; }
+  else {
+    var inp = document.getElementById('searchInput');
+    inp.style.borderColor = '#ef4444';
+    setTimeout(function(){ inp.style.borderColor = ''; }, 1200);
+  }
+}
+</script>
+</body>
+</html>

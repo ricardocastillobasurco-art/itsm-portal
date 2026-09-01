@@ -1,0 +1,78 @@
+  <!-- ─── TAB 7: GESTIÓN DE ARCHIVOS ─────────────────────────────────────── -->
+  <div class="section-tab" id="toolTab7">
+    <div class="files-layout">
+
+      <!-- Izquierda: subir y lista de archivos -->
+      <div>
+        <div class="card-ui">
+          <div class="card-head">
+            <span class="title"><i class="bi bi-cloud-upload-fill" style="color:var(--primary);"></i> Subir archivos</span>
+            <span id="fileCountBadge" style="font-size:12px;color:var(--muted);">0 archivos</span>
+          </div>
+          <!-- Drop zone -->
+          <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+               ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+            <i class="bi bi-cloud-arrow-up"></i>
+            <p><strong>Haz clic o arrastra archivos aquí</strong></p>
+            <p style="font-size:12px;margin-top:4px;">PDF, Word, Excel, imágenes — máx. 10MB por archivo</p>
+          </div>
+          <input type="file" id="fileInput" style="display:none;" multiple
+                 accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.zip,.txt"
+                 onchange="onFilesSelected(this.files)">
+          <!-- File list -->
+          <div id="fileList">
+            <div style="padding:24px;text-align:center;color:var(--muted);font-size:13px;">
+              <i class="bi bi-folder-open" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>
+              No hay archivos subidos aún
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Derecha: enviar por correo -->
+      <div>
+        <div class="card-ui">
+          <div class="card-head">
+            <span class="title"><i class="bi bi-envelope-fill" style="color:var(--primary);"></i> Enviar por correo</span>
+          </div>
+          <div class="send-panel">
+            <div class="form-group">
+              <label class="form-lbl">Destinatario *</label>
+              <input type="email" id="sendTo" class="form-ctrl" placeholder="correo@empresa.com">
+            </div>
+            <div class="form-group">
+              <label class="form-lbl">Asunto</label>
+              <input type="text" id="sendSubject" class="form-ctrl" placeholder="Archivos adjuntos — Soporte TI">
+            </div>
+            <div class="form-group">
+              <label class="form-lbl">Mensaje</label>
+              <textarea id="sendMessage" class="form-ctrl" rows="4" placeholder="Escribe un mensaje opcional…"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-lbl">Archivos a adjuntar</label>
+              <div id="attachList" style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-height:60px;font-size:13px;color:var(--muted);">
+                Selecciona archivos de la lista de la izquierda para adjuntarlos.
+              </div>
+            </div>
+            <button class="btn-sm btn-primary" onclick="sendFiles()" style="width:100%;justify-content:center;padding:10px;">
+              <i class="bi bi-send-fill"></i> Enviar archivos
+            </button>
+            <div id="sendOk" style="display:none;margin-top:10px;background:#dcfce7;color:#166534;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:600;text-align:center;">
+              <i class="bi bi-check-circle-fill"></i> ¡Correo enviado correctamente!
+            </div>
+          </div>
+        </div>
+
+        <!-- Info -->
+        <div class="card-ui">
+          <div class="card-head"><span class="title"><i class="bi bi-info-circle-fill" style="color:var(--primary);"></i> Información</span></div>
+          <div style="padding:14px 16px;font-size:13px;color:var(--muted);line-height:1.7;">
+            <p style="margin:0 0 8px;"><i class="bi bi-shield-check" style="color:var(--success);"></i> Los archivos se procesan de forma segura.</p>
+            <p style="margin:0 0 8px;"><i class="bi bi-clock" style="color:var(--warning);"></i> Los archivos se eliminan automáticamente tras 24 horas.</p>
+            <p style="margin:0;"><i class="bi bi-file-earmark" style="color:var(--primary);"></i> Máximo 10MB por archivo.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>

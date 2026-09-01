@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de Activos · IT Platform</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<%- include('../../../shared/partials/autogestion/styles') %>
+<style>
+.sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:1040px;}
+@media(max-width:740px){.sub-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:460px){.sub-grid{grid-template-columns:1fr;}}
+.sub-links{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;}
+.sub-link{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:10.5px;font-weight:600;color:var(--text-muted);background:var(--bg-soft);border:1px solid var(--border-soft);text-decoration:none;transition:all .15s;white-space:nowrap;}
+.sub-link:hover{background:rgba(37,99,235,.08);color:var(--primary);border-color:rgba(37,99,235,.25);}
+.mod-card.no-link{cursor:pointer;text-decoration:none;}
+.back-btn{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-card);border:1px solid var(--border-soft);border-radius:20px;padding:6px 14px;text-decoration:none;box-shadow:var(--shadow-card);transition:color .2s;margin-bottom:6px;}
+.back-btn:hover{color:var(--primary);}
+@media(max-width:680px){
+  .toggle-label{display:none;}
+  .theme-toggle{padding:5px 10px 5px 8px;}
+  .hero{margin-bottom:14px;}
+  .hero-logo-icon{width:38px;height:38px;font-size:19px;border-radius:10px;}
+  .hero-logo-text{font-size:18px;}
+  .hero-title{font-size:10px;letter-spacing:.3px;}
+  .hero-chip{font-size:10px;padding:3px 10px;letter-spacing:.4px;}
+  .back-btn{font-size:11px;padding:5px 10px;}
+  .sub-grid .mod-card{padding:16px 14px 14px;}
+  .sub-grid .mod-icon{width:38px;height:38px;font-size:17px;margin-bottom:8px;}
+  .sub-grid .mod-name{font-size:12.5px;}
+  .sub-grid .mod-desc{font-size:10.5px;}
+}
+</style>
+</head>
+<body>
+
+<div class="theme-toggle" onclick="toggleTheme()">
+  <i id="toggleIcon" class="bi bi-moon-stars-fill toggle-icon"></i>
+  <div class="toggle-track"><div class="toggle-knob"></div></div>
+  <span id="toggleLabel" class="toggle-label">Oscuro</span>
+</div>
+
+<div class="home-wrapper">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-logo">
+      <div class="hero-logo-icon" style="background:linear-gradient(135deg,#d97706,#f59e0b);"><i class="bi bi-laptop-fill"></i></div>
+      <div class="hero-logo-text">ACTIVOS · <span>GESTIÓN TI</span></div>
+    </div>
+    <div class="hero-title">Inventario, Garantías, Devoluciones y Control de Equipos</div>
+    <div class="hero-chip" style="background:rgba(217,119,6,.1);color:#d97706;border-color:rgba(217,119,6,.25);">
+      <i class="bi bi-circle-fill" style="font-size:8px;color:#10b981;"></i>
+      Control integral de activos tecnológicos
+    </div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <a href="/administracion" class="back-btn"><i class="bi bi-arrow-left"></i> Panel de administración</a>
+    </div>
+  </div>
+
+  <!-- TABS NAV -->
+  <div class="tabs-wrapper">
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="tb-inv"    onclick="switchTab('inv',this)"><i class="bi bi-pc-display-horizontal"></i> Inventario TI</button>
+      <button class="tab-btn"        id="tb-gar"    onclick="switchTab('gar',this)"><i class="bi bi-shield-check"></i> Garantías</button>
+      <button class="tab-btn"        id="tb-dev"    onclick="switchTab('dev',this)"><i class="bi bi-box-arrow-in-left"></i> Devoluciones</button>
+      <button class="tab-btn"        id="tb-sccm"   onclick="switchTab('sccm',this)"><i class="bi bi-windows"></i> SCCM</button>
+      <button class="tab-btn"        id="tb-sopor"  onclick="switchTab('sopor',this)"><i class="bi bi-tools"></i> Soporte Técnico</button>
+    </div>
+  </div>
+
+  <!-- TAB: INVENTARIO TI -->
+  <div class="tab-panel active" id="panel-inv">
+    <div class="section-label"><i class="bi bi-pc-display-horizontal"></i> &nbsp;Inventario TI</div>
+    <div class="sub-grid">
+      <div class="mod-card c-blue no-link" onclick="location.href='/equipment'" role="link">
+        <div class="mod-icon ib ib-blue"><i class="bi bi-pc-display-horizontal"></i></div>
+        <div class="mod-name">Equipos</div>
+        <div class="mod-desc">Inventario completo de activos TI: listado, almacén físico y recuperos.</div>
+        <div class="sub-links">
+          <a href="/equipment" class="sub-link" onclick="event.stopPropagation()"><i class="bi bi-table"></i> Listado</a>
+          <a href="/almacen" class="sub-link" onclick="event.stopPropagation()"><i class="bi bi-archive-fill"></i> Almacén</a>
+          <a href="/almacen?tab=recuperos" class="sub-link" onclick="event.stopPropagation()"><i class="bi bi-recycle"></i> Recuperos</a>
+        </div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </div>
+      <a href="/cmdb" class="mod-card c-indigo">
+        <div class="mod-icon ib ib-indigo"><i class="bi bi-diagram-3-fill"></i></div>
+        <div class="mod-name">CMDB</div>
+        <div class="mod-desc">Base de datos de configuración: relaciones entre CIs, equipos y servicios.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: GARANTÍAS -->
+  <div class="tab-panel" id="panel-gar">
+    <div class="section-label"><i class="bi bi-shield-check"></i> &nbsp;Garantías</div>
+    <div class="sub-grid">
+      <a href="/warranty" class="mod-card c-green">
+        <div class="mod-icon ib ib-green"><i class="bi bi-shield-check"></i></div>
+        <div class="mod-name">Gestión de Garantías</div>
+        <div class="mod-desc">Control de garantías activas, vencidas y próximas a vencer por equipo.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/warranty?tab=alertas" class="mod-card c-orange">
+        <div class="mod-icon ib ib-orange"><i class="bi bi-bell-fill"></i></div>
+        <div class="mod-name">Alertas de Vencimiento</div>
+        <div class="mod-desc">Equipos con garantía próxima a vencer o ya expirada que requieren acción.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: DEVOLUCIONES -->
+  <div class="tab-panel" id="panel-dev">
+    <div class="section-label"><i class="bi bi-box-arrow-in-left"></i> &nbsp;Devoluciones</div>
+    <div class="sub-grid">
+      <a href="/incidencias?tab=devoluciones" class="mod-card c-cyan">
+        <div class="mod-icon ib ib-cyan"><i class="bi bi-box-arrow-in-left"></i></div>
+        <div class="mod-name">Gestión de Devoluciones</div>
+        <div class="mod-desc">Registro y seguimiento de equipos devueltos por colaboradores al área TI.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/incidencias?tab=devoluciones&view=pendientes" class="mod-card c-amber">
+        <div class="mod-icon ib ib-amber"><i class="bi bi-hourglass-split"></i></div>
+        <div class="mod-name">Pendientes de Recepción</div>
+        <div class="mod-desc">Devoluciones solicitadas que aún no han sido físicamente recibidas en el almacén.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: SCCM -->
+  <div class="tab-panel" id="panel-sccm">
+    <div class="section-label"><i class="bi bi-windows"></i> &nbsp;SCCM / Endpoint Manager</div>
+    <div class="sub-grid">
+      <a href="/sccm" class="mod-card c-blue">
+        <div class="mod-icon ib ib-blue"><i class="bi bi-windows"></i></div>
+        <div class="mod-name">SCCM / Intune</div>
+        <div class="mod-desc">Administración de endpoints vía Microsoft Endpoint Manager y SCCM.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/sccm?tab=inventario" class="mod-card c-indigo">
+        <div class="mod-icon ib ib-indigo"><i class="bi bi-hdd-stack-fill"></i></div>
+        <div class="mod-name">Inventario SCCM</div>
+        <div class="mod-desc">Hardware y software detectado por el agente SCCM en todos los equipos de la red.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: SOPORTE TÉCNICO -->
+  <div class="tab-panel" id="panel-sopor">
+    <div class="section-label"><i class="bi bi-tools"></i> &nbsp;Soporte Técnico</div>
+    <div class="sub-grid">
+      <a href="/soporte" class="mod-card c-green">
+        <div class="mod-icon ib ib-green"><i class="bi bi-tools"></i></div>
+        <div class="mod-name">Soporte Técnico</div>
+        <div class="mod-desc">Gestión de sesiones de soporte remoto y presencial, control de Active Directory.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/soporte?tab=sesiones" class="mod-card c-cyan">
+        <div class="mod-icon ib ib-cyan"><i class="bi bi-display-fill"></i></div>
+        <div class="mod-name">Sesiones Activas</div>
+        <div class="mod-desc">Monitoreo en tiempo real de sesiones de soporte remoto abiertas por el equipo TI.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="home-footer">© 2025 IT Platform &nbsp;·&nbsp; Gestión de Activos TI</div>
+</div>
+
+<script>
+(function(){
+  const s = localStorage.getItem('dashboardTheme') || 'light';
+  document.documentElement.setAttribute('data-theme', s);
+  _syncUI(s);
+})();
+function toggleTheme(){
+  const n = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', n);
+  localStorage.setItem('dashboardTheme', n);
+  _syncUI(n);
+}
+function _syncUI(t){
+  document.getElementById('toggleIcon').className = t === 'dark' ? 'bi bi-sun-fill toggle-icon' : 'bi bi-moon-stars-fill toggle-icon';
+  document.getElementById('toggleLabel').textContent = t === 'dark' ? 'Claro' : 'Oscuro';
+}
+function switchTab(name, btn){
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+document.addEventListener('DOMContentLoaded', function(){
+  const tab = new URLSearchParams(location.search).get('tab');
+  if(tab){ const btn = document.getElementById('tb-' + tab); if(btn) switchTab(tab, btn); }
+});
+</script>
+</body>
+</html>

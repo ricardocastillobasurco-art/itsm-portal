@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colaboradores · IT Platform</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<%- include('../../../../shared/partials/autogestion/styles') %>
+<style>
+.sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:1040px;}
+@media(max-width:740px){.sub-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:460px){.sub-grid{grid-template-columns:1fr;}}
+.back-btn{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-card);border:1px solid var(--border-soft);border-radius:20px;padding:6px 14px;text-decoration:none;box-shadow:var(--shadow-card);transition:color .2s;margin-bottom:6px;}
+.back-btn:hover{color:var(--primary);}
+@media(max-width:680px){
+  .toggle-label{display:none;}
+  .theme-toggle{padding:5px 10px 5px 8px;}
+  .hero{margin-bottom:14px;}
+  .hero-logo-icon{width:38px;height:38px;font-size:19px;border-radius:10px;}
+  .hero-logo-text{font-size:18px;}
+  .hero-title{font-size:10px;letter-spacing:.3px;}
+  .hero-chip{font-size:10px;padding:3px 10px;letter-spacing:.4px;}
+  .back-btn{font-size:11px;padding:5px 10px;}
+  .sub-grid .mod-card{padding:16px 14px 14px;}
+  .sub-grid .mod-icon{width:38px;height:38px;font-size:17px;margin-bottom:8px;}
+  .sub-grid .mod-name{font-size:12.5px;}
+  .sub-grid .mod-desc{font-size:10.5px;}
+}
+</style>
+</head>
+<body>
+
+<div class="theme-toggle" onclick="toggleTheme()">
+  <i id="toggleIcon" class="bi bi-moon-stars-fill toggle-icon"></i>
+  <div class="toggle-track"><div class="toggle-knob"></div></div>
+  <span id="toggleLabel" class="toggle-label">Oscuro</span>
+</div>
+
+<div class="home-wrapper">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-logo">
+      <div class="hero-logo-icon" style="background:linear-gradient(135deg,#4338ca,#6366f1);"><i class="bi bi-people-fill"></i></div>
+      <div class="hero-logo-text">COLABORADORES · <span>GESTIÓN DE USUARIOS</span></div>
+    </div>
+    <div class="hero-title">Directorio Corporativo · Azure AD · Seguridad MFA · Auditoría</div>
+    <div class="hero-chip" style="background:rgba(67,56,202,.1);color:#4338ca;border-color:rgba(67,56,202,.25);">
+      <i class="bi bi-circle-fill" style="font-size:8px;color:#10b981;"></i>
+      Gestión integral de usuarios y directorio corporativo
+    </div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <a href="/administracion" class="back-btn"><i class="bi bi-arrow-left"></i> Panel de administración</a>
+    </div>
+  </div>
+
+  <!-- TABS NAV -->
+  <div class="tabs-wrapper">
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="tb-emp"  onclick="switchTab('emp',this)"><i class="bi bi-people-fill"></i> Empleados</button>
+      <button class="tab-btn"        id="tb-ad"   onclick="switchTab('ad',this)"><i class="bi bi-microsoft"></i> Directorio AD</button>
+    </div>
+  </div>
+
+  <!-- TAB: EMPLEADOS -->
+  <div class="tab-panel active" id="panel-emp">
+    <div class="section-label"><i class="bi bi-people-fill"></i> &nbsp;Gestión de Empleados</div>
+    <div class="sub-grid">
+      <a href="/colaboradores/panel" class="mod-card c-indigo">
+        <div class="mod-icon ib ib-indigo"><i class="bi bi-person-badge-fill"></i></div>
+        <div class="mod-name">Directorio de Empleados</div>
+        <div class="mod-desc">Listado completo de colaboradores activos con datos de contacto, cargo y área.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/colaboradores/panel?tab=asg" class="mod-card c-blue">
+        <div class="mod-icon ib ib-blue"><i class="bi bi-clipboard-check-fill"></i></div>
+        <div class="mod-name">Asignaciones</div>
+        <div class="mod-desc">Equipos e inventario asignado a cada colaborador. Alta, baja y transferencia de activos.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- TAB: DIRECTORIO AD -->
+  <div class="tab-panel" id="panel-ad">
+    <div class="section-label"><i class="bi bi-microsoft"></i> &nbsp;Directorio Active Directory / Entra ID</div>
+    <div class="sub-grid">
+      <a href="/colaboradores/panel?tab=entra" class="mod-card c-blue">
+        <div class="mod-icon ib ib-blue"><i class="bi bi-microsoft"></i></div>
+        <div class="mod-name">Usuarios Entra ID</div>
+        <div class="mod-desc">Directorio de usuarios sincronizados con Azure Active Directory. Licencias y estado de cuenta.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/colaboradores/panel?tab=mfa" class="mod-card c-purp">
+        <div class="mod-icon ib ib-purp"><i class="bi bi-shield-lock-fill"></i></div>
+        <div class="mod-name">Seguridad MFA</div>
+        <div class="mod-desc">Estado de autenticación multifactor por usuario. Métodos registrados y cobertura MFA.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/colaboradores/panel?tab=signins" class="mod-card c-cyan">
+        <div class="mod-icon ib ib-cyan"><i class="bi bi-box-arrow-in-right"></i></div>
+        <div class="mod-name">Inicios de Sesión</div>
+        <div class="mod-desc">Registros de acceso al sistema: usuarios, apps, ubicaciones, riesgo y estado de inicio.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+      <a href="/colaboradores/panel?tab=auditlog" class="mod-card c-indigo">
+        <div class="mod-icon ib ib-indigo"><i class="bi bi-journal-text"></i></div>
+        <div class="mod-name">Auditoría de Directorio</div>
+        <div class="mod-desc">Historial de cambios en el directorio corporativo: altas, bajas, modificaciones y eventos.</div>
+        <i class="bi bi-arrow-right mod-arrow"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="home-footer">© 2025 IT Platform &nbsp;·&nbsp; Gestión de Colaboradores</div>
+</div>
+
+<script>
+(function(){
+  const s = localStorage.getItem('dashboardTheme') || 'light';
+  document.documentElement.setAttribute('data-theme', s);
+  _syncUI(s);
+})();
+function toggleTheme(){
+  const n = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', n);
+  localStorage.setItem('dashboardTheme', n);
+  _syncUI(n);
+}
+function _syncUI(t){
+  document.getElementById('toggleIcon').className = t === 'dark' ? 'bi bi-sun-fill toggle-icon' : 'bi bi-moon-stars-fill toggle-icon';
+  document.getElementById('toggleLabel').textContent = t === 'dark' ? 'Claro' : 'Oscuro';
+}
+function switchTab(name, btn){
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+document.addEventListener('DOMContentLoaded', function(){
+  const tab = new URLSearchParams(location.search).get('tab');
+  if(tab){ const btn = document.getElementById('tb-' + tab); if(btn) switchTab(tab, btn); }
+});
+</script>
+</body>
+</html>

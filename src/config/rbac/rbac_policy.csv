@@ -1,0 +1,158 @@
+# ============================================================================
+# Casbin RBAC Policy — ITSM Platform
+# Formato: p, rol, recurso, accion
+#          g, rol_hijo, rol_padre  (herencia / backward-compat)
+#
+# Roles ITSM:   administrador · especialista · agente · visor · usuario
+# Recursos:     ticket · service_request · change · problem · asset · knowledge · workflow · admin
+# Acciones:     read · create · update · delete · assign · close · approve · publish · cancel
+# ============================================================================
+
+# ── Herencia de roles (backward-compat con roles legacy) ──────────────────
+g, admin,       administrador
+g, supervisor,  especialista
+g, technician,  agente
+
+# ── ADMINISTRADOR: acceso completo a todo ────────────────────────────────
+# Tickets
+p, administrador, ticket,          read
+p, administrador, ticket,          create
+p, administrador, ticket,          update
+p, administrador, ticket,          delete
+p, administrador, ticket,          assign
+p, administrador, ticket,          close
+p, administrador, ticket,          cancel
+# Service Requests
+p, administrador, service_request, read
+p, administrador, service_request, create
+p, administrador, service_request, update
+p, administrador, service_request, delete
+p, administrador, service_request, approve
+p, administrador, service_request, cancel
+# Changes
+p, administrador, change,          read
+p, administrador, change,          create
+p, administrador, change,          update
+p, administrador, change,          delete
+p, administrador, change,          approve
+p, administrador, change,          cancel
+# Problems
+p, administrador, problem,         read
+p, administrador, problem,         create
+p, administrador, problem,         update
+p, administrador, problem,         delete
+p, administrador, problem,         close
+# Assets / CMDB
+p, administrador, asset,           read
+p, administrador, asset,           create
+p, administrador, asset,           update
+p, administrador, asset,           delete
+# Knowledge
+p, administrador, knowledge,       read
+p, administrador, knowledge,       create
+p, administrador, knowledge,       update
+p, administrador, knowledge,       delete
+p, administrador, knowledge,       publish
+# Workflow
+p, administrador, workflow,        read
+p, administrador, workflow,        create
+p, administrador, workflow,        update
+p, administrador, workflow,        delete
+p, administrador, workflow,        approve
+# Admin (gestión de tenant, usuarios, features)
+p, administrador, admin,           read
+p, administrador, admin,           create
+p, administrador, admin,           update
+p, administrador, admin,           delete
+# Recursos legacy (compatibilidad)
+p, administrador, equipment,       read
+p, administrador, equipment,       create
+p, administrador, equipment,       update
+p, administrador, equipment,       delete
+p, administrador, employees,       read
+p, administrador, employees,       create
+p, administrador, employees,       update
+p, administrador, employees,       delete
+p, administrador, reports,         read
+p, administrador, reports,         create
+p, administrador, users,           read
+p, administrador, users,           create
+p, administrador, users,           update
+p, administrador, users,           delete
+
+# ── ESPECIALISTA: ITSM completo, sin gestión de plataforma ───────────────
+p, especialista, ticket,          read
+p, especialista, ticket,          create
+p, especialista, ticket,          update
+p, especialista, ticket,          assign
+p, especialista, ticket,          close
+p, especialista, ticket,          cancel
+p, especialista, service_request, read
+p, especialista, service_request, create
+p, especialista, service_request, update
+p, especialista, service_request, approve
+p, especialista, change,          read
+p, especialista, change,          create
+p, especialista, change,          update
+p, especialista, change,          approve
+p, especialista, problem,         read
+p, especialista, problem,         create
+p, especialista, problem,         update
+p, especialista, problem,         close
+p, especialista, asset,           read
+p, especialista, asset,           create
+p, especialista, asset,           update
+p, especialista, knowledge,       read
+p, especialista, knowledge,       create
+p, especialista, knowledge,       update
+p, especialista, knowledge,       publish
+p, especialista, workflow,        read
+p, especialista, workflow,        approve
+# Legacy
+p, especialista, equipment,       read
+p, especialista, equipment,       update
+p, especialista, reports,         read
+p, especialista, reports,         create
+p, especialista, employees,       read
+
+# ── AGENTE: operaciones diarias — tickets y SRs ──────────────────────────
+p, agente, ticket,          read
+p, agente, ticket,          create
+p, agente, ticket,          update
+p, agente, ticket,          assign
+p, agente, ticket,          close
+p, agente, service_request, read
+p, agente, service_request, create
+p, agente, service_request, update
+p, agente, change,          read
+p, agente, problem,         read
+p, agente, asset,           read
+p, agente, asset,           create
+p, agente, asset,           update
+p, agente, knowledge,       read
+p, agente, knowledge,       create
+p, agente, workflow,        read
+# Legacy
+p, agente, equipment,       read
+p, agente, equipment,       create
+p, agente, equipment,       update
+p, agente, employees,       read
+p, agente, reports,         read
+
+# ── VISOR: solo lectura en todo ───────────────────────────────────────────
+p, visor, ticket,          read
+p, visor, service_request, read
+p, visor, change,          read
+p, visor, problem,         read
+p, visor, asset,           read
+p, visor, knowledge,       read
+p, visor, workflow,        read
+p, visor, equipment,       read
+p, visor, reports,         read
+
+# ── USUARIO: portal de autogestión ───────────────────────────────────────
+p, usuario, ticket,          create
+p, usuario, ticket,          read
+p, usuario, service_request, create
+p, usuario, service_request, read
+p, usuario, knowledge,       read

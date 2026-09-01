@@ -1,0 +1,2081 @@
+<script>
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function _syncThemeIcon(t){
+  const lbl=document.getElementById('htToggleLabel');
+  if(lbl) lbl.textContent=t==='dark'?'Claro':'Oscuro';
+}
+function toggleTheme(){
+  const h = document.documentElement;
+  const t = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  h.setAttribute('data-theme', t);
+  localStorage.setItem('dashboardTheme', t);
+  _syncThemeIcon(t);
+  const pf=document.getElementById('printIframe');
+  if(pf&&pf.src) try{pf.contentWindow.postMessage({type:'theme',theme:t},'*');}catch(e){}
+}
+document.addEventListener('DOMContentLoaded',function(){
+  _syncThemeIcon(document.documentElement.getAttribute('data-theme')||'light');
+  // Activar tab desde URL param (?tab=8) o Reportes por defecto
+  const _urlTab = parseInt(new URLSearchParams(window.location.search).get('tab') || '8');
+  switchToolTab(_urlTab);
+  // Escuchar postMessage para cambio de tab desde el iframe padre
+  window.addEventListener('message', function(ev) {
+    if (ev.data && ev.data.type === 'switchTab' && ev.data.tab) switchToolTab(ev.data.tab);
+  });
+  // ── Auto-collapse tabs when they overflow ─────────────────────────────────
+  var wrap=document.querySelector('.ht-tabs-wrap');
+  var tabs=document.getElementById('toolTabs');
+  if(wrap&&tabs){
+    var naturalW=tabs.scrollWidth;
+    var _collapsed=false;
+    var _rafId=null;
+    function checkTabs(){
+      _rafId=null;
+      var should=naturalW>wrap.offsetWidth+4;
+      if(should!==_collapsed){_collapsed=should;wrap.classList.toggle('tabs-collapsed',_collapsed);}
+    }
+    checkTabs();
+    window.addEventListener('resize',function(){if(!_rafId)_rafId=requestAnimationFrame(checkTabs);});
+  }
+});
+
+// ── Hamburger tabs (auto-collapse when overflow) ──────────────────────────────
+function _htCloseOutside(e){
+  const wrap=document.querySelector('.ht-tabs-wrap');
+  if(!wrap||!wrap.contains(e.target)){
+    document.getElementById('htTabsDropdown').classList.remove('open');
+    document.removeEventListener('click',_htCloseOutside,true);
+  }
+}
+function toggleHtTabsMenu(e){
+  if(e) e.stopPropagation();
+  const d=document.getElementById('htTabsDropdown');
+  if(d.classList.contains('open')){
+    d.classList.remove('open');
+    document.removeEventListener('click',_htCloseOutside,true);
+  } else {
+    d.classList.add('open');
+    setTimeout(function(){document.addEventListener('click',_htCloseOutside,true);},0);
+  }
+}
+function closeHtTabsMenu(){
+  document.getElementById('htTabsDropdown').classList.remove('open');
+  document.removeEventListener('click',_htCloseOutside,true);
+}
+function _syncHamburgerLabel(idx){
+  const btn=document.querySelector('#htTabsDropdown [onclick*="switchToolTab('+idx+')"]');
+  const lbl=document.getElementById('htTabsToggleLabel');
+  if(btn&&lbl) lbl.textContent=btn.textContent.trim().replace(/\s+/g,' ').split(' ').slice(0,2).join(' ');
+  document.querySelectorAll('#htTabsDropdown .tool-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+
+// ── Session portal ────────────────────────────────────────────────────────────
+(function initSession(){
+  let email = <%- JSON.stringify(reporterEmail || '') %>;
+  let name  = <%- JSON.stringify(reporterName  || '') %>;
+  <% if (user) { %>
+  email = <%- JSON.stringify(user.email || '') %>;
+  name  = <%- JSON.stringify(user.full_name || user.name || user.email || '') %>;
+  <% } %>
+  if (!email) { const p = new URLSearchParams(window.location.search); email = p.get('reporter') || ''; }
+  if (!name)  { const p = new URLSearchParams(window.location.search); name  = p.get('name')     || ''; }
+  if (!email) email = localStorage.getItem('portal_user_email') || '';
+  if (!name)  name  = localStorage.getItem('portal_user_name')  || '';
+  if (email || name) {
+    const chip  = document.getElementById('userChip');
+    const avEl  = document.getElementById('userAvatar');
+    const nameEl = document.getElementById('userNameChip');
+    if (chip) {
+      const displayName = name || email;
+      nameEl.textContent = displayName;
+      const parts = displayName.trim().split(/\s+/);
+      const ini = parts.length >= 2 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : displayName.slice(0,2).toUpperCase();
+      avEl.textContent = ini;
+      chip.style.display = 'flex';
+    }
+    const btn = document.getElementById('portalBackBtn');
+    if (btn) {
+      btn.href = '/home?reporter=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(name);
+      btn.style.display = 'flex';
+    }
+  }
+  // Tab Impresiones removido — ahora es un chip independiente en /autogestion
+})();
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchToolTab(idx) {
+  document.querySelectorAll('.section-tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tool-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('toolTab' + idx)?.classList.add('active');
+  // Marcar el botón activo (pueden existir IDs con sufijo 'r' o sin él)
+  var btn = document.querySelector('[onclick="switchToolTab(' + idx + ')"]');
+  if (btn) btn.classList.add('active');
+  _syncHamburgerLabel(idx);
+  if (idx === 2  && !_ganttInited) {
+    if (window._toolDBData.gantt?.length) {
+      _ganttTasks  = window._toolDBData.gantt.filter(function(t){return t&&t.name&&t.start&&t.end;});
+      if (_ganttTasks.length) _ganttNextId = Math.max(0, ..._ganttTasks.map(function(t){return t.id||0;})) + 1;
+    }
+    ganttInit(); _ganttInited = true;
+  }
+  if (idx === 3  && !_bpmnInited)  {
+    var _bd = window._toolDBData.bpmn;
+    if (_bd && _bd.flows && _bd.flows.length) { _bpmnFlows = _bd.flows; _bpmnActiveId = _bd.activeId || _bpmnFlows[0].id; }
+    bpmnInit(); _bpmnInited = true;
+  }
+  if (idx === 9  && !_wbInited)    {
+    if (window._toolDBData.pizarra) { _wb.items=window._toolDBData.pizarra.items||[]; _wb.edges=window._toolDBData.pizarra.edges||[]; }
+    wbInit(); _wbInited = true;
+  }
+  if (idx === 1  && !_notesInited) {
+    if (window._toolDBData.notas?.length) { _notesData=window._toolDBData.notas.filter(function(n){return n&&n.id;}); localStorage.setItem('ht_notes_v1',JSON.stringify(_notesData)); }
+    notesInit(); _notesInited = true;
+  }
+  if (idx === 10) {
+    if (!_mmInited && window._toolDBData.mapas) { var _md=window._toolDBData.mapas; _G.nodes=_md.nodes||[]; _G.edges=_md.edges||[]; if(_md.theme!==undefined){_mmTheme=_md.theme;} if(_md.uid)_mmUid=_md.uid; }
+    mmInitInteraction();
+  }
+  if (idx === 11 && !_calInited)   {
+    if (window._toolDBData.turnos) { if(window._toolDBData.turnos.agents?.length)_calAgents=window._toolDBData.turnos.agents; if(window._toolDBData.turnos.shifts?.length)_calShifts=window._toolDBData.turnos.shifts; }
+    calInit(); _calInited = true;
+  }
+  if (idx === 11) wheelDraw();
+  if (idx === 12 && !_pomInited)   { pomInit();  _pomInited  = true; }
+  if (idx === 13 && !_annoInited)  { annoInit(); _annoInited = true; }
+  if (idx === 14) { evtUpdatePreview(); }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+var _htTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('htToast');
+  t.className = 'ht-toast show ' + (type || '');
+  t.innerHTML = '<i class="bi bi-' + (type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle') + '-fill"></i>' + msg;
+  clearTimeout(_htTimer);
+  _htTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ── Gestión de archivos ───────────────────────────────────────────────────────
+var _files = [];   // { name, size, type, dataUrl, selected }
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function onDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
+function onDragLeave(e) { document.getElementById('dropZone').classList.remove('drag-over'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  onFilesSelected(e.dataTransfer.files);
+}
+
+function onFilesSelected(fileList) {
+  const MAX = 10 * 1024 * 1024;
+  Array.from(fileList).forEach(file => {
+    if (file.size > MAX) { showToast(`"${file.name}" supera el límite de 10MB.`, 'error'); return; }
+    if (_files.find(f => f.name === file.name)) { showToast(`"${file.name}" ya fue agregado.`, 'warn'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      _files.push({ name: file.name, size: file.size, mimeType: file.type, dataUrl: e.target.result, selected: false });
+      renderFileList();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+const FILE_ICONS = {
+  'pdf':   { icon: 'bi-file-pdf-fill',      color: '#dc2626', bg: '#fee2e2' },
+  'doc':   { icon: 'bi-file-word-fill',      color: '#1d4ed8', bg: '#dbeafe' },
+  'docx':  { icon: 'bi-file-word-fill',      color: '#1d4ed8', bg: '#dbeafe' },
+  'xls':   { icon: 'bi-file-excel-fill',     color: '#059669', bg: '#d1fae5' },
+  'xlsx':  { icon: 'bi-file-excel-fill',     color: '#059669', bg: '#d1fae5' },
+  'ppt':   { icon: 'bi-file-ppt-fill',       color: '#d97706', bg: '#fef3c7' },
+  'pptx':  { icon: 'bi-file-ppt-fill',       color: '#d97706', bg: '#fef3c7' },
+  'png':   { icon: 'bi-file-image-fill',     color: '#7c3aed', bg: '#ede9fe' },
+  'jpg':   { icon: 'bi-file-image-fill',     color: '#7c3aed', bg: '#ede9fe' },
+  'jpeg':  { icon: 'bi-file-image-fill',     color: '#7c3aed', bg: '#ede9fe' },
+  'zip':   { icon: 'bi-file-zip-fill',       color: '#78716c', bg: '#f5f5f4' },
+  'txt':   { icon: 'bi-file-text-fill',      color: '#64748b', bg: '#f1f5f9' },
+};
+
+function getFileIcon(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  return FILE_ICONS[ext] || { icon: 'bi-file-earmark-fill', color: '#64748b', bg: '#f1f5f9' };
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function renderFileList() {
+  const list  = document.getElementById('fileList');
+  const badge = document.getElementById('fileCountBadge');
+  badge.textContent = _files.length + ' archivo' + (_files.length !== 1 ? 's' : '');
+  if (!_files.length) {
+    list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px;">
+      <i class="bi bi-folder-open" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>
+      No hay archivos subidos aún
+    </div>`;
+    updateAttachList();
+    return;
+  }
+  list.innerHTML = _files.map((f, i) => {
+    const fi = getFileIcon(f.name);
+    return `<div class="file-item" id="fi-${i}">
+      <div class="file-icon" style="background:${fi.bg};color:${fi.color};">
+        <i class="bi ${fi.icon}"></i>
+      </div>
+      <div class="file-info">
+        <div class="file-name" title="${esc(f.name)}">${esc(f.name)}</div>
+        <div class="file-meta">${fmtSize(f.size)}</div>
+      </div>
+      <div class="file-actions">
+        <button class="btn-sm ${f.selected ? 'btn-success' : 'btn-outline'}" style="padding:4px 10px;font-size:11px;" onclick="toggleSelect(${i})" title="${f.selected ? 'Deseleccionar' : 'Seleccionar para enviar'}">
+          <i class="bi bi-${f.selected ? 'check-lg' : 'paperclip'}"></i>
+        </button>
+        <button class="btn-sm btn-outline" style="padding:4px 8px;font-size:11px;color:var(--danger);border-color:var(--danger);" onclick="removeFile(${i})" title="Eliminar">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+  updateAttachList();
+}
+
+function toggleSelect(idx) {
+  _files[idx].selected = !_files[idx].selected;
+  renderFileList();
+}
+
+function removeFile(idx) {
+  _files.splice(idx, 1);
+  renderFileList();
+}
+
+function updateAttachList() {
+  const selected = _files.filter(f => f.selected);
+  const el = document.getElementById('attachList');
+  if (!selected.length) {
+    el.innerHTML = '<span style="font-size:13px;color:var(--muted);">Selecciona archivos de la lista (icono <i class="bi bi-paperclip"></i>) para adjuntarlos.</span>';
+    return;
+  }
+  el.innerHTML = selected.map(f => {
+    const fi = getFileIcon(f.name);
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <i class="bi ${fi.icon}" style="color:${fi.color};font-size:14px;"></i>
+      <span style="font-size:13px;font-weight:600;">${esc(f.name)}</span>
+      <span style="font-size:11px;color:var(--muted);">(${fmtSize(f.size)})</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Reportes — Excel/CSV Dashboard ───────────────────────────────────────────
+var _xls = {
+  files: [], allRows: [], allCols: [], types: {}, filtered: [],
+  search: '', filters: {}, sortCol: null, sortDir: 'asc',
+  page: 1, pageSize: 25, charts: [], _searchTimer: null,
+};
+var _FILE_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444'];
+
+function switchRpTab(idx) {
+  document.getElementById('rpTab0').style.display = idx === 0 ? 'block' : 'none';
+  document.getElementById('rpTab1').style.display = idx === 1 ? 'block' : 'none';
+  document.getElementById('rpStab0').classList.toggle('active', idx === 0);
+  document.getElementById('rpStab1').classList.toggle('active', idx === 1);
+}
+
+function rpDragOver(e) { e.preventDefault(); document.getElementById('rpDzData').classList.add('drag-over'); }
+function rpDragLeave()  { document.getElementById('rpDzData').classList.remove('drag-over'); }
+function rpDropData(e) {
+  e.preventDefault();
+  document.getElementById('rpDzData').classList.remove('drag-over');
+  if (e.dataTransfer.files.length) rpLoadFiles(e.dataTransfer.files);
+}
+
+function rpLoadFiles(fileList) {
+  const remaining = 3 - _xls.files.length;
+  if (remaining <= 0) { showToast('Máximo 3 archivos.', 'warn'); return; }
+  const toLoad = Array.from(fileList).slice(0, remaining);
+  let pending = toLoad.length;
+  if (!pending) return;
+  toLoad.forEach((file, idx) => {
+    if (file.size > 10 * 1024 * 1024) { showToast(file.name + ': supera 10MB', 'error'); if (!--pending) rpFinalize(); return; }
+    const ext = file.name.split('.').pop().toLowerCase();
+    const color = _FILE_COLORS[(_xls.files.length + idx) % _FILE_COLORS.length];
+    if (ext === 'csv') {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true, dynamicTyping: true,
+        complete: r => { rpAddFile(file.name, r.data, r.meta.fields || [], color); if (!--pending) rpFinalize(); },
+      });
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const wb = XLSX.read(ev.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        rpAddFile(file.name, rows, rows.length ? Object.keys(rows[0]) : [], color);
+        if (!--pending) rpFinalize();
+      };
+      reader.readAsBinaryString(file);
+    } else {
+      showToast(file.name + ': formato no soportado.', 'error');
+      if (!--pending) rpFinalize();
+    }
+  });
+}
+
+function rpAddFile(name, rows, cols, color) {
+  rows.forEach(r => { r.__source__ = name; });
+  _xls.files.push({ name, rows, cols, color });
+  cols.forEach(c => { if (!_xls.allCols.includes(c)) _xls.allCols.push(c); });
+  _xls.allRows = _xls.allRows.concat(rows);
+}
+
+function rpFinalize() {
+  if (!_xls.allRows.length) { showToast('Los archivos están vacíos.', 'warn'); return; }
+  _xls.allCols.forEach(col => { _xls.types[col] = rpDetectType(col, _xls.allRows); });
+  _xls.filters = {}; _xls.search = ''; _xls.page = 1;
+  document.getElementById('rpDataUpload').style.display = 'none';
+  document.getElementById('rpDashboard').style.display = 'block';
+  rpUpdateFileList();
+  rpBuildFilters();
+  rpApplyFilters();
+  if (!_xls.charts.length) rpAutoCharts();
+}
+
+function rpUpdateFileList() {
+  const el = document.getElementById('rpFileList');
+  if (!_xls.files.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:4px;">' +
+    _xls.files.map((f, i) => `<div style="display:flex;align-items:center;gap:6px;background:var(--border);padding:4px 10px;border-radius:20px;font-size:12px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${f.color};flex-shrink:0;"></span>
+      <strong>${esc(f.name)}</strong><span style="color:var(--muted);">(${f.rows.length.toLocaleString()} filas)</span>
+      <button style="background:none;border:none;cursor:pointer;color:var(--muted);padding:0 2px;font-size:14px;" onclick="rpRemoveFile(${i})" title="Quitar">×</button>
+    </div>`).join('') + '</div>';
+  document.getElementById('rpFileName').textContent = _xls.files.map(f => f.name.replace(/\.[^.]+$/, '')).join(', ');
+}
+
+function rpRemoveFile(idx) {
+  _xls.files.splice(idx, 1);
+  _xls.allRows = []; _xls.allCols = []; _xls.types = {};
+  _xls.files.forEach(f => {
+    f.cols.forEach(c => { if (!_xls.allCols.includes(c)) _xls.allCols.push(c); });
+    _xls.allRows = _xls.allRows.concat(f.rows);
+  });
+  if (!_xls.files.length) { rpReset(); return; }
+  _xls.allCols.forEach(col => { _xls.types[col] = rpDetectType(col, _xls.allRows); });
+  rpUpdateFileList(); rpBuildFilters(); rpApplyFilters();
+}
+
+function rpDetectType(col, rows) {
+  const sample = rows.map(r => r[col]).filter(v => v !== null && v !== undefined && v !== '').slice(0, 200);
+  if (!sample.length) return 'text';
+  const boolSet = new Set(['true','false','yes','no','si','sí','1','0']);
+  if (sample.every(v => boolSet.has(String(v).toLowerCase()))) return 'boolean';
+  if (sample.every(v => v !== '' && !isNaN(+v))) return 'number';
+  const dateRe = /^\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4}$|^\d{4}-\d{2}-\d{2}T/;
+  if (sample.filter(v => dateRe.test(String(v))).length / sample.length > 0.7) return 'date';
+  if (new Set(sample.map(v => String(v))).size <= 80) return 'categorical';
+  return 'text';
+}
+
+function rpBuildFilters() {
+  const bar = document.getElementById('rpFilterBar');
+  bar.innerHTML = '';
+  _xls.allCols.slice(0, 8).forEach(col => {
+    const type = _xls.types[col];
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:3px;';
+    const lbl = `<label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">${esc(col)}</label>`;
+    if (type === 'number') {
+      const vals = _xls.allRows.map(r => +r[col]).filter(v => !isNaN(v));
+      const mn = Math.min(...vals), mx = Math.max(...vals);
+      wrap.innerHTML = lbl + `<div style="display:flex;align-items:center;gap:4px;">
+        <input type="number" class="form-ctrl" style="width:80px;padding:3px 6px;font-size:12px;" value="${mn}" data-role="min" data-col="${esc(col)}" onchange="rpApplyFilters()">
+        <span style="font-size:11px;color:var(--muted);">–</span>
+        <input type="number" class="form-ctrl" style="width:80px;padding:3px 6px;font-size:12px;" value="${mx}" data-role="max" data-col="${esc(col)}" onchange="rpApplyFilters()">
+      </div>`;
+    } else if (type === 'date') {
+      wrap.innerHTML = lbl + `<div style="display:flex;align-items:center;gap:4px;">
+        <input type="date" class="form-ctrl" style="width:130px;padding:3px 6px;font-size:12px;" data-role="from" data-col="${esc(col)}" onchange="rpApplyFilters()">
+        <span style="font-size:11px;color:var(--muted);">→</span>
+        <input type="date" class="form-ctrl" style="width:130px;padding:3px 6px;font-size:12px;" data-role="to" data-col="${esc(col)}" onchange="rpApplyFilters()">
+      </div>`;
+    } else if (type === 'categorical' || type === 'boolean') {
+      const unique = type === 'boolean' ? ['true','false'] :
+        [...new Set(_xls.allRows.map(r => String(r[col] ?? '')).filter(v => v !== ''))].sort().slice(0, 100);
+      wrap.innerHTML = lbl + `<select class="form-ctrl" style="width:140px;padding:3px 6px;font-size:12px;" data-col="${esc(col)}" onchange="rpApplyFilters()">
+        <option value="">Todos</option>${unique.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('')}
+      </select>`;
+    } else {
+      wrap.innerHTML = lbl + `<input type="text" class="form-ctrl" style="width:130px;padding:3px 6px;font-size:12px;" placeholder="Contiene…" data-col="${esc(col)}" oninput="rpApplyFilters()">`;
+    }
+    bar.appendChild(wrap);
+  });
+  const actWrap = document.createElement('div');
+  actWrap.style.cssText = 'display:flex;flex-direction:column;gap:3px;justify-content:flex-end;';
+  let actHtml = '';
+  if (_xls.files.length > 1) {
+    actHtml += `<label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Fuente</label>
+      <select class="form-ctrl" style="width:140px;padding:3px 6px;font-size:12px;" id="rpSourceFilter" onchange="rpApplyFilters()">
+        <option value="">Todos</option>${_xls.files.map(f => `<option value="${esc(f.name)}">${esc(f.name)}</option>`).join('')}
+      </select>`;
+  }
+  actHtml += `<button class="btn-sm btn-outline" style="font-size:11px;margin-top:4px;" onclick="rpClearFilters()"><i class="bi bi-x-circle"></i> Limpiar filtros</button>`;
+  actWrap.innerHTML = actHtml;
+  bar.appendChild(actWrap);
+}
+
+function rpApplyFilters() {
+  let data = [..._xls.allRows];
+  const srcEl = document.getElementById('rpSourceFilter');
+  if (srcEl && srcEl.value) data = data.filter(r => r.__source__ === srcEl.value);
+  document.querySelectorAll('#rpFilterBar [data-col]').forEach(el => {
+    const col = el.dataset.col;
+    if (!col) return;
+    const type = _xls.types[col];
+    if (el.tagName === 'SELECT') {
+      if (el.value) data = data.filter(r => String(r[col] ?? '') === el.value);
+    } else if (el.tagName === 'INPUT') {
+      if (type === 'number') {
+        const val = parseFloat(el.value);
+        if (!isNaN(val)) {
+          if (el.dataset.role === 'min') data = data.filter(r => +r[col] >= val);
+          if (el.dataset.role === 'max') data = data.filter(r => +r[col] <= val);
+        }
+      } else if (type === 'date') {
+        if (el.value) {
+          const t = new Date(el.value).getTime();
+          if (el.dataset.role === 'from') data = data.filter(r => new Date(r[col]).getTime() >= t);
+          if (el.dataset.role === 'to')   data = data.filter(r => new Date(r[col]).getTime() <= t);
+        }
+      } else if (el.value) {
+        const term = el.value.toLowerCase();
+        data = data.filter(r => String(r[col] ?? '').toLowerCase().includes(term));
+      }
+    }
+  });
+  if (_xls.search) {
+    const term = _xls.search.toLowerCase();
+    data = data.filter(r => _xls.allCols.some(c => String(r[c] ?? '').toLowerCase().includes(term)));
+  }
+  _xls.filtered = data; _xls.page = 1;
+  document.getElementById('rpRowCount').textContent = data.length.toLocaleString() + ' filas';
+  rpRenderStats(); rpRenderAllCharts(); rpRenderTable();
+}
+
+function rpClearFilters() {
+  document.querySelectorAll('#rpFilterBar input, #rpFilterBar select').forEach(el => { el.value = ''; });
+  document.getElementById('rpGlobalSearch').value = ''; _xls.search = '';
+  rpApplyFilters();
+}
+
+function rpOnSearch(val) {
+  clearTimeout(_xls._searchTimer);
+  _xls._searchTimer = setTimeout(() => { _xls.search = val; rpApplyFilters(); }, 280);
+}
+
+function rpRenderStats() {
+  const data = _xls.filtered;
+  let html = `<div class="rp-stat-card"><div class="rp-stat-label">Total filas</div><div class="rp-stat-val">${data.length.toLocaleString()}</div></div>`;
+  html += `<div class="rp-stat-card"><div class="rp-stat-label">Columnas</div><div class="rp-stat-val">${_xls.allCols.length}</div></div>`;
+  if (_xls.files.length > 1) html += `<div class="rp-stat-card"><div class="rp-stat-label">Archivos</div><div class="rp-stat-val">${_xls.files.length}</div></div>`;
+  _xls.allCols.filter(c => _xls.types[c] === 'number').slice(0, 3).forEach(col => {
+    const sum = data.map(r => +r[col]).filter(v => !isNaN(v)).reduce((a, b) => a + b, 0);
+    html += `<div class="rp-stat-card"><div class="rp-stat-label">Σ ${esc(col)}</div><div class="rp-stat-val">${sum.toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>`;
+  });
+  document.getElementById('rpStats').innerHTML = html;
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+function rpAutoCharts() {
+  const cat  = _xls.allCols.filter(c => _xls.types[c] === 'categorical');
+  const num  = _xls.allCols.filter(c => _xls.types[c] === 'number');
+  const date = _xls.allCols.filter(c => _xls.types[c] === 'date');
+  const defs = [];
+  if (cat.length)              defs.push({ type:'bar',      xCol:cat[0],  yCol:null,   agg:'count' });
+  if (cat.length && num.length) defs.push({ type:'bar',     xCol:cat[0],  yCol:num[0], agg:'sum'   });
+  if (cat.length > 1)          defs.push({ type:'doughnut', xCol:cat[1],  yCol:null,   agg:'count' });
+  if (date.length && num.length) defs.push({ type:'line',   xCol:date[0], yCol:num[0], agg:'sum'   });
+  defs.slice(0, 4).forEach(cfg => rpAddChart(cfg));
+}
+
+function rpAddChart(cfg) {
+  const id = 'rpc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  const cat = _xls.allCols.filter(c => _xls.types[c] !== 'number');
+  const num = _xls.allCols.filter(c => _xls.types[c] === 'number');
+  const ch = { id, type:(cfg&&cfg.type)||'bar', xCol:(cfg&&cfg.xCol)||cat[0]||_xls.allCols[0],
+               yCol:(cfg&&cfg.yCol)||num[0]||null, agg:(cfg&&cfg.agg)||'count', instance:null };
+  _xls.charts.push(ch);
+  rpRenderChartCard(ch);
+  rpRenderSingleChart(ch);
+}
+
+function rpRemoveChart(id) {
+  const idx = _xls.charts.findIndex(c => c.id === id);
+  if (idx < 0) return;
+  if (_xls.charts[idx].instance) _xls.charts[idx].instance.destroy();
+  _xls.charts.splice(idx, 1);
+  const el = document.getElementById('card_' + id); if (el) el.remove();
+}
+
+function rpChartCfg(id, key, val) {
+  const ch = _xls.charts.find(c => c.id === id); if (!ch) return;
+  ch[key] = val; rpRenderSingleChart(ch);
+}
+
+function rpRenderChartCard(ch) {
+  const num = _xls.allCols.filter(c => _xls.types[c] === 'number');
+  const card = document.createElement('div');
+  card.id = 'card_' + ch.id; card.className = 'card-ui';
+  card.style.cssText = 'flex:1;min-width:300px;max-width:520px;';
+  card.innerHTML = `
+    <div class="card-head" style="padding:10px 14px;">
+      <span class="title" style="font-size:13px;"><i class="bi bi-graph-up"></i> Gráfico</span>
+      <button style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;" onclick="rpRemoveChart('${ch.id}')">×</button>
+    </div>
+    <div style="padding:8px 14px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center;">
+      <select class="form-ctrl" style="width:100px;padding:3px 6px;font-size:11px;" onchange="rpChartCfg('${ch.id}','type',this.value)">
+        <option value="bar" ${ch.type==='bar'?'selected':''}>Barras</option>
+        <option value="line" ${ch.type==='line'?'selected':''}>Líneas</option>
+        <option value="pie" ${ch.type==='pie'?'selected':''}>Pastel</option>
+        <option value="doughnut" ${ch.type==='doughnut'?'selected':''}>Donut</option>
+      </select>
+      <select class="form-ctrl" style="width:130px;padding:3px 6px;font-size:11px;" onchange="rpChartCfg('${ch.id}','xCol',this.value)">
+        ${_xls.allCols.map(c => `<option value="${esc(c)}" ${ch.xCol===c?'selected':''}>${esc(c)}</option>`).join('')}
+      </select>
+      <select class="form-ctrl" style="width:100px;padding:3px 6px;font-size:11px;" onchange="rpChartCfg('${ch.id}','agg',this.value)">
+        <option value="count" ${ch.agg==='count'?'selected':''}>Contar</option>
+        <option value="sum"   ${ch.agg==='sum'?'selected':''}>Suma</option>
+        <option value="avg"   ${ch.agg==='avg'?'selected':''}>Promedio</option>
+      </select>
+      ${num.length ? `<select class="form-ctrl" style="width:130px;padding:3px 6px;font-size:11px;" onchange="rpChartCfg('${ch.id}','yCol',this.value)">
+        <option value="">— col Y —</option>
+        ${num.map(c => `<option value="${esc(c)}" ${ch.yCol===c?'selected':''}>${esc(c)}</option>`).join('')}
+      </select>` : ''}
+    </div>
+    <div style="padding:12px;position:relative;height:240px;"><canvas id="cv_${ch.id}"></canvas></div>`;
+  document.getElementById('rpChartArea').appendChild(card);
+}
+
+function rpAggData(ch) {
+  const grouped = new Map();
+  _xls.filtered.forEach(r => {
+    const key = String(r[ch.xCol] ?? '');
+    if (!grouped.has(key)) grouped.set(key, { count:0, sum:0, vals:[] });
+    const g = grouped.get(key); g.count++;
+    if (ch.yCol) { const v = parseFloat(r[ch.yCol]); if (!isNaN(v)) { g.sum += v; g.vals.push(v); } }
+  });
+  const getValue = ([, g]) => ch.agg==='sum' ? g.sum : ch.agg==='avg' ? (g.vals.length ? g.sum/g.vals.length : 0) : g.count;
+  const top = [...grouped.entries()].sort((a,b) => getValue(b)-getValue(a)).slice(0, 40);
+  return { labels: top.map(([k]) => k||'(vacío)'), values: top.map(getValue) };
+}
+
+function rpRenderSingleChart(ch) {
+  if (ch.instance) { ch.instance.destroy(); ch.instance = null; }
+  const canvas = document.getElementById('cv_' + ch.id);
+  if (!canvas || !ch.xCol) return;
+  const { labels, values } = rpAggData(ch);
+  if (!labels.length) return;
+  const isPie = ch.type === 'pie' || ch.type === 'doughnut';
+  const palette = labels.map((_, i) => `hsl(${Math.round(i*360/Math.max(labels.length,1))},60%,55%)`);
+  ch.instance = new Chart(canvas.getContext('2d'), {
+    type: ch.type,
+    data: { labels, datasets: [{ label: ch.agg==='count'?'Conteo':(ch.yCol||'Valor'), data: values,
+      backgroundColor: isPie ? palette : 'rgba(59,130,246,.72)',
+      borderColor: isPie ? palette : '#3b82f6', borderWidth:1, fill:false, tension:.35 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins: { legend: { labels: { color:'#64748b', font:{size:11} } } },
+      scales: isPie ? {} : { x:{ticks:{color:'#64748b',font:{size:10},maxRotation:40}}, y:{ticks:{color:'#64748b',font:{size:10}}} } },
+  });
+}
+
+function rpRenderAllCharts() { _xls.charts.forEach(rpRenderSingleChart); }
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+function rpRenderTable() {
+  const wrap = document.getElementById('rpTableWrap');
+  const pg = document.getElementById('rpPagination');
+  const total = _xls.filtered.length;
+  const pages = Math.ceil(total / _xls.pageSize) || 1;
+  if (_xls.page > pages) _xls.page = pages;
+  const start = (_xls.page - 1) * _xls.pageSize;
+  const slice = _xls.filtered.slice(start, start + _xls.pageSize);
+  const cols = _xls.allCols;
+  const TC = { number:'#3b82f6', date:'#8b5cf6', categorical:'#10b981', boolean:'#f59e0b', text:'#94a3b8' };
+  if (!slice.length) { wrap.innerHTML='<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">Sin datos</div>'; pg.innerHTML=''; return; }
+  const arr = col => col===_xls.sortCol ? (_xls.sortDir==='asc'?' ▲':' ▼') : '';
+  let html = `<table class="rp-table" style="font-size:12px;"><thead><tr>
+    ${cols.map(c=>`<th style="cursor:pointer;white-space:nowrap;" onclick="rpSortBy('${esc(c)}')">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${TC[_xls.types[c]]||'#94a3b8'};margin-right:4px;vertical-align:middle;"></span>${esc(c)}${arr(c)}
+    </th>`).join('')}
+    ${_xls.files.length>1?'<th>Fuente</th>':''}
+  </tr></thead><tbody>
+    ${slice.map(r=>`<tr>${cols.map(c=>`<td title="${esc(String(r[c]??''))}">${esc(String(r[c]??''))}</td>`).join('')}
+    ${_xls.files.length>1?`<td><span style="font-size:10px;background:var(--border);padding:1px 6px;border-radius:10px;">${esc(String(r.__source__||''))}</span></td>`:''}</tr>`).join('')}
+  </tbody></table>`;
+  wrap.innerHTML = html;
+  const bs = active => `style="padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:${active?'var(--primary)':'var(--card)'};color:${active?'#fff':'var(--text)'};cursor:pointer;font-size:12px;"`;
+  let pgHtml = `<span style="font-size:12px;color:var(--muted);margin-right:8px;">${start+1}–${Math.min(start+_xls.pageSize,total)} de ${total.toLocaleString()}</span>`;
+  pgHtml += `<button ${bs(false)} onclick="rpGoPage(1)" ${_xls.page===1?'disabled':''}>«</button>`;
+  pgHtml += `<button ${bs(false)} onclick="rpGoPage(${_xls.page-1})" ${_xls.page<=1?'disabled':''}>‹</button>`;
+  for (let p=Math.max(1,_xls.page-2); p<=Math.min(pages,_xls.page+2); p++) pgHtml+=`<button ${bs(p===_xls.page)} onclick="rpGoPage(${p})">${p}</button>`;
+  pgHtml += `<button ${bs(false)} onclick="rpGoPage(${_xls.page+1})" ${_xls.page>=pages?'disabled':''}>›</button>`;
+  pgHtml += `<button ${bs(false)} onclick="rpGoPage(${pages})" ${_xls.page===pages?'disabled':''}>»</button>`;
+  pg.innerHTML = pgHtml;
+}
+
+function rpSortBy(col) {
+  _xls.sortDir = _xls.sortCol===col && _xls.sortDir==='asc' ? 'desc' : 'asc';
+  _xls.sortCol = col;
+  const dir = _xls.sortDir==='asc' ? 1 : -1;
+  _xls.filtered.sort((a,b) => _xls.types[col]==='number' ? dir*(+a[col]-+b[col]) : dir*String(a[col]??'').localeCompare(String(b[col]??'')));
+  _xls.page = 1; rpRenderTable();
+}
+
+function rpGoPage(p) {
+  _xls.page = Math.max(1, Math.min(Math.ceil(_xls.filtered.length/_xls.pageSize)||1, p));
+  rpRenderTable();
+}
+
+function rpExportCSV() {
+  if (!_xls.filtered.length) { showToast('Sin datos para exportar.', 'warn'); return; }
+  const cols = _xls.allCols;
+  const rows = [cols.join(','), ..._xls.filtered.map(r => cols.map(c => {
+    const v = String(r[c]??'');
+    return (v.includes(',')||v.includes('"')||v.includes('\n')) ? `"${v.replace(/"/g,'""')}"` : v;
+  }).join(','))];
+  const blob = new Blob(['﻿'+rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'datos_filtrados.csv'; a.click(); URL.revokeObjectURL(a.href);
+  showToast('CSV descargado.', 'success');
+}
+
+function rpReset() {
+  _xls.charts.forEach(ch => { if (ch.instance) ch.instance.destroy(); });
+  _xls = { files:[], allRows:[], allCols:[], types:{}, filtered:[], search:'', filters:{}, sortCol:null, sortDir:'asc', page:1, pageSize:25, charts:[], _searchTimer:null };
+  document.getElementById('rpDataUpload').style.display = 'block';
+  document.getElementById('rpDashboard').style.display = 'none';
+  document.getElementById('rpFileData').value = '';
+  document.getElementById('rpFileList').style.display = 'none';
+  document.getElementById('rpChartArea').innerHTML = '';
+}
+
+// ── Reportes — SQL Playground ─────────────────────────────────────────────────
+var _sqlData      = { rows: [], cols: [] };
+var _sqlReports   = [];   // [{id, sql, rows, cols, chartType}] — máx 3
+var _sqlBoardCharts = {}; // id -> Chart instance
+
+function rpLoadSQL(file) {
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { showToast('El archivo supera el límite de 3MB.', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById('rpSqlEditor').value = e.target.result.trim(); };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function rpSqlQuick(q) { document.getElementById('rpSqlEditor').value = q; }
+
+async function rpRunSQL() {
+  const sql = document.getElementById('rpSqlEditor').value.trim();
+  if (!sql) return;
+  const btn = document.querySelector('#rpTab1 .btn-primary[onclick="rpRunSQL()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Ejecutando…'; }
+  try {
+    const r = await fetch('/herramientas/sql-query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ sql }),
+    });
+    const d = await r.json();
+    if (!d.success) { showToast(d.error || 'Error en la consulta.', 'error'); return; }
+    _sqlData = { rows: d.rows, cols: d.cols };
+    rpRenderSqlResults();
+    rpAddReport(sql, d.rows, d.cols);
+    showToast(`${d.count} fila${d.count !== 1 ? 's' : ''} obtenida${d.count !== 1 ? 's' : ''}.`, 'success');
+  } catch(e) {
+    showToast('Error de conexión.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-play-fill"></i> Ejecutar'; }
+  }
+}
+
+function rpRenderSqlResults() {
+  const { rows, cols } = _sqlData;
+  document.getElementById('rpSqlRowCount').textContent = rows.length + ' fila' + (rows.length !== 1 ? 's' : '');
+  const wrap = document.getElementById('rpSqlTableWrap');
+  if (!rows.length) { wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px;">Sin resultados</div>'; return; }
+  wrap.innerHTML = `<table class="rp-table">
+    <thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.slice(0, 500).map(r => `<tr>${cols.map(c => `<td title="${esc(String(r[c] ?? ''))}">${esc(String(r[c] ?? ''))}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ── Report board ──────────────────────────────────────────────────────────────
+function rpAddReport(sql, rows, cols) {
+  const id = Date.now();
+  if (_sqlReports.length >= 3) {
+    const oldest = _sqlReports.shift();
+    if (_sqlBoardCharts[oldest.id]) { _sqlBoardCharts[oldest.id].destroy(); delete _sqlBoardCharts[oldest.id]; }
+  }
+  _sqlReports.push({ id, sql, rows, cols, chartType: 'bar' });
+  rpRenderBoard();
+}
+
+function rpRemoveReport(id) {
+  if (_sqlBoardCharts[id]) { _sqlBoardCharts[id].destroy(); delete _sqlBoardCharts[id]; }
+  _sqlReports = _sqlReports.filter(r => r.id !== id);
+  rpRenderBoard();
+}
+
+function rpRenderBoard() {
+  const board = document.getElementById('sqlBoard');
+  const inner = document.getElementById('sqlBoardInner');
+  if (!_sqlReports.length) { board.style.display = 'none'; return; }
+  board.style.display = 'block';
+  document.getElementById('sqlBoardCount').textContent = _sqlReports.length + '/3';
+  inner.style.gridTemplateColumns = _sqlReports.length === 1 ? '1fr' : _sqlReports.length === 2 ? '1fr 1fr' : '1fr 1fr 1fr';
+  Object.keys(_sqlBoardCharts).forEach(k => { _sqlBoardCharts[k].destroy(); delete _sqlBoardCharts[k]; });
+  inner.innerHTML = _sqlReports.map((r, i) => rpReportHTML(r, i)).join('');
+  _sqlReports.forEach(r => rpRenderReportChart(r));
+}
+
+function rpReportHTML(r, idx) {
+  const COLORS = ['#3b82f6', '#8b5cf6', '#10b981'];
+  const color  = COLORS[idx] || '#3b82f6';
+  const numCols = r.cols.filter(c => r.rows.some(row => !isNaN(parseFloat(row[c]))));
+  const label   = r.sql.replace(/[\r\n\s]+/g, ' ').trim();
+  // KPI cards
+  let kpis = `<div class="sql-kpi"><div class="sql-kpi-label">Filas</div><div class="sql-kpi-val">${r.rows.length.toLocaleString()}</div></div>`;
+  kpis    += `<div class="sql-kpi"><div class="sql-kpi-label">Cols</div><div class="sql-kpi-val">${r.cols.length}</div></div>`;
+  numCols.slice(0, 2).forEach(col => {
+    const vals = r.rows.map(row => parseFloat(row[col])).filter(v => !isNaN(v));
+    if (!vals.length) return;
+    const sum = vals.reduce((a, b) => a + b, 0);
+    kpis += `<div class="sql-kpi"><div class="sql-kpi-label" title="Suma ${esc(col)}">Σ ${esc(col)}</div><div class="sql-kpi-val">${sum.toLocaleString(undefined, {maximumFractionDigits:1})}</div></div>`;
+    kpis += `<div class="sql-kpi"><div class="sql-kpi-label" title="Media ${esc(col)}">Ø ${esc(col)}</div><div class="sql-kpi-val">${(sum/vals.length).toLocaleString(undefined, {maximumFractionDigits:1})}</div></div>`;
+  });
+  const typeOpts = ['bar','line','pie','doughnut'].map(t =>
+    `<option value="${t}"${r.chartType===t?' selected':''}>${{bar:'Barras',line:'Líneas',pie:'Pastel',doughnut:'Donut'}[t]}</option>`
+  ).join('');
+  return `<div class="sql-rpt" id="rpt-${r.id}">
+    <div class="sql-rpt-hdr">
+      <div class="sql-rpt-num" style="background:${color};">${idx+1}</div>
+      <div class="sql-rpt-query" title="${esc(label)}">${esc(label.substring(0,55))}${label.length>55?'…':''}</div>
+      <select class="form-ctrl" style="width:86px;padding:3px 5px;font-size:11px;" onchange="rpChangeRptChart(${r.id},this.value)">${typeOpts}</select>
+      <button onclick="rpRemoveReport(${r.id})" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px 6px;font-size:13px;line-height:1;" title="Quitar"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div style="display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;">${kpis}</div>
+    <div style="padding:12px;height:210px;"><canvas id="rptchart-${r.id}"></canvas></div>
+  </div>`;
+}
+
+function rpRenderReportChart(r) {
+  const canvas = document.getElementById('rptchart-' + r.id);
+  if (!canvas || !r.rows.length) return;
+  const ctx = canvas.getContext('2d');
+  if (_sqlBoardCharts[r.id]) { _sqlBoardCharts[r.id].destroy(); }
+  const xCol    = r.cols[0];
+  const numCols = r.cols.filter(c => r.rows.some(row => !isNaN(parseFloat(row[c]))));
+  const yCol    = numCols[0] || r.cols[1] || r.cols[0];
+  const data    = r.rows.slice(0, 40);
+  const labels  = data.map(row => String(row[xCol] ?? ''));
+  const values  = data.map(row => parseFloat(row[yCol]) || 0);
+  const isPie   = r.chartType === 'pie' || r.chartType === 'doughnut';
+  const palette = data.map((_, i) => `hsl(${Math.round(i*360/Math.max(data.length,1))},60%,55%)`);
+  _sqlBoardCharts[r.id] = new Chart(ctx, {
+    type: r.chartType,
+    data: { labels, datasets: [{
+      label: yCol, data: values,
+      backgroundColor: isPie ? palette : 'rgba(59,130,246,.72)',
+      borderColor:     isPie ? palette : '#3b82f6',
+      borderWidth: 1, tension: .35,
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: isPie, labels: { color:'#64748b', boxWidth:10, font:{size:10} } } },
+      scales: isPie ? {} : {
+        x: { ticks: { color:'#64748b', maxRotation:30, font:{size:9} } },
+        y: { ticks: { color:'#64748b', font:{size:9} } },
+      },
+    },
+  });
+}
+
+function rpChangeRptChart(id, type) {
+  const r = _sqlReports.find(r => r.id === id);
+  if (r) { r.chartType = type; rpRenderReportChart(r); }
+}
+
+async function sqlBoardDownload() {
+  const el = document.getElementById('sqlBoardInner');
+  try {
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--card').trim() || '#ffffff';
+    const canvas = await html2canvas(el, { backgroundColor: bg, scale: 2, useCORS: true });
+    const link = document.createElement('a');
+    link.download = 'tablero-sql-' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Imagen del tablero descargada.', 'success');
+  } catch(e) {
+    showToast('Error al generar imagen: ' + e.message, 'error');
+  }
+}
+
+function rpDownloadSqlCSV() {
+  const { rows, cols } = _sqlData;
+  if (!rows.length) { showToast('No hay datos para descargar.', 'error'); return; }
+  const csv = [cols.join(','), ...rows.map(r => cols.map(c => JSON.stringify(r[c] ?? '')).join(','))].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'consulta-resultado.csv';
+  link.click();
+}
+
+// ── Proyectos — Gantt ─────────────────────────────────────────────────────────
+var _ganttInited = false;
+var _ganttTasks = [
+  { id:1, name:'Diseño UI/UX',      resp:'Ana López', start:'2026-04-07', end:'2026-04-18', progress:80, color:'#3b82f6' },
+  { id:2, name:'Desarrollo API',    resp:'Carlos R.', start:'2026-04-14', end:'2026-05-09', progress:45, color:'#8b5cf6' },
+  { id:3, name:'Integración',       resp:'María G.',  start:'2026-04-28', end:'2026-05-16', progress:20, color:'#10b981' },
+  { id:4, name:'QA & Testing',      resp:'Luis P.',   start:'2026-05-12', end:'2026-05-23', progress:0,  color:'#f59e0b' },
+  { id:5, name:'Deploy producción', resp:'Carlos R.', start:'2026-05-26', end:'2026-05-30', progress:0,  color:'#ef4444' },
+];
+var _ganttNextId  = 6;
+var _ganttEditId  = null;
+var _ganttOrigin  = null;
+var _ganttDrag    = null;
+const GANTT_DW    = 24;   // px per day
+const GANTT_RH    = 44;   // px per row
+const GANTT_MONTHS = 3;
+const GANTT_COLORS = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#0ea5e9','#ec4899','#14b8a6'];
+
+function _gDate(s)   { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function _gStr(dt)   { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
+function _gAdd(dt,n) { const d=new Date(dt); d.setDate(d.getDate()+n); return d; }
+function _gDiff(a,b) { return Math.round((b-a)/86400000); }
+
+function ganttInit() {
+  const t = new Date();
+  _ganttOrigin = new Date(t.getFullYear(), t.getMonth()-1, 1);
+  ganttRender();
+}
+
+function ganttRender() {
+  if (!_ganttOrigin) { var _t=new Date(); _ganttOrigin=new Date(_t.getFullYear(),_t.getMonth()-1,1); }
+  const origin  = _ganttOrigin;
+  const endDate = new Date(origin.getFullYear(), origin.getMonth() + GANTT_MONTHS + 1, 0);
+  const totalDays = _gDiff(origin, endDate) + 1;
+  const totalW    = totalDays * GANTT_DW;
+  const today     = new Date();
+
+  // Period label
+  document.getElementById('ganttPeriodLabel').textContent =
+    origin.toLocaleString('es',{month:'short',year:'numeric'}).replace('.','') + ' – ' +
+    endDate.toLocaleString('es',{month:'short',year:'numeric'}).replace('.','');
+
+  // Build header: month row + day row
+  let mHdr = '', dHdr = '';
+  let cur = new Date(origin);
+  while (cur <= endDate) {
+    const yr = cur.getFullYear(), mo = cur.getMonth();
+    const dim = new Date(yr, mo+1, 0).getDate();
+    mHdr += `<div style="width:${dim*GANTT_DW}px;flex-shrink:0;padding:5px 10px;border-right:1px solid var(--border);font-size:11px;font-weight:700;color:var(--text);text-transform:capitalize;">${cur.toLocaleString('es',{month:'long',year:'numeric'})}</div>`;
+    for (let d = 1; d <= dim; d++) {
+      const dt = new Date(yr, mo, d);
+      if (dt > endDate) break;
+      const isToday = dt.toDateString() === today.toDateString();
+      const isWknd  = dt.getDay()===0 || dt.getDay()===6;
+      dHdr += `<div style="width:${GANTT_DW}px;flex-shrink:0;text-align:center;padding:3px 0;font-size:9px;font-weight:${isToday?800:400};color:${isToday?'var(--primary)':isWknd?'#94a3b8':'var(--muted)'};border-right:1px solid rgba(0,0,0,.04);background:${isToday?'rgba(59,130,246,.07)':'transparent'};">${d}</div>`;
+    }
+    cur = new Date(yr, mo+1, 1);
+  }
+  document.getElementById('ganttHeader').innerHTML = `<div style="display:flex;">${mHdr}</div><div style="display:flex;">${dHdr}</div>`;
+
+  // Task rows
+  let listHTML = '', timeHTML = '', bgBands = '';
+  let bx = 0, bcur = new Date(origin);
+  while (bcur <= endDate) {
+    const isT = bcur.toDateString() === today.toDateString();
+    const isW = bcur.getDay()===0 || bcur.getDay()===6;
+    if (isT)       bgBands += `<div style="position:absolute;top:0;bottom:0;left:${bx}px;width:${GANTT_DW}px;background:rgba(59,130,246,.06);z-index:0;pointer-events:none;"></div>`;
+    else if (isW)  bgBands += `<div style="position:absolute;top:0;bottom:0;left:${bx}px;width:${GANTT_DW}px;background:rgba(0,0,0,.015);z-index:0;pointer-events:none;"></div>`;
+    bx += GANTT_DW;
+    bcur = _gAdd(bcur, 1);
+  }
+
+  _ganttTasks.filter(t=>t&&t.start&&t.end).forEach((task, ti) => {
+    const top  = ti * GANTT_RH;
+    const sOff = _gDiff(origin, _gDate(task.start));
+    const eOff = _gDiff(origin, _gDate(task.end));
+    const barL = sOff * GANTT_DW;
+    const barW = Math.max(GANTT_DW, (eOff - sOff + 1) * GANTT_DW);
+    const ini  = (task.resp||'?').trim().split(/\s+/).map(p=>p[0]||'').join('').slice(0,2).toUpperCase();
+
+    listHTML += `<div style="height:${GANTT_RH}px;padding:0 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);cursor:pointer;" onmouseenter="this.style.background='var(--hover)'" onmouseleave="this.style.background=''" onclick="ganttOpenEdit(${task.id})">
+      <div style="width:28px;height:28px;border-radius:50%;background:${task.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;">${ini}</div>
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(task.name)}</div>
+        <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(task.resp||'Sin responsable')}</div>
+      </div>
+      <span style="font-size:10px;font-weight:700;color:${task.color};">${task.progress}%</span>
+    </div>`;
+
+    if (eOff >= 0 && sOff <= totalDays) {
+      timeHTML += `<div class="gantt-bar-wrap" data-gid="${task.id}" style="position:absolute;top:${top+6}px;left:${barL}px;width:${barW}px;height:${GANTT_RH-12}px;background:${task.color};border-radius:7px;cursor:grab;user-select:none;z-index:2;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.15);" onmousedown="ganttBarDown(event,${task.id},'move')">
+        <div style="position:absolute;inset:0;width:${task.progress}%;background:rgba(255,255,255,.28);border-radius:7px 0 0 7px;pointer-events:none;"></div>
+        <span style="position:absolute;inset:0;display:flex;align-items:center;padding:0 22px 0 8px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;">${esc(task.name)}</span>
+        <div style="position:absolute;right:0;top:0;bottom:0;width:9px;cursor:col-resize;background:rgba(0,0,0,.15);border-radius:0 7px 7px 0;" onmousedown="ganttBarDown(event,${task.id},'resize')"></div>
+      </div>`;
+    }
+    timeHTML += `<div style="position:absolute;top:${top+GANTT_RH-1}px;left:0;right:0;height:1px;background:var(--border);z-index:1;pointer-events:none;"></div>`;
+  });
+
+  document.getElementById('ganttTaskList').innerHTML = listHTML || `<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px;"><i class="bi bi-inbox" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>Sin tareas. Agrega una nueva.</div>`;
+  document.getElementById('ganttTimeline').innerHTML = `<div style="width:${totalW}px;position:relative;min-height:${Math.max(_ganttTasks.length,1)*GANTT_RH}px;">${bgBands}${timeHTML}</div>`;
+
+  // Sync scroll
+  const listEl  = document.getElementById('ganttTaskList');
+  const scrollEl = document.getElementById('ganttScrollWrap');
+  listEl.onscroll  = () => { scrollEl.scrollTop = listEl.scrollTop; };
+  scrollEl.onscroll = () => {
+    listEl.scrollTop = scrollEl.scrollTop;
+    document.getElementById('ganttHeaderWrap').scrollLeft = scrollEl.scrollLeft;
+  };
+}
+
+function ganttBarDown(e, id, type) {
+  e.stopPropagation(); e.preventDefault();
+  const task = _ganttTasks.find(t=>t.id===id);
+  if (!task) return;
+  _ganttDrag = { id, type, startX: e.clientX, origStart: task.start, origEnd: task.end };
+  document.addEventListener('mousemove', ganttBarMove);
+  document.addEventListener('mouseup',   ganttBarUp);
+}
+function ganttBarMove(e) {
+  if (!_ganttDrag) return;
+  const delta = Math.round((e.clientX - _ganttDrag.startX) / GANTT_DW);
+  if (!delta) return;
+  const task = _ganttTasks.find(t=>t.id===_ganttDrag.id);
+  if (!task) return;
+  if (_ganttDrag.type === 'move') {
+    task.start = _gStr(_gAdd(_gDate(_ganttDrag.origStart), delta));
+    task.end   = _gStr(_gAdd(_gDate(_ganttDrag.origEnd),   delta));
+  } else {
+    const ne = _gAdd(_gDate(_ganttDrag.origEnd), delta);
+    if (ne > _gDate(task.start)) task.end = _gStr(ne);
+  }
+  ganttRender();
+}
+function ganttBarUp() {
+  _ganttDrag = null;
+  document.removeEventListener('mousemove', ganttBarMove);
+  document.removeEventListener('mouseup',   ganttBarUp);
+}
+
+function ganttPrevPeriod() { _ganttOrigin = new Date(_ganttOrigin.getFullYear(), _ganttOrigin.getMonth()-1, 1); ganttRender(); }
+function ganttNextPeriod() { _ganttOrigin = new Date(_ganttOrigin.getFullYear(), _ganttOrigin.getMonth()+1, 1); ganttRender(); }
+function ganttGoToday()    { const t=new Date(); _ganttOrigin=new Date(t.getFullYear(),t.getMonth()-1,1); ganttRender(); }
+
+function _ganttSetColor(c) {
+  document.querySelectorAll('#ganttColorPicker .gsw').forEach(el => el.style.boxShadow='');
+  const el = document.querySelector(`#ganttColorPicker [data-c="${c}"]`);
+  if (el) el.style.boxShadow = `0 0 0 3px #fff,0 0 0 5px ${c}`;
+  document.getElementById('ganttColorPicker').dataset.sel = c;
+}
+function _ganttBuildColorPicker(sel) {
+  document.getElementById('ganttColorPicker').innerHTML = GANTT_COLORS.map(c =>
+    `<div class="gsw" data-c="${c}" onclick="_ganttSetColor('${c}')" style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;transition:box-shadow .15s;${c===sel?`box-shadow:0 0 0 3px #fff,0 0 0 5px ${c};`:''}"></div>`
+  ).join('');
+  document.getElementById('ganttColorPicker').dataset.sel = sel;
+}
+
+function ganttOpenAdd() {
+  _ganttEditId = null;
+  document.getElementById('ganttModalTitle').textContent = 'Nueva tarea';
+  document.getElementById('ganttFName').value = '';
+  document.getElementById('ganttFResp').value = '';
+  const t = new Date();
+  document.getElementById('ganttFStart').value = _gStr(t);
+  document.getElementById('ganttFEnd').value   = _gStr(_gAdd(t, 7));
+  document.getElementById('ganttFProg').value  = 0;
+  document.getElementById('ganttProgVal').textContent = '0';
+  document.getElementById('ganttDelBtn').style.display = 'none';
+  _ganttBuildColorPicker(GANTT_COLORS[_ganttTasks.length % GANTT_COLORS.length]);
+  document.getElementById('ganttModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('ganttFName').focus(), 50);
+}
+function ganttOpenEdit(id) {
+  const task = _ganttTasks.find(t=>t.id===id);
+  if (!task) return;
+  _ganttEditId = id;
+  document.getElementById('ganttModalTitle').textContent = 'Editar tarea';
+  document.getElementById('ganttFName').value  = task.name;
+  document.getElementById('ganttFResp').value  = task.resp || '';
+  document.getElementById('ganttFStart').value = task.start;
+  document.getElementById('ganttFEnd').value   = task.end;
+  document.getElementById('ganttFProg').value  = task.progress;
+  document.getElementById('ganttProgVal').textContent = task.progress;
+  document.getElementById('ganttDelBtn').style.display = 'inline-flex';
+  _ganttBuildColorPicker(task.color);
+  document.getElementById('ganttModal').style.display = 'flex';
+}
+function ganttCloseModal() { document.getElementById('ganttModal').style.display = 'none'; }
+function ganttSaveTask() {
+  const name  = document.getElementById('ganttFName').value.trim();
+  const resp  = document.getElementById('ganttFResp').value.trim();
+  const start = document.getElementById('ganttFStart').value;
+  const end   = document.getElementById('ganttFEnd').value;
+  const prog  = parseInt(document.getElementById('ganttFProg').value);
+  const color = document.getElementById('ganttColorPicker').dataset.sel || '#3b82f6';
+  if (!name||!start||!end) { showToast('Completa nombre, inicio y fin.','error'); return; }
+  if (start > end)          { showToast('La fecha fin debe ser posterior al inicio.','error'); return; }
+  if (_ganttEditId !== null) {
+    Object.assign(_ganttTasks.find(t=>t.id===_ganttEditId), { name, resp, start, end, progress:prog, color });
+  } else {
+    _ganttTasks.push({ id:_ganttNextId++, name, resp, start, end, progress:prog, color });
+  }
+  ganttCloseModal();
+  ganttRender();
+  showToast(_ganttEditId !== null ? 'Tarea actualizada.' : 'Tarea creada.', 'success');
+  toolSave('gantt', _ganttTasks);
+}
+function ganttConfirmDelete() {
+  if (_ganttEditId === null) return;
+  _ganttTasks = _ganttTasks.filter(t=>t.id!==_ganttEditId);
+  ganttCloseModal();
+  ganttRender();
+  showToast('Tarea eliminada.','success');
+  toolSave('gantt', _ganttTasks);
+}
+async function ganttExport() {
+  try {
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--card').trim() || '#fff';
+    const canvas = await html2canvas(document.getElementById('ganttContainer'), { backgroundColor:bg, scale:2, useCORS:true });
+    const link = document.createElement('a');
+    link.download = 'gantt-' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Gantt exportado.','success');
+  } catch(e) { showToast('Error al exportar.','error'); }
+}
+
+// ── Flujos — BPMN ─────────────────────────────────────────────────────────────
+var _bpmnInited   = false;
+var _bpmnFlows    = [];
+var _bpmnActiveId = null;
+const BPMN_LANE_H     = 160;
+const BPMN_LABEL_W    = 54;
+const BPMN_SVG_W      = 1000;
+
+var _bpmn = {
+  lanes: [
+    { id:1, name:'Inicio',        color:'#f0f9ff' },
+    { id:2, name:'Proceso',       color:'#f0fdf4' },
+    { id:3, name:'Finalización',  color:'#fefce8' },
+  ],
+  nodes: [],
+  edges: [],
+  selected: null,
+  tool: 'select',
+  connecting: null,
+  nextNodeId: 1,
+  nextEdgeId: 1,
+};
+
+function bpmnInit() {
+  document.getElementById('bpmnSvg').addEventListener('click', bpmnCanvasClick);
+  if (!_bpmnFlows.length) {
+    _bpmnFlows = [{ id:'f'+Date.now(), name:'Flujo Principal',
+      nodes:[
+        { id:1, type:'start', x:110, lane:0, label:'Inicio' },
+        { id:2, type:'task',  x:230, lane:0, label:'Revisar solicitud' },
+        { id:3, type:'gwXor', x:450, lane:0, label:'¿Aprobado?' },
+        { id:4, type:'task',  x:580, lane:1, label:'Aprobar' },
+        { id:5, type:'task',  x:580, lane:2, label:'Rechazar' },
+        { id:6, type:'end',   x:780, lane:1, label:'Fin OK' },
+        { id:7, type:'end',   x:780, lane:2, label:'Fin NO' },
+      ],
+      edges:[
+        { id:1, from:1, to:2, label:'' },
+        { id:2, from:2, to:3, label:'' },
+        { id:3, from:3, to:4, label:'Sí' },
+        { id:4, from:3, to:5, label:'No' },
+        { id:5, from:4, to:6, label:'' },
+        { id:6, from:5, to:7, label:'' },
+      ],
+      lanes:[ { id:1, name:'Inicio', color:'#f0f9ff' }, { id:2, name:'Proceso', color:'#f0fdf4' }, { id:3, name:'Finalización', color:'#fefce8' } ],
+      nextNodeId:8, nextEdgeId:7
+    }];
+    _bpmnActiveId = _bpmnFlows[0].id;
+  }
+  _bpmnLoadActive();
+  bpmnRender();
+  bpmnSetTool('select');
+  bpmnFlowsRenderList();
+}
+
+function _bpmnLoadActive() {
+  var f = _bpmnFlows.find(function(fl){return fl.id===_bpmnActiveId;});
+  if (!f) { _bpmnActiveId=_bpmnFlows[0].id; f=_bpmnFlows[0]; }
+  _bpmn.nodes      = f.nodes      || [];
+  _bpmn.edges      = f.edges      || [];
+  _bpmn.lanes      = (f.lanes && f.lanes.length) ? f.lanes : _bpmn.lanes;
+  _bpmn.nextNodeId = f.nextNodeId || 1;
+  _bpmn.nextEdgeId = f.nextEdgeId || 1;
+  _bpmn.selected   = null;
+  _bpmn.connecting = null;
+  var titleEl = document.getElementById('bpmnFlowTitle');
+  if (titleEl) titleEl.textContent = f.name;
+}
+function _bpmnSyncToActive() {
+  var f = _bpmnFlows.find(function(fl){return fl.id===_bpmnActiveId;});
+  if (!f) return;
+  f.nodes      = _bpmn.nodes;
+  f.edges      = _bpmn.edges;
+  f.lanes      = _bpmn.lanes;
+  f.nextNodeId = _bpmn.nextNodeId;
+  f.nextEdgeId = _bpmn.nextEdgeId;
+}
+function bpmnFlowSwitch(id) {
+  if (id===_bpmnActiveId) return;
+  _bpmnSyncToActive();
+  _bpmnActiveId = id;
+  _bpmnLoadActive();
+  bpmnRender();
+  bpmnFlowsRenderList();
+}
+function bpmnFlowAdd() {
+  _bpmnSyncToActive();
+  var name = prompt('Nombre del nuevo flujo:', 'Flujo '+(_bpmnFlows.length+1));
+  if (!name) return;
+  var flow = { id:'f'+Date.now(), name:name,
+    nodes:[{id:1,type:'start',x:110,lane:0,label:'Inicio'},{id:2,type:'end',x:300,lane:0,label:'Fin'}],
+    edges:[{id:1,from:1,to:2,label:''}],
+    lanes:[{id:1,name:'Proceso',color:'#f0f9ff'}],
+    nextNodeId:3, nextEdgeId:2
+  };
+  _bpmnFlows.push(flow);
+  _bpmnActiveId = flow.id;
+  _bpmnLoadActive();
+  bpmnRender();
+  bpmnFlowsRenderList();
+}
+function bpmnFlowRename(id) {
+  var f = _bpmnFlows.find(function(fl){return fl.id===id;});
+  if (!f) return;
+  var name = prompt('Renombrar flujo:', f.name);
+  if (!name || name===f.name) return;
+  f.name = name;
+  _bpmnSyncToActive();
+  bpmnFlowsRenderList();
+  var titleEl = document.getElementById('bpmnFlowTitle');
+  if (titleEl && id===_bpmnActiveId) titleEl.textContent = name;
+}
+function bpmnFlowDelete(id) {
+  if (_bpmnFlows.length<=1) { showToast('Debe quedar al menos un flujo.','error'); return; }
+  if (!confirm('¿Eliminar este flujo?')) return;
+  _bpmnFlows = _bpmnFlows.filter(function(f){return f.id!==id;});
+  if (_bpmnActiveId===id) { _bpmnActiveId=_bpmnFlows[0].id; _bpmnLoadActive(); bpmnRender(); }
+  bpmnFlowsRenderList();
+}
+function bpmnFlowsRenderList() {
+  var list = document.getElementById('bpmnFlowList');
+  if (!list) return;
+  list.innerHTML = _bpmnFlows.map(function(f) {
+    var act = f.id===_bpmnActiveId;
+    return '<div class="bfl-item'+(act?' active':'')+'" onclick="bpmnFlowSwitch(\''+f.id+'\')" ondblclick="bpmnFlowRename(\''+f.id+'\')" title="'+_bEsc(f.name)+'">' +
+      '<span class="bfl-name">'+_bEsc(f.name)+'</span>' +
+      (!act ? '<button class="bfl-del" onclick="event.stopPropagation();bpmnFlowDelete(\''+f.id+'\')" title="Eliminar"><i class="bi bi-trash"></i></button>' : '') +
+    '</div>';
+  }).join('');
+}
+function _bEsc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function bpmnCy(lane) { return 40 + lane * BPMN_LANE_H + BPMN_LANE_H / 2; }
+function bpmnNodeCx(n) { return n.x; }
+function bpmnNodeCy(n) { return bpmnCy(n.lane); }
+
+function bpmnBoundary(n, tx, ty) {
+  const cx = bpmnNodeCx(n), cy = bpmnNodeCy(n);
+  const dx = tx - cx, dy = ty - cy;
+  const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+  const ux = dx/dist, uy = dy/dist;
+  if (n.type==='start'||n.type==='end') return { x: cx+ux*19, y: cy+uy*19 };
+  if (n.type==='gwXor'||n.type==='gwAnd') return { x: cx+ux*22, y: cy+uy*22 };
+  // task: ellipse approx a=55, b=23
+  const a=55, b=23;
+  const r = (a*b) / Math.sqrt(b*b*ux*ux + a*a*uy*uy);
+  return { x: cx+ux*r, y: cy+uy*r };
+}
+
+function bpmnSvgH() { return 40 + _bpmn.lanes.length * BPMN_LANE_H + 20; }
+
+function bpmnRender() {
+  const svg = document.getElementById('bpmnSvg');
+  const h   = bpmnSvgH();
+  svg.setAttribute('width',  BPMN_SVG_W);
+  svg.setAttribute('height', h);
+
+  // Lanes
+  let lanesHTML = '';
+  _bpmn.lanes.forEach((lane, i) => {
+    const y = 40 + i * BPMN_LANE_H;
+    lanesHTML += `<rect x="0" y="${y}" width="${BPMN_SVG_W}" height="${BPMN_LANE_H}" fill="${lane.color}" stroke="var(--border)" stroke-width="1"/>
+      <rect x="0" y="${y}" width="${BPMN_LABEL_W}" height="${BPMN_LANE_H}" fill="rgba(0,0,0,.04)" stroke="var(--border)" stroke-width="1"/>
+      <text x="${BPMN_LABEL_W/2}" y="${y+BPMN_LANE_H/2}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" fill="#64748b" transform="rotate(-90,${BPMN_LABEL_W/2},${y+BPMN_LANE_H/2})" style="cursor:pointer;" onclick="bpmnRenameLane(${lane.id})">${lane.name}</text>`;
+  });
+  lanesHTML += `<rect x="0" y="40" width="${BPMN_SVG_W}" height="${_bpmn.lanes.length*BPMN_LANE_H}" fill="none" stroke="#94a3b8" stroke-width="1.5" rx="3"/>`;
+  document.getElementById('bpmnLanesG').innerHTML = lanesHTML;
+
+  // Edges
+  let edgesHTML = '';
+  _bpmn.edges.forEach(edge => {
+    const src = _bpmn.nodes.find(n=>n.id===edge.from);
+    const dst = _bpmn.nodes.find(n=>n.id===edge.to);
+    if (!src||!dst) return;
+    const scx=bpmnNodeCx(src), scy=bpmnNodeCy(src);
+    const dcx=bpmnNodeCx(dst), dcy=bpmnNodeCy(dst);
+    const sp = bpmnBoundary(src, dcx, dcy);
+    const dp = bpmnBoundary(dst, scx, scy);
+    const isSel = _bpmn.selected?.type==='edge' && _bpmn.selected.id===edge.id;
+    const color  = isSel ? '#3b82f6' : '#64748b';
+    const marker = isSel ? 'url(#bpmnArrowSel)' : 'url(#bpmnArrow)';
+    const mx=(sp.x+dp.x)/2, my=(sp.y+dp.y)/2;
+    edgesHTML += `<line x1="${sp.x.toFixed(1)}" y1="${sp.y.toFixed(1)}" x2="${dp.x.toFixed(1)}" y2="${dp.y.toFixed(1)}" stroke="${color}" stroke-width="${isSel?2.5:1.5}" marker-end="${marker}" data-eid="${edge.id}" class="bpmn-edge" onclick="bpmnSelEdge(${edge.id})"/>`;
+    if (edge.label) edgesHTML += `<text x="${mx.toFixed(1)}" y="${(my-6).toFixed(1)}" text-anchor="middle" font-size="10" fill="#64748b" pointer-events="none">${edge.label}</text>`;
+  });
+  document.getElementById('bpmnEdgesG').innerHTML = edgesHTML;
+
+  // Nodes
+  let nodesHTML = '';
+  _bpmn.nodes.forEach(n => {
+    const cx = bpmnNodeCx(n), cy = bpmnNodeCy(n);
+    const isSel  = _bpmn.selected?.type==='node' && _bpmn.selected.id===n.id;
+    const isConn = _bpmn.connecting === n.id;
+    const hl     = isSel || isConn;
+    let inner = '';
+
+    if (n.type==='start') {
+      inner = `<circle cx="${cx}" cy="${cy}" r="19" fill="#dcfce7" stroke="${hl?'#3b82f6':'#16a34a'}" stroke-width="${hl?3:2}"/>
+        <circle cx="${cx}" cy="${cy}" r="6" fill="#16a34a" pointer-events="none"/>
+        <text x="${cx}" y="${cy+30}" text-anchor="middle" font-size="10" fill="#64748b" pointer-events="none">${n.label}</text>`;
+    } else if (n.type==='end') {
+      inner = `<circle cx="${cx}" cy="${cy}" r="19" fill="#fee2e2" stroke="${hl?'#3b82f6':'#dc2626'}" stroke-width="${hl?3:4}"/>
+        <circle cx="${cx}" cy="${cy}" r="10" fill="#dc2626" pointer-events="none"/>
+        <text x="${cx}" y="${cy+30}" text-anchor="middle" font-size="10" fill="#64748b" pointer-events="none">${n.label}</text>`;
+    } else if (n.type==='gwXor'||n.type==='gwAnd') {
+      const gw=22;
+      const pts=`${cx},${cy-gw} ${cx+gw},${cy} ${cx},${cy+gw} ${cx-gw},${cy}`;
+      inner = `<polygon points="${pts}" fill="#fef3c7" stroke="${hl?'#3b82f6':'#d97706'}" stroke-width="${hl?3:2}"/>
+        <text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="14" font-weight="900" fill="#92400e" pointer-events="none">${n.type==='gwXor'?'✕':'+'}</text>
+        <text x="${cx}" y="${cy+gw+16}" text-anchor="middle" font-size="10" fill="#64748b" pointer-events="none">${n.label}</text>`;
+    } else { // task
+      inner = `<rect x="${cx-55}" y="${cy-23}" width="110" height="46" rx="8" fill="${hl?'#eff6ff':'#fff'}" stroke="${hl?'#3b82f6':'#94a3b8'}" stroke-width="${hl?2.5:1.5}"/>
+        <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#1e293b" pointer-events="none">${n.label.length>16?n.label.slice(0,15)+'…':n.label}</text>`;
+    }
+
+    nodesHTML += `<g class="bpmn-node" data-nid="${n.id}"
+      onmousedown="bpmnNodeDown(event,${n.id})"
+      ondblclick="bpmnNodeRename(${n.id})"
+      onclick="bpmnNodeClick(event,${n.id})">${inner}</g>`;
+  });
+  document.getElementById('bpmnNodesG').innerHTML = nodesHTML;
+  if (_bpmnFlows.length) { _bpmnSyncToActive(); }
+}
+
+var _bpmnDrag = null;
+function bpmnNodeDown(e, id) {
+  if (_bpmn.tool==='connect') return;
+  e.stopPropagation();
+  const node = _bpmn.nodes.find(n=>n.id===id);
+  if (!node) return;
+  _bpmnDrag = { id, origX: node.x, origLane: node.lane, startX: e.clientX, startY: e.clientY };
+  document.addEventListener('mousemove', bpmnDragMove);
+  document.addEventListener('mouseup',   bpmnDragUp);
+}
+function bpmnDragMove(e) {
+  if (!_bpmnDrag) return;
+  const node = _bpmn.nodes.find(n=>n.id===_bpmnDrag.id);
+  if (!node) return;
+  node.x = Math.max(BPMN_LABEL_W + 22, _bpmnDrag.origX + (e.clientX - _bpmnDrag.startX));
+  const svgRect = document.getElementById('bpmnSvg').getBoundingClientRect();
+  const svgY    = e.clientY - svgRect.top;
+  node.lane = Math.max(0, Math.min(_bpmn.lanes.length-1, Math.floor((svgY - 40) / BPMN_LANE_H)));
+  bpmnRender();
+}
+function bpmnDragUp() {
+  document.removeEventListener('mousemove', bpmnDragMove);
+  document.removeEventListener('mouseup',   bpmnDragUp);
+  _bpmnDrag = null;
+}
+
+function bpmnNodeClick(e, id) {
+  e.stopPropagation();
+  if (_bpmn.tool==='connect') {
+    if (_bpmn.connecting === null) {
+      _bpmn.connecting = id;
+      document.getElementById('bpmnStatus').textContent = 'Ahora haz clic en el elemento destino…';
+    } else if (_bpmn.connecting !== id) {
+      _bpmn.edges.push({ id: _bpmn.nextEdgeId++, from: _bpmn.connecting, to: id, label:'' });
+      _bpmn.connecting = null;
+      document.getElementById('bpmnStatus').textContent = 'Conexión creada. Haz clic en otro origen…';
+    }
+    bpmnRender();
+    return;
+  }
+  _bpmn.selected = { type:'node', id };
+  bpmnRender();
+}
+function bpmnSelEdge(id) { _bpmn.selected = { type:'edge', id }; bpmnRender(); }
+
+function bpmnCanvasClick(e) {
+  if (e.target.closest('.bpmn-node') || e.target.closest('.bpmn-edge')) return;
+  const tool = _bpmn.tool;
+  if (tool==='select') { _bpmn.selected=null; bpmnRender(); return; }
+  if (tool==='connect') { _bpmn.connecting=null; document.getElementById('bpmnStatus').textContent='Haz clic en el origen'; bpmnRender(); return; }
+  if (['start','task','gwXor','gwAnd','end'].includes(tool)) {
+    const svgRect = document.getElementById('bpmnSvg').getBoundingClientRect();
+    const svgX = e.clientX - svgRect.left;
+    const svgY = e.clientY - svgRect.top;
+    const lane = Math.max(0, Math.min(_bpmn.lanes.length-1, Math.floor((svgY-40)/BPMN_LANE_H)));
+    const x    = Math.max(BPMN_LABEL_W + 22, svgX);
+    _bpmn.nodes.push({ id:_bpmn.nextNodeId++, type:tool, x, lane, label:{start:'Inicio',task:'Nueva tarea',gwXor:'XOR',gwAnd:'AND',end:'Fin'}[tool] });
+    bpmnRender();
+    showToast('Elemento agregado. Doble clic para renombrar.','success');
+  }
+}
+
+function bpmnNodeRename(id) {
+  const n = _bpmn.nodes.find(n=>n.id===id);
+  if (!n) return;
+  const v = prompt('Renombrar:', n.label);
+  if (v !== null) { n.label = v.trim() || n.label; bpmnRender(); }
+}
+function bpmnRenameLane(id) {
+  const l = _bpmn.lanes.find(l=>l.id===id);
+  if (!l) return;
+  const v = prompt('Nombre del carril:', l.name);
+  if (v !== null) { l.name = v.trim() || l.name; bpmnRender(); }
+}
+function bpmnSetTool(tool) {
+  _bpmn.tool = tool; _bpmn.connecting = null;
+  document.querySelectorAll('.bpmn-tool').forEach(b=>b.classList.remove('active'));
+  const btn = document.getElementById('bpmnTool-' + tool);
+  if (btn) btn.classList.add('active');
+  const CURSORS = { select:'default', connect:'crosshair', start:'cell', task:'cell', gwXor:'cell', gwAnd:'cell', end:'cell' };
+  document.getElementById('bpmnSvg').style.cursor = CURSORS[tool] || 'default';
+  const STATUS = {
+    select:'Haz clic en un elemento para seleccionarlo · Arrastra para mover',
+    connect:'Haz clic en el elemento origen para iniciar la conexión',
+    start:'Haz clic en el canvas para colocar un Start Event',
+    task:'Haz clic en el canvas para colocar una Tarea',
+    gwXor:'Haz clic en el canvas para colocar un Gateway XOR (exclusivo)',
+    gwAnd:'Haz clic en el canvas para colocar un Gateway AND (paralelo)',
+    end:'Haz clic en el canvas para colocar un End Event',
+  };
+  document.getElementById('bpmnStatus').textContent = STATUS[tool] || '';
+  bpmnRender();
+}
+function bpmnAddLane() {
+  const name = prompt('Nombre del nuevo carril:', 'Nuevo carril');
+  if (!name) return;
+  _bpmn.lanes.push({ id: Date.now(), name: name.trim(), color:'#f8fafc' });
+  bpmnRender();
+}
+function bpmnDeleteSelected() {
+  if (!_bpmn.selected) { showToast('Selecciona un elemento primero.','warn'); return; }
+  if (_bpmn.selected.type==='node') {
+    _bpmn.nodes = _bpmn.nodes.filter(n=>n.id!==_bpmn.selected.id);
+    _bpmn.edges = _bpmn.edges.filter(e=>e.from!==_bpmn.selected.id && e.to!==_bpmn.selected.id);
+  } else {
+    _bpmn.edges = _bpmn.edges.filter(e=>e.id!==_bpmn.selected.id);
+  }
+  _bpmn.selected = null;
+  bpmnRender();
+}
+function bpmnReset() {
+  if (!confirm('¿Limpiar el flujo actual?')) return;
+  _bpmn.nodes=[]; _bpmn.edges=[]; _bpmn.selected=null; _bpmn.connecting=null;
+  _bpmnSyncToActive();
+  bpmnRender();
+}
+async function bpmnExport() {
+  try {
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--card').trim() || '#fff';
+    const canvas = await html2canvas(document.getElementById('bpmnSvg'), { backgroundColor: bg, scale:2 });
+    const link = document.createElement('a');
+    link.download = 'flujo-bpmn-' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Diagrama exportado.','success');
+  } catch(e) { showToast('Error al exportar.','error'); }
+}
+document.addEventListener('keydown', e => {
+  if ((e.key==='Delete'||e.key==='Backspace') && _bpmnInited && _bpmn.selected &&
+      document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA') {
+    bpmnDeleteSelected();
+  }
+});
+
+// ── Pizarra — Whiteboard ──────────────────────────────────────────────────────
+var _wbInited    = false;
+var _calInited   = false;
+var _pomInited   = false;
+var _notesInited = false;
+var _annoInited  = false;
+var _wb = {
+  mode: 'board', tool: 'select',
+  items: [], edges: [],
+  nextId: 1, selected: null, connecting: null,
+  penColor: '#1e293b', penSize: 3,
+  shapeType: 'rect', shapeFill: '#bfdbfe', shapeStroke: '#3b82f6', shapeStrokeW: 2,
+  drawCtx: null, isDrawing: false,
+};
+const WB_STICKY_COLORS = ['#fef08a','#bbf7d0','#bfdbfe','#fecaca','#e9d5ff','#fed7aa','#d1fae5','#fce7f3'];
+
+function wbInit() {
+  _wb.drawCtx = document.getElementById('wbDrawCanvas').getContext('2d');
+  document.getElementById('wbCanvas').addEventListener('click', wbCanvasClick);
+  document.getElementById('wbDrawCanvas').addEventListener('mousedown', wbDrawStart);
+  wbRender();
+  wbSetTool('select');
+  wbRenderKanban();
+}
+
+function wbSetMode(mode) {
+  _wb.mode = mode;
+  document.querySelectorAll('.wb-mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('wbMode' + (mode === 'board' ? 'Board' : 'Kanban')).classList.add('active');
+  document.getElementById('wbBoardView').style.display   = mode === 'board'  ? 'block' : 'none';
+  document.getElementById('wbKanbanView').style.display  = mode === 'kanban' ? 'block' : 'none';
+  document.getElementById('wbBoardTools').style.display  = mode === 'board'  ? 'flex'  : 'none';
+  document.getElementById('wbKanbanTools').style.display = mode === 'kanban' ? 'flex'  : 'none';
+  if (mode === 'kanban') wbRenderKanban();
+}
+
+function wbSetTool(tool) {
+  _wb.tool = tool; _wb.connecting = null;
+  document.querySelectorAll('.wb-tool').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('wbTool-' + tool);
+  if (btn) btn.classList.add('active');
+  const cursors = { select:'default', sticky:'copy', text:'text', pen:'crosshair', connect:'crosshair', erase:'cell', img:'copy', shape:'crosshair' };
+  document.getElementById('wbBoard').style.cursor = cursors[tool] || 'default';
+  const isPen = tool === 'pen' || tool === 'erase';
+  document.getElementById('wbDrawCanvas').style.pointerEvents = isPen ? 'auto' : 'none';
+  document.getElementById('wbDrawCanvas').style.zIndex        = isPen ? '4'    : '1';
+  document.getElementById('wbItemsLayer').style.pointerEvents = isPen ? 'none' : 'auto';
+  document.getElementById('wbPenOpts').style.display   = isPen            ? 'flex' : 'none';
+  document.getElementById('wbShapeOpts').style.display = (tool==='shape') ? 'flex' : 'none';
+  const STATUS = {
+    select:  'Clic para seleccionar · Arrastra para mover · Doble clic para editar · Arrastra esquinas azules para redimensionar',
+    sticky:  'Haz clic en el canvas para colocar un Post-it',
+    text:    'Haz clic en el canvas para agregar texto',
+    pen:     'Dibuja libremente · Ajusta color y grosor en la barra',
+    connect: 'Haz clic en el origen, luego en el destino para crear una flecha',
+    erase:   'Arrastra sobre los trazos para borrarlos',
+    img:     'Haz clic en el canvas para colocar una imagen (JPG, PNG, GIF · máx. 5MB)',
+    shape:   'Elige una forma · Haz clic en el canvas para colocarla · Selecciona para mover/redimensionar',
+  };
+  document.getElementById('wbStatus').textContent = STATUS[tool] || '';
+}
+
+// ── Drawing ──
+function wbDrawStart(e) {
+  if (_wb.tool !== 'pen' && _wb.tool !== 'erase') return;
+  _wb.isDrawing = true;
+  const r = document.getElementById('wbCanvas').getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  if (_wb.tool === 'pen') {
+    const ctx = _wb.drawCtx;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.strokeStyle = _wb.penColor; ctx.lineWidth = _wb.penSize;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  }
+  _wb.lx = x; _wb.ly = y;
+  document.addEventListener('mousemove', wbDrawMove);
+  document.addEventListener('mouseup',   wbDrawEnd);
+}
+function wbDrawMove(e) {
+  if (!_wb.isDrawing) return;
+  const r = document.getElementById('wbCanvas').getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  const ctx = _wb.drawCtx;
+  if (_wb.tool === 'pen') {
+    ctx.lineTo(x, y); ctx.stroke();
+  } else {
+    const s = _wb.penSize * 6; ctx.clearRect(x - s/2, y - s/2, s, s);
+  }
+  _wb.lx = x; _wb.ly = y;
+}
+function wbDrawEnd() {
+  _wb.isDrawing = false;
+  document.removeEventListener('mousemove', wbDrawMove);
+  document.removeEventListener('mouseup',   wbDrawEnd);
+}
+
+// ── Canvas click (place items) ──
+function wbCanvasClick(e) {
+  if (e.target.closest('[data-wid]')) return;
+  if (_wb.isDrawing) return;
+  const r = document.getElementById('wbCanvas').getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  const tool = _wb.tool;
+  if (tool === 'sticky') {
+    const color = WB_STICKY_COLORS[_wb.items.filter(i=>i.type==='sticky').length % WB_STICKY_COLORS.length];
+    _wb.items.push({ id:_wb.nextId++, type:'sticky', x, y, text:'Post-it', color });
+    wbRender();
+    showToast('Post-it agregado. Doble clic para editar.','success');
+  } else if (tool === 'text') {
+    const v = prompt('Texto:','Nueva nota');
+    if (v && v.trim()) { _wb.items.push({ id:_wb.nextId++, type:'text', x, y, text:v.trim() }); wbRender(); }
+  } else if (tool === 'shape') {
+    _wb.items.push({ id:_wb.nextId++, type:'shape', shapeType:_wb.shapeType,
+      x:x-60, y:y-40, w:120, h:90, fill:_wb.shapeFill, stroke:_wb.shapeStroke, strokeW:_wb.shapeStrokeW });
+    wbRender();
+    showToast('Forma agregada. Selecciónala y arrastra las esquinas azules para redimensionar.','success');
+  } else if (tool === 'img') {
+    _wb.pendingX = x; _wb.pendingY = y;
+    document.getElementById('wbImgInput').click();
+  } else if (tool === 'select') {
+    _wb.selected = null; wbRender();
+  }
+}
+
+// ── Item drag ──
+var _wbDrag = null;
+function wbItemDown(e, id) {
+  if (_wb.tool !== 'select') return;
+  if (e.target.classList.contains('wb-rh')) return; // resize handle has its own handler
+  e.stopPropagation(); e.preventDefault();
+  const item = _wb.items.find(i=>i.id===id);
+  if (!item) return;
+  _wb.selected = id; wbHighlight(id);
+  _wbDrag = { id, sx: e.clientX, sy: e.clientY, ox: item.x, oy: item.y };
+  document.addEventListener('mousemove', wbItemMove);
+  document.addEventListener('mouseup',   wbItemUp);
+}
+function wbItemMove(e) {
+  if (!_wbDrag) return;
+  const item = _wb.items.find(i=>i.id===_wbDrag.id);
+  if (!item) return;
+  item.x = _wbDrag.ox + (e.clientX - _wbDrag.sx);
+  item.y = _wbDrag.oy + (e.clientY - _wbDrag.sy);
+  const el = document.querySelector(`[data-wid="${item.id}"]`);
+  if (el) { el.style.left = item.x + 'px'; el.style.top = item.y + 'px'; }
+  wbRenderEdges();
+}
+function wbItemUp() {
+  _wbDrag = null;
+  document.removeEventListener('mousemove', wbItemMove);
+  document.removeEventListener('mouseup',   wbItemUp);
+}
+function wbHighlight(id) {
+  document.querySelectorAll('[data-wid]').forEach(el => el.classList.remove('sel'));
+  const el = document.querySelector(`[data-wid="${id}"]`);
+  if (el) el.classList.add('sel');
+}
+function wbItemClick(e, id) {
+  e.stopPropagation();
+  if (_wb.tool === 'connect') {
+    if (_wb.connecting === null) {
+      _wb.connecting = id;
+      document.getElementById('wbStatus').textContent = 'Ahora haz clic en el elemento destino…';
+    } else if (_wb.connecting !== id) {
+      _wb.edges.push({ id:_wb.nextId++, from:_wb.connecting, to:id });
+      _wb.connecting = null;
+      document.getElementById('wbStatus').textContent = 'Conexión creada. Haz clic en otro origen…';
+      wbRenderEdges();
+    }
+    return;
+  }
+  _wb.selected = id; wbHighlight(id);
+}
+function wbItemDblClick(id) {
+  const item = _wb.items.find(i=>i.id===id);
+  if (!item) return;
+  const v = prompt('Editar texto:', item.text);
+  if (v !== null) { item.text = v.trim() || item.text; wbRender(); }
+}
+
+function wbRender() {
+  document.getElementById('wbItemsLayer').innerHTML = _wb.items.map(item => {
+    const isSel = _wb.selected === item.id;
+    const rh = isSel ? `<div class="wb-rh wb-rh-tl" onmousedown="wbResizeStart(event,${item.id},'tl')"></div><div class="wb-rh wb-rh-tr" onmousedown="wbResizeStart(event,${item.id},'tr')"></div><div class="wb-rh wb-rh-bl" onmousedown="wbResizeStart(event,${item.id},'bl')"></div><div class="wb-rh wb-rh-br" onmousedown="wbResizeStart(event,${item.id},'br')"></div>` : '';
+    if (item.type === 'sticky') {
+      const sz = item.w ? `width:${item.w}px;height:${item.h}px;overflow:auto;` : '';
+      return `<div data-wid="${item.id}" class="wb-sticky${isSel?' sel':''}" style="left:${item.x}px;top:${item.y}px;background:${item.color};${sz}"
+        onmousedown="wbItemDown(event,${item.id})" onclick="wbItemClick(event,${item.id})" ondblclick="wbItemDblClick(${item.id})">${esc(item.text)}${rh}</div>`;
+    } else if (item.type === 'text') {
+      return `<div data-wid="${item.id}" class="wb-text-item${isSel?' sel':''}" style="left:${item.x}px;top:${item.y}px;"
+        onmousedown="wbItemDown(event,${item.id})" onclick="wbItemClick(event,${item.id})" ondblclick="wbItemDblClick(${item.id})">${esc(item.text)}${rh}</div>`;
+    } else if (item.type === 'img') {
+      return `<div data-wid="${item.id}" style="position:absolute;left:${item.x}px;top:${item.y}px;width:${item.w}px;height:${item.h}px;${isSel?'outline:2.5px solid #3b82f6;outline-offset:2px;border-radius:4px;':''}cursor:grab;user-select:none;"
+        onmousedown="wbItemDown(event,${item.id})" onclick="wbItemClick(event,${item.id})">
+        <img src="${item.src}" style="width:100%;height:100%;object-fit:contain;display:block;border-radius:4px;pointer-events:none;" draggable="false"/>
+        ${rh}</div>`;
+    } else if (item.type === 'shape') {
+      return `<div data-wid="${item.id}" style="position:absolute;left:${item.x}px;top:${item.y}px;width:${item.w}px;height:${item.h}px;cursor:grab;user-select:none;${isSel?'outline:2px solid #3b82f6;outline-offset:2px;border-radius:2px;':''}"
+        onmousedown="wbItemDown(event,${item.id})" onclick="wbItemClick(event,${item.id})">${wbShapeSVG(item.shapeType,item.fill,item.stroke,item.strokeW)}${rh}</div>`;
+    }
+    return '';
+  }).join('');
+  wbRenderEdges();
+}
+function wbRenderEdges() {
+  let inner = `<defs><marker id="wbArrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#94a3b8"/></marker></defs>`;
+  _wb.edges.forEach(edge => {
+    const s = _wb.items.find(i=>i.id===edge.from);
+    const d = _wb.items.find(i=>i.id===edge.to);
+    if (!s||!d) return;
+    const sx=s.x+70, sy=s.y+50, dx=d.x+70, dy=d.y+50;
+    inner += `<line x1="${sx}" y1="${sy}" x2="${dx}" y2="${dy}" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#wbArrow)"/>`;
+  });
+  document.getElementById('wbEdgesSvg').innerHTML = inner;
+}
+// ── Shapes ──
+function wbSelectShape(type) {
+  _wb.shapeType = type;
+  document.querySelectorAll('.wb-shape-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('wbs-' + type);
+  if (btn) btn.classList.add('active');
+}
+
+function wbShapeSVG(shapeType, fill, stroke, strokeW) {
+  const sw = strokeW || 2, f = fill || '#bfdbfe', s = stroke || '#3b82f6';
+  let inner = '';
+  if (shapeType === 'rect') {
+    inner = `<rect x="${sw}" y="${sw}" width="${100-sw*2}" height="${80-sw*2}" fill="${f}" stroke="${s}" stroke-width="${sw}" rx="5"/>`;
+  } else if (shapeType === 'circle') {
+    inner = `<ellipse cx="50" cy="40" rx="${50-sw}" ry="${40-sw}" fill="${f}" stroke="${s}" stroke-width="${sw}"/>`;
+  } else if (shapeType === 'triangle') {
+    inner = `<polygon points="50,${sw} ${100-sw},${80-sw} ${sw},${80-sw}" fill="${f}" stroke="${s}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  } else if (shapeType === 'diamond') {
+    inner = `<polygon points="50,${sw} ${100-sw},40 50,${80-sw} ${sw},40" fill="${f}" stroke="${s}" stroke-width="${sw}"/>`;
+  } else if (shapeType === 'arrow') {
+    inner = `<polygon points="${sw},26 58,26 58,${sw} ${100-sw},40 58,${80-sw} 58,54 ${sw},54" fill="${f}" stroke="${s}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  } else if (shapeType === 'arrowUp') {
+    inner = `<polygon points="32,${80-sw} 32,42 ${sw},42 50,${sw} ${100-sw},42 68,42 68,${80-sw}" fill="${f}" stroke="${s}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  } else if (shapeType === 'arrowLR') {
+    inner = `<polygon points="${sw},40 28,${sw} 28,26 72,26 72,${sw} ${100-sw},40 72,${80-sw} 72,54 28,54 28,${80-sw}" fill="${f}" stroke="${s}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  } else if (shapeType === 'star') {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? 37 : 16, a = (Math.PI * i / 5) - Math.PI / 2;
+      pts.push(`${(50 + r * Math.cos(a)).toFixed(1)},${(40 + r * Math.sin(a)).toFixed(1)}`);
+    }
+    inner = `<polygon points="${pts.join(' ')}" fill="${f}" stroke="${s}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  } else if (shapeType === 'speech') {
+    inner = `<path d="M8,${sw} L92,${sw} Q${100-sw},${sw} ${100-sw},8 L${100-sw},50 Q${100-sw},58 92,58 L42,58 L32,${80-sw} L22,58 L8,58 Q${sw},58 ${sw},50 L${sw},8 Q${sw},${sw} 8,${sw} Z" fill="${f}" stroke="${s}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  } else if (shapeType === 'check') {
+    inner = `<polyline points="10,40 38,65 90,15" fill="none" stroke="${s}" stroke-width="${Math.max(sw*2,5)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  } else if (shapeType === 'cross') {
+    inner = `<line x1="15" y1="14" x2="85" y2="66" stroke="${s}" stroke-width="${Math.max(sw*2,5)}" stroke-linecap="round"/><line x1="85" y1="14" x2="15" y2="66" stroke="${s}" stroke-width="${Math.max(sw*2,5)}" stroke-linecap="round"/>`;
+  } else if (shapeType === 'line') {
+    inner = `<line x1="4" y1="40" x2="96" y2="40" stroke="${s}" stroke-width="${Math.max(sw*2,4)}" stroke-linecap="round"/>`;
+  } else {
+    inner = `<rect x="${sw}" y="${sw}" width="${100-sw*2}" height="${80-sw*2}" fill="${f}" stroke="${s}" stroke-width="${sw}" rx="5"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="100%" height="100%" style="display:block;overflow:visible;">${inner}</svg>`;
+}
+
+// ── Resize ──
+var _wbResize = null;
+function wbResizeStart(e, id, handle) {
+  e.stopPropagation(); e.preventDefault();
+  const item = _wb.items.find(i=>i.id===id);
+  if (!item) return;
+  if (!item.w || !item.h) {
+    const el = document.querySelector(`[data-wid="${id}"]`);
+    item.w = el ? el.offsetWidth  : 160;
+    item.h = el ? el.offsetHeight : 100;
+  }
+  _wbResize = { id, handle, sx:e.clientX, sy:e.clientY, ox:item.x, oy:item.y, ow:item.w, oh:item.h };
+  document.addEventListener('mousemove', wbResizeMove);
+  document.addEventListener('mouseup',   wbResizeEnd);
+}
+function wbResizeMove(e) {
+  if (!_wbResize) return;
+  const item = _wb.items.find(i=>i.id===_wbResize.id);
+  if (!item) return;
+  const dx = e.clientX - _wbResize.sx, dy = e.clientY - _wbResize.sy;
+  const MIN = 50, h = _wbResize.handle;
+  if (h==='br') {
+    item.w = Math.max(MIN, _wbResize.ow + dx);
+    item.h = Math.max(MIN, _wbResize.oh + dy);
+  } else if (h==='bl') {
+    const nw = Math.max(MIN, _wbResize.ow - dx);
+    item.x = _wbResize.ox + (_wbResize.ow - nw); item.w = nw;
+    item.h = Math.max(MIN, _wbResize.oh + dy);
+  } else if (h==='tr') {
+    item.w = Math.max(MIN, _wbResize.ow + dx);
+    const nh = Math.max(MIN, _wbResize.oh - dy);
+    item.y = _wbResize.oy + (_wbResize.oh - nh); item.h = nh;
+  } else if (h==='tl') {
+    const nw = Math.max(MIN, _wbResize.ow - dx);
+    const nh = Math.max(MIN, _wbResize.oh - dy);
+    item.x = _wbResize.ox + (_wbResize.ow - nw); item.w = nw;
+    item.y = _wbResize.oy + (_wbResize.oh - nh); item.h = nh;
+  }
+  const el = document.querySelector(`[data-wid="${item.id}"]`);
+  if (el) { el.style.left=item.x+'px'; el.style.top=item.y+'px'; el.style.width=item.w+'px'; el.style.height=item.h+'px'; }
+}
+function wbResizeEnd() {
+  _wbResize = null;
+  document.removeEventListener('mousemove', wbResizeMove);
+  document.removeEventListener('mouseup',   wbResizeEnd);
+}
+
+// ── Image upload ──
+function wbImgInputChange(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('Solo se permiten imágenes.','error'); return; }
+  if (file.size > 5 * 1024 * 1024) { showToast('La imagen supera el límite de 5MB.','error'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const src = ev.target.result;
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const MAX = 420;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+      _wb.items.push({ id:_wb.nextId++, type:'img', x:_wb.pendingX||120, y:_wb.pendingY||80, w, h, src });
+      wbRender();
+      showToast('Imagen agregada. Selecciónala y arrastra las esquinas para redimensionar.','success');
+    };
+    img.src = src;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function wbDeleteSelected() {
+  if (_wb.selected === null) { showToast('Selecciona un elemento primero.','warn'); return; }
+  _wb.edges = _wb.edges.filter(e=>e.from!==_wb.selected && e.to!==_wb.selected);
+  _wb.items = _wb.items.filter(i=>i.id!==_wb.selected);
+  _wb.selected = null; wbRender();
+}
+function wbClearCanvas() {
+  if (!confirm('¿Limpiar todos los trazos de dibujo?')) return;
+  const c = document.getElementById('wbDrawCanvas');
+  _wb.drawCtx.clearRect(0, 0, c.width, c.height);
+}
+async function wbExport() {
+  try {
+    const canvas = await html2canvas(document.getElementById('wbBoard'), { backgroundColor:'#f8fafc', scale:1.5, useCORS:true });
+    const link = document.createElement('a');
+    link.download = 'pizarra-' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = canvas.toDataURL('image/png'); link.click();
+    showToast('Pizarra exportada.','success');
+  } catch(e) { showToast('Error al exportar.','error'); }
+}
+document.addEventListener('keydown', e => {
+  if ((e.key==='Delete'||e.key==='Backspace') && _wbInited && _wb.mode==='board' && _wb.selected!==null &&
+      document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA') {
+    wbDeleteSelected();
+  }
+});
+
+// ── Kanban ─────────────────────────────────────────────────────────────────────
+var _kanban = {
+  cols: [
+    { id:1, title:'📋 Por hacer',   color:'#3b82f6', cards:[
+      { id:1, title:'Revisar requerimientos',  desc:'',  tag:'', tagColor:'' },
+      { id:2, title:'Diseño de mockups',       desc:'',  tag:'Alta',  tagColor:'#ef4444' },
+    ]},
+    { id:2, title:'⚡ En progreso', color:'#f59e0b', cards:[
+      { id:3, title:'Desarrollo del módulo',   desc:'',  tag:'Media', tagColor:'#f59e0b' },
+    ]},
+    { id:3, title:'✅ Completado',  color:'#10b981', cards:[
+      { id:4, title:'Configuración inicial',   desc:'',  tag:'', tagColor:'' },
+    ]},
+  ],
+  nextColId: 4, nextCardId: 5,
+  dragging: null, fromCol: null,
+};
+
+function wbRenderKanban() {
+  const c = document.getElementById('wbKanban');
+  c.innerHTML = _kanban.cols.map(col => `
+    <div class="kb-col" id="kbcol-${col.id}"
+         ondragover="kbOver(event,${col.id})" ondrop="kbDrop(event,${col.id})"
+         ondragleave="document.getElementById('kbdrop-${col.id}').classList.remove('over')">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${col.color};flex-shrink:0;"></div>
+        <span style="font-size:13px;font-weight:700;color:var(--text);flex:1;cursor:pointer;" ondblclick="kbRenameCol(${col.id})">${esc(col.title)}</span>
+        <span style="font-size:11px;color:var(--muted);">${col.cards.length}</span>
+        <button onclick="kbDeleteCol(${col.id})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;line-height:1;" title="Eliminar columna"><i class="bi bi-x"></i></button>
+      </div>
+      <div class="kb-drop" id="kbdrop-${col.id}"></div>
+      ${col.cards.map(card => `
+        <div class="kb-card" id="kbcard-${card.id}" draggable="true"
+             ondragstart="kbDragStart(event,${card.id},${col.id})"
+             ondragend="kbDragEnd()">
+          ${card.tag ? `<span class="kb-tag" style="background:${card.tagColor||'#e2e8f0'};color:${card.tagColor?'#fff':'#64748b'};">${esc(card.tag)}</span>` : ''}
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">${esc(card.title)}</div>
+          ${card.desc ? `<div style="font-size:11px;color:var(--muted);line-height:1.5;">${esc(card.desc)}</div>` : ''}
+          <div style="display:flex;justify-content:flex-end;gap:2px;margin-top:8px;">
+            <button onclick="kbEditCard(${col.id},${card.id})" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:3px 6px;font-size:11px;"><i class="bi bi-pencil"></i></button>
+            <button onclick="kbDeleteCard(${col.id},${card.id})" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:3px 6px;font-size:11px;"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>`).join('')}
+      <button onclick="kbAddCard(${col.id})" class="btn-sm btn-outline" style="width:100%;justify-content:center;margin-top:4px;font-size:12px;">
+        <i class="bi bi-plus-lg"></i> Agregar
+      </button>
+    </div>`).join('') +
+    `<div style="flex-shrink:0;display:flex;align-items:flex-start;padding-top:4px;">
+      <button onclick="wbKanbanAddCol()" class="btn-sm btn-outline" style="flex-direction:column;gap:6px;padding:20px 22px;font-size:12px;">
+        <i class="bi bi-plus-circle" style="font-size:20px;"></i> Columna
+      </button>
+    </div>`;
+}
+function kbDragStart(e, cardId, colId) {
+  _kanban.dragging = cardId; _kanban.fromCol = colId;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => document.getElementById('kbcard-' + cardId)?.classList.add('dragging'), 0);
+}
+function kbDragEnd() {
+  document.querySelectorAll('.kb-card.dragging').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.kb-drop.over').forEach(el => el.classList.remove('over'));
+}
+function kbOver(e, colId) {
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  document.getElementById('kbdrop-' + colId)?.classList.add('over');
+}
+function kbDrop(e, colId) {
+  e.preventDefault();
+  const cardId = _kanban.dragging, fromId = _kanban.fromCol;
+  if (!cardId || fromId === colId) { kbDragEnd(); return; }
+  const from = _kanban.cols.find(c=>c.id===fromId);
+  const to   = _kanban.cols.find(c=>c.id===colId);
+  if (!from||!to) return;
+  const idx = from.cards.findIndex(c=>c.id===cardId);
+  if (idx === -1) return;
+  to.cards.push(from.cards.splice(idx, 1)[0]);
+  _kanban.dragging = null; _kanban.fromCol = null;
+  wbRenderKanban();
+}
+function kbAddCard(colId) {
+  const col = _kanban.cols.find(c=>c.id===colId);
+  if (!col) return;
+  const title = prompt('Título de la tarjeta:','Nueva tarea');
+  if (!title||!title.trim()) return;
+  col.cards.push({ id:_kanban.nextCardId++, title:title.trim(), desc:'', tag:'', tagColor:'' });
+  wbRenderKanban();
+}
+function kbEditCard(colId, cardId) {
+  const col = _kanban.cols.find(c=>c.id===colId);
+  const card = col?.cards.find(c=>c.id===cardId);
+  if (!card) return;
+  const t = prompt('Título:', card.title);
+  if (t === null) return;
+  if (t.trim()) card.title = t.trim();
+  const d = prompt('Descripción:', card.desc);
+  if (d !== null) card.desc = d.trim();
+  wbRenderKanban();
+}
+function kbDeleteCard(colId, cardId) {
+  const col = _kanban.cols.find(c=>c.id===colId);
+  if (col) { col.cards = col.cards.filter(c=>c.id!==cardId); wbRenderKanban(); }
+}
+function kbRenameCol(colId) {
+  const col = _kanban.cols.find(c=>c.id===colId);
+  if (!col) return;
+  const v = prompt('Nombre:', col.title);
+  if (v && v.trim()) { col.title = v.trim(); wbRenderKanban(); }
+}
+function kbDeleteCol(colId) {
+  if (!confirm('¿Eliminar columna y sus tarjetas?')) return;
+  _kanban.cols = _kanban.cols.filter(c=>c.id!==colId); wbRenderKanban();
+}
+function wbKanbanAddCol() {
+  const n = prompt('Nombre de la columna:','Nueva columna');
+  if (!n||!n.trim()) return;
+  _kanban.cols.push({ id:_kanban.nextColId++, title:n.trim(), color:'#8b5cf6', cards:[] });
+  wbRenderKanban();
+}
+function wbKanbanImportGantt() {
+  if (!_ganttTasks.length) { showToast('No hay tareas en el Gantt.','warn'); return; }
+  const col = _kanban.cols[0];
+  if (!col) { showToast('Agrega una columna primero.','warn'); return; }
+  let added = 0;
+  _ganttTasks.forEach(task => {
+    const exists = _kanban.cols.some(c=>c.cards.some(card=>card.title===task.name));
+    if (!exists) {
+      col.cards.push({ id:_kanban.nextCardId++, title:task.name, desc:task.resp?'Resp: '+task.resp:'', tag:task.progress+'%', tagColor:task.color });
+      added++;
+    }
+  });
+  wbRenderKanban();
+  showToast(added ? `${added} tarea${added!==1?'s':''} importada${added!==1?'s':''} del Gantt.` : 'Todas las tareas ya están en el tablero.', added?'success':'warn');
+}
+
+// ── File management (original) ────────────────────────────────────────────────
+async function sendFiles() {
+  const to      = document.getElementById('sendTo').value.trim();
+  const subject = document.getElementById('sendSubject').value.trim() || 'Archivos adjuntos — Soporte TI';
+  const message = document.getElementById('sendMessage').value.trim();
+  const selected = _files.filter(f => f.selected);
+  if (!to)            { showToast('Ingresa el correo del destinatario.', 'error'); return; }
+  if (!selected.length) { showToast('Selecciona al menos un archivo para enviar.', 'error'); return; }
+
+  const btn = document.querySelector('#toolTab7 .btn-primary[onclick="sendFiles()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Enviando…'; }
+
+  try {
+    const r = await fetch('/api/mailer/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        to, subject, message,
+        attachments: selected.map(f => ({ filename: f.name, content: f.dataUrl.split(',')[1], encoding: 'base64', contentType: f.mimeType })),
+      }),
+    });
+    const d = await r.json();
+    if (d.success || r.ok) {
+      document.getElementById('sendOk').style.display = 'block';
+      setTimeout(() => document.getElementById('sendOk').style.display = 'none', 5000);
+      _files = _files.map(f => ({ ...f, selected: false }));
+      renderFileList();
+      showToast('Correo enviado correctamente.', 'success');
+    } else {
+      showToast(d.error || 'Error al enviar el correo.', 'error');
+    }
+  } catch(e) {
+    showToast('Error de conexión al enviar.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send-fill"></i> Enviar archivos'; }
+  }
+}
+</script>
+<!-- ─── ESTILOS: Mapa Mental v2 ─────────────────────────────────────────────── -->
+<style>
+/* Layout principal */
+#mmTab{display:flex;flex-direction:column;gap:10px;}
+.mm-workspace{display:flex;gap:10px;height:65vh;min-height:480px;max-height:800px;}
+.mm-sidebar{width:210px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+.mm-canvas-col{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;}
+
+/* Sidebar sections */
+.mm-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.mm-panel-head{padding:8px 12px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+.mm-panel-body{padding:8px;}
+
+/* Templates */
+.mm-tpl-card{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:9px;cursor:pointer;transition:all .18s;border:1.5px solid transparent;}
+.mm-tpl-card:hover{background:rgba(124,58,237,.06);border-color:rgba(124,58,237,.2);}
+.mm-tpl-card.active{background:rgba(124,58,237,.1);border-color:#7c3aed;}
+.mm-tpl-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.mm-tpl-name{font-size:12px;font-weight:700;color:var(--text);}
+.mm-tpl-desc{font-size:10px;color:var(--muted);line-height:1.3;}
+
+/* Element palette */
+.mm-palette{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.mm-el{padding:7px 5px;border-radius:9px;border:1.5px solid var(--border);background:var(--bg);cursor:grab;text-align:center;transition:all .18s;user-select:none;}
+.mm-el:hover{border-color:#7c3aed;background:rgba(124,58,237,.05);transform:translateY(-1px);}
+.mm-el:active{cursor:grabbing;}
+.mm-el-icon{font-size:16px;display:block;margin-bottom:3px;line-height:1;}
+.mm-el-label{font-size:10px;font-weight:700;color:var(--text);}
+
+/* Props panel */
+.mm-prop-row{margin-bottom:8px;}
+.mm-prop-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;}
+.mm-prop-input{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:6px 9px;font-size:12px;background:var(--bg);color:var(--text);outline:none;box-sizing:border-box;}
+.mm-prop-input:focus{border-color:#7c3aed;}
+.mm-prop-colors{display:flex;gap:4px;flex-wrap:wrap;}
+.mm-color-dot{width:20px;height:20px;border-radius:5px;cursor:pointer;transition:transform .15s;border:2px solid transparent;}
+.mm-color-dot:hover{transform:scale(1.2);}
+.mm-color-dot.sel{border-color:#1e293b;transform:scale(1.15);}
+.mm-prop-shapes{display:flex;gap:4px;flex-wrap:wrap;}
+.mm-shape-btn{padding:4px 8px;border-radius:6px;border:1.5px solid var(--border);background:transparent;font-size:11px;cursor:pointer;transition:all .15s;color:var(--text);}
+.mm-shape-btn:hover,.mm-shape-btn.sel{border-color:#7c3aed;color:#7c3aed;background:rgba(124,58,237,.07);}
+.mm-prop-actions{display:flex;flex-direction:column;gap:5px;}
+.mm-prop-btn{padding:6px 10px;border-radius:7px;border:1.5px solid var(--border);background:transparent;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;color:var(--text);transition:all .18s;}
+.mm-prop-btn:hover{background:var(--hover);}
+.mm-prop-btn.danger:hover{background:#fee2e2;border-color:#fca5a5;color:#dc2626;}
+.mm-prop-btn.success{background:#7c3aed;border-color:#7c3aed;color:#fff;}
+.mm-prop-btn.success:hover{opacity:.88;}
+
+/* Canvas area */
+.mm-canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg);border:1px solid var(--border);border-radius:14px;}
+.mm-canvas-wrap.drop-active{border-color:#7c3aed;background:rgba(124,58,237,.03);}
+.mm-canvas-wrap svg{position:absolute;top:0;left:0;width:100%;height:100%;}
+.mm-zoom-btns{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10;}
+.mm-zoom-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.mm-zoom-btn:hover{background:var(--hover);}
+.mm-canvas-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.mm-canvas-hint-inner{text-align:center;opacity:.45;}
+.mm-canvas-hint-inner i{font-size:42px;color:#7c3aed;display:block;margin-bottom:8px;}
+.mm-canvas-hint-inner p{font-size:13px;font-weight:600;color:var(--text);margin:0;}
+.mm-canvas-hint-inner small{font-size:11px;color:var(--muted);}
+
+/* Context menu */
+#mmCtx{position:fixed;background:var(--card);border:1px solid var(--border);border-radius:11px;box-shadow:0 8px 28px rgba(0,0,0,.18);z-index:9999;display:none;min-width:160px;overflow:hidden;}
+#mmCtx.show{display:block;}
+.mm-ctx-item{padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text);transition:background .12s;}
+.mm-ctx-item:hover{background:var(--hover);}
+.mm-ctx-item.danger{color:#dc2626;}
+.mm-ctx-item.danger:hover{background:#fee2e2;}
+.mm-ctx-sep{height:1px;background:var(--border);margin:3px 0;}
+
+/* Upload overlay */
+.mm-upload-area{border:2px dashed var(--border);border-radius:12px;padding:28px 16px;text-align:center;cursor:pointer;transition:all .25s;background:var(--card);margin-bottom:8px;}
+.mm-upload-area:hover,.mm-upload-area.drag{border-color:#7c3aed;background:rgba(124,58,237,.04);}
+.mm-upload-area i{font-size:28px;color:#7c3aed;display:block;margin-bottom:6px;}
+.mm-upload-area h4{font-size:12px;font-weight:700;margin:0 0 3px;}
+.mm-upload-area p{font-size:10px;color:var(--muted);margin:0;}
+.mm-formats{display:flex;gap:4px;justify-content:center;margin-top:7px;flex-wrap:wrap;}
+.mm-format-pill{background:rgba(124,58,237,.1);color:#7c3aed;border:1px solid rgba(124,58,237,.25);border-radius:5px;padding:1px 7px;font-size:10px;font-weight:700;}
+.mm-paste-area{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:12px;color:var(--text);background:var(--bg);font-family:inherit;resize:vertical;outline:none;transition:border-color .2s;box-sizing:border-box;}
+.mm-paste-area:focus{border-color:#7c3aed;}
+
+/* Spinner */
+.mm-progress{display:none;position:absolute;inset:0;background:rgba(255,255,255,.75);border-radius:14px;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:20;backdrop-filter:blur(4px);}
+[data-theme="dark"] .mm-progress{background:rgba(15,23,42,.75);}
+.mm-progress.show{display:flex;}
+.mm-spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#7c3aed;border-radius:50%;animation:mmSpin .7s linear infinite;}
+@keyframes mmSpin{to{transform:rotate(360deg)}}
+
+/* Selected node ring */
+.mm-sel-ring{stroke:#7c3aed;stroke-width:3;fill:none;stroke-dasharray:6 3;animation:mmDash 1s linear infinite;}
+@keyframes mmDash{to{stroke-dashoffset:-18}}
+
+/* Toolbar theme/shape */
+.mm-theme-btn{padding:4px 10px;border-radius:6px;border:1.5px solid var(--border);background:transparent;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .2s;}
+.mm-theme-btn.active,.mm-theme-btn:hover{border-color:#7c3aed;color:#7c3aed;background:rgba(124,58,237,.07);}
+.mm-node-tooltip{position:fixed;background:#1e293b;color:#fff;font-size:11px;padding:5px 10px;border-radius:7px;pointer-events:none;z-index:9999;display:none;max-width:220px;word-break:break-word;box-shadow:0 4px 14px rgba(0,0,0,.25);}
+.mm-upload-area h4{font-size:14px;font-weight:700;margin:0 0 5px;color:var(--text);}
+.mm-upload-area p{font-size:12px;color:var(--muted);margin:0;}
+.mm-upload-area .mm-formats{display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap;}
+.mm-format-pill{background:rgba(124,58,237,.1);color:#7c3aed;border:1px solid rgba(124,58,237,.25);border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700;}
+.mm-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 12px;}
+.mm-tb-sep{width:1px;height:22px;background:var(--border);}
+.mm-tb-label{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;}
+.mm-canvas-wrap{position:relative;overflow:hidden;background:var(--bg);border:1px solid var(--border);border-radius:14px;flex:1;min-height:380px;}
+.mm-canvas-wrap svg{position:absolute;top:0;left:0;}
+.mm-zoom-btns{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;gap:5px;z-index:10;}
+.mm-zoom-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,.1);}
+.mm-zoom-btn:hover{background:var(--hover);}
+.mm-legend{position:absolute;top:14px;left:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:11px;z-index:10;}
+.mm-legend-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.mm-legend-row:last-child{margin-bottom:0;}
+.mm-legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.mm-paste-area{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);background:var(--bg);font-family:inherit;resize:vertical;outline:none;transition:border-color .2s;}
+.mm-paste-area:focus{border-color:#7c3aed;}
+.mm-theme-btn{padding:5px 12px;border-radius:7px;border:1.5px solid var(--border);background:transparent;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .2s;}
+.mm-theme-btn.active,.mm-theme-btn:hover{border-color:#7c3aed;color:#7c3aed;background:rgba(124,58,237,.06);}
+.mm-node-tooltip{position:fixed;background:#1e293b;color:#fff;font-size:11px;padding:5px 10px;border-radius:7px;pointer-events:none;z-index:9999;display:none;max-width:220px;word-break:break-word;box-shadow:0 4px 14px rgba(0,0,0,.25);}
+.mm-progress{display:none;position:absolute;inset:0;background:rgba(255,255,255,.75);border-radius:14px;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:20;backdrop-filter:blur(4px);}
+[data-theme="dark"] .mm-progress{background:rgba(15,23,42,.75);}
+.mm-progress.show{display:flex;}
+.mm-spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#7c3aed;border-radius:50%;animation:mmSpin .7s linear infinite;}
+@keyframes mmSpin{to{transform:rotate(360deg)}}
+</style>

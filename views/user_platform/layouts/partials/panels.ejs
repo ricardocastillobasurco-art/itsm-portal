@@ -1,0 +1,179 @@
+﻿  <!-- WORKPLACE — 9 módulos (sin Chatbot IA) -->
+  <div class="tab-panel active" id="panel-wp" <% if (!_isPrivileged) { %>style="display:none"<% } %>>
+    <div class="modules-grid">
+      <a href="http://localhost:3000/almacen" class="mod-card c-blue"><div class="mod-icon ib ib-blue"><i class="bi bi-hdd-stack-fill"></i></div><div class="mod-name">Almacén</div><div class="mod-desc">Gestión de hardware: laptops, desktops y activos tecnológicos.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="http://localhost:3000/employees" class="mod-card c-green"><div class="mod-icon ib ib-green"><i class="bi bi-people-fill"></i></div><div class="mod-name">Usuarios</div><div class="mod-desc">Administración de cuentas, perfiles, roles y colaboradores.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-purp"><div class="mod-icon ib ib-purp"><i class="bi bi-diagram-3-fill"></i></div><div class="mod-name">CMDB</div><div class="mod-desc">Base de datos de configuración: inventario y CIs.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="http://localhost:3000/soporte" class="mod-card c-amber" onclick="openSB(event)"><div class="mod-icon ib ib-amber"><i class="bi bi-headset"></i></div><div class="mod-name">Soporte</div><div class="mod-desc">Gestión de tickets, incidentes y atención al usuario.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-pink"><div class="mod-icon ib ib-pink"><i class="bi bi-kanban-fill"></i></div><div class="mod-name">Backlog</div><div class="mod-desc">Tablero de tareas y seguimiento de proyectos IT.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-cyan"><div class="mod-icon ib ib-cyan"><i class="bi bi-bar-chart-line-fill"></i></div><div class="mod-name">Reportes</div><div class="mod-desc">Dashboards analíticos, métricas KPI y reportes ejecutivos.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-ora"><span class="mod-badge">Nuevo</span><div class="mod-icon ib ib-ora"><i class="bi bi-key-fill"></i></div><div class="mod-name">Licencias</div><div class="mod-desc">Control de licencias de software y asignaciones.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-red"><span class="mod-badge">Nuevo</span><div class="mod-icon ib ib-red"><i class="bi bi-shield-lock-fill"></i></div><div class="mod-name">Seguridad</div><div class="mod-desc">Gestión de accesos, políticas y auditoría IT.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      
+    </div>
+  </div>
+
+  <!-- PORTAL — 8 módulos -->
+  <div class="tab-panel" id="panel-pa" <% if (!_isPrivileged) { %>style="display:none"<% } %>>
+    <div class="section-label"><i class="bi bi-person-badge-fill"></i> &nbsp;Portal de Autogestión — Acciones rápidas</div>
+    <div class="modules-grid">
+      <a href="#" class="mod-card c-blue"><div class="mod-icon ib ib-blue"><i class="bi bi-printer-fill"></i></div><div class="mod-name">Imprimir</div><div class="mod-desc">Enviar trabajos de impresión y gestionar colas.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-green"><div class="mod-icon ib ib-green"><i class="bi bi-ticket-perforated-fill"></i></div><div class="mod-name">Crear Ticket</div><div class="mod-desc">Reportar un incidente o solicitar asistencia técnica.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-indigo"><span class="mod-badge" style="background:#6366f1;">Nuevo</span><div class="mod-icon ib ib-indigo"><i class="bi bi-clipboard2-plus-fill"></i></div><div class="mod-name">Crear Requerimiento</div><div class="mod-desc">Solicitar formalmente un servicio, recurso o mejora IT.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-rose"><span class="mod-badge" style="background:#f43f5e;">Nuevo</span><div class="mod-icon ib ib-rose"><i class="bi bi-search-heart"></i></div><div class="mod-name">Consultar Incidencia / Req.</div><div class="mod-desc">Seguimiento del estado de tus incidencias y requerimientos.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-purp"><div class="mod-icon ib ib-purp"><i class="bi bi-journal-bookmark-fill"></i></div><div class="mod-name">Base de Conocimiento</div><div class="mod-desc">Artículos y guías para resolver problemas comunes.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-amber"><div class="mod-icon ib ib-amber"><i class="bi bi-patch-question-fill"></i></div><div class="mod-name">Preguntas Frecuentes</div><div class="mod-desc">Respuestas rápidas a consultas del equipo.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openDevolucionModal();return false;" class="mod-card c-pink"><div class="mod-icon ib ib-pink"><i class="bi bi-box-arrow-in-left"></i></div><div class="mod-name">Devoluciones</div><div class="mod-desc">Gestionar devolución de equipos y activos IT.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" class="mod-card c-cyan"><div class="mod-icon ib ib-cyan"><i class="bi bi-patch-check-fill"></i></div><div class="mod-name">Garantías</div><div class="mod-desc">Consulta y registro de garantías de equipos.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openMarqueeAdmin();return false;" class="mod-card c-orange"><span class="mod-badge" style="background:#ea580c;">Admin</span><div class="mod-icon ib ib-orange"><i class="bi bi-megaphone-fill"></i></div><div class="mod-name">Publicar Marquesina</div><div class="mod-desc">Gestiona alertas y avisos deslizantes visibles en el portal.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+    </div>
+  </div>
+
+  <!-- MÉTRICAS PORTAL — solo admin/especialista -->
+  <div class="tab-panel" id="panel-mx" <% if (!_isPrivileged) { %>style="display:none"<% } %>>
+    <div class="section-label"><i class="bi bi-bar-chart-line-fill"></i> &nbsp;Métricas del Portal de Autogestión</div>
+
+    <!-- Filtros -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:flex-end;">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;">Desde</div>
+        <input type="date" id="mxFrom" class="form-control" style="font-size:13px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:6px 10px;">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;">Hasta</div>
+        <input type="date" id="mxTo" class="form-control" style="font-size:13px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:6px 10px;">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;">Correo</div>
+        <input type="text" id="mxEmail" placeholder="Filtrar por correo..." style="font-size:13px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:6px 10px;width:220px;">
+      </div>
+      <button onclick="loadPortalMetrics()" style="padding:8px 18px;border-radius:8px;border:none;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="bi bi-search"></i> Filtrar</button>
+      <button onclick="exportMxCSV()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="bi bi-download"></i> CSV</button>
+    </div>
+
+    <!-- KPI cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px;" id="mxKpis">
+      <div class="mx-kpi" id="kpi-users"><div class="mx-kpi-val">—</div><div class="mx-kpi-lbl"><i class="bi bi-people-fill"></i> Usuarios únicos</div></div>
+      <div class="mx-kpi" id="kpi-logins"><div class="mx-kpi-val">—</div><div class="mx-kpi-lbl"><i class="bi bi-box-arrow-in-right"></i> Accesos</div></div>
+      <div class="mx-kpi" id="kpi-inc"><div class="mx-kpi-val">—</div><div class="mx-kpi-lbl"><i class="bi bi-exclamation-triangle-fill" style="color:var(--danger)"></i> Incidencias</div></div>
+      <div class="mx-kpi" id="kpi-req"><div class="mx-kpi-val">—</div><div class="mx-kpi-lbl"><i class="bi bi-clipboard2-plus-fill" style="color:var(--primary)"></i> Requerimientos</div></div>
+      <div class="mx-kpi" id="kpi-total"><div class="mx-kpi-val">—</div><div class="mx-kpi-lbl"><i class="bi bi-activity"></i> Acciones totales</div></div>
+    </div>
+
+    <!-- Tabla por usuario -->
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:14px;overflow:hidden;">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border-soft);font-size:13px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-table"></i> Actividad por usuario
+        <span id="mxCount" style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:4px;"></span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:var(--bg-main);">
+              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Correo</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Accesos</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);color:var(--danger);">Incidencias</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);">Requerimientos</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Total acciones</th>
+              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Última actividad</th>
+            </tr>
+          </thead>
+          <tbody id="mxTbody">
+            <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;"><i class="bi bi-hourglass-split"></i> Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CATALOG SECTION — shown to employees after identification -->
+  <div class="cat-section" id="catalogSection" style="display:none">
+    <!-- Banner bienvenida personalizado -->
+<div class="cat-welcome" id="catWelcome" style="display:flex;align-items:center;gap:12px;">
+  
+  <div class="cat-avatar">
+    <i class="bi bi-person-fill"></i>
+  </div>
+
+  <div style="flex:1;min-width:0;">
+    <div class="cat-welcome-name" id="catWelcomeName">Bienvenido</div>
+    <div class="cat-welcome-sub" id="catWelcomeSub">
+      Aquí puedes gestionar tus tickets, consultar artículos y mucho más.
+    </div>
+  </div>
+
+  <button class="cat-no-soy" onclick="volverIdentificarse()">¿No eres tú?</button>
+
+  <!-- 🔥 Botón Logout con URL -->
+  <button
+    onclick="logout()" 
+    style="
+      margin-left:auto;
+      border:none;
+      background:#fee2e2;
+      color:#b91c1c;
+      padding:8px 12px;
+      border-radius:10px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:14px;
+      transition:all .2s ease;
+    "
+    onmouseover="this.style.background='#fecaca'"
+    onmouseout="this.style.background='#fee2e2'"
+  >
+    <i class="bi bi-box-arrow-right"></i>
+    Salir
+  </button>
+
+</div>
+
+<script>
+function logout(){
+  // Limpias sesión si usas JWT
+  localStorage.removeItem("token");
+
+  // 🔥 Redirección usando tu APP_URL (EJS)
+  window.location.href = "<%= APP_URL %>/logout";
+}
+</script>
+
+    <div class="section-label"><i class="bi bi-grid-fill"></i> &nbsp;Catálogo de Servicios TI</div>
+    <div class="modules-grid">
+      <a href="#" onclick="openPageModal('/incidencias?embed=1');return false;" class="mod-card c-red"><div class="mod-icon ib ib-red"><i class="bi bi-exclamation-triangle-fill"></i></div><div class="mod-name">Generar Incidencia</div><div class="mod-desc">Reporta una falla, interrupción o problema con un servicio TI.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openPageModal('/requerimientos?embed=1',{wide:true});return false;" class="mod-card c-blue"><div class="mod-icon ib ib-blue"><i class="bi bi-clipboard2-plus-fill"></i></div><div class="mod-name">Generar Requerimiento</div><div class="mod-desc">Solicita formalmente un servicio, equipo, acceso o recurso TI.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="/herramientas" data-reporter-link data-href="/herramientas" class="mod-card c-cyan"><div class="mod-icon ib ib-cyan"><i class="bi bi-tools"></i></div><div class="mod-name">Herramientas</div><div class="mod-desc">Impresiones, dashboards, Gantt, archivos y más herramientas TI.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openMisTicketsModal();return false;" class="mod-card c-indigo"><div class="mod-icon ib ib-indigo"><i class="bi bi-search-heart"></i></div><div class="mod-name">Consultar Mis Tickets</div><div class="mod-desc">Revisa el estado y tracking de tus incidencias y requerimientos.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openDevolucionModal();return false;" class="mod-card c-pink"><div class="mod-icon ib ib-pink"><i class="bi bi-box-arrow-in-left"></i></div><div class="mod-name">Devoluciones</div><div class="mod-desc">Gestiona la devolución de equipos y activos tecnológicos.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openGarantiasModal();return false;" class="mod-card c-green"><div class="mod-icon ib ib-green"><i class="bi bi-patch-check-fill"></i></div><div class="mod-name">Garantías</div><div class="mod-desc">Consulta y registra garantías de equipos asignados.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="/preguntas-frecuentes" data-reporter-link data-href="/preguntas-frecuentes" class="mod-card c-amber"><div class="mod-icon ib ib-amber"><i class="bi bi-patch-question-fill"></i></div><div class="mod-name">Preguntas Frecuentes</div><div class="mod-desc">Respuestas rápidas a consultas comunes del equipo de TI.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openWspModal();return false;" class="mod-card c-teal"><span class="mod-badge" style="background:#14b8a6;">WhatsApp</span><div class="mod-icon ib ib-teal"><i class="bi bi-whatsapp"></i></div><div class="mod-name">WhatsApp Bot</div><div class="mod-desc">Registra tu celular para gestionar servicios TI desde WhatsApp.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="/knowledge-base" data-reporter-link data-href="/knowledge-base" class="mod-card c-purple"><div class="mod-icon ib ib-purple"><i class="bi bi-journal-richtext"></i></div><div class="mod-name">Base de Conocimiento</div><div class="mod-desc">Consulta artículos, guías y soluciones documentadas del equipo TI.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openSurveyModal();return false;" class="mod-card c-rose"><div class="mod-icon ib ib-rose"><i class="bi bi-star-half"></i></div><div class="mod-name">Encuesta de Satisfacción</div><div class="mod-desc">Comparte tu experiencia y ayúdanos a mejorar el servicio TI.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openSoftwareCatalog();return false;" class="mod-card c-lime"><div class="mod-icon ib ib-lime"><i class="bi bi-grid-3x3-gap-fill"></i></div><div class="mod-name">Instalación de Software</div><div class="mod-desc">Catálogo de software disponible. Solicita instalación, permisos o consulta disponibilidad.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+      <a href="#" onclick="openAnunciosModal();return false;" class="mod-card c-orange"><div class="mod-icon ib ib-orange"><i class="bi bi-megaphone-fill"></i></div><div class="mod-name">Anuncios</div><div class="mod-desc">Comunicados, comunidades e iniciativas del equipo.</div><i class="bi bi-arrow-right mod-arrow"></i></a>
+    </div>
+
+    <!-- Equipo asignado + piezas -->
+    <div class="equip-section" id="equipSection" style="display:none;">
+      <div class="equip-section-title"><i class="bi bi-laptop-fill" style="color:var(--primary)"></i> Equipo corporativo asignado</div>
+      <div class="equip-info-grid" id="equipInfoGrid"></div>
+      <div class="equip-section-title" style="margin-top:4px;"><i class="bi bi-tools" style="color:var(--amber,#f59e0b)"></i> Pieza a reemplazar</div>
+      <div class="pieza-grid">
+        <div class="pieza-btn" onclick="openPiezaModal('Teclado','⌨️')"><div class="pieza-icon">⌨️</div><div class="pieza-label">Teclado</div></div>
+        <div class="pieza-btn" onclick="openPiezaModal('Pantalla','🖥️')"><div class="pieza-icon">🖥️</div><div class="pieza-label">Pantalla</div></div>
+        <div class="pieza-btn" onclick="openPiezaModal('Cargador','🔌')"><div class="pieza-icon">🔌</div><div class="pieza-label">Cargador</div></div>
+        <div class="pieza-btn" onclick="openPiezaModal('Batería','🔋')"><div class="pieza-icon">🔋</div><div class="pieza-label">Batería</div></div>
+        <div class="pieza-btn" onclick="openPiezaModal('Touchpad','🖱️')"><div class="pieza-icon">🖱️</div><div class="pieza-label">Touchpad</div></div>
+        <div class="pieza-btn" onclick="openPiezaModal('Adaptador WiFi','📶')"><div class="pieza-icon">📶</div><div class="pieza-label">Adaptador WiFi</div></div>
+      </div>
+    </div>
+
+    <!-- Mis tickets inline -->
+    <div class="tickets-panel" id="inlineTicketsPanel" style="display:none;">
+      <div class="equip-section-title"><i class="bi bi-ticket-perforated-fill" style="color:var(--indigo,#6366f1)"></i> Mis Tickets Activos</div>
+      <div id="inlineTicketsList"></div>
+    </div>
+  </div>

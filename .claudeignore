@@ -1,0 +1,56 @@
+# === DEPENDENCIAS (nunca leer) ===
+node_modules/
+.bin/
+
+# === BUILDS Y COMPILADOS ===
+dist/
+build/
+public/js/*.min.js
+public/css/*.min.css
+
+# === LOCKS Y PACKAGE META ===
+package-lock.json
+yarn.lock
+.npmrc
+
+# === LOGS Y TEMPORALES ===
+logs/
+*.log
+*.tmp
+*.cache
+.cache/
+
+# === UPLOADS (archivos de usuario, no código) ===
+uploads/
+public/images/
+public/reports/
+
+# === DATOS BINARIOS Y REPORTES ===
+*.pdf
+*.xlsx
+*.xls
+*.csv
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+
+# === COVERAGE Y TEST OUTPUT ===
+coverage/
+.nyc_output/
+junit.xml
+
+# === IDE Y OS ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# === CLAUDE INTERNO ===
+.claude/
+
+# === MIGRACIONES YA EJECUTADAS (solo leer si se pide explícitamente) ===
+src/seeders/

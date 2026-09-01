@@ -1,0 +1,1441 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %> - Service Desk</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="../css/core/style.css">
+       <link rel="stylesheet" href="../css/modules/helpdesk.css">
+       <link rel="stylesheet" href="../css/core/shared.css">
+       <link rel="stylesheet" href="../css/modules/catalog.css">
+      
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.itsm-topbar-cat{display:flex;align-items:center;gap:12px;padding:10px 20px;background:var(--bg-card);border-bottom:1px solid var(--border-color);margin-bottom:8px;}
+.itsm-back-cat{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg-main,#f0f4f8);border:1px solid var(--border-color);border-radius:20px;padding:5px 12px;text-decoration:none;transition:color .2s;}
+.itsm-back-cat:hover{color:var(--primary-blue,#0052cc);}
+.itsm-bc-cat{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);}
+.itsm-bc-cat a{color:var(--text-muted);text-decoration:none;font-weight:500;transition:color .2s;}
+.itsm-bc-cat a:hover{color:var(--primary-blue,#0052cc);}
+.itsm-bc-cat .sep{opacity:.4;}
+.itsm-bc-cat .current{color:var(--text-primary);font-weight:700;}
+</style>
+</head>
+<body>
+<%
+  const _role = user?.role || 'usuario';
+  const _isAdmin       = _role === 'administrador';
+  const _isEsp         = ['especialista','agente','tecnico'].includes(_role);
+  const _isVisor       = _role === 'visor';
+  const _canRequest    = !_isVisor;
+  const _canManage     = _isAdmin || _isEsp;
+  // Tabs por perfil:
+  // usuario      : Registrar
+  // visor        : Registrar, Indicadores
+  // especialista : Registrar, Gestión, Indicadores, Categorías, Software
+  // admin        : todo + Especialistas, Automatizaciones, Administración
+%>
+<script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+<script>
+function _syncToggleUI(theme){const dark=theme==='dark';const icon=document.getElementById('toggleIcon'),label=document.getElementById('toggleLabel'),track=document.getElementById('themeTrack'),knob=document.getElementById('themeKnob');if(icon)icon.className=dark?'bi bi-sun-fill':'bi bi-moon-stars-fill';if(label)label.textContent=dark?'Claro':'Oscuro';if(track)track.style.background=dark?'#3b82f6':'#cbd5e1';if(knob)knob.style.transform=dark?'translateX(15px)':'translateX(0)';}
+function toggleTheme(){const h=document.documentElement,n=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',n);localStorage.setItem('dashboardTheme',n);_syncToggleUI(n);}
+document.addEventListener('DOMContentLoaded',()=>{_syncToggleUI(localStorage.getItem('dashboardTheme')||'light');});
+</script>
+<div class="dashboard-wrapper">
+<div class="dashboard-content">
+
+<div class="itsm-topbar-cat" style="justify-content:space-between;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="/itsm?tab=cat" class="itsm-back-cat"><i class="bi bi-arrow-left"></i> ITSM</a>
+    <div class="itsm-bc-cat">
+      <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
+      <span class="sep">/</span>
+      <a href="/itsm?tab=cat">ITSM</a>
+      <span class="sep">/</span>
+      <span class="current"><i class="bi bi-list-task"></i> Catálogo de Servicios</span>
+    </div>
+  </div>
+  <button onclick="toggleTheme()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:8px;">
+    <div id="themeTrack" style="width:32px;height:18px;border-radius:9px;background:#cbd5e1;position:relative;transition:background .3s;">
+      <div id="themeKnob" style="width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .3s;"></div>
+    </div>
+    <i id="toggleIcon" class="bi bi-moon-stars-fill" style="font-size:14px;color:var(--text-muted);"></i>
+    <span id="toggleLabel" style="font-size:12px;color:var(--text-muted);font-weight:500;">Oscuro</span>
+  </button>
+</div>
+
+<nav class="corp-tabnav" role="tablist">
+  <!-- Gestión Local: Registrar + Indicadores -->
+  <button class="corp-tab active" id="tabBtnRegistrar"   data-cat="local" onclick="doTab('registrar',this)"><i class="bi bi-pencil-square"></i> Registrar</button>
+  <% if (_isVisor || _canManage) { %>
+  <button class="corp-tab"        id="tabBtnIndicadores" data-cat="local" onclick="doTab('indicadores',this)"><i class="bi bi-bar-chart-line"></i> Indicadores</button>
+  <% } %>
+  <!-- Tab Gestión oculto (se carga dentro de Indicadores en modo local) -->
+  <% if (_canManage) { %>
+  <button class="corp-tab" id="tabBtnGestion" data-cat="hidden" onclick="doTab('gestion',this)" style="display:none"><i class="bi bi-ticket-detailed"></i> Gestión</button>
+  <% } %>
+  <!-- Administración: Categorías, Software, Especialistas, Automatizaciones, Gestión de Usuarios -->
+  <% if (_canManage) { %>
+  <button class="corp-tab" id="tabBtnCategorias"    data-cat="admin" onclick="doTab('categorias',this)"><i class="bi bi-tags"></i> Categorías</button>
+  <button class="corp-tab" id="tabBtnSoftware"      data-cat="admin" onclick="doTab('software',this)"><i class="bi bi-box-seam"></i> Software</button>
+  <% } %>
+  <% if (_isAdmin) { %>
+  <button class="corp-tab" id="tabBtnEspecialistas" data-cat="admin" onclick="doTab('especialistas',this)"><i class="bi bi-people"></i> Especialistas</button>
+  <button class="corp-tab" id="tabBtnAutomaciones"  data-cat="admin" onclick="doTab('automaciones',this)"><i class="bi bi-gear-wide-connected"></i> Automatizaciones</button>
+  <button class="corp-tab" id="tabBtnAdmin"         data-cat="admin" onclick="doTab('admin',this)"><i class="bi bi-people-fill"></i> Gestión de Usuarios</button>
+  <% } %>
+</nav>
+
+<script>
+var _tabLoaded={};
+var _userCanRequest=<%= _canRequest %>;
+var _userCanManage=<%= _canManage %>;
+var _isAdmin=<%= _isAdmin %>;
+
+var _catParams = new URLSearchParams(location.search);
+var _catView   = _catParams.get('view');  // 'local' o null
+var _catTab    = _catParams.get('tab');   // 'admin', nombre de tab, o null
+var _isLocalMode = _catView === 'local';
+var _isAdminMode = !_isLocalMode && (_catTab !== null);
+
+function doTab(name, btn){
+  document.querySelectorAll('.corp-tabpanel').forEach(p => p.style.display='none');
+  document.querySelectorAll('.corp-tab').forEach(b => b.classList.remove('active'));
+  var panels = {registrar:'tab-registrar',gestion:'tab-gestion',indicadores:'tab-indicadores',
+                categorias:'tab-categorias',software:'tab-software',especialistas:'tab-especialistas',
+                automaciones:'tab-automaciones',admin:'tab-admin'};
+  var el = document.getElementById(panels[name]);
+  if(el) el.style.display = 'block';
+  if(btn) btn.classList.add('active');
+
+  // En modo local, Indicadores unifica con Gestión (orden: KPIs → Charts → Tabla)
+  if(_isLocalMode && name === 'indicadores'){
+    var gestEl = document.getElementById('tab-gestion');
+    var indEl  = document.getElementById('tab-indicadores');
+    if(gestEl && indEl){
+      // Mover tab-gestion inmediatamente después de tab-indicadores en el DOM
+      if(indEl.nextSibling !== gestEl) indEl.parentNode.insertBefore(gestEl, indEl.nextSibling);
+      gestEl.style.display = 'block';
+      // Ocultar header y KPI cards de gestión (ya están en indicadores)
+      var phdr = gestEl.querySelector('.page-header');
+      if(phdr) phdr.style.display = 'none';
+      var cards6 = gestEl.querySelector('.cards-6');
+      if(cards6) cards6.style.display = 'none';
+      // Añadir etiqueta de sección si aún no existe
+      if(!document.getElementById('_gestSectionLbl')){
+        var lbl = document.createElement('div');
+        lbl.id = '_gestSectionLbl';
+        lbl.style.cssText = 'font-size:15px;font-weight:700;margin:20px 0 12px;display:flex;align-items:center;gap:8px;';
+        lbl.innerHTML = '<i class="bi bi-table" style="color:var(--jira-blue);"></i> Solicitudes';
+        gestEl.insertBefore(lbl, gestEl.firstChild);
+      }
+    }
+    if(typeof loadGestion === 'function') loadGestion();
+  }
+
+  if(name === 'gestion'){ if(typeof loadGestion === 'function') loadGestion(); return; }
+  if(!_tabLoaded[name]){
+    _tabLoaded[name] = true;
+    setTimeout(()=>{
+      if(name==='registrar'    && typeof loadCatalog==='function')       loadCatalog();
+      if(name==='indicadores'  && typeof loadIndicadores==='function')   loadIndicadores();
+      if(name==='categorias'   && typeof loadCats==='function')          loadCats();
+      if(name==='software'     && typeof loadSoftwareList==='function')  loadSoftwareList();
+      if(name==='especialistas'&& typeof loadSpecialists==='function')   loadSpecialists();
+      if(name==='automaciones' && typeof loadAutomations==='function')   loadAutomations();
+      if(name==='admin'        && typeof loadAdminUsers==='function')    loadAdminUsers();
+    },0);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  if(_isLocalMode){
+    // Ocultar tabs de administración
+    document.querySelectorAll('[data-cat="admin"]').forEach(b => b.style.display='none');
+    // Activar Registrar por defecto
+    doTab('registrar', document.getElementById('tabBtnRegistrar'));
+  } else if(_isAdminMode){
+    // Ocultar tabs de gestión local
+    document.querySelectorAll('[data-cat="local"]').forEach(b => b.style.display='none');
+    // Activar tab solicitado o el primero admin disponible
+    var t = _catTab;
+    var btn = t ? document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1)) : null;
+    if(btn){ doTab(t, btn); }
+    else {
+      var first = document.querySelector('[data-cat="admin"]:not([style*="display:none"])');
+      if(first) first.click();
+    }
+  } else {
+    // Sin parámetros: comportamiento normal (todos los tabs visibles)
+    var t = _catTab;
+    if(t){
+      var btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+      if(btn) doTab(t, btn);
+    }
+  }
+});
+</script>
+
+<!-- ══ TAB: REGISTRAR ══ -->
+<div id="tab-registrar" class="corp-tabpanel" style="display:block;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+    <div style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:9px;">
+      <i class="bi bi-grid-3x3-gap" style="color:var(--jira-blue);"></i> Catálogo de Servicios
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input class="s-input" style="width:220px;" id="catSearchInput" placeholder="Buscar servicio..." oninput="filterCatalog()">
+      <% if (_canManage) { %>
+      <button class="btn-jira" onclick="openModalAddSvc()"><i class="bi bi-plus-lg"></i> Agregar Servicio</button>
+      <% } %>
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="cat-sidebar">
+      <div class="cat-sidebar-head">Categorías</div>
+      <div id="catNavList"><div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;"><i class="bi bi-arrow-clockwise"></i> Cargando...</div></div>
+    </div>
+    <div class="card-panel" style="padding:0;">
+      <div style="padding:12px 16px;background:var(--bg-header);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:7px;" id="catPanelTitle"><i class="bi bi-grid-3x3-gap"></i> Todos los servicios</span>
+        <span style="font-size:12px;color:var(--text-muted);" id="svcCount">0 servicios</span>
+      </div>
+      <div class="svc-grid" id="svcGrid"><div class="empty-state" style="grid-column:1/-1;"><i class="bi bi-arrow-clockwise"></i></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB: GESTIÓN ══ -->
+<% if (_canManage) { %>
+<div id="tab-gestion" class="corp-tabpanel" style="display:none;">
+  <div class="page-header">
+    <div class="page-title"><i class="bi bi-kanban-fill" style="color:var(--jira-blue);"></i> Gestión de Solicitudes</div>
+    <button class="btn-outline-sm" onclick="loadGestion()"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+  </div>
+  <div class="cards-6">
+    <div class="kpi-card"><div><div class="kpi-title">Total</div><div class="kpi-value" id="gkTotal" style="color:var(--purple);">—</div></div><i class="bi bi-collection kpi-icon" style="color:var(--purple);"></i></div>
+    <div class="kpi-card" onclick="setGestPill(null,'pendiente_aprobacion')"><div><div class="kpi-title">Pendientes</div><div class="kpi-value" id="gkPend" style="color:var(--warning);">—</div></div><i class="bi bi-hourglass-split kpi-icon" style="color:var(--warning);"></i></div>
+    <div class="kpi-card" onclick="setGestPill(null,'aprobado')"><div><div class="kpi-title">Aprobadas</div><div class="kpi-value" id="gkAprov" style="color:var(--success);">—</div></div><i class="bi bi-check-circle kpi-icon" style="color:var(--success);"></i></div>
+    <div class="kpi-card" onclick="setGestPill(null,'en_proceso')"><div><div class="kpi-title">En proceso</div><div class="kpi-value" id="gkProc" style="color:var(--primary);">—</div></div><i class="bi bi-arrow-repeat kpi-icon" style="color:var(--primary);"></i></div>
+    <div class="kpi-card" onclick="setGestPill(null,'completado')"><div><div class="kpi-title">Completadas</div><div class="kpi-value" id="gkComp" style="color:var(--info);">—</div></div><i class="bi bi-check2-all kpi-icon" style="color:var(--info);"></i></div>
+    <div class="kpi-card" onclick="setGestPill(null,'rechazado')"><div><div class="kpi-title">Rechazadas</div><div class="kpi-value" id="gkRej" style="color:var(--danger);">—</div></div><i class="bi bi-x-circle kpi-icon" style="color:var(--danger);"></i></div>
+  </div>
+  <div class="card-panel" style="padding:0;overflow:hidden;">
+    <div class="search-gbar">
+      <div class="search-gbar-wrap">
+        <i class="bi bi-search"></i>
+        <input id="gestQ" placeholder="Buscar solicitante, título, categoría..." oninput="filterGestion()">
+      </div>
+      <div class="filter-pills" id="gestPills">
+        <span class="pill active" onclick="setGestPill(this,'all')">Todas</span>
+        <span class="pill" onclick="setGestPill(this,'pendiente_aprobacion')">Pendientes</span>
+        <span class="pill" onclick="setGestPill(this,'aprobado')">Aprobadas</span>
+        <span class="pill" onclick="setGestPill(this,'en_proceso')">En proceso</span>
+        <span class="pill" onclick="setGestPill(this,'completado')">Completadas</span>
+        <span class="pill" onclick="setGestPill(this,'rechazado')">Rechazadas</span>
+      </div>
+    </div>
+    <div id="gestTableWrap">
+      <div class="empty-state"><i class="bi bi-arrow-clockwise"></i><p>Cargando solicitudes...</p></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;flex-wrap:wrap;gap:8px;">
+      <span id="gestPagInfo" style="font-size:12px;color:var(--text-muted);"></span>
+      <div id="gestPagBtns" style="display:flex;gap:6px;"></div>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<!-- ══ TAB: INDICADORES ══ -->
+<% if (_isVisor || _canManage) { %>
+<div id="tab-indicadores" class="corp-tabpanel" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div style="font-size:20px;font-weight:700;display:flex;align-items:center;gap:9px;"><i class="bi bi-bar-chart-line-fill" style="color:var(--jira-blue);"></i> Indicadores <span style="background:var(--jira-blue);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.5px;">ITSM</span></div>
+    <button class="btn-outline-sm" onclick="loadIndicadores()"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;">
+    <div class="kpi-card"><div><div class="kpi-title">Total</div><div class="kpi-value" id="indTotal" style="color:var(--purple);">—</div></div><i class="bi bi-collection kpi-icon" style="color:var(--purple);"></i></div>
+    <div class="kpi-card"><div><div class="kpi-title">Pendientes</div><div class="kpi-value" id="indPend" style="color:var(--warning);">—</div></div><i class="bi bi-hourglass-split kpi-icon" style="color:var(--warning);"></i></div>
+    <div class="kpi-card"><div><div class="kpi-title">Aprobadas</div><div class="kpi-value" id="indAprov" style="color:var(--success);">—</div></div><i class="bi bi-check-circle kpi-icon" style="color:var(--success);"></i></div>
+    <div class="kpi-card"><div><div class="kpi-title">En proceso</div><div class="kpi-value" id="indProc" style="color:var(--primary);">—</div></div><i class="bi bi-arrow-repeat kpi-icon" style="color:var(--primary);"></i></div>
+    <div class="kpi-card"><div><div class="kpi-title">Completadas</div><div class="kpi-value" id="indComp" style="color:var(--info);">—</div></div><i class="bi bi-check2-all kpi-icon" style="color:var(--info);"></i></div>
+    <div class="kpi-card"><div><div class="kpi-title">Rechazadas</div><div class="kpi-value" id="indRej" style="color:var(--danger);">—</div></div><i class="bi bi-x-circle kpi-icon" style="color:var(--danger);"></i></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px;margin-bottom:20px;">
+    <div class="card-panel">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px;"><i class="bi bi-bar-chart-horizontal-fill" style="color:var(--jira-blue);"></i> Por estado</div>
+      <div id="indStatusRows"></div>
+    </div>
+    <div class="card-panel" style="display:flex;flex-direction:column;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><i class="bi bi-pie-chart-fill" style="color:var(--purple);"></i> Por prioridad</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;"><canvas id="indChartPrio" style="max-height:140px;max-width:180px;"></canvas></div>
+    </div>
+    <div class="card-panel" style="display:flex;flex-direction:column;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><i class="bi bi-tags-fill" style="color:var(--info);"></i> Por categoría</div>
+      <div id="indCatRows"></div>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<!-- ══ TAB: CATEGORÍAS ══ -->
+<% if (_canManage) { %>
+<div id="tab-categorias" class="corp-tabpanel" style="display:none;">
+  <div style="display:grid;grid-template-columns:1fr 400px;gap:20px;align-items:start;">
+    <div class="card-panel">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;"><i class="bi bi-tags" style="color:var(--jira-blue);"></i> Categorías configuradas</div>
+      <div id="catsBody" style="display:flex;flex-direction:column;gap:8px;min-height:60px;"></div>
+    </div>
+    <div class="card-panel" style="position:sticky;top:80px;">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;" id="catFormTitle"><i class="bi bi-plus-circle" style="color:var(--jira-blue);"></i> Nueva Categoría</div>
+      <input type="hidden" id="catEditId">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div><div class="form-label-custom">Nombre *</div>
+          <input type="text" id="catName" class="form-control-custom" placeholder="Ej: Instalación de Software"></div>
+        <div><div class="form-label-custom">Descripción</div>
+          <textarea id="catDesc" class="form-control-custom" rows="2" placeholder="Breve descripción de la categoría"></textarea></div>
+        <div><div class="form-label-custom">Icono Bootstrap <a href="https://icons.getbootstrap.com" target="_blank" style="font-size:10px;color:var(--jira-blue);">bootstrap-icons ↗</a></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="catIcon" class="form-control-custom" placeholder="Ej: box-seam, folder, gear" oninput="previewCatIcon()">
+            <i id="catIconPreview" class="bi bi-folder" style="font-size:24px;color:var(--jira-blue);min-width:28px;"></i>
+          </div></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px;">
+          <button class="btn-outline-sm" onclick="resetCatForm()"><i class="bi bi-x-circle"></i> Limpiar</button>
+          <button class="btn-jira" onclick="guardarCategoria()"><i class="bi bi-save"></i> <span id="catSaveLabel">Guardar</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB: SOFTWARE ══ -->
+<div id="tab-software" class="corp-tabpanel" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+    <div style="font-size:20px;font-weight:700;display:flex;align-items:center;gap:9px;"><i class="bi bi-box-seam" style="color:var(--jira-blue);"></i> Catálogo de Software</div>
+    <button class="btn-jira" onclick="openModalAddSw()"><i class="bi bi-plus-lg"></i> Registrar Software</button>
+  </div>
+  <div class="card-panel" style="padding:0;">
+    <div style="padding:12px 16px;background:var(--bg-header);border-bottom:1px solid var(--border-soft);">
+      <input class="s-input" id="swSearch" placeholder="Buscar software..." oninput="filterSwList()" style="width:240px;">
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Nombre</th><th>Versión</th><th>Proveedor</th><th>Categoría</th><th>Detalles</th><th></th></tr></thead>
+        <tbody id="swBody"><tr><td colspan="6"><div class="empty-state"><i class="bi bi-arrow-clockwise"></i></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<!-- ══ TAB: ESPECIALISTAS (admin) ══ -->
+<% if (_isAdmin) { %>
+<div id="tab-especialistas" class="corp-tabpanel" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div style="font-size:20px;font-weight:700;display:flex;align-items:center;gap:9px;"><i class="bi bi-people-fill" style="color:var(--jira-blue);"></i> Especialistas de Catálogo</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start;">
+    <div class="card-panel">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;"><i class="bi bi-list-ul" style="color:var(--jira-blue);"></i> Equipo registrado</div>
+      <div id="specialistListWrap"><div class="empty-state"><i class="bi bi-arrow-clockwise"></i></div></div>
+    </div>
+    <div class="card-panel" style="position:sticky;top:80px;">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;"><i class="bi bi-person-plus" style="color:var(--jira-blue);"></i> Nuevo Especialista</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div><div class="form-label-custom">Nombre completo *</div><input type="text" id="sp_name" class="form-control-custom" placeholder="Ej: Juan Pérez"></div>
+        <div><div class="form-label-custom">Correo *</div><input type="email" id="sp_email" class="form-control-custom" placeholder="jperez@empresa.com"></div>
+        <div><div class="form-label-custom">Especialidad</div>
+          <select id="sp_specialty" class="form-control-custom">
+            <option value="">Sin definir</option><option>Hardware</option><option>Software</option>
+            <option>Redes</option><option>ERP</option><option>Accesos</option><option>VPN</option>
+          </select></div>
+        <div><div class="form-label-custom">Contraseña temporal *</div><input type="password" id="sp_pass" class="form-control-custom" placeholder="Mínimo 8 caracteres"></div>
+        <button class="btn-jira" style="width:100%;justify-content:center;" onclick="createSpecialist()"><i class="bi bi-person-plus-fill"></i> Registrar Especialista</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB: AUTOMATIZACIONES (admin) ══ -->
+<div id="tab-automaciones" class="corp-tabpanel" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div style="font-size:20px;font-weight:700;display:flex;align-items:center;gap:9px;"><i class="bi bi-gear-wide-connected" style="color:var(--jira-blue);"></i> Automatizaciones</div>
+    <button class="btn-jira" onclick="saveAutomations()"><i class="bi bi-floppy"></i> Guardar cambios</button>
+  </div>
+  <div style="max-width:720px;">
+    <div class="card-panel" style="margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-envelope-exclamation-fill" style="color:var(--warning);"></i> Notificación por aprobación pendiente
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:4px;">Alerta cuando una solicitud lleva N horas sin aprobar</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <label class="auto-toggle-wrap"><input type="checkbox" id="auto_pend_enabled" onchange="toggleAutoSection('pend')"><span class="auto-toggle"></span></label>
+        <span style="font-size:13px;font-weight:600;">Activar alerta de aprobación pendiente</span>
+      </div>
+      <div id="auto_pend_section" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+          <div><div class="form-label-custom">Correo del responsable *</div>
+            <input type="email" id="auto_pend_email" class="form-control-custom" placeholder="supervisor@empresa.com"></div>
+          <div><div class="form-label-custom">Horas sin aprobar</div>
+            <input type="number" id="auto_pend_hours" class="form-control-custom" value="24" min="1" max="72" style="width:100px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-panel" style="margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-star-fill" style="color:var(--warning);"></i> Encuesta de satisfacción
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:4px;">Email automático al completar la solicitud</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <label class="auto-toggle-wrap"><input type="checkbox" id="auto_sat_enabled" onchange="toggleAutoSection('sat')"><span class="auto-toggle"></span></label>
+        <span style="font-size:13px;font-weight:600;">Activar encuesta al completar solicitud</span>
+      </div>
+      <div id="auto_sat_section" style="display:none;margin-top:12px;">
+        <div style="padding:10px 14px;background:rgba(16,185,129,.08);border-radius:8px;font-size:12px;color:var(--success);border:1px solid rgba(16,185,129,.2);">
+          <i class="bi bi-check-circle"></i> Se enviará al email del solicitante con calificación 😞😐🙂😊🤩
+        </div>
+      </div>
+    </div>
+    <div class="card-panel">
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-clock-history" style="color:var(--purple);"></i> Alerta de SLA de solicitudes
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:4px;">Notifica cuando una solicitud está próxima a vencer</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <label class="auto-toggle-wrap"><input type="checkbox" id="auto_sla_enabled" onchange="toggleAutoSection('sla')"><span class="auto-toggle"></span></label>
+        <span style="font-size:13px;font-weight:600;">Activar alertas de SLA</span>
+      </div>
+      <div id="auto_sla_section" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+          <div><div class="form-label-custom">Correo de destino *</div>
+            <input type="email" id="auto_sla_email" class="form-control-custom" placeholder="equipo@empresa.com"></div>
+          <div><div class="form-label-custom">Horas antes</div>
+            <input type="number" id="auto_sla_hours" class="form-control-custom" value="4" min="1" max="24" style="width:100px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB: ADMINISTRACIÓN (admin) ══ -->
+<div id="tab-admin" class="corp-tabpanel" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div style="font-size:20px;font-weight:700;display:flex;align-items:center;gap:9px;"><i class="bi bi-shield-lock-fill" style="color:var(--jira-blue);"></i> Administración</div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-radius:8px;font-size:12px;">
+      <i class="bi bi-shield-fill" style="color:var(--danger);"></i>
+      <div><strong>Administrador</strong><br><span style="color:var(--text-muted);">Todo: Registrar · Gestión · Indicadores · Categorías · Software · Especialistas · Automatizaciones · Admin</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(0,82,204,.08);border:1px solid rgba(0,82,204,.2);border-radius:8px;font-size:12px;">
+      <i class="bi bi-person-badge-fill" style="color:var(--jira-blue);"></i>
+      <div><strong>Especialista</strong><br><span style="color:var(--text-muted);">Registrar · Gestión · Indicadores · Categorías · Software</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:12px;">
+      <i class="bi bi-eye-fill" style="color:var(--success);"></i>
+      <div><strong>Visor</strong><br><span style="color:var(--text-muted);">Registrar · Indicadores</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(107,114,128,.08);border:1px solid rgba(107,114,128,.2);border-radius:8px;font-size:12px;">
+      <i class="bi bi-person" style="color:var(--text-muted);"></i>
+      <div><strong>Usuario</strong><br><span style="color:var(--text-muted);">Solo Registrar (puede solicitar servicios)</span></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start;">
+    <div class="card-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);display:flex;align-items:center;gap:8px;"><i class="bi bi-people" style="color:var(--jira-blue);"></i> Usuarios del sistema</div>
+        <input type="text" id="adminUserSearch" class="form-control-custom" style="max-width:240px;" placeholder="Buscar nombre, email..." oninput="filterAdminUsers(this.value)">
+      </div>
+      <div id="adminUserTable"><div class="empty-state"><i class="bi bi-arrow-clockwise"></i></div></div>
+    </div>
+    <div class="card-panel" style="position:sticky;top:80px;">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;"><i class="bi bi-person-plus" style="color:var(--jira-blue);"></i> Crear usuario</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div><div class="form-label-custom">Nombre completo *</div><input type="text" id="au_name" class="form-control-custom" placeholder="Juan Pérez"></div>
+        <div><div class="form-label-custom">Usuario *</div><input type="text" id="au_username" class="form-control-custom" placeholder="jperez"></div>
+        <div><div class="form-label-custom">Correo *</div><input type="email" id="au_email" class="form-control-custom" placeholder="jperez@empresa.com"></div>
+        <div><div class="form-label-custom">Perfil *</div>
+          <select id="au_role" class="form-control-custom">
+            <option value="usuario">Usuario — solo Registrar</option>
+            <option value="visor">Visor — Registrar + Indicadores</option>
+            <option value="especialista">Especialista — Registrar + Gestión + Indicadores + Categorías + Software</option>
+            <option value="administrador">Administrador — Todo</option>
+          </select></div>
+        <div><div class="form-label-custom">Contraseña temporal *</div><input type="password" id="au_pass" class="form-control-custom" placeholder="Mínimo 8 caracteres"></div>
+        <button class="btn-jira" style="width:100%;justify-content:center;" onclick="createAdminUser()"><i class="bi bi-person-plus-fill"></i> Crear usuario</button>
+      </div>
+    </div>
+  </div>
+</div>
+<% } %>
+
+</div><!-- /.dashboard-content -->
+</div><!-- /.dashboard-wrapper -->
+<div class="toast-box" id="toastBox"></div>
+<!-- ══ MODAL: SOLICITAR SERVICIO ══ -->
+<div class="modal-ov" id="modalSolicitar">
+  <div class="modal-box" style="width:640px;">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-send" style="color:var(--jira-blue);"></i> <span id="msolTitle">Solicitar servicio</span></h3>
+      <button class="btn-outline-sm" onclick="closeModal('modalSolicitar')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Info servicio -->
+      <div id="msolInfo" style="display:none;background:rgba(0,82,204,.05);border:1.5px solid rgba(0,82,204,.15);border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;color:var(--jira-blue);" id="msolSvcName"></div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="msolSvcDesc"></div>
+        <div style="display:flex;gap:6px;margin-top:6px;" id="msolSvcMeta"></div>
+      </div>
+      <!-- Correo solicitante -->
+      <div class="form-group">
+        <label class="form-label-custom">Correo del solicitante *</label>
+        <div class="autocomplete-wrap">
+          <input type="email" id="msolEmail" class="form-control-custom" placeholder="usuario@empresa.com" autocomplete="off"
+                 oninput="acSolEmail(this.value)" onkeydown="acKeydown(event,'acSolEmailDrop')">
+          <div id="acSolEmailDrop" class="ac-dropdown"></div>
+        </div>
+      </div>
+      <!-- Selector categoría + servicio si no viene pre-seleccionado -->
+      <div id="msolSelCat" class="form-group">
+        <label class="form-label-custom">Categoría *</label>
+        <select id="msolCatSel" class="form-control-custom" onchange="onCatChange()">
+          <option value="">— Seleccionar categoría —</option>
+        </select>
+      </div>
+      <div id="msolSelSvc" class="form-group" style="display:none;">
+        <label class="form-label-custom">Servicio *</label>
+        <select id="msolSvcSel" class="form-control-custom" onchange="onSvcChange()">
+          <option value="">— Seleccionar servicio —</option>
+        </select>
+      </div>
+      <!-- Software (solo categoría instalación de software) -->
+      <div id="msolSwZone" style="display:none;" class="form-group">
+        <label class="form-label-custom">Software a instalar</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="msolSwInput" class="form-control-custom" placeholder="Buscar software registrado..." autocomplete="off"
+                 oninput="acSw(this.value)" onkeydown="acKeydown(event,'acSwDrop')">
+          <div id="acSwDrop" class="ac-dropdown"></div>
+        </div>
+        <div id="msolSwTags" class="tag-wrap" style="margin-top:6px;" onclick="document.getElementById('msolSwInput').focus()"></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Si el software no está en la lista, escríbelo y presiona Enter</div>
+      </div>
+      <!-- Campos extra según categoría -->
+      <div id="msolExtraZone" style="display:none;" class="form-group">
+        <label class="form-label-custom" id="msolExtraLbl">Detalles adicionales</label>
+        <textarea id="msolExtra" class="form-control-custom" rows="2" placeholder=""></textarea>
+      </div>
+      <!-- Descripción -->
+      <div class="form-group">
+        <label class="form-label-custom">Descripción de la solicitud *</label>
+        <textarea id="msolDesc" class="form-control-custom" rows="3" placeholder="¿Qué necesitas específicamente?"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label-custom">Prioridad</label>
+          <select id="msolPriority" class="form-control-custom">
+            <option value="baja">Baja</option>
+            <option value="media" selected>Media</option>
+            <option value="alta">Alta</option>
+            <option value="critica">Crítica</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label-custom">Fecha límite</label>
+          <input type="date" id="msolDue" class="form-control-custom">
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-outline-sm" onclick="closeModal('modalSolicitar')">Cancelar</button>
+      <button class="btn-jira" onclick="enviarSolicitud()"><i class="bi bi-send"></i> Enviar Solicitud</button>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: AGREGAR SERVICIO ══ -->
+<div class="modal-ov" id="modalAddSvc">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-plus-circle" style="color:var(--success);"></i> Agregar Servicio</h3>
+      <button class="btn-outline-sm" onclick="closeModal('modalAddSvc')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label-custom">Categoría *</label>
+        <select id="asvCatId" class="form-control-custom"><option value="">— Seleccionar —</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label-custom">Nombre del servicio *</label>
+        <input type="text" id="asvName" class="form-control-custom" placeholder="Ej: Instalación de software">
+      </div>
+      <div class="form-group">
+        <label class="form-label-custom">Descripción</label>
+        <textarea id="asvDesc" class="form-control-custom" rows="2" placeholder="Breve descripción del servicio"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label-custom">SLA (horas)</label>
+          <input type="number" id="asvSla" class="form-control-custom" value="8" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label-custom">¿Requiere aprobación?</label>
+          <select id="asvApproval" class="form-control-custom">
+            <option value="0">No</option>
+            <option value="1">Sí</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-outline-sm" onclick="closeModal('modalAddSvc')">Cancelar</button>
+      <button class="btn-jira" onclick="guardarServicio()"><i class="bi bi-save"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: REGISTRAR SOFTWARE ══ -->
+<div class="modal-ov" id="modalAddSw">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-box-seam" style="color:var(--info);"></i> Registrar Software</h3>
+      <button class="btn-outline-sm" onclick="closeModal('modalAddSw')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label-custom">Nombre del software *</label>
+        <input type="text" id="swNombre" class="form-control-custom" placeholder="Ej: AutoCAD 2024">
+      </div>
+      <div class="form-group">
+        <label class="form-label-custom">Categoría de uso</label>
+        <select id="swCat" class="form-control-custom" onchange="onSwCatChange()">
+          <option value="Software">Software general</option>
+          <option value="Accesos">Accesos / Aplicaciones</option>
+          <option value="Redes">Redes / VPN</option>
+          <option value="Licenciado">Software licenciado</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label-custom">Versión <span style="font-weight:400;font-size:10px;">(opcional)</span></label>
+          <input type="text" id="swVersion" class="form-control-custom" placeholder="Ej: 2024.1">
+        </div>
+        <div class="form-group">
+          <label class="form-label-custom">Proveedor <span style="font-weight:400;font-size:10px;">(opcional)</span></label>
+          <input type="text" id="swProveedor" class="form-control-custom" placeholder="Ej: Autodesk">
+        </div>
+      </div>
+      <!-- Extra según categoría -->
+      <div id="swExtraZone" class="form-group" style="display:none;">
+        <label class="form-label-custom" id="swExtraLbl">Detalles adicionales</label>
+        <textarea id="swDetalles" class="form-control-custom" rows="2" placeholder=""></textarea>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-outline-sm" onclick="closeModal('modalAddSw')">Cancelar</button>
+      <button class="btn-jira" onclick="guardarSoftware()"><i class="bi bi-save"></i> Registrar</button>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: DETALLE SOLICITUD ══ -->
+<div class="modal-ov" id="modalDetalle">
+  <div class="modal-box" style="width:680px;">
+    <div class="modal-hdr">
+      <h3 id="detTitle"><i class="bi bi-ticket-detailed" style="color:var(--jira-blue);"></i> Detalle de Solicitud</h3>
+      <button class="btn-outline-sm" onclick="closeModal('modalDetalle')">✕</button>
+    </div>
+    <div class="modal-body" id="detBody">
+      <div class="empty-state"><i class="bi bi-arrow-clockwise"></i></div>
+    </div>
+    <div class="modal-ftr" id="detFtr"></div>
+  </div>
+</div>
+<!-- ══ MODAL: CORREO AL SOLICITANTE ══ -->
+<div class="modal-ov" id="modalEmail">
+  <div class="modal-box" style="width:540px;">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-envelope" style="color:var(--info);"></i> Enviar correo al solicitante</h3>
+      <button class="btn-outline-sm" onclick="closeModal('modalEmail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label-custom">Para</label>
+        <input type="text" id="emailTo" class="form-control-custom" readonly style="opacity:.7;">
+      </div>
+      <div class="form-group">
+        <label class="form-label-custom">Asunto</label>
+        <input type="text" id="emailAsunto" class="form-control-custom" placeholder="Asunto del correo">
+      </div>
+      <div class="form-group">
+        <label class="form-label-custom">Mensaje *</label>
+        <textarea id="emailMensaje" class="form-control-custom" rows="5" placeholder="Escribe el mensaje para el solicitante..."></textarea>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-outline-sm" onclick="closeModal('modalEmail')">Cancelar</button>
+      <button class="btn-jira" onclick="enviarEmail()"><i class="bi bi-send"></i> Enviar correo</button>
+    </div>
+  </div>
+</div>
+<!-- ══ MODAL: DENEGAR ══ -->
+<div class="modal-ov" id="modalDenegar">
+  <div class="modal-box" style="width:480px;">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-x-circle" style="color:var(--danger);"></i> Denegar solicitud</h3>
+      <button class="btn-outline-sm" onclick="closeModal('modalDenegar')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label-custom">Motivo de rechazo *</label>
+        <textarea id="denyReason" class="form-control-custom" rows="4" placeholder="Explica el motivo del rechazo..."></textarea>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-outline-sm" onclick="closeModal('modalDenegar')">Cancelar</button>
+      <button class="btn-danger-sm" onclick="confirmarDenegar()"><i class="bi bi-x-circle"></i> Denegar</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Helpers ────────────────────────────────────────────────────────────────
+function esc(t){const d=document.createElement('div');d.textContent=String(t||'');return d.innerHTML;}
+function toast(msg,type='inf'){const b=document.getElementById('toastBox'),d=document.createElement('div');d.className='t-item t-'+type;d.innerHTML=`<i class="bi bi-${type==='ok'?'check-circle':type==='err'?'x-circle':'info-circle'}"></i><span>${msg}</span>`;b.appendChild(d);setTimeout(()=>d.remove(),4000);}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function fmtDate(d){return d?new Date(d).toLocaleDateString('es',{day:'2-digit',month:'short',year:'numeric'}):'—';}
+function fmtStatus(s){return{borrador:'Borrador',pendiente_aprobacion:'Pendiente aprobación',aprobado:'Aprobado',en_proceso:'En proceso',completado:'Completado',rechazado:'Rechazado',cancelado:'Cancelado'}[s]||s;}
+function bsClass(s){return'bs-'+s.replace(/ /g,'_');}
+function bpClass(p){return'bp-'+(p||'media');}
+function acKeydown(e,dropId){const d=document.getElementById(dropId);if(!d||!d.classList.contains('show'))return;const items=[...d.querySelectorAll('.ac-item')];if(!items.length)return;const cur=d.querySelector('.active-ac');let idx=items.indexOf(cur);if(e.key==='ArrowDown'){e.preventDefault();if(cur)cur.classList.remove('active-ac');items[(idx+1)%items.length].classList.add('active-ac');}else if(e.key==='ArrowUp'){e.preventDefault();if(cur)cur.classList.remove('active-ac');items[(idx-1+items.length)%items.length].classList.add('active-ac');}else if(e.key==='Enter'){e.preventDefault();const a=d.querySelector('.active-ac');if(a)a.click();}}
+function renderPag(containerId,total,page,limit,cb){const pages=Math.ceil(total/limit);const c=document.getElementById(containerId);if(!c||pages<=1){if(c)c.innerHTML='';return;}let h='';for(let i=1;i<=Math.min(pages,7);i++)h+=`<div class="pg-btn ${i===page?'active':''}" onclick="(${cb})(${i})">${i}</div>`;c.innerHTML=h;}
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let _allCats=[], _allSvcs=[], _activeCatId='', _activeSvcId=null;
+let _msolPreSvcId=null, _msolSwTags=[];
+let _currentDetailId=null, _currentEmailId=null, _currentDenyId=null;
+let _swAll=[];
+
+// ── CATALOG LOAD ──────────────────────────────────────────────────────────
+async function loadCatalog(){
+  const [cr,sr]=await Promise.all([fetch('/api/catalog/categories',{credentials:'include'}),fetch('/api/catalog',{credentials:'include'})]);
+  _allCats=(await cr.json()).data||[];
+  _allSvcs=(await sr.json()).data||[];
+  renderCatNav();
+  renderSvcGrid(_allSvcs);
+  // also populate modal selects
+  const catSel=document.getElementById('msolCatSel');
+  const asvCatSel=document.getElementById('asvCatId');
+  const opts='<option value="">— Seleccionar categoría —</option>'+_allCats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if(catSel)catSel.innerHTML=opts;
+  if(asvCatSel)asvCatSel.innerHTML=opts;
+}
+
+function renderCatNav(){
+  const cnt={};
+  _allSvcs.forEach(s=>{cnt[s.categoryId]=(cnt[s.categoryId]||0)+1;});
+  document.getElementById('catNavList').innerHTML=
+    `<div class="cat-item ${!_activeCatId?'active':''}" onclick="selectCat('')"><i class="bi bi-grid-3x3-gap" style="font-size:16px;"></i>Todos<span class="cnt">${_allSvcs.length}</span></div>`+
+    _allCats.map(c=>`<div class="cat-item ${_activeCatId===c.id?'active':''}" onclick="selectCat('${c.id}')"><i class="bi bi-${esc(c.icon||'folder')}" style="font-size:16px;"></i>${esc(c.name)}<span class="cnt">${cnt[c.id]||0}</span></div>`).join('');
+}
+
+function selectCat(id){
+  _activeCatId=id;
+  renderCatNav();
+  const filtered=id?_allSvcs.filter(s=>s.categoryId===id):_allSvcs;
+  const cat=_allCats.find(c=>c.id===id);
+  document.getElementById('catPanelTitle').innerHTML=`<i class="bi bi-${esc(cat?.icon||'grid-3x3-gap')}"></i> ${esc(cat?.name||'Todos los servicios')}`;
+  renderSvcGrid(filtered);
+}
+
+function filterCatalog(){
+  const q=document.getElementById('catSearchInput').value.toLowerCase();
+  const src=_activeCatId?_allSvcs.filter(s=>s.categoryId===_activeCatId):_allSvcs;
+  renderSvcGrid(q?src.filter(s=>s.name.toLowerCase().includes(q)||(s.description||'').toLowerCase().includes(q)):src);
+}
+
+function renderSvcGrid(svcs){
+  document.getElementById('svcCount').textContent=`${svcs.length} servicio${svcs.length!==1?'s':''}`;
+  const g=document.getElementById('svcGrid');
+  if(!svcs.length){g.innerHTML='<div class="empty-state" style="grid-column:1/-1;"><i class="bi bi-inbox"></i><p>Sin servicios en esta categoría</p></div>';return;}
+  g.innerHTML=svcs.map(s=>`
+    <div class="svc-card" onclick="_userCanRequest&&openModalSolicitar('${s.id}')">
+      ${_userCanManage?`<div class="svc-admin-btns"><button class="btn-outline-sm" onclick="event.stopPropagation();editSvc('${s.id}')" title="Editar"><i class="bi bi-pencil"></i></button></div>`:''}
+      ${_userCanRequest?`<button class="svc-btn-hover" onclick="event.stopPropagation();openModalSolicitar('${s.id}')"><i class="bi bi-send"></i> Solicitar</button>`:''}
+      <div class="svc-name"><i class="bi bi-${esc(s.categoria?.icon||'box')}" style="color:var(--jira-blue);"></i>${esc(s.name)}</div>
+      <div class="svc-desc">${esc(s.description||'Sin descripción')}</div>
+      <div class="svc-meta">
+        <span class="badge-sla"><i class="bi bi-clock"></i> SLA ${s.slaHours}h</span>
+        ${s.approvalRequired?'<span class="badge-aprob"><i class="bi bi-person-check"></i> Req. aprobación</span>':''}
+      </div>
+      ${!_userCanRequest?'<div style="margin-top:10px;font-size:11px;color:var(--text-muted);font-style:italic;">Sin permisos para solicitar</div>':''}
+    </div>`).join('');
+}
+
+// ── SOLICITAR MODAL ───────────────────────────────────────────────────────
+function openModalSolicitar(svcId){
+  _msolPreSvcId=svcId;
+  _msolSwTags=[];
+  document.getElementById('msolEmail').value='';
+  document.getElementById('msolDesc').value='';
+  document.getElementById('msolDue').value='';
+  document.getElementById('msolPriority').value='media';
+  document.getElementById('msolSwTags').innerHTML='';
+  document.getElementById('msolSwInput').value='';
+  document.getElementById('acSwDrop').classList.remove('show');
+  document.getElementById('acSolEmailDrop').classList.remove('show');
+
+  if(svcId){
+    const svc=_allSvcs.find(s=>s.id===svcId);
+    document.getElementById('msolTitle').textContent=svc?.name||'Solicitar';
+    document.getElementById('msolSvcName').textContent=svc?.name||'';
+    document.getElementById('msolSvcDesc').textContent=svc?.description||'';
+    document.getElementById('msolSvcMeta').innerHTML=(svc?`<span class="badge-sla">SLA ${svc.slaHours}h</span>${svc.approvalRequired?'<span class="badge-aprob">Req. aprobación</span>':''}`:'');
+    document.getElementById('msolInfo').style.display='';
+    document.getElementById('msolSelCat').style.display='none';
+    document.getElementById('msolSelSvc').style.display='none';
+    _activeSvcId=svcId;
+    showSwZone(svc?.categoria?.name||svc?.category?.name||'');
+  } else {
+    document.getElementById('msolTitle').textContent='Nueva Solicitud';
+    document.getElementById('msolInfo').style.display='none';
+    document.getElementById('msolSelCat').style.display='';
+    document.getElementById('msolSelSvc').style.display='none';
+    document.getElementById('msolCatSel').value='';
+    _activeSvcId=null;
+    showSwZone('');
+  }
+  openModal('modalSolicitar');
+}
+
+function onCatChange(){
+  const catId=document.getElementById('msolCatSel').value;
+  const svcsInCat=_allSvcs.filter(s=>s.categoryId===catId);
+  const sel=document.getElementById('msolSvcSel');
+  if(svcsInCat.length&&catId){
+    sel.innerHTML='<option value="">— Seleccionar servicio —</option>'+svcsInCat.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    document.getElementById('msolSelSvc').style.display='';
+  } else {
+    document.getElementById('msolSelSvc').style.display='none';
+  }
+  const cat=_allCats.find(c=>c.id===catId);
+  showSwZone(cat?.name||'');
+  _activeSvcId=null;
+}
+
+function onSvcChange(){
+  _activeSvcId=document.getElementById('msolSvcSel').value||null;
+}
+
+function showSwZone(catName){
+  const name=(catName||'').toLowerCase();
+  const isSw=name.includes('software')||name.includes('instalaci');
+  const isAcceso=name.includes('acceso')||name.includes('accesos');
+  const isRed=name.includes('red')||name.includes('vpn')||name.includes('conect');
+  document.getElementById('msolSwZone').style.display=isSw?'':'none';
+  const extra=document.getElementById('msolExtraZone');
+  const lbl=document.getElementById('msolExtraLbl');
+  if(isAcceso){extra.style.display='';lbl.textContent='Aplicación / sistema al que necesita acceso';}
+  else if(isRed){extra.style.display='';lbl.textContent='Detalle de red o VPN requerido';}
+  else{extra.style.display='none';}
+}
+
+// Autocomplete email solicitante
+let _acEmailTimer;
+function acSolEmail(val){
+  clearTimeout(_acEmailTimer);
+  const drop=document.getElementById('acSolEmailDrop');
+  if(!val||val.length<2){drop.classList.remove('show');return;}
+  _acEmailTimer=setTimeout(async()=>{
+    const r=await fetch(`/api/employees/search-emails?q=${encodeURIComponent(val)}`,{credentials:'include'});
+    const d=await r.json();
+    const emps=(d.data||[]).slice(0,8);
+    if(!emps.length){drop.innerHTML='<div class="ac-item"><span class="ac-sub">Sin resultados</span></div>';drop.classList.add('show');return;}
+    drop.innerHTML=emps.map(e=>`<div class="ac-item" onclick="pickSolEmail('${esc(e.email||'')}')"><div class="ac-name">${esc(e.full_name||'')}</div><div class="ac-sub">${esc(e.email||'')} · ${esc(e.position_name||'')}</div></div>`).join('');
+    drop.classList.add('show');
+  },260);
+}
+function pickSolEmail(email){
+  document.getElementById('msolEmail').value=email;
+  document.getElementById('acSolEmailDrop').classList.remove('show');
+}
+
+// Autocomplete software
+let _acSwTimer;
+function acSw(val){
+  clearTimeout(_acSwTimer);
+  const drop=document.getElementById('acSwDrop');
+  _acSwTimer=setTimeout(async()=>{
+    const r=await fetch(`/api/service-requests/software?q=${encodeURIComponent(val)}`,{credentials:'include'});
+    const d=await r.json();
+    const items=(d.data||[]).slice(0,10);
+    if(!items.length){drop.innerHTML=`<div class="ac-item" onclick="addSwTag('${esc(val)}')"><i class="bi bi-plus"></i> Agregar "${esc(val)}"</div>`;drop.classList.add('show');return;}
+    drop.innerHTML=items.map(s=>`<div class="ac-item" onclick="addSwTag('${esc(s.nombre)}')"><div class="ac-name">${esc(s.nombre)}</div><div class="ac-sub">${esc(s.version||'')} · ${esc(s.proveedor||'')}</div></div>`).join('');
+    if(val) drop.innerHTML+=`<div class="ac-item" onclick="addSwTag('${esc(val)}')"><i class="bi bi-plus"></i> Agregar "${esc(val)}" manualmente</div>`;
+    drop.classList.add('show');
+  },240);
+}
+function addSwTag(nombre){
+  if(!nombre.trim()||_msolSwTags.includes(nombre.trim()))return;
+  _msolSwTags.push(nombre.trim());
+  renderSwTags();
+  document.getElementById('msolSwInput').value='';
+  document.getElementById('acSwDrop').classList.remove('show');
+}
+function removeSwTag(idx){
+  _msolSwTags.splice(idx,1);
+  renderSwTags();
+}
+function renderSwTags(){
+  document.getElementById('msolSwTags').innerHTML=_msolSwTags.map((t,i)=>`<span class="sw-tag">${esc(t)}<span class="rm" onclick="removeSwTag(${i})">✕</span></span>`).join('');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeElement===document.getElementById('msolSwInput')){e.preventDefault();const v=document.getElementById('msolSwInput').value.trim();if(v)addSwTag(v);}});
+document.addEventListener('click',e=>{
+  ['acSolEmailDrop','acSwDrop'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.parentElement.contains(e.target))el.classList.remove('show');});
+});
+
+async function enviarSolicitud(){
+  const email=document.getElementById('msolEmail').value.trim();
+  const desc=document.getElementById('msolDesc').value.trim();
+  if(!email)return toast('El correo del solicitante es requerido','err');
+  if(!desc)return toast('La descripción es requerida','err');
+  const svcId=_msolPreSvcId||_activeSvcId||document.getElementById('msolSvcSel')?.value||null;
+  const catId=document.getElementById('msolCatSel')?.value||null;
+  const cat=_allCats.find(c=>c.id===catId);
+  const svc=_allSvcs.find(s=>s.id===svcId);
+  const title=svc?`Solicitud: ${svc.name}`:cat?`Solicitud: ${cat.name}`:'Nueva solicitud';
+  const extra=document.getElementById('msolExtra')?.value||'';
+  const body={
+    title, description:desc, serviceId:svcId||undefined,
+    priority:document.getElementById('msolPriority').value,
+    dueDate:document.getElementById('msolDue').value||undefined,
+    requesterEmail:email,
+    softwareItems:_msolSwTags.length?_msolSwTags:undefined,
+    extraData:extra||undefined,
+  };
+  const r=await fetch('/api/service-requests',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)});
+  const d=await r.json();
+  if(!d.success)return toast(d.error,'err');
+  closeModal('modalSolicitar');
+  toast('Solicitud enviada correctamente','ok');
+  if(_tabLoaded['indicadores'])loadIndicadores();
+}
+
+// ── AGREGAR SERVICIO ──────────────────────────────────────────────────────
+function openModalAddSvc(){
+  document.getElementById('asvName').value='';
+  document.getElementById('asvDesc').value='';
+  document.getElementById('asvSla').value=8;
+  document.getElementById('asvApproval').value='0';
+  if(_allCats.length){
+    document.getElementById('asvCatId').innerHTML='<option value="">— Seleccionar —</option>'+_allCats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  }
+  openModal('modalAddSvc');
+}
+async function guardarServicio(){
+  const catId=document.getElementById('asvCatId').value;
+  const name=document.getElementById('asvName').value.trim();
+  if(!catId||!name)return toast('Categoría y nombre son requeridos','err');
+  const r=await fetch('/api/catalog',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({categoryId:catId,name,description:document.getElementById('asvDesc').value,slaHours:parseInt(document.getElementById('asvSla').value)||8,approvalRequired:document.getElementById('asvApproval').value==='1'})});
+  const d=await r.json();
+  if(!d.success)return toast(d.error,'err');
+  closeModal('modalAddSvc');
+  toast('Servicio agregado','ok');
+  await loadCatalog();
+}
+
+// ── SOFTWARE MODAL ────────────────────────────────────────────────────────
+function onSwCatChange(){
+  const cat=document.getElementById('swCat').value;
+  const zone=document.getElementById('swExtraZone');
+  const lbl=document.getElementById('swExtraLbl');
+  if(cat==='Accesos'){zone.style.display='';lbl.textContent='URL o sistema de acceso';}
+  else if(cat==='Redes'){zone.style.display='';lbl.textContent='Tipo de red / VPN / protocolo';}
+  else if(cat==='Licenciado'){zone.style.display='';lbl.textContent='Nro. de licencia o contrato';}
+  else zone.style.display='none';
+}
+function openModalAddSw(){
+  ['swNombre','swVersion','swProveedor'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('swCat').value='Software';
+  document.getElementById('swExtraZone').style.display='none';
+  if(document.getElementById('swDetalles'))document.getElementById('swDetalles').value='';
+  openModal('modalAddSw');
+}
+async function guardarSoftware(){
+  const nombre=document.getElementById('swNombre').value.trim();
+  if(!nombre)return toast('El nombre es requerido','err');
+  const r=await fetch('/api/service-requests/software',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({nombre,version:document.getElementById('swVersion').value||undefined,proveedor:document.getElementById('swProveedor').value||undefined,categoria:document.getElementById('swCat').value,detalles:document.getElementById('swDetalles')?.value||undefined})});
+  const d=await r.json();
+  if(!d.success)return toast(d.error,'err');
+  closeModal('modalAddSw');
+  toast('Software registrado','ok');
+  if(_tabLoaded['software'])loadSoftwareList();
+}
+
+
+// ── GESTIÓN ───────────────────────────────────────────────────────────────
+let _allSolicitudes=[], _gestPill='all', _gestPage=1;
+const GEST_PAGE_SIZE=20;
+
+function setGestPill(el,val){
+  _gestPill=val||'all';
+  _gestPage=1;
+  document.querySelectorAll('#gestPills .pill').forEach(p=>p.classList.remove('active'));
+  if(el){el.classList.add('active');}
+  else{const p=document.querySelector(`#gestPills .pill[onclick*="'${_gestPill}'"]`);if(p)p.classList.add('active');}
+  renderGestion();
+}
+function filterGestion(){_gestPage=1;renderGestion();}
+function gestGoPage(p){
+  const q=(document.getElementById('gestQ')?.value||'').toLowerCase().trim();
+  const filtered=_allSolicitudes.filter(r=>{
+    if(_gestPill!=='all'&&r.status!==_gestPill)return false;
+    if(q){const h=[r.title,r.requesterEmail,r.service?.name,r.service?.categoria?.name].join(' ').toLowerCase();if(!h.includes(q))return false;}
+    return true;
+  });
+  const pages=Math.ceil(filtered.length/GEST_PAGE_SIZE)||1;
+  if(p<1||p>pages)return;
+  _gestPage=p;
+  renderGestion();
+}
+
+async function loadGestion(){
+  const wrap=document.getElementById('gestTableWrap');
+  if(wrap)wrap.innerHTML='<div class="empty-state"><i class="bi bi-arrow-clockwise"></i><p>Cargando solicitudes...</p></div>';
+  try{
+    const r=await fetch('/api/service-requests?limit=500',{credentials:'include'});
+    const d=await r.json();
+    _allSolicitudes=d.data||[];
+    const all=_allSolicitudes;
+    document.getElementById('gkTotal').textContent=all.length;
+    document.getElementById('gkPend').textContent=all.filter(x=>x.status==='pendiente_aprobacion').length;
+    document.getElementById('gkAprov').textContent=all.filter(x=>x.status==='aprobado').length;
+    document.getElementById('gkProc').textContent=all.filter(x=>x.status==='en_proceso').length;
+    document.getElementById('gkComp').textContent=all.filter(x=>x.status==='completado').length;
+    document.getElementById('gkRej').textContent=all.filter(x=>x.status==='rechazado').length;
+    renderGestion();
+  }catch(err){
+    if(wrap)wrap.innerHTML=`<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>Error cargando datos.<br><small>${err.message}</small></p><button class="btn-outline-sm" style="margin-top:8px;" onclick="loadGestion()"><i class="bi bi-arrow-clockwise"></i> Reintentar</button></div>`;
+  }
+}
+
+function renderGestion(){
+  const q=(document.getElementById('gestQ')?.value||'').toLowerCase().trim();
+  let rows=_allSolicitudes.filter(r=>{
+    if(_gestPill!=='all'&&r.status!==_gestPill)return false;
+    if(q){const h=[r.title,r.requesterEmail,r.service?.name,r.service?.categoria?.name].join(' ').toLowerCase();if(!h.includes(q))return false;}
+    return true;
+  });
+  rows.sort((a,b)=>{
+    const pa=a.status==='pendiente_aprobacion'?0:1, pb=b.status==='pendiente_aprobacion'?0:1;
+    if(pa!==pb)return pa-pb;
+    return new Date(b.createdAt)-new Date(a.createdAt);
+  });
+  const total=rows.length;
+  const pages=Math.ceil(total/GEST_PAGE_SIZE)||1;
+  if(_gestPage>pages)_gestPage=1;
+  const start=(_gestPage-1)*GEST_PAGE_SIZE;
+  const pageRows=rows.slice(start,start+GEST_PAGE_SIZE);
+  const wrap=document.getElementById('gestTableWrap');
+  if(!pageRows.length){
+    wrap.innerHTML='<div class="empty-state"><i class="bi bi-inbox"></i><p>Sin solicitudes</p></div>';
+    document.getElementById('gestPagInfo').textContent='';
+    document.getElementById('gestPagBtns').innerHTML='';
+    return;
+  }
+  wrap.innerHTML=`<div style="overflow-x:auto;"><table class="tbl">
+    <thead><tr><th>Solicitante</th><th>Título / Servicio</th><th>Categoría</th><th>Prioridad</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
+    <tbody>${pageRows.map(r=>`<tr onclick="verDetalle('${r.id}')" style="cursor:pointer;">
+      <td><div style="font-weight:600;font-size:13px;">${esc(r.requesterEmail||'—')}</div></td>
+      <td><div style="font-weight:600;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(r.title||'')}">${esc(r.title||'—')}</div><div style="font-size:11px;color:var(--text-muted);">${esc(r.service?.name||'Sin servicio')}</div></td>
+      <td style="font-size:12px;">${esc(r.service?.categoria?.name||'—')}</td>
+      <td><span class="bs ${bpClass(r.priority)}">${r.priority||'media'}</span></td>
+      <td><span class="bs ${bsClass(r.status)}">${fmtStatus(r.status)}</span></td>
+      <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${fmtDate(r.createdAt)}</td>
+      <td onclick="event.stopPropagation();"><div style="display:flex;gap:4px;flex-wrap:wrap;">
+        ${r.status==='pendiente_aprobacion'?`<button class="btn-success-sm" style="padding:4px 9px;font-size:11px;" onclick="aprobar('${r.id}')"><i class="bi bi-check-lg"></i> Aprobar</button><button class="btn-danger-sm" style="padding:4px 9px;font-size:11px;" onclick="openDenegar('${r.id}')"><i class="bi bi-x-lg"></i> Denegar</button>`:''}
+        ${r.status==='aprobado'?`<button class="btn-outline-sm" style="padding:4px 9px;font-size:11px;" onclick="cambiarEstado('${r.id}','en_proceso')"><i class="bi bi-arrow-repeat"></i> En proceso</button>`:''}
+        ${r.status==='en_proceso'?`<button class="btn-success-sm" style="padding:4px 9px;font-size:11px;" onclick="cambiarEstado('${r.id}','completado')"><i class="bi bi-check2-all"></i> Completar</button>`:''}
+        <button class="btn-outline-sm" style="padding:4px 8px;" onclick="openEmailModal('${r.id}','${esc(r.requesterEmail||'')}','${esc(r.title||'')}')"><i class="bi bi-envelope"></i></button>
+      </div></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+  const info=document.getElementById('gestPagInfo');
+  const btns=document.getElementById('gestPagBtns');
+  const e=Math.min(start+GEST_PAGE_SIZE,total);
+  if(info)info.textContent=total?`Mostrando ${start+1}–${e} de ${total} solicitudes`:'';
+  if(!btns)return;
+  if(pages<=1){btns.innerHTML='';return;}
+  let html=`<button class="btn-outline-sm" onclick="gestGoPage(${_gestPage-1})" ${_gestPage===1?'disabled':''}><i class="bi bi-chevron-left"></i></button>`;
+  for(let i=1;i<=pages;i++){
+    if(i===1||i===pages||(i>=_gestPage-1&&i<=_gestPage+1))
+      html+=`<button class="btn-outline-sm" style="${i===_gestPage?'background:var(--jira-blue);color:white;border-color:var(--jira-blue);':''}" onclick="gestGoPage(${i})">${i}</button>`;
+    else if(i===_gestPage-2||i===_gestPage+2)
+      html+=`<span style="padding:4px 6px;font-size:12px;color:var(--text-muted);">…</span>`;
+  }
+  html+=`<button class="btn-outline-sm" onclick="gestGoPage(${_gestPage+1})" ${_gestPage===pages?'disabled':''}><i class="bi bi-chevron-right"></i></button>`;
+  btns.innerHTML=html;
+}
+
+async function cambiarEstado(id,status){
+  const r=await fetch(`/api/service-requests/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({status})});
+  const d=await r.json();
+  if(!d.success)return toast(d.error||'Error al cambiar estado','err');
+  toast(`Estado actualizado: ${fmtStatus(status)}`,'ok');
+  loadGestion();
+}
+
+// ── INDICADORES ───────────────────────────────────────────────────────────
+let _indPrioChart=null;
+async function loadIndicadores(){
+  const r=await fetch('/api/service-requests?limit=500',{credentials:'include'});
+  const d=await r.json();
+  const rows=d.data||[];
+  const total=rows.length||1;
+  document.getElementById('indTotal').textContent=d.total||rows.length;
+  document.getElementById('indPend').textContent=rows.filter(r=>r.status==='pendiente_aprobacion').length;
+  document.getElementById('indAprov').textContent=rows.filter(r=>r.status==='aprobado').length;
+  document.getElementById('indProc').textContent=rows.filter(r=>r.status==='en_proceso').length;
+  document.getElementById('indComp').textContent=rows.filter(r=>r.status==='completado').length;
+  document.getElementById('indRej').textContent=rows.filter(r=>r.status==='rechazado').length;
+  // By status bars
+  const statuses=['pendiente_aprobacion','aprobado','en_proceso','completado','rechazado','borrador'];
+  const scols={'pendiente_aprobacion':'var(--warning)','aprobado':'var(--success)','en_proceso':'var(--primary)','completado':'var(--info)','rechazado':'var(--danger)','borrador':'var(--text-muted)'};
+  document.getElementById('indStatusRows').innerHTML=statuses.map(s=>{
+    const cnt=rows.filter(r=>r.status===s).length;
+    const pct=Math.round(cnt/total*100);
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <span style="width:140px;font-size:12px;font-weight:600;">${fmtStatus(s)}</span>
+      <div style="flex:1;height:8px;background:var(--border-soft);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${scols[s]};border-radius:4px;transition:width .4s;"></div></div>
+      <span style="width:28px;text-align:right;font-size:12px;font-weight:700;">${cnt}</span>
+    </div>`;
+  }).join('');
+  // By category bars
+  const catMap={};
+  rows.forEach(r=>{const k=r.service?.categoria?.name||'Sin categoría';catMap[k]=(catMap[k]||0)+1;});
+  const sorted=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById('indCatRows').innerHTML=sorted.length?sorted.map(([k,v])=>{
+    const pct=Math.round(v/total*100);
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <span style="width:110px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(k)}">${esc(k)}</span>
+      <div style="flex:1;height:8px;background:var(--border-soft);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--jira-blue);border-radius:4px;transition:width .4s;"></div></div>
+      <span style="width:28px;text-align:right;font-size:12px;font-weight:700;">${v}</span>
+    </div>`;
+  }).join(''):'<div class="empty-state" style="padding:20px;"><i class="bi bi-inbox"></i><p>Sin datos</p></div>';
+  // Donut prioridad
+  const prioMap={baja:0,media:0,alta:0,critica:0};
+  rows.forEach(r=>{if(prioMap[r.priority]!==undefined)prioMap[r.priority]++;});
+  const pCanvas=document.getElementById('indChartPrio');
+  if(pCanvas){
+    if(_indPrioChart)_indPrioChart.destroy();
+    _indPrioChart=new Chart(pCanvas,{type:'doughnut',data:{labels:['Baja','Media','Alta','Crítica'],datasets:[{data:[prioMap.baja,prioMap.media,prioMap.alta,prioMap.critica],backgroundColor:['#10b981','#f59e0b','#ef4444','#8b5cf6'],borderWidth:2,borderColor:'var(--bg-card)'}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8}}}}});
+  }
+}
+
+// ── SOFTWARE LIST ──────────────────────────────────────────────────────────
+let _swAllData=[];
+async function loadSoftwareList(){
+  const r=await fetch('/api/service-requests/software',{credentials:'include'});
+  const d=await r.json();
+  _swAllData=d.data||[];
+  renderSwTable(_swAllData);
+}
+function filterSwList(){
+  const q=document.getElementById('swSearch').value.toLowerCase();
+  renderSwTable(q?_swAllData.filter(s=>s.nombre.toLowerCase().includes(q)||(s.proveedor||'').toLowerCase().includes(q)):_swAllData);
+}
+function renderSwTable(data){
+  const tbody=document.getElementById('swBody');
+  if(!data.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><i class="bi bi-inbox"></i><p>Sin software registrado</p></div></td></tr>';return;}
+  tbody.innerHTML=data.map(s=>`<tr>
+    <td style="font-weight:600;">${esc(s.nombre)}</td>
+    <td style="font-size:12px;color:var(--text-muted);">${esc(s.version||'—')}</td>
+    <td style="font-size:12px;">${esc(s.proveedor||'—')}</td>
+    <td><span class="badge-sla">${esc(s.categoria||'Software')}</span></td>
+    <td style="font-size:12px;color:var(--text-muted);">${esc(s.detalles||'—')}</td>
+    <td><button class="btn-danger-sm" onclick="deleteSw(${s.id})"><i class="bi bi-trash"></i></button></td>
+  </tr>`).join('');
+}
+async function deleteSw(id){
+  if(!confirm('¿Eliminar este software del catálogo?'))return;
+  const r=await fetch(`/api/service-requests/software/${id}`,{method:'DELETE',credentials:'include'});
+  const d=await r.json();
+  if(!d.success)return toast(d.error,'err');
+  toast('Software eliminado','ok');
+  loadSoftwareList();
+}
+
+// ── CATEGORÍAS ────────────────────────────────────────────────────────────
+async function loadCats(){
+  const r=await fetch('/api/catalog/categories',{credentials:'include'});
+  const d=await r.json();
+  const cats=d.data||[];
+  const wrap=document.getElementById('catsBody');
+  if(!cats.length){wrap.innerHTML='<div class="empty-state"><i class="bi bi-inbox"></i><p>Sin categorías creadas</p></div>';return;}
+  wrap.innerHTML=cats.map(c=>`<div class="cat-inline-row">
+    <i class="bi bi-${esc(c.icon||'folder')}" style="font-size:22px;color:var(--jira-blue);min-width:28px;"></i>
+    <div style="flex:1;">
+      <div style="font-weight:700;font-size:13px;">${esc(c.name)}</div>
+      <div style="font-size:11px;color:var(--text-muted);">${esc(c.description||'Sin descripción')} &nbsp;·&nbsp; icono: <code>${esc(c.icon||'folder')}</code></div>
+    </div>
+    <span class="bs ${c.isActive?'bs-aprobado':'bs-rechazado'}" style="font-size:10px;">${c.isActive?'Activa':'Inactiva'}</span>
+    <button class="btn-outline-sm" style="padding:4px 9px;" onclick="editCat('${esc(c.id)}','${esc(c.name)}',${JSON.stringify(c.description||'')},'${esc(c.icon||'')}')"><i class="bi bi-pencil"></i></button>
+    <button class="btn-danger-sm" style="padding:4px 9px;" onclick="deleteCat('${esc(c.id)}','${esc(c.name)}')"><i class="bi bi-trash"></i></button>
+  </div>`).join('');
+}
+
+function resetCatForm(){
+  document.getElementById('catEditId').value='';
+  document.getElementById('catFormTitle').innerHTML='<i class="bi bi-plus-circle" style="color:var(--jira-blue);"></i> Nueva Categoría';
+  document.getElementById('catSaveLabel').textContent='Guardar';
+  document.getElementById('catName').value='';
+  document.getElementById('catDesc').value='';
+  document.getElementById('catIcon').value='';
+  document.getElementById('catIconPreview').className='bi bi-folder';
+}
+
+function editCat(id,name,desc,icon){
+  document.getElementById('catEditId').value=id;
+  document.getElementById('catFormTitle').innerHTML='<i class="bi bi-pencil" style="color:var(--jira-blue);"></i> Editar Categoría';
+  document.getElementById('catSaveLabel').textContent='Actualizar';
+  document.getElementById('catName').value=name;
+  document.getElementById('catDesc').value=desc;
+  document.getElementById('catIcon').value=icon;
+  document.getElementById('catIconPreview').className=`bi bi-${icon||'folder'}`;
+  document.getElementById('catName').focus();
+}
+
+function previewCatIcon(){
+  const v=document.getElementById('catIcon').value.trim()||'folder';
+  document.getElementById('catIconPreview').className=`bi bi-${v}`;
+}
+
+async function guardarCategoria(){
+  const id=document.getElementById('catEditId').value;
+  const name=document.getElementById('catName').value.trim();
+  if(!name)return toast('El nombre es requerido','err');
+  const body={name,description:document.getElementById('catDesc').value.trim()||undefined,icon:document.getElementById('catIcon').value.trim()||undefined};
+  const url=id?`/api/catalog/categories/${id}`:'/api/catalog/categories';
+  const method=id?'PATCH':'POST';
+  const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)});
+  const d=await r.json();
+  if(!d.success)return toast(d.error||'Error al guardar','err');
+  toast(id?'Categoría actualizada':'Categoría creada','ok');
+  resetCatForm();
+  loadCats();
+  loadCatalog();
+}
+
+async function deleteCat(id,name){
+  if(!confirm(`¿Desactivar la categoría "${name}"? Los servicios asociados dejarán de aparecer.`))return;
+  const r=await fetch(`/api/catalog/categories/${id}`,{method:'DELETE',credentials:'include'});
+  const d=await r.json();
+  if(!d.success)return toast(d.error||'Error al eliminar','err');
+  toast('Categoría desactivada','ok');
+  loadCats();
+  loadCatalog();
+}
+
+// ── ESPECIALISTAS ─────────────────────────────────────────────────────────
+async function loadSpecialists(){
+  const r=await fetch('/api/jira/admin/users',{credentials:'include'});
+  const d=await r.json();
+  const users=(d.data||d||[]).filter(u=>['especialista','agente','tecnico'].includes(u.role));
+  const wrap=document.getElementById('specialistListWrap');
+  if(!users.length){wrap.innerHTML='<div class="empty-state"><i class="bi bi-people"></i><p>Sin especialistas registrados</p></div>';return;}
+  wrap.innerHTML=users.map(u=>`<div class="cat-inline-row">
+    <i class="bi bi-person-badge" style="font-size:22px;color:var(--jira-blue);min-width:28px;"></i>
+    <div style="flex:1;">
+      <div style="font-weight:700;font-size:13px;">${esc(u.full_name||u.username)}</div>
+      <div style="font-size:11px;color:var(--text-muted);">${esc(u.email)} &nbsp;·&nbsp; ${esc(u.role)}</div>
+    </div>
+    <span class="bs ${u.is_active!==false?'bs-aprobado':'bs-rechazado'}" style="font-size:10px;">${u.is_active!==false?'Activo':'Inactivo'}</span>
+  </div>`).join('');
+}
+
+async function createSpecialist(){
+  const name=document.getElementById('sp_name').value.trim();
+  const email=document.getElementById('sp_email').value.trim();
+  const pass=document.getElementById('sp_pass').value;
+  if(!name||!email||!pass)return toast('Nombre, correo y contraseña son requeridos','err');
+  const username=email.split('@')[0].replace(/[^a-z0-9]/gi,'').toLowerCase();
+  const r=await fetch('/api/jira/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+    body:JSON.stringify({full_name:name,username,email,password:pass,role:'especialista'})});
+  const d=await r.json();
+  if(!d.success)return toast(d.error||d.message||'Error al crear','err');
+  toast('Especialista creado correctamente','ok');
+  ['sp_name','sp_email','sp_pass'].forEach(id=>document.getElementById(id).value='');
+  loadSpecialists();
+}
+
+// ── AUTOMATIZACIONES ──────────────────────────────────────────────────────
+function toggleAutoSection(key){
+  const en=document.getElementById(`auto_${key}_enabled`).checked;
+  const sec=document.getElementById(`auto_${key}_section`);
+  if(sec)sec.style.display=en?'':'none';
+}
+async function loadAutomations(){
+  try{
+    const r=await fetch('/api/automations/catalog',{credentials:'include'});
+    const d=await r.json();
+    const cfg=d.data||{};
+    if(cfg.pend){document.getElementById('auto_pend_enabled').checked=true;toggleAutoSection('pend');if(cfg.pend.email)document.getElementById('auto_pend_email').value=cfg.pend.email;if(cfg.pend.hours)document.getElementById('auto_pend_hours').value=cfg.pend.hours;}
+    if(cfg.sat){document.getElementById('auto_sat_enabled').checked=true;toggleAutoSection('sat');}
+    if(cfg.sla){document.getElementById('auto_sla_enabled').checked=true;toggleAutoSection('sla');if(cfg.sla.email)document.getElementById('auto_sla_email').value=cfg.sla.email;if(cfg.sla.hours)document.getElementById('auto_sla_hours').value=cfg.sla.hours;}
+  }catch(e){}
+}
+async function saveAutomations(){
+  const cfg={
+    pend:document.getElementById('auto_pend_enabled').checked?{email:document.getElementById('auto_pend_email').value,hours:document.getElementById('auto_pend_hours').value}:null,
+    sat:document.getElementById('auto_sat_enabled').checked?{}:null,
+    sla:document.getElementById('auto_sla_enabled').checked?{email:document.getElementById('auto_sla_email').value,hours:document.getElementById('auto_sla_hours').value}:null,
+  };
+  try{
+    await fetch('/api/automations/catalog',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(cfg)});
+    toast('Automatizaciones guardadas','ok');
+  }catch(e){toast('Error al guardar','err');}
+}
+
+// ── ADMINISTRACIÓN ────────────────────────────────────────────────────────
+let _allAdminUsers=[];
+async function loadAdminUsers(){
+  const r=await fetch('/api/jira/admin/users',{credentials:'include'});
+  const d=await r.json();
+  _allAdminUsers=d.data||d||[];
+  renderAdminUsers(_allAdminUsers);
+}
+function filterAdminUsers(q){
+  const ql=q.toLowerCase();
+  renderAdminUsers(q?_allAdminUsers.filter(u=>(u.full_name||'').toLowerCase().includes(ql)||(u.email||'').toLowerCase().includes(ql)):_allAdminUsers);
+}
+function renderAdminUsers(users){
+  const wrap=document.getElementById('adminUserTable');
+  if(!users.length){wrap.innerHTML='<div class="empty-state"><i class="bi bi-people"></i><p>Sin usuarios</p></div>';return;}
+  wrap.innerHTML=`<table class="tbl"><thead><tr><th>Nombre</th><th>Usuario</th><th>Correo</th><th>Perfil</th><th>Estado</th><th></th></tr></thead><tbody>${
+    users.map(u=>`<tr>
+      <td style="font-weight:600;">${esc(u.full_name||'—')}</td>
+      <td style="font-size:12px;font-family:monospace;">${esc(u.username||'—')}</td>
+      <td style="font-size:12px;">${esc(u.email||'—')}</td>
+      <td><span class="bs bs-en_proceso" style="font-size:10px;">${esc(u.role||'—')}</span></td>
+      <td><span class="bs ${u.is_active!==false?'bs-aprobado':'bs-rechazado'}" style="font-size:10px;">${u.is_active!==false?'Activo':'Inactivo'}</span></td>
+      <td><button class="btn-danger-sm" style="padding:3px 8px;font-size:11px;" onclick="toggleUserActive('${u.id||u.uuid}',${u.is_active!==false})">${u.is_active!==false?'Desactivar':'Activar'}</button></td>
+    </tr>`).join('')
+  }</tbody></table>`;
+}
+async function toggleUserActive(id,isActive){
+  const r=await fetch(`/api/jira/admin/users/${id}/status`,{method:'PUT',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({is_active:!isActive})});
+  const d=await r.json();
+  if(!d.success)return toast(d.error||d.message||'Error','err');
+  toast(isActive?'Usuario desactivado':'Usuario activado','ok');
+  loadAdminUsers();
+}
+async function createAdminUser(){
+  const name=document.getElementById('au_name').value.trim();
+  const email=document.getElementById('au_email').value.trim();
+  const role=document.getElementById('au_role').value;
+  const pass=document.getElementById('au_pass').value;
+  if(!name||!email||!pass)return toast('Nombre, correo y contraseña son requeridos','err');
+  const usernameInput=document.getElementById('au_username').value.trim();
+  const username=usernameInput||email.split('@')[0].replace(/[^a-z0-9]/gi,'').toLowerCase();
+  const r=await fetch('/api/jira/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({full_name:name,username,email,role,password:pass})});
+  const d=await r.json();
+  if(!d.success)return toast(d.error||d.message||'Error al crear','err');
+  toast('Usuario creado correctamente','ok');
+  ['au_name','au_username','au_email','au_pass'].forEach(id=>document.getElementById(id).value='');
+  loadAdminUsers();
+}
+
+// ── DETALLE SOLICITUD ─────────────────────────────────────────────────────
+async function verDetalle(id){
+  _currentDetailId=id;
+  const body=document.getElementById('detBody');
+  body.innerHTML='<div class="empty-state"><i class="bi bi-arrow-clockwise"></i></div>';
+  document.getElementById('detFtr').innerHTML='';
+  openModal('modalDetalle');
+  const r=await fetch(`/api/service-requests/${id}`,{credentials:'include'});
+  const d=await r.json();
+  if(!d.success){body.innerHTML=`<div class="empty-state"><i class="bi bi-x-circle"></i><p>${esc(d.error)}</p></div>`;return;}
+  const sr=d.data;
+  const catName=sr.service?.categoria?.name||'—';
+  const svcName=sr.service?.name||'—';
+  document.getElementById('detTitle').innerHTML=`<i class="bi bi-ticket-detailed" style="color:var(--jira-blue);"></i> ${esc(sr.title)}`;
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div class="detail-row" style="flex-direction:column;gap:2px;"><span class="detail-label">Solicitante</span><span style="font-size:13px;font-weight:600;">${esc(sr.requesterEmail||'—')}</span></div>
+      <div class="detail-row" style="flex-direction:column;gap:2px;"><span class="detail-label">Estado</span><span class="bs ${bsClass(sr.status)}">${fmtStatus(sr.status)}</span></div>
+      <div class="detail-row" style="flex-direction:column;gap:2px;"><span class="detail-label">Categoría</span><span style="font-size:13px;">${esc(catName)}</span></div>
+      <div class="detail-row" style="flex-direction:column;gap:2px;"><span class="detail-label">Servicio</span><span style="font-size:13px;">${esc(svcName)}</span></div>
+      <div class="detail-row" style="flex-direction:column;gap:2px;"><span class="detail-label">Prioridad</span><span class="bs ${bpClass(sr.priority)}">${sr.priority}</span></div>
+      <div class="detail-row" style="flex-direction:column;gap:2px;"><span class="detail-label">Vence</span><span style="font-size:13px;">${fmtDate(sr.dueDate)}</span></div>
+      <div class="detail-row" style="flex-direction:column;gap:2px;"><span class="detail-label">Creado</span><span style="font-size:13px;">${fmtDate(sr.createdAt)}</span></div>
+    </div>
+    ${sr.description?`<div style="background:var(--bg-header);border-radius:8px;padding:12px 14px;margin-bottom:14px;"><div class="detail-label" style="margin-bottom:6px;">Descripción</div><div style="font-size:13px;white-space:pre-line;line-height:1.7;">${esc(sr.description)}</div></div>`:''}
+    ${(sr.approvals||[]).length?`<div style="margin-top:10px;"><div class="detail-label" style="margin-bottom:8px;">Historial de aprobaciones</div>${sr.approvals.map(a=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border-row);"><span class="bs ${a.status==='aprobado'?'bs-aprobado':'bs-rechazado'}">${a.status}</span><span style="color:var(--text-muted);">${fmtDate(a.decidedAt)}</span>${a.comments?`<span>${esc(a.comments)}</span>`:''}</div>`).join('')}</div>`:''}`;
+
+  // Botones según rol y estado
+  let btns='<button class="btn-outline-sm" onclick="closeModal(\'modalDetalle\')">Cerrar</button>';
+  if(_userCanManage){
+    btns+=`<button class="btn-outline-sm" onclick="openEmailModal('${id}','${esc(sr.requesterEmail||'')}','${esc(sr.title||'')}');closeModal('modalDetalle');"><i class="bi bi-envelope"></i> Enviar correo</button>`;
+    if(sr.status==='pendiente_aprobacion'){
+      btns+=`<button class="btn-success-sm" onclick="aprobar('${id}');closeModal('modalDetalle');"><i class="bi bi-check"></i> Aprobar</button>`;
+      btns+=`<button class="btn-danger-sm" onclick="openDenegar('${id}');closeModal('modalDetalle');"><i class="bi bi-x"></i> Denegar</button>`;
+    }
+    if(sr.status==='aprobado')
+      btns+=`<button class="btn-outline-sm" style="border-color:var(--primary);color:var(--primary);" onclick="cambiarEstado('${id}','en_proceso');closeModal('modalDetalle');"><i class="bi bi-arrow-repeat"></i> En proceso</button>`;
+    if(sr.status==='en_proceso')
+      btns+=`<button class="btn-success-sm" onclick="cambiarEstado('${id}','completado');closeModal('modalDetalle');"><i class="bi bi-check2-all"></i> Completar</button>`;
+  }
+  document.getElementById('detFtr').innerHTML=btns;
+}
+
+// ── APROBAR / DENEGAR ─────────────────────────────────────────────────────
+async function aprobar(id){
+  const r=await fetch(`/api/service-requests/${id}/approve`,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({decision:'aprobado',comments:'Aprobado'})});
+  const d=await r.json();
+  if(!d.success)return toast(d.error,'err');
+  toast('Solicitud aprobada','ok');
+  loadGestion();
+}
+function openDenegar(id){_currentDenyId=id;document.getElementById('denyReason').value='';openModal('modalDenegar');}
+async function confirmarDenegar(){
+  const reason=document.getElementById('denyReason').value.trim();
+  if(!reason)return toast('El motivo de rechazo es requerido','err');
+  const r=await fetch(`/api/service-requests/${_currentDenyId}/approve`,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({decision:'rechazado',comments:reason})});
+  const d=await r.json();
+  if(!d.success)return toast(d.error,'err');
+  closeModal('modalDenegar');
+  toast('Solicitud rechazada','ok');
+  loadGestion();
+}
+
+// ── EMAIL MODAL ───────────────────────────────────────────────────────────
+function openEmailModal(id,email,title){
+  _currentEmailId=id;
+  document.getElementById('emailTo').value=email||'—';
+  document.getElementById('emailAsunto').value=`Actualización de tu solicitud — ${title}`;
+  document.getElementById('emailMensaje').value='';
+  openModal('modalEmail');
+}
+async function enviarEmail(){
+  const msg=document.getElementById('emailMensaje').value.trim();
+  if(!msg)return toast('El mensaje es requerido','err');
+  const r=await fetch(`/api/service-requests/${_currentEmailId}/notify`,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({mensaje:msg,asunto:document.getElementById('emailAsunto').value})});
+  const d=await r.json();
+  if(!d.success)return toast(d.error,'err');
+  closeModal('modalEmail');
+  toast('Correo enviado','ok');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+loadCatalog();
+
+// Pre-fill reporter email from portal session (URL param takes priority over localStorage)
+(function prefillReporter(){
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get('reporter') || localStorage.getItem('portal_user_email') || '';
+  if(!email) return;
+  const el = document.getElementById('msolEmail');
+  if(el && !el.value) el.value = email;
+})();
+</script>
+</body>
+</html>

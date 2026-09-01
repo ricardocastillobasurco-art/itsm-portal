@@ -1,0 +1,7 @@
+titulo,descripcion,tipo,priority,status
+Falla de red en piso 3,Usuarios del piso 3 sin acceso a internet desde las 9am,incidente,P2,cerrado
+Solicitud de VPN para teletrabajo,Colaborador nuevo necesita acceso VPN remoto,solicitud,P3,resuelto
+Laptop no enciende,La laptop de Juan García no prende después del fin de semana,incidente,P3,cerrado
+Instalar Office 365,Equipo nuevo requiere instalación de suite Office,solicitud,P4,resuelto
+Servidor caído - impacto crítico,Servidor principal no responde afectando a 50 usuarios,incidente,P1,cerrado
+Cambio de contraseña bloqueada,Usuario no puede resetear su contraseña del AD,solicitud,P3,resuelto

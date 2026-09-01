@@ -1,0 +1,10 @@
+time=1783617009034
+state=running
+server-pid=19
+server-parent-pid=8
+redirect-port=80
+mps-port=4433
+mps-name=10.4.116.80
+servername=10.4.116.80
+https-port=4430
+https-aliasport=4430

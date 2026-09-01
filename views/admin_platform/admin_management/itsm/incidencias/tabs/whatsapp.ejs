@@ -1,0 +1,42 @@
+<div id="tabWhatsapp" class="corp-tabpanel" style="display:none;">
+
+  <!-- Saludo personalizado -->
+  <div style="background:linear-gradient(135deg,#dcfce7,#f0fdf4);border:1px solid #bbf7d0;border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+    <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#25d366,#128C7E);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">
+      <i class="bi bi-whatsapp" style="color:#fff;"></i>
+    </div>
+    <div>
+      <div style="font-size:15px;font-weight:800;color:#064e3b;" id="wspGreetingTitle">Hola, cargando...</div>
+      <div style="font-size:13px;color:#065f46;margin-top:2px;">Permíteme ofrecerte mi información — desde aquí puedes gestionar las solicitudes de registro al chatbot.</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;"><i class="bi bi-info-circle"></i> Revisa, aprueba o rechaza cada número. Los usuarios aprobados podrán usar el asistente de WhatsApp.</div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+    <div>
+      <div style="font-size:17px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-whatsapp" style="color:#25d366"></i> Solicitudes de Registro — WhatsApp Bot
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);">Revisa el correo y número solicitado. Aprueba para activar el bot en ese número.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="wspFilter" onchange="loadWspRequests()" style="font-size:12px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:7px 10px;">
+        <option value="">Todas</option>
+        <option value="pending">Pendientes</option>
+        <option value="approved">Aprobadas</option>
+        <option value="rejected">Rechazadas</option>
+      </select>
+      <button onclick="loadWspRequests()" class="btn-jira" style="font-size:12px;padding:6px 14px;">
+        <i class="bi bi-arrow-clockwise"></i> Actualizar
+      </button>
+    </div>
+  </div>
+  <div class="card-panel" style="padding:0;overflow:hidden;">
+    <div id="wspAdminList">
+      <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">
+        <i class="bi bi-hourglass-split" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>Cargando solicitudes...
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ TAB: Solicitudes Base de Conocimiento ══ -->

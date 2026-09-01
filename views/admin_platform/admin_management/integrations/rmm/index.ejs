@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<script>(function(){var t=localStorage.getItem('dashboardTheme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>RMM · Gestión Remota</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+:root,[data-theme="light"]{
+  --bg:#f1f5f9;--surface:#fff;--sidebar:#ffffff;--border:#e2e8f0;
+  --text:#0f172a;--muted:#64748b;--primary:#2563eb;--primary-dim:#dbeafe;
+  --success:#059669;--success-dim:#d1fae5;--danger:#dc2626;--danger-dim:#fee2e2;
+  --warning:#d97706;--warning-dim:#fef3c7;--purple:#7c3aed;--purple-dim:#ede9fe;
+  --info:#0891b2;--info-dim:#cffafe;
+  --term-bg:#0d1117;--term-text:#e6edf3;--term-prompt:#58a6ff;--term-success:#3fb950;--term-err:#f85149;--term-warn:#d29922;
+  --sh:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);
+  --sh-md:0 4px 16px rgba(0,0,0,.1);
+  --hdr:#f8fafc;
+}
+[data-theme="dark"]{
+  --bg:#080d1c;--surface:#111827;--sidebar:#0f1629;--border:#1e293b;
+  --text:#f1f5f9;--muted:#94a3b8;--primary:#3b82f6;--primary-dim:#1e3a5f;
+  --success:#10b981;--success-dim:#064e3b;--danger:#ef4444;--danger-dim:#450a0a;
+  --warning:#f59e0b;--warning-dim:#451a03;--purple:#8b5cf6;--purple-dim:#2e1065;
+  --info:#06b6d4;--info-dim:#083344;
+  --term-bg:#010409;--term-text:#e6edf3;
+  --sh:0 1px 3px rgba(0,0,0,.3);--sh-md:0 4px 16px rgba(0,0,0,.4);
+  --hdr:#141d2f;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+/* ── Top bar ── */
+.topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 20px;flex-shrink:0;box-shadow:var(--sh);}
+.topbar-logo{display:flex;align-items:center;gap:10px;}
+.topbar-logo-icon{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#1e40af,#7c3aed);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;}
+.topbar-logo-text{font-size:14px;font-weight:800;letter-spacing:-.3px;}
+.topbar-logo-text span{color:var(--primary);}
+.topbar-sep{width:1px;height:24px;background:var(--border);margin:0 4px;}
+.topbar-title{font-size:13px;color:var(--muted);font-weight:500;}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.btn-icon{width:34px;height:34px;border:1px solid var(--border);background:transparent;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:all .15s;font-size:16px;}
+.btn-icon:hover{background:var(--primary-dim);color:var(--primary);border-color:var(--primary);}
+.device-status{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--hdr);border:1px solid var(--border);}
+.status-dot{width:7px;height:7px;border-radius:50%;}
+.dot-ok{background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.2);}
+.dot-none{background:var(--muted);}
+
+/* ── Layout ── */
+.workspace{display:flex;flex:1;overflow:hidden;}
+
+/* ── Sidebar ── */
+.sidebar{width:290px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.sidebar-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.sidebar-head-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.sidebar-head-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);}
+.search-box{position:relative;}
+.search-box input{width:100%;padding:6px 10px 6px 30px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;outline:none;transition:border-color .15s;}
+.search-box input:focus{border-color:var(--primary);}
+.search-box .si{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none;}
+.sidebar-body{flex:1;overflow-y:auto;padding:8px 8px 4px;}
+.sidebar-body::-webkit-scrollbar{width:4px;}
+.sidebar-body::-webkit-scrollbar-track{background:transparent;}
+.sidebar-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+/* Collections */
+.col-item{margin-bottom:4px;border-radius:10px;overflow:hidden;border:1px solid transparent;}
+.col-item.open{border-color:var(--border);}
+.col-header{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;border-radius:8px;transition:background .12s;user-select:none;}
+.col-header:hover{background:var(--hdr);}
+.col-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.col-name{flex:1;font-size:13px;font-weight:600;}
+.col-count{font-size:11px;color:var(--muted);background:var(--hdr);border:1px solid var(--border);padding:1px 7px;border-radius:20px;font-weight:600;}
+.col-chevron{font-size:12px;color:var(--muted);transition:transform .2s;}
+.col-item.open .col-chevron{transform:rotate(90deg);}
+.col-scripts{display:none;padding:4px 4px 6px 12px;}
+.col-item.open .col-scripts{display:block;}
+
+/* Script items */
+.script-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;transition:background .12s;position:relative;}
+.script-item:hover{background:var(--hdr);}
+.script-item.selected{background:var(--primary-dim);color:var(--primary);}
+.script-item-name{flex:1;font-size:12.5px;font-weight:500;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.script-item-actions{display:none;gap:3px;flex-shrink:0;}
+.script-item:hover .script-item-actions{display:flex;}
+.act-btn{width:22px;height:22px;border:none;border-radius:5px;background:transparent;cursor:pointer;color:var(--muted);font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .1s;}
+.act-btn:hover{background:var(--border);color:var(--text);}
+.act-btn.run:hover{background:var(--success-dim);color:var(--success);}
+.act-btn.del:hover{background:var(--danger-dim);color:var(--danger);}
+
+.sidebar-footer{padding:10px 8px;border-top:1px solid var(--border);flex-shrink:0;}
+.btn-add-col{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;border:1px dashed var(--border);border-radius:9px;background:transparent;cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;transition:all .15s;}
+.btn-add-col:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-dim);}
+
+/* ── Main panel ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* Device bar */
+.device-bar{padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.device-selector{position:relative;flex:1;max-width:360px;}
+.device-selector input{width:100%;padding:8px 12px 8px 34px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:13px;outline:none;transition:border-color .15s;}
+.device-selector input:focus{border-color:var(--primary);}
+.device-selector .si{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none;}
+.device-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--sh-md);max-height:240px;overflow-y:auto;z-index:200;display:none;}
+.device-dropdown.show{display:block;}
+.device-opt{padding:8px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .1s;}
+.device-opt:hover{background:var(--hdr);}
+.device-opt-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.device-opt-name{font-weight:600;flex:1;}
+.device-opt-os{font-size:11px;color:var(--muted);}
+.selected-device-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--primary-dim);border:1px solid var(--primary);border-radius:20px;font-size:12px;font-weight:700;color:var(--primary);white-space:nowrap;}
+.selected-device-chip .close-chip{cursor:pointer;font-size:14px;opacity:.6;}
+.selected-device-chip .close-chip:hover{opacity:1;}
+.btn-run{display:flex;align-items:center;gap:6px;padding:8px 18px;border:none;border-radius:10px;background:var(--primary);color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn-run:hover:not(:disabled){background:#1d4ed8;transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,.3);}
+.btn-run:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn-run.running{background:var(--warning);}
+.btn-sm{display:flex;align-items:center;gap:5px;padding:7px 13px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-sm:hover{background:var(--hdr);color:var(--text);}
+
+/* Script info bar */
+.script-bar{padding:8px 16px;background:var(--hdr);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;min-height:38px;}
+.script-bar-name{font-size:13px;font-weight:700;}
+.script-bar-desc{font-size:12px;color:var(--muted);}
+.script-bar-empty{font-size:12px;color:var(--muted);font-style:italic;}
+
+/* Terminal */
+.terminal-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;background:var(--term-bg);}
+.terminal{flex:1;overflow-y:auto;padding:16px 20px;font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-all;}
+.terminal::-webkit-scrollbar{width:5px;}
+.terminal::-webkit-scrollbar-track{background:transparent;}
+.terminal::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;}
+.t-prompt{color:var(--term-prompt);font-weight:700;}
+.t-info{color:#8b949e;}
+.t-ok{color:var(--term-success);}
+.t-err{color:var(--term-err);}
+.t-warn{color:var(--term-warn);}
+.t-out{color:var(--term-text);}
+.t-spin{display:inline-block;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.t-separator{border:none;border-top:1px solid #21262d;margin:8px 0;}
+
+/* Status bar */
+.status-bar{height:26px;background:#161b22;display:flex;align-items:center;gap:16px;padding:0 16px;flex-shrink:0;border-top:1px solid #21262d;}
+.sb-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#8b949e;font-family:monospace;}
+.sb-item i{font-size:12px;}
+.sb-sep{width:1px;height:12px;background:#21262d;}
+
+/* ── Right panel (script editor) ── */
+.right-panel{width:380px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.rp-head{padding:12px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.rp-title{font-size:13px;font-weight:700;}
+.rp-body{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;}
+.form-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px;display:block;}
+.form-input{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:13px;outline:none;transition:border-color .15s;}
+.form-input:focus{border-color:var(--primary);}
+.form-select{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:13px;outline:none;cursor:pointer;}
+.form-select:focus{border-color:var(--primary);}
+textarea.form-input{resize:vertical;font-family:'JetBrains Mono','Cascadia Code',monospace;font-size:12px;min-height:200px;}
+.rp-foot{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;}
+.btn-primary{flex:1;padding:9px;border:none;border-radius:9px;background:var(--primary);color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;}
+.btn-primary:hover{background:#1d4ed8;}
+.btn-secondary{flex:1;padding:9px;border:1.5px solid var(--border);border-radius:9px;background:transparent;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-secondary:hover{background:var(--hdr);}
+.right-panel.hidden{display:none;}
+
+/* ── Custom cmd bar ── */
+.custom-bar{padding:8px 12px;border-top:1px solid #21262d;background:#0d1117;display:flex;gap:8px;flex-shrink:0;}
+.custom-bar input{flex:1;padding:6px 10px 6px 28px;background:#161b22;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-family:monospace;font-size:12px;outline:none;}
+.custom-bar input:focus{border-color:var(--primary);}
+.custom-bar-icon{position:absolute;left:22px;top:50%;transform:translateY(-50%);color:#58a6ff;font-size:12px;pointer-events:none;}
+.custom-bar-wrap{position:relative;flex:1;}
+.btn-run-cmd{padding:6px 14px;border:none;border-radius:8px;background:#1f6feb;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn-run-cmd:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);z-index:1000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:520px;max-width:95vw;box-shadow:var(--sh-md);animation:modalIn .2s ease;}
+@keyframes modalIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal-head{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:15px;font-weight:700;}
+.modal-close{width:28px;height:28px;border:none;background:transparent;cursor:pointer;color:var(--muted);font-size:18px;display:flex;align-items:center;justify-content:center;border-radius:6px;}
+.modal-close:hover{background:var(--border);color:var(--text);}
+.modal-body{padding:20px;display:flex;flex-direction:column;gap:14px;}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+.f-group{display:flex;flex-direction:column;gap:4px;}
+
+/* Collection color dots */
+.cdot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* ── Mode toggle ── */
+.mode-toggle{display:flex;align-items:center;background:var(--hdr);border:1px solid var(--border);border-radius:9px;padding:3px;gap:2px;margin-right:4px;}
+.mode-btn{padding:5px 11px;border:none;border-radius:7px;background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap;}
+.mode-btn.active{background:var(--surface);color:var(--primary);box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.mode-btn:hover:not(.active){color:var(--text);}
+
+/* ── Devices panel ── */
+#devicesPanel{flex:1;overflow-y:auto;padding:20px;background:var(--bg);}
+.devices-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.devices-toolbar h2{font-size:14px;font-weight:700;flex:1;margin:0;}
+.grid-search-wrap{position:relative;}
+.grid-search-wrap i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;pointer-events:none;}
+.grid-search{padding:7px 11px 7px 28px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;outline:none;width:190px;}
+.grid-search:focus{border-color:var(--primary);}
+.device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;}
+.dcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .15s,box-shadow .15s;user-select:none;}
+.dcard:hover{border-color:var(--primary);box-shadow:var(--sh);}
+.dcard-bar{height:3px;width:100%;}
+.dcard-body{padding:12px;}
+.dcard-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dcard-sub{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dcard-meta{display:flex;align-items:center;gap:6px;margin-top:10px;}
+.dcard-status{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;flex:1;}
+.dcard-actions{display:flex;gap:3px;}
+.dcard-btn{width:24px;height:24px;border:1px solid var(--border);border-radius:5px;background:transparent;cursor:pointer;color:var(--muted);font-size:11px;display:flex;align-items:center;justify-content:center;transition:all .1s;}
+.dcard-btn:hover{background:var(--primary-dim);color:var(--primary);border-color:var(--primary);}
+.dcard-btn.off:hover{background:var(--danger-dim);color:var(--danger);border-color:var(--danger);}
+
+/* ── Context menu ── */
+.ctx-menu{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);min-width:200px;overflow:hidden;animation:ctxIn .1s ease;}
+@keyframes ctxIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+.ctx-group{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:7px 12px 2px;}
+.ctx-item{padding:8px 12px;font-size:12.5px;display:flex;align-items:center;gap:9px;cursor:pointer;color:var(--text);transition:background .1s;}
+.ctx-item:hover{background:var(--hdr);}
+.ctx-item i{font-size:13px;color:var(--muted);width:14px;text-align:center;}
+.ctx-item.danger{color:var(--danger);}
+.ctx-item.danger i{color:var(--danger);}
+.ctx-item.ctx-disabled{opacity:.4;pointer-events:none;}
+.ctx-sep{height:1px;background:var(--border);margin:3px 0;}
+
+/* ── Tools modal tabs ── */
+.tools-tab{padding:9px 14px;border:none;background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:inline-flex;align-items:center;gap:6px;transition:all .15s;}
+.tools-tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+.tools-tab:hover:not(.active){color:var(--text);}
+/* ── Metric bars ── */
+.metric-wrap{padding:20px 24px;}
+.metric-item{margin-bottom:18px;}
+.metric-label{display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:5px;}
+.metric-label-val{font-variant-numeric:tabular-nums;}
+.metric-bar{height:10px;border-radius:5px;background:var(--surface2);overflow:hidden;}
+.metric-fill{height:100%;border-radius:5px;transition:width .6s ease;}
+/* ── Event log ── */
+.evt-filter-bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.evt-filter-btn{padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);transition:all .12s;}
+.evt-filter-btn.active,.evt-filter-btn:hover{border-color:currentColor;}
+/* ── Tools table ── */
+.tools-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.tools-table th{padding:8px 12px;text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1;}
+.tools-table td{padding:6px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tools-table tr:last-child td{border-bottom:none;}
+.tools-table tr:hover td{background:var(--hdr);}
+.tools-table .num{font-family:monospace;font-variant-numeric:tabular-nums;text-align:right;}
+/* Responsive hide right panel */
+@media(max-width:1200px){.right-panel{display:none;}.right-panel.forced{display:flex;position:fixed;right:0;top:52px;bottom:0;z-index:50;box-shadow:var(--sh-md);}}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="topbar-logo-icon"><i class="bi bi-terminal-fill"></i></div>
+    <div class="topbar-logo-text">RMM<span> · GESTIÓN REMOTA</span></div>
+  </div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-title">Script Library & Remote Execution</div>
+  <div class="topbar-actions">
+    <div class="mode-toggle">
+      <button id="btnModeTerminal" class="mode-btn active" onclick="setMode('terminal')"><i class="bi bi-terminal-fill"></i> Scripts</button>
+      <button id="btnModeDevices"  class="mode-btn"        onclick="setMode('devices')"><i class="bi bi-laptop"></i> Dispositivos</button>
+    </div>
+    <div class="device-status" id="meshStatus">
+      <div class="status-dot dot-none" id="meshDot"></div>
+      <span id="meshStatusText">Conectando...</span>
+    </div>
+    <button class="btn-icon" onclick="toggleEditor()" title="Editor de scripts" id="editorToggleBtn">
+      <i class="bi bi-pencil-square"></i>
+    </button>
+    <button class="btn-icon" onclick="openGroupsModal()" title="Grupos por tenant">
+      <i class="bi bi-diagram-3"></i>
+    </button>
+    <a href="/rmm/compliance" class="btn-icon" title="Dashboard de Compliance" style="text-decoration:none;">
+      <i class="bi bi-shield-check"></i>
+    </a>
+    <button class="btn-icon" onclick="openSettings()" title="Configuración MeshCentral">
+      <i class="bi bi-gear"></i>
+    </button>
+    <button class="btn-icon" onclick="toggleTheme()" title="Cambiar tema">
+      <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
+    </button>
+    <a href="/activos" class="btn-icon" title="Volver a Activos"><i class="bi bi-arrow-left"></i></a>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- SIDEBAR: Script Library -->
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <div class="sidebar-head-row">
+        <div class="sidebar-head-title"><i class="bi bi-collection-fill" style="color:var(--primary);margin-right:5px;"></i>Script Library</div>
+        <button class="btn-icon" onclick="openAddCollection()" title="Nueva colección" style="width:26px;height:26px;font-size:14px;"><i class="bi bi-plus-lg"></i></button>
+      </div>
+      <div class="search-box">
+        <i class="bi bi-search si"></i>
+        <input type="text" id="scriptSearch" placeholder="Buscar script..." oninput="filterScripts(this.value)">
+      </div>
+    </div>
+    <div class="sidebar-body" id="scriptLibrary">
+      <div style="text-align:center;padding:30px 10px;color:var(--muted);font-size:12px;">
+        <i class="bi bi-arrow-repeat t-spin" style="font-size:24px;display:block;margin-bottom:8px;"></i>
+        Cargando librería...
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn-add-col" onclick="openAddCollection()">
+        <i class="bi bi-folder-plus"></i> Nueva colección
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN: Terminal -->
+  <div class="main">
+    <!-- Device selector bar -->
+    <div class="device-bar">
+      <div id="devicePickerWrap" class="device-selector">
+        <i class="bi bi-laptop si"></i>
+        <input type="text" id="deviceInput" placeholder="Seleccionar dispositivo..." autocomplete="off"
+               oninput="filterDevices(this.value)" onfocus="showDeviceDropdown()" onblur="setTimeout(hideDeviceDropdown,200)">
+        <div class="device-dropdown" id="deviceDropdown"></div>
+      </div>
+      <div id="selectedDeviceChip" style="display:none;" class="selected-device-chip">
+        <i class="bi bi-circle-fill dot-ok" style="font-size:7px;"></i>
+        <span id="selectedDeviceName">—</span>
+        <span class="close-chip" onclick="clearDevice()"><i class="bi bi-x"></i></span>
+      </div>
+      <div style="flex:1;"></div>
+      <button class="btn-sm" onclick="clearTerminal()"><i class="bi bi-trash3"></i> Limpiar</button>
+      <button class="btn-sm" onclick="copyOutput()"><i class="bi bi-clipboard"></i> Copiar</button>
+      <button class="btn-run" id="btnRun" disabled onclick="runSelected()">
+        <i class="bi bi-play-fill"></i> Ejecutar
+      </button>
+    </div>
+    <!-- Script info bar -->
+    <div class="script-bar" id="scriptBar">
+      <span class="script-bar-empty">← Selecciona un script de la librería y un dispositivo para ejecutar</span>
+    </div>
+    <!-- Terminal output -->
+    <div class="terminal-wrap">
+      <div class="terminal" id="terminal">
+<span class="t-info">╔══════════════════════════════════════════════════════════╗</span>
+<span class="t-info">║        RMM Console · Remote Script Execution Engine      ║</span>
+<span class="t-info">╚══════════════════════════════════════════════════════════╝</span>
+<span class="t-info">  Selecciona un script de la barra lateral y un dispositivo</span>
+<span class="t-info">  destino para comenzar la ejecución remota.</span>
+<span class="t-info">  También puedes escribir un comando personalizado abajo.</span>
+
+      </div>
+      <!-- Custom cmd -->
+      <div class="custom-bar">
+        <div class="custom-bar-wrap">
+          <i class="bi bi-chevron-right custom-bar-icon"></i>
+          <input type="text" id="customCmd" placeholder="Comando PowerShell personalizado... (Enter para ejecutar)" onkeydown="if(event.key==='Enter')runCustomCmd()">
+        </div>
+        <button class="btn-run-cmd" id="btnRunCmd" onclick="runCustomCmd()" disabled>Run</button>
+      </div>
+      <!-- Status bar -->
+      <div class="status-bar">
+        <div class="sb-item"><i class="bi bi-cpu"></i><span id="sbDevice">Sin dispositivo</span></div>
+        <div class="sb-sep"></div>
+        <div class="sb-item"><i class="bi bi-file-code"></i><span id="sbScript">Sin script</span></div>
+        <div class="sb-sep"></div>
+        <div class="sb-item"><i class="bi bi-clock"></i><span id="sbTime">—</span></div>
+        <div class="sb-sep"></div>
+        <div class="sb-item" id="sbStatus" style="color:#3fb950;"><i class="bi bi-check-circle"></i> Listo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: Script Editor -->
+  <div class="right-panel hidden" id="editorPanel">
+    <div class="rp-head">
+      <div class="rp-title" id="editorTitle">Nuevo Script</div>
+      <button class="btn-icon" onclick="toggleEditor()" style="width:26px;height:26px;font-size:14px;"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="rp-body">
+      <input type="hidden" id="editScriptId">
+      <div class="f-group">
+        <label class="form-label">Nombre del script</label>
+        <input type="text" class="form-input" id="editName" placeholder="Ej: Limpieza de temporales">
+      </div>
+      <div class="f-group">
+        <label class="form-label">Colección</label>
+        <select class="form-select" id="editCollection"></select>
+      </div>
+      <div class="f-group">
+        <label class="form-label">Descripción (opcional)</label>
+        <input type="text" class="form-input" id="editDesc" placeholder="Qué hace este script...">
+      </div>
+      <div class="f-group">
+        <label class="form-label">Código PowerShell</label>
+        <textarea class="form-input" id="editCode" placeholder="# Escribe tu script PowerShell aquí..."></textarea>
+      </div>
+    </div>
+    <div class="rp-foot">
+      <button class="btn-secondary" onclick="clearEditor()">Limpiar</button>
+      <button class="btn-primary" onclick="saveScript()"><i class="bi bi-floppy"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Devices panel (mode: dispositivos) -->
+<div id="devicesPanel" style="display:none;">
+  <div class="devices-toolbar">
+    <h2>Dispositivos <span id="gridCount" style="font-size:11px;font-weight:normal;color:var(--muted);"></span></h2>
+    <button class="btn-sm" onclick="loadDevicesGrid(true)"><i class="bi bi-arrow-repeat"></i> Actualizar</button>
+    <div class="grid-search-wrap">
+      <i class="bi bi-search"></i>
+      <input class="grid-search" id="gridSearch" placeholder="Buscar..." oninput="filterGrid(this.value)">
+    </div>
+  </div>
+  <div id="deviceGrid" class="device-grid">
+    <div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted);font-size:13px;">
+      <i class="bi bi-laptop" style="font-size:36px;display:block;margin-bottom:12px;opacity:.3;"></i>
+      Cargando dispositivos...
+    </div>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div id="ctxMenu" class="ctx-menu" style="display:none;">
+  <div class="ctx-group">Acceso remoto</div>
+  <div class="ctx-item" id="ctxRdp"     onclick="ctxOpenRemote()"><i class="bi bi-display"></i> Escritorio remoto (KVM)</div>
+  <div class="ctx-item" id="ctxTerm"    onclick="ctxOpenTerminal()"><i class="bi bi-terminal-fill"></i> Terminal remota</div>
+  <div class="ctx-item" id="ctxScript"  onclick="ctxUseInTerminal()"><i class="bi bi-terminal"></i> Usar en Scripts</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-group">Administración</div>
+  <div class="ctx-item" id="ctxProc"    onclick="ctxOpenTools('proc')"><i class="bi bi-cpu"></i> Procesos</div>
+  <div class="ctx-item" id="ctxSvc"     onclick="ctxOpenTools('svc')"><i class="bi bi-shield-check"></i> Servicios</div>
+  <div class="ctx-item" id="ctxSw"      onclick="ctxOpenTools('sw')"><i class="bi bi-box-seam"></i> Software</div>
+  <div class="ctx-item" id="ctxEvt"     onclick="ctxOpenTools('evt')"><i class="bi bi-journal-text"></i> Event Log</div>
+  <div class="ctx-item"                 onclick="ctxOpenTools('met')"><i class="bi bi-bar-chart-line"></i> Métricas</div>
+  <div class="ctx-item"                 onclick="ctxOpenTools('tasks')"><i class="bi bi-clock-history"></i> Tareas programadas</div>
+  <div class="ctx-item"                 onclick="ctxOpenTools('users')"><i class="bi bi-people"></i> Usuarios locales</div>
+  <div class="ctx-item"                 onclick="ctxOpenTools('net')"><i class="bi bi-ethernet"></i> Info de red</div>
+  <div class="ctx-item"                 onclick="ctxOpenToast()"><i class="bi bi-chat-square-dots"></i> Enviar notificación</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-group">Energía</div>
+  <div class="ctx-item" id="ctxRestart" onclick="ctxPower('reset')"><i class="bi bi-arrow-repeat"></i> Reiniciar</div>
+  <div class="ctx-item" id="ctxSleep"   onclick="ctxPower('sleep')"><i class="bi bi-moon-fill"></i> Suspender</div>
+  <div class="ctx-item danger" id="ctxOff" onclick="ctxPower('off')"><i class="bi bi-power"></i> Apagar</div>
+</div>
+
+<!-- Modal: Confirmación de energía -->
+<div class="modal-overlay" id="powerModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="powerModalTitle">Confirmar acción</div>
+      <button class="modal-close" onclick="closePowerModal()"><i class="bi bi-x"></i></button>
+    </div>
+    <div class="modal-body" style="align-items:center;">
+      <i id="powerModalIcon" class="bi bi-arrow-repeat" style="font-size:36px;color:var(--warning);"></i>
+      <div style="text-align:center;">
+        <div style="font-size:14px;">¿Confirmas esta acción en <strong id="powerDeviceName">—</strong>?</div>
+        <div id="powerModalWarn" style="font-size:12px;color:var(--danger);margin-top:6px;"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closePowerModal()" style="flex:none;padding:8px 20px;">Cancelar</button>
+      <button class="btn-primary" id="powerConfirmBtn" onclick="confirmPower()" style="flex:none;padding:8px 24px;background:var(--warning);">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Notificación toast -->
+<div class="modal-overlay" id="toastModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title">Notificación → <span id="toastDeviceName" style="color:var(--primary);">—</span></div>
+      <button class="modal-close" onclick="closeToastModal()"><i class="bi bi-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="f-group">
+        <label class="form-label">Título (opcional)</label>
+        <input type="text" class="form-input" id="toastTitle" placeholder="Aviso del administrador">
+      </div>
+      <div class="f-group">
+        <label class="form-label">Mensaje</label>
+        <textarea class="form-input" id="toastMessage" rows="3" placeholder="Escribe el mensaje que verá el usuario..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeToastModal()" style="flex:none;padding:8px 20px;">Cancelar</button>
+      <button class="btn-primary" onclick="confirmToast()" style="flex:none;padding:8px 24px;"><i class="bi bi-send"></i> Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Herramientas (procesos / servicios / software) -->
+<div class="modal-overlay" id="toolsModal">
+  <div class="modal-box" style="width:920px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;">
+    <div class="modal-head">
+      <div class="modal-title"><i class="bi bi-tools" style="color:var(--primary);margin-right:6px;"></i>Herramientas · <span id="toolsDeviceName" style="color:var(--primary);">—</span></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="btn-sm" onclick="toolsRefresh()" style="padding:5px 10px;font-size:12px;"><i class="bi bi-arrow-repeat"></i> Actualizar</button>
+        <button class="modal-close" onclick="closeToolsModal()"><i class="bi bi-x"></i></button>
+      </div>
+    </div>
+    <div style="display:flex;border-bottom:1px solid var(--border);padding:0 4px;background:var(--hdr);flex-shrink:0;">
+      <button class="tools-tab active" id="tab-proc"  onclick="switchToolsTab('proc')"><i class="bi bi-cpu"></i> Procesos</button>
+      <button class="tools-tab"        id="tab-svc"   onclick="switchToolsTab('svc')"><i class="bi bi-shield-check"></i> Servicios</button>
+      <button class="tools-tab"        id="tab-sw"    onclick="switchToolsTab('sw')"><i class="bi bi-box-seam"></i> Software</button>
+      <button class="tools-tab"        id="tab-evt"   onclick="switchToolsTab('evt')"><i class="bi bi-journal-text"></i> Eventos</button>
+      <button class="tools-tab"        id="tab-met"   onclick="switchToolsTab('met')"><i class="bi bi-bar-chart-line"></i> Métricas</button>
+      <button class="tools-tab"        id="tab-tasks" onclick="switchToolsTab('tasks')"><i class="bi bi-clock-history"></i> Tareas</button>
+      <button class="tools-tab"        id="tab-users" onclick="switchToolsTab('users')"><i class="bi bi-people"></i> Usuarios</button>
+      <button class="tools-tab"        id="tab-net"   onclick="switchToolsTab('net')"><i class="bi bi-ethernet"></i> Red</button>
+    </div>
+    <div style="padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div class="grid-search-wrap">
+        <i class="bi bi-search"></i>
+        <input class="grid-search" id="toolsSearch" placeholder="Filtrar..." oninput="toolsFilter(this.value)" style="width:260px;">
+      </div>
+    </div>
+    <div id="toolsContent" style="flex:1;overflow-y:auto;">
+      <div style="text-align:center;padding:40px;color:var(--muted);font-size:13px;">
+        <i class="bi bi-arrow-repeat t-spin" style="font-size:24px;display:block;margin-bottom:8px;"></i>Cargando...
+      </div>
+    </div>
+    <div class="modal-foot" style="justify-content:space-between;">
+      <span id="toolsFooterInfo" style="font-size:12px;color:var(--muted);"></span>
+      <button class="btn-secondary" onclick="closeToolsModal()" style="flex:none;padding:8px 20px;">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Colección -->
+<div class="modal-overlay" id="colModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="colModalTitle">Nueva Colección</div>
+      <button class="modal-close" onclick="closeColModal()"><i class="bi bi-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="colModalId">
+      <div class="f-group">
+        <label class="form-label">Nombre</label>
+        <input type="text" class="form-input" id="colName" placeholder="Ej: Mantenimiento">
+      </div>
+      <div class="f-group">
+        <label class="form-label">Descripción</label>
+        <input type="text" class="form-input" id="colDesc" placeholder="Propósito de esta colección...">
+      </div>
+      <div class="f-group">
+        <label class="form-label">Icono (Bootstrap Icons)</label>
+        <input type="text" class="form-input" id="colIcon" placeholder="bi-tools" value="bi-collection">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeColModal()" style="flex:none;padding:8px 20px;">Cancelar</button>
+      <button class="btn-primary" onclick="saveCollection()" style="flex:none;padding:8px 24px;">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Configuración MeshCentral -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title"><i class="bi bi-gear" style="color:var(--primary);margin-right:6px;"></i>Configuración MeshCentral</div>
+      <button class="modal-close" onclick="closeSettings()"><i class="bi bi-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="padding:14px;background:var(--primary-dim);border-radius:10px;font-size:12.5px;color:var(--primary);margin-bottom:4px;">
+        <i class="bi bi-info-circle" style="margin-right:5px;"></i>
+        La configuración de credenciales se gestiona desde el archivo <code>.env</code> del servidor.
+        Contacta al administrador para cambiar las credenciales de acceso.
+      </div>
+      <div class="f-group">
+        <label class="form-label">URL MeshCentral</label>
+        <div class="form-input" style="cursor:default;opacity:.7;" id="cfgUrl">—</div>
+      </div>
+      <div class="f-group">
+        <label class="form-label">Usuario</label>
+        <div class="form-input" style="cursor:default;opacity:.7;" id="cfgUser">—</div>
+      </div>
+      <div class="f-group">
+        <label class="form-label">Estado de conexión</label>
+        <div class="form-input" style="cursor:default;opacity:.7;" id="cfgStatus">Verificando...</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-primary" onclick="closeSettings()" style="flex:none;padding:8px 24px;">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Gestión de grupos multi-tenant -->
+<div class="modal-overlay" id="groupsModal" style="display:none;">
+  <div class="modal-box" style="max-width:680px;">
+    <div class="modal-head">
+      <div class="modal-title"><i class="bi bi-diagram-3" style="color:var(--primary);margin-right:6px;"></i>Grupos por Tenant</div>
+      <button class="modal-close" onclick="closeGroupsModal()"><i class="bi bi-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="padding:12px;background:var(--primary-dim);border-radius:10px;font-size:12px;color:var(--primary);margin-bottom:16px;">
+        <i class="bi bi-info-circle"></i>
+        Asigna grupos de MeshCentral a tenants. Cada tenant solo verá los dispositivos de sus grupos.
+        Sin grupos configurados, el tenant ve todos los dispositivos.
+      </div>
+      <!-- Formulario de asignación -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="grpTenantSel" style="flex:1;min-width:140px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;">
+          <option value="">Seleccionar tenant…</option>
+        </select>
+        <select id="grpMeshSel" style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;">
+          <option value="">Seleccionar grupo…</option>
+        </select>
+        <button onclick="addTenantGroup()" style="padding:7px 18px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">
+          <i class="bi bi-plus-lg"></i> Asignar
+        </button>
+      </div>
+      <!-- Tabla de asignaciones -->
+      <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:var(--hdr);">
+              <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);">Tenant</th>
+              <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);">Grupo MeshCentral</th>
+              <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);">Dispositivos</th>
+              <th style="padding:9px 14px;"></th>
+            </tr>
+          </thead>
+          <tbody id="grpTableBody">
+            <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="closeGroupsModal()" style="padding:8px 24px;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;cursor:pointer;font-size:13px;">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+var _collections = [];
+var _scripts     = [];
+var _devices     = [];
+var _selectedDevice = null;
+var _selectedScript = null;
+var _running = false;
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function(){
+    applyThemeIcon();
+    loadMeshStatus();
+    loadDevices();
+    loadLibrary();
+});
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function toggleTheme(){
+    var t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('dashboardTheme', t);
+    applyThemeIcon();
+}
+function applyThemeIcon(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var ic = document.getElementById('themeIcon');
+    if(ic) ic.className = dark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+}
+
+// ── MeshCentral status ─────────────────────────────────────────────────────────
+function loadMeshStatus(){
+    fetch('/api/rmm/status').then(r=>r.json()).then(function(d){
+        var dot = document.getElementById('meshDot');
+        var txt = document.getElementById('meshStatusText');
+        if(d.ok && d.connected){
+            dot.className = 'status-dot dot-ok';
+            txt.textContent = 'MeshCentral conectado';
+        } else if(!d.configured){
+            dot.className = 'status-dot';
+            dot.style.background = 'var(--warning)';
+            txt.textContent = 'Sin configurar';
+        } else {
+            dot.className = 'status-dot';
+            dot.style.background = 'var(--danger)';
+            txt.textContent = 'Desconectado';
+        }
+    }).catch(function(){ });
+    setTimeout(loadMeshStatus, 30000);
+}
+
+// ── Devices ────────────────────────────────────────────────────────────────────
+function loadDevices(){
+    fetch('/api/rmm/devices').then(r=>r.json()).then(function(d){
+        if(d.ok) _devices = d.devices || [];
+        document.getElementById('btnRunCmd').disabled = !_selectedDevice;
+    }).catch(function(){});
+}
+
+function filterDevices(q){
+    var dd = document.getElementById('deviceDropdown');
+    q = (q||'').toLowerCase().trim();
+    var list = q ? _devices.filter(function(d){
+        return (d.name||'').toLowerCase().includes(q) || (d.ip||'').toLowerCase().includes(q) || (d.os||'').toLowerCase().includes(q);
+    }) : _devices.slice(0, 40);
+    renderDeviceDropdown(list);
+}
+
+function renderDeviceDropdown(list){
+    var dd = document.getElementById('deviceDropdown');
+    if(!list.length){
+        dd.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">Sin resultados</div>';
+        dd.classList.add('show');
+        return;
+    }
+    dd.innerHTML = list.map(function(d){
+        var col = d.online ? '#10b981' : '#94a3b8';
+        return '<div class="device-opt" onclick="selectDevice(\''+escHtml(d.nodeId)+'\',\''+escHtml(d.name)+'\',\''+escHtml(d.os||'')+'\','+d.online+')">'+
+               '<div class="device-opt-dot" style="background:'+col+'"></div>'+
+               '<div class="device-opt-name">'+escHtml(d.name)+'</div>'+
+               '<div class="device-opt-os">'+escHtml((d.os||'').split(' - ')[0].substring(0,30))+'</div>'+
+               '</div>';
+    }).join('');
+    dd.classList.add('show');
+}
+
+function showDeviceDropdown(){
+    if(_selectedDevice) return;
+    filterDevices(document.getElementById('deviceInput').value);
+}
+function hideDeviceDropdown(){ document.getElementById('deviceDropdown').classList.remove('show'); }
+
+function selectDevice(nodeId, name, os, online){
+    _selectedDevice = { nodeId: nodeId, name: name, os: os, online: online };
+    document.getElementById('deviceInput').style.display = 'none';
+    var chip = document.getElementById('selectedDeviceChip');
+    document.getElementById('selectedDeviceName').textContent = name;
+    chip.style.display = 'flex';
+    hideDeviceDropdown();
+    document.getElementById('sbDevice').textContent = name;
+    document.getElementById('btnRunCmd').disabled = false;
+    updateRunButton();
+    termLine('t-info', '→ Dispositivo seleccionado: '+name+' ('+(online?'ONLINE':'OFFLINE')+')');
+}
+
+function clearDevice(){
+    _selectedDevice = null;
+    document.getElementById('deviceInput').style.display = '';
+    document.getElementById('deviceInput').value = '';
+    document.getElementById('selectedDeviceChip').style.display = 'none';
+    document.getElementById('sbDevice').textContent = 'Sin dispositivo';
+    document.getElementById('btnRun').disabled = true;
+    document.getElementById('btnRunCmd').disabled = true;
+}
+
+// ── Script Library ─────────────────────────────────────────────────────────────
+var _colColors = ['#2563eb','#059669','#dc2626','#d97706','#7c3aed','#0891b2','#db2777','#64748b'];
+function colColor(id){ return _colColors[(id-1) % _colColors.length]; }
+
+function loadLibrary(){
+    Promise.all([
+        fetch('/api/rmm/scripts/collections').then(r=>r.json()),
+        fetch('/api/rmm/scripts').then(r=>r.json())
+    ]).then(function(results){
+        var colRes = results[0], scriptRes = results[1];
+        _collections = (colRes.ok && colRes.collections) ? colRes.collections : [];
+        _scripts     = (scriptRes.ok && scriptRes.scripts) ? scriptRes.scripts : [];
+        renderLibrary(_collections, _scripts);
+        populateCollectionSelect();
+    }).catch(function(e){
+        document.getElementById('scriptLibrary').innerHTML =
+            '<div style="text-align:center;padding:20px;color:var(--danger);font-size:12px;"><i class="bi bi-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;"></i>'+escHtml(e.message)+'</div>';
+    });
+}
+
+function renderLibrary(cols, scripts, filter){
+    var lib = document.getElementById('scriptLibrary');
+    if(!cols.length){ lib.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Sin colecciones. Crea una con el botón +</div>'; return; }
+    lib.innerHTML = cols.map(function(c){
+        var cScripts = scripts.filter(function(s){ return s.collection_id === c.id; });
+        if(filter) cScripts = cScripts.filter(function(s){ return s.name.toLowerCase().includes(filter) || (s.description||'').toLowerCase().includes(filter); });
+        var col = colColor(c.id);
+        return '<div class="col-item open" id="col_'+c.id+'">'+
+            '<div class="col-header" onclick="toggleCol('+c.id+')">'+
+            '<div class="col-icon" style="background:'+col+'1a;color:'+col+'"><i class="bi '+escHtml(c.icon||'bi-collection')+'"></i></div>'+
+            '<div class="col-name">'+escHtml(c.name)+'</div>'+
+            '<span class="col-count">'+cScripts.length+'</span>'+
+            '<i class="bi bi-chevron-right col-chevron"></i>'+
+            '</div>'+
+            '<div class="col-scripts">'+
+            cScripts.map(function(s){ return renderScriptItem(s, col); }).join('')+
+            (cScripts.length===0?'<div style="padding:6px 8px;font-size:11px;color:var(--muted);font-style:italic;">Sin scripts — usa el editor para agregar</div>':'')+
+            '</div>'+
+        '</div>';
+    }).join('');
+}
+
+function renderScriptItem(s, col){
+    return '<div class="script-item" id="si_'+s.id+'" onclick="selectScript('+s.id+')" title="'+escHtml(s.description||s.name)+'">'+
+        '<i class="bi bi-file-earmark-code" style="font-size:13px;color:'+col+';flex-shrink:0;"></i>'+
+        '<div class="script-item-name">'+escHtml(s.name)+'</div>'+
+        '<div class="script-item-actions">'+
+        '<button class="act-btn run" onclick="event.stopPropagation();selectAndRun('+s.id+')" title="Ejecutar"><i class="bi bi-play-fill"></i></button>'+
+        '<button class="act-btn" onclick="event.stopPropagation();editScript('+s.id+')" title="Editar"><i class="bi bi-pencil"></i></button>'+
+        '<button class="act-btn del" onclick="event.stopPropagation();deleteScript('+s.id+')" title="Eliminar"><i class="bi bi-trash3"></i></button>'+
+        '</div>'+
+    '</div>';
+}
+
+function toggleCol(id){
+    var el = document.getElementById('col_'+id);
+    if(el) el.classList.toggle('open');
+}
+
+function filterScripts(q){
+    q = (q||'').toLowerCase().trim();
+    renderLibrary(_collections, _scripts, q||null);
+}
+
+function selectScript(id){
+    _selectedScript = _scripts.find(function(s){ return s.id === id; });
+    document.querySelectorAll('.script-item').forEach(function(el){ el.classList.remove('selected'); });
+    var el = document.getElementById('si_'+id);
+    if(el) el.classList.add('selected');
+    var bar = document.getElementById('scriptBar');
+    if(_selectedScript){
+        bar.innerHTML = '<i class="bi bi-file-earmark-code" style="color:var(--primary);"></i>'+
+            '<span class="script-bar-name">'+escHtml(_selectedScript.name)+'</span>'+
+            (_selectedScript.description ? '<span class="script-bar-desc">— '+escHtml(_selectedScript.description)+'</span>' : '');
+        document.getElementById('sbScript').textContent = _selectedScript.name;
+    }
+    updateRunButton();
+}
+
+function selectAndRun(id){
+    selectScript(id);
+    if(_selectedDevice) runSelected();
+    else termLine('t-warn', '⚠ Selecciona un dispositivo primero');
+}
+
+function updateRunButton(){
+    var ok = !!(_selectedDevice && _selectedScript && !_running);
+    document.getElementById('btnRun').disabled = !ok;
+}
+
+// ── Execution ─────────────────────────────────────────────────────────────────
+function runSelected(){
+    if(!_selectedDevice){ termLine('t-warn','⚠ Selecciona un dispositivo'); return; }
+    if(!_selectedScript){ termLine('t-warn','⚠ Selecciona un script'); return; }
+    executeScript(_selectedDevice.nodeId, null, _selectedScript.id, _selectedScript.name);
+}
+
+function runCustomCmd(){
+    var cmd = document.getElementById('customCmd').value.trim();
+    if(!cmd) return;
+    if(!_selectedDevice){ termLine('t-warn','⚠ Selecciona un dispositivo primero'); return; }
+    executeScript(_selectedDevice.nodeId, cmd, null, 'Comando personalizado');
+    document.getElementById('customCmd').value = '';
+}
+
+function executeScript(nodeId, customCode, scriptId, scriptName){
+    if(_running) return;
+    _running = true;
+    updateRunButton();
+    document.getElementById('btnRun').classList.add('running');
+    document.getElementById('btnRun').innerHTML = '<i class="bi bi-arrow-repeat t-spin"></i> Ejecutando...';
+    document.getElementById('btnRunCmd').disabled = true;
+
+    var sbStatus = document.getElementById('sbStatus');
+    sbStatus.innerHTML = '<i class="bi bi-arrow-repeat t-spin"></i> Ejecutando...';
+    sbStatus.style.color = '#d29922';
+
+    var t0 = Date.now();
+    termSep();
+    termLine('t-prompt', '┌─ '+scriptName);
+    termLine('t-prompt', '├─ Dispositivo: '+ (_selectedDevice ? _selectedDevice.name : nodeId));
+    termLine('t-info',   '└─ Iniciando... ('+(new Date().toLocaleTimeString())+')');
+
+    var body = { nodeId: nodeId };
+    if(scriptId) body.scriptId = scriptId;
+    if(customCode) body.customCode = customCode;
+
+    var _abortCtrl = new AbortController();
+    var _abortTimer = setTimeout(function(){ _abortCtrl.abort(); }, 125000);
+
+    fetch('/api/rmm/device/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: _abortCtrl.signal
+    }).then(function(r){ clearTimeout(_abortTimer); return r.json(); }).then(function(d){
+        var elapsed = ((Date.now()-t0)/1000).toFixed(1)+'s';
+        if(d.ok){
+            termLine('t-ok', '✔ Completado en '+elapsed);
+            termLine('t-separator','');
+            (d.output||'(sin salida)').split('\n').forEach(function(line){
+                var cls = 't-out';
+                if(/error|failed|exception/i.test(line)) cls='t-err';
+                else if(/warning|warn/i.test(line)) cls='t-warn';
+                else if(/success|completado|ok|✓/i.test(line)) cls='t-ok';
+                termLine(cls, line);
+            });
+            sbStatus.innerHTML = '<i class="bi bi-check-circle"></i> Completado ('+elapsed+')';
+            sbStatus.style.color = '#3fb950';
+        } else {
+            termLine('t-err', '✖ Error: '+(d.error||'desconocido'));
+            sbStatus.innerHTML = '<i class="bi bi-x-circle"></i> Error';
+            sbStatus.style.color = '#f85149';
+        }
+        document.getElementById('sbTime').textContent = new Date().toLocaleTimeString();
+    }).catch(function(e){
+        clearTimeout(_abortTimer);
+        var msg = (e.name === 'AbortError') ? 'Tiempo de espera agotado (>95s)' : e.message;
+        termLine('t-err', '✖ '+msg);
+        sbStatus.innerHTML = '<i class="bi bi-x-circle"></i> ' + (e.name === 'AbortError' ? 'Timeout' : 'Error de red');
+        sbStatus.style.color = '#f85149';
+    }).finally(function(){
+        _running = false;
+        updateRunButton();
+        document.getElementById('btnRun').classList.remove('running');
+        document.getElementById('btnRun').innerHTML = '<i class="bi bi-play-fill"></i> Ejecutar';
+        document.getElementById('btnRunCmd').disabled = !_selectedDevice;
+    });
+}
+
+// ── Terminal helpers ───────────────────────────────────────────────────────────
+function termLine(cls, text){
+    var t = document.getElementById('terminal');
+    if(cls==='t-separator'){
+        t.insertAdjacentHTML('beforeend','<hr class="t-separator">');
+    } else {
+        var span = document.createElement('span');
+        span.className = cls;
+        span.textContent = text+'\n';
+        t.appendChild(span);
+    }
+    t.scrollTop = t.scrollHeight;
+}
+function termSep(){ termLine('t-separator',''); }
+function clearTerminal(){
+    document.getElementById('terminal').innerHTML='';
+    termLine('t-info','— Terminal limpiado ('+new Date().toLocaleTimeString()+') —');
+}
+function copyOutput(){
+    var text = document.getElementById('terminal').innerText;
+    navigator.clipboard.writeText(text).then(function(){
+        var btn = document.querySelector('[onclick="copyOutput()"]');
+        if(btn){ var orig=btn.innerHTML; btn.innerHTML='<i class="bi bi-check"></i> Copiado'; setTimeout(function(){btn.innerHTML=orig;},1500); }
+    });
+}
+
+// ── Editor ─────────────────────────────────────────────────────────────────────
+function toggleEditor(){
+    var p = document.getElementById('editorPanel');
+    p.classList.toggle('hidden');
+    var btn = document.getElementById('editorToggleBtn');
+    btn.style.background = p.classList.contains('hidden') ? '' : 'var(--primary-dim)';
+    btn.style.color = p.classList.contains('hidden') ? '' : 'var(--primary)';
+    btn.style.borderColor = p.classList.contains('hidden') ? '' : 'var(--primary)';
+}
+
+function clearEditor(){
+    document.getElementById('editScriptId').value='';
+    document.getElementById('editName').value='';
+    document.getElementById('editDesc').value='';
+    document.getElementById('editCode').value='';
+    document.getElementById('editorTitle').textContent='Nuevo Script';
+}
+
+function editScript(id){
+    var s = _scripts.find(function(x){ return x.id===id; });
+    if(!s) return;
+    document.getElementById('editScriptId').value = s.id;
+    document.getElementById('editName').value = s.name;
+    document.getElementById('editDesc').value = s.description||'';
+    document.getElementById('editCode').value = s.code;
+    document.getElementById('editCollection').value = s.collection_id;
+    document.getElementById('editorTitle').textContent = 'Editar: '+s.name;
+    var p = document.getElementById('editorPanel');
+    p.classList.remove('hidden');
+}
+
+function saveScript(){
+    var id   = document.getElementById('editScriptId').value;
+    var name = document.getElementById('editName').value.trim();
+    var col  = document.getElementById('editCollection').value;
+    var desc = document.getElementById('editDesc').value.trim();
+    var code = document.getElementById('editCode').value.trim();
+    if(!name){ alert('El nombre es requerido'); return; }
+    if(!col){  alert('Selecciona una colección'); return; }
+    if(!code){ alert('El código no puede estar vacío'); return; }
+    var url    = id ? '/api/rmm/scripts/'+id : '/api/rmm/scripts';
+    var method = id ? 'PUT' : 'POST';
+    fetch(url, { method: method, headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ collection_id: parseInt(col), name: name, description: desc, code: code }) })
+    .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ loadLibrary(); clearEditor(); termLine('t-ok', '✔ Script "'+(name)+'" guardado correctamente'); }
+        else alert('Error: '+(d.error||'desconocido'));
+    });
+}
+
+function deleteScript(id){
+    var s = _scripts.find(function(x){ return x.id===id; });
+    if(!s || !confirm('¿Eliminar "'+s.name+'"?')) return;
+    fetch('/api/rmm/scripts/'+id, { method:'DELETE' }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ if(_selectedScript && _selectedScript.id===id) _selectedScript=null; loadLibrary(); termLine('t-warn','⚠ Script "'+s.name+'" eliminado'); }
+        else alert('Error: '+(d.error||'desconocido'));
+    });
+}
+
+function populateCollectionSelect(){
+    var sel = document.getElementById('editCollection');
+    sel.innerHTML = '<option value="">— Seleccionar —</option>'+
+        _collections.map(function(c){ return '<option value="'+c.id+'">'+escHtml(c.name)+'</option>'; }).join('');
+}
+
+// ── Collections modal ─────────────────────────────────────────────────────────
+function openAddCollection(){
+    document.getElementById('colModalId').value='';
+    document.getElementById('colName').value='';
+    document.getElementById('colDesc').value='';
+    document.getElementById('colIcon').value='bi-collection';
+    document.getElementById('colModalTitle').textContent='Nueva Colección';
+    document.getElementById('colModal').classList.add('show');
+    setTimeout(function(){ document.getElementById('colName').focus(); },100);
+}
+function closeColModal(){ document.getElementById('colModal').classList.remove('show'); }
+
+function saveCollection(){
+    var id   = document.getElementById('colModalId').value;
+    var name = document.getElementById('colName').value.trim();
+    var desc = document.getElementById('colDesc').value.trim();
+    var icon = document.getElementById('colIcon').value.trim() || 'bi-collection';
+    if(!name){ alert('El nombre es requerido'); return; }
+    var url    = id ? '/api/rmm/scripts/collections/'+id : '/api/rmm/scripts/collections';
+    var method = id ? 'PUT' : 'POST';
+    fetch(url, { method: method, headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name: name, description: desc, icon: icon, sort_order: 0 }) })
+    .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ closeColModal(); loadLibrary(); }
+        else alert('Error: '+(d.error||'desconocido'));
+    });
+}
+
+// ── Settings modal ─────────────────────────────────────────────────────────────
+function openSettings(){
+    document.getElementById('settingsModal').classList.add('show');
+    fetch('/api/rmm/status').then(r=>r.json()).then(function(d){
+        document.getElementById('cfgUrl').textContent   = d.url   || '(configurado en .env)';
+        document.getElementById('cfgUser').textContent  = d.user  || '(configurado en .env)';
+        document.getElementById('cfgStatus').textContent = d.connected ? '✔ Conectado' : '✖ Desconectado';
+        document.getElementById('cfgStatus').style.color = d.connected ? 'var(--success)' : 'var(--danger)';
+    });
+}
+function closeSettings(){ document.getElementById('settingsModal').classList.remove('show'); }
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+function escHtml(t){ var d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+// ── Mode toggle ────────────────────────────────────────────────────────────────
+var _mode = 'terminal';
+var _gridDevices = [];
+
+function setMode(mode) {
+    _mode = mode;
+    var ws  = document.querySelector('.workspace');
+    var dp  = document.getElementById('devicesPanel');
+    var btnT = document.getElementById('btnModeTerminal');
+    var btnD = document.getElementById('btnModeDevices');
+    if (mode === 'devices') {
+        ws.style.display = 'none';
+        dp.style.display = 'block';
+        btnT.classList.remove('active');
+        btnD.classList.add('active');
+        if (!_gridDevices.length) loadDevicesGrid(false);
+    } else {
+        ws.style.display  = 'flex';
+        dp.style.display  = 'none';
+        btnT.classList.add('active');
+        btnD.classList.remove('active');
+    }
+}
+
+function loadDevicesGrid(force) {
+    var grid = document.getElementById('deviceGrid');
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted);font-size:13px;"><i class="bi bi-arrow-repeat t-spin" style="font-size:28px;display:block;margin-bottom:10px;"></i>Cargando...</div>';
+    fetch('/api/rmm/devices'+(force?'?refresh=1':'')).then(function(r){ return r.json(); }).then(function(d){
+        if (!d.ok) { grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--danger);font-size:13px;">Error: '+escHtml(d.error||'desconocido')+'</div>'; return; }
+        _gridDevices = d.devices || [];
+        _devices = _gridDevices;
+        renderDeviceGrid(_gridDevices);
+    }).catch(function(e){
+        grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--danger);font-size:13px;">'+escHtml(e.message)+'</div>';
+    });
+}
+
+function filterGrid(q) {
+    q = (q||'').toLowerCase().trim();
+    var list = q ? _gridDevices.filter(function(d){ return (d.name||'').toLowerCase().includes(q)||(d.ip||'').toLowerCase().includes(q)||(d.os||'').toLowerCase().includes(q); }) : _gridDevices;
+    renderDeviceGrid(list);
+}
+
+function renderDeviceGrid(list) {
+    var cnt  = document.getElementById('gridCount');
+    var grid = document.getElementById('deviceGrid');
+    var on   = list.filter(function(d){ return d.online; }).length;
+    cnt.textContent = '— '+list.length+' equipos · '+on+' en línea';
+    if (!list.length) { grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted);font-size:13px;"><i class="bi bi-laptop" style="font-size:32px;display:block;margin-bottom:10px;opacity:.3;"></i>Sin dispositivos</div>'; return; }
+    grid.innerHTML = list.map(function(d){
+        var oc = d.online ? '#10b981' : '#94a3b8';
+        var bc = d.online ? 'var(--success)' : 'var(--border)';
+        var os = (d.os||'').split(' - ')[0].substring(0,28);
+        var sub = [os, d.ip].filter(Boolean).join(' · ');
+        var nid = escHtml(d.nodeId), nm = escHtml(d.name), osH = escHtml(d.os||'');
+        return '<div class="dcard"'+
+            ' oncontextmenu="showCtxMenu(event,\''+nid+'\',\''+nm+'\','+d.online+')"'+
+            ' ondblclick="dCardScript(\''+nid+'\',\''+nm+'\',\''+osH+'\','+d.online+')">'+
+            '<div class="dcard-bar" style="background:'+bc+'"></div>'+
+            '<div class="dcard-body">'+
+            '<div class="dcard-name">'+escHtml(d.name)+'</div>'+
+            '<div class="dcard-sub">'+escHtml(sub||'—')+'</div>'+
+            '<div class="dcard-meta">'+
+            '<div class="dcard-status"><div style="width:7px;height:7px;border-radius:50%;background:'+oc+';'+(d.online?'box-shadow:0 0 0 3px rgba(16,185,129,.15)':'')+';"></div>'+(d.online?'En línea':'Fuera de línea')+'</div>'+
+            '<div class="dcard-actions">'+
+            (d.online
+                ?'<button class="dcard-btn" title="Escritorio remoto" onclick="event.stopPropagation();dCardRemote(\''+nid+'\')"><i class="bi bi-display"></i></button>'
+                :'<button class="dcard-btn" disabled title="Fuera de línea" style="opacity:.3;cursor:default;"><i class="bi bi-display"></i></button>')+
+            '<button class="dcard-btn" title="Usar en Scripts" onclick="event.stopPropagation();dCardScript(\''+nid+'\',\''+nm+'\',\''+osH+'\','+d.online+')"><i class="bi bi-terminal"></i></button>'+
+            (d.online?'<button class="dcard-btn" title="Herramientas" onclick="event.stopPropagation();openToolsModal(\''+nid+'\',\''+nm+'\',\'proc\')"><i class="bi bi-tools"></i></button>':'')+
+            (d.online
+                ?'<button class="dcard-btn off" title="Apagar / Reiniciar" onclick="event.stopPropagation();showCtxMenu(event,\''+nid+'\',\''+nm+'\','+d.online+')"><i class="bi bi-power"></i></button>'
+                :'<button class="dcard-btn" disabled title="Fuera de línea" style="opacity:.3;cursor:default;"><i class="bi bi-power"></i></button>')+
+            '</div></div></div></div>';
+    }).join('');
+}
+
+function dCardRemote(nodeId) {
+    fetch('/api/rmm/session', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nodeId:nodeId}) })
+    .then(function(r){ return r.json(); }).then(function(d){ if(d.ok && d.url) window.open(d.url,'_blank'); else alert('Error sesión: '+(d.error||'desconocido')); })
+    .catch(function(e){ alert('Error: '+e.message); });
+}
+
+function dCardScript(nodeId, name, os, online) {
+    selectDevice(nodeId, name, os, online);
+    setMode('terminal');
+}
+
+// ── Context menu ───────────────────────────────────────────────────────────────
+var _ctxNodeId = null, _ctxName = null, _ctxOnline = false;
+
+function showCtxMenu(e, nodeId, name, online) {
+    e.preventDefault();
+    e.stopPropagation();
+    _ctxNodeId = nodeId; _ctxName = name; _ctxOnline = online;
+    var m = document.getElementById('ctxMenu');
+    ['ctxRdp','ctxTerm','ctxProc','ctxSvc','ctxSw','ctxEvt','ctxRestart','ctxSleep','ctxOff'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) el.classList.toggle('ctx-disabled', !online);
+    });
+    m.style.display = 'block';
+    var x = e.clientX, y = e.clientY;
+    m.style.left = '-9999px'; m.style.top = '-9999px';
+    requestAnimationFrame(function(){
+        var mw = m.offsetWidth||210, mh = m.offsetHeight||260;
+        if (x+mw > window.innerWidth)  x = window.innerWidth  - mw - 8;
+        if (y+mh > window.innerHeight) y = window.innerHeight - mh - 8;
+        m.style.left = x+'px'; m.style.top = y+'px';
+    });
+}
+
+function hideCtxMenu(){ var m=document.getElementById('ctxMenu'); if(m) m.style.display='none'; }
+
+function ctxOpenRemote(){ hideCtxMenu(); if(_ctxNodeId) dCardRemote(_ctxNodeId); }
+function ctxUseInTerminal(){ hideCtxMenu(); if(_ctxNodeId) dCardScript(_ctxNodeId,_ctxName,'',_ctxOnline); }
+function ctxOpenToast(){ hideCtxMenu(); if(_ctxNodeId) openToastModal(_ctxNodeId,_ctxName); }
+function ctxPower(action){ hideCtxMenu(); if(_ctxNodeId) openPowerModal(_ctxNodeId,_ctxName,action); }
+function ctxOpenTools(tab){ hideCtxMenu(); if(_ctxNodeId) openToolsModal(_ctxNodeId,_ctxName,tab); }
+
+document.addEventListener('click', function(e){ if(!e.target.closest('#ctxMenu')) hideCtxMenu(); });
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') hideCtxMenu(); });
+
+// ── Power modal ─────────────────────────────────────────────────────────────────
+var _powerNodeId=null, _powerAction=null;
+var POWER_CFG={
+    reset:{title:'Reiniciar equipo',  icon:'bi-arrow-repeat',color:'var(--warning)', warn:''},
+    sleep:{title:'Suspender equipo',  icon:'bi-moon-fill',   color:'var(--info)',    warn:''},
+    off:  {title:'Apagar equipo',     icon:'bi-power',       color:'var(--danger)',  warn:'Atención: el equipo no podrá encenderse remotamente sin Wake-on-LAN.'}
+};
+
+function openPowerModal(nodeId, name, action){
+    _powerNodeId=nodeId; _powerAction=action;
+    var cfg=POWER_CFG[action]||{title:action,icon:'bi-lightning',color:'var(--warning)',warn:''};
+    document.getElementById('powerModalTitle').textContent  = cfg.title;
+    document.getElementById('powerDeviceName').textContent  = name;
+    document.getElementById('powerModalIcon').className     = 'bi '+cfg.icon;
+    document.getElementById('powerModalIcon').style.color   = cfg.color;
+    document.getElementById('powerModalWarn').textContent   = cfg.warn;
+    document.getElementById('powerConfirmBtn').style.background = cfg.color;
+    document.getElementById('powerModal').classList.add('show');
+}
+
+function closePowerModal(){
+    document.getElementById('powerModal').classList.remove('show');
+    _powerNodeId=null; _powerAction=null;
+}
+
+function confirmPower(){
+    if(!_powerNodeId||!_powerAction) return;
+    var devName  = document.getElementById('powerDeviceName').textContent;
+    var act      = _powerAction;
+    var btn      = document.getElementById('powerConfirmBtn');
+    btn.disabled = true; btn.innerHTML='<i class="bi bi-arrow-repeat t-spin"></i>';
+    fetch('/api/rmm/device/power',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeId:_powerNodeId,action:act})})
+    .then(function(r){ return r.json(); }).then(function(d){
+        closePowerModal();
+        if(d.ok){
+            termLine('t-ok','✔ Acción "'+act+'" enviada a '+devName);
+            if(_mode==='devices') setTimeout(function(){ loadDevicesGrid(true); },4000);
+        } else { alert('Error: '+(d.error||'desconocido')); }
+    }).catch(function(e){ closePowerModal(); alert('Error de red: '+e.message); })
+    .finally(function(){ btn.disabled=false; btn.innerHTML='Confirmar'; });
+}
+
+// ── Tools modal (processes / services / software) ──────────────────────────────
+var _toolsNodeId=null, _toolsName=null, _toolsTab='proc';
+var _toolsData={proc:null,svc:null,sw:null,evt:null,met:null,tasks:null,users:null,net:null};
+
+function openToolsModal(nodeId, name, tab) {
+    _toolsNodeId=nodeId; _toolsName=name; _toolsTab=tab||'proc';
+    _toolsData={proc:null,svc:null,sw:null,evt:null,met:null,tasks:null,users:null,net:null};
+    document.getElementById('toolsDeviceName').textContent=name;
+    document.getElementById('toolsSearch').value='';
+    document.getElementById('toolsModal').classList.add('show');
+    switchToolsTab(_toolsTab);
+}
+
+function closeToolsModal(){ document.getElementById('toolsModal').classList.remove('show'); _toolsNodeId=null; }
+
+var _toolsEvtLevel = null;
+
+function switchToolsTab(tab){
+    _toolsTab=tab;
+    ['proc','svc','sw','evt','met','tasks','users','net'].forEach(function(t){ document.getElementById('tab-'+t).classList.toggle('active',t===tab); });
+    document.getElementById('toolsSearch').value='';
+    _toolsEvtLevel=null;
+    toolsLoad(tab);
+}
+
+function toolsRefresh(){ _toolsData[_toolsTab]=null; _toolsEvtLevel=null; toolsLoad(_toolsTab); }
+
+function toolsLoad(tab){
+    if(!_toolsNodeId) return;
+    var content=document.getElementById('toolsContent');
+    if(_toolsData[tab]!==null){ toolsRender(tab,_toolsData[tab]); return; }
+    content.innerHTML='<div style="text-align:center;padding:50px;color:var(--muted);"><i class="bi bi-arrow-repeat t-spin" style="font-size:24px;display:block;margin-bottom:8px;"></i>Cargando...</div>';
+    var ep=tab==='proc'  ?'/api/rmm/device/processes'
+          :tab==='svc'   ?'/api/rmm/device/services'
+          :tab==='evt'   ?'/api/rmm/device/eventlog'
+          :tab==='met'   ?'/api/rmm/device/metrics'
+          :tab==='tasks' ?'/api/rmm/device/tasks'
+          :tab==='users' ?'/api/rmm/device/users'
+          :tab==='net'   ?'/api/rmm/device/network'
+          :'/api/rmm/device/apps';
+    fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeId:_toolsNodeId})})
+    .then(function(r){ return r.json(); }).then(function(d){
+        if(!d.ok){ content.innerHTML='<div style="text-align:center;padding:40px;color:var(--danger);">Error: '+escHtml(d.error||'desconocido')+'</div>'; return; }
+        _toolsData[tab]=tab==='proc'?d.processes:tab==='svc'?d.services:tab==='evt'?d.events:tab==='met'?d.metrics:tab==='tasks'?d.tasks:tab==='users'?d.users:tab==='net'?d.network:d.apps;
+        toolsRender(tab,_toolsData[tab]||[]);
+    }).catch(function(e){ content.innerHTML='<div style="text-align:center;padding:40px;color:var(--danger);">'+escHtml(e.message)+'</div>'; });
+}
+
+function toolsFilter(q){
+    if(_toolsData[_toolsTab]===null||_toolsTab==='met'||_toolsTab==='net') return;
+    toolsRender(_toolsTab,_toolsData[_toolsTab],q.toLowerCase().trim());
+}
+
+function setEvtLevel(level){
+    _toolsEvtLevel=level;
+    if(_toolsData['evt']!==null) toolsRender('evt',_toolsData['evt']);
+}
+
+function metricBar(label, value, pct, color){
+    var safe=Math.min(Math.max(pct||0,0),100);
+    return '<div class="metric-item">'+
+        '<div class="metric-label"><span>'+escHtml(label)+'</span>'+
+        '<span class="metric-label-val" style="color:'+color+';">'+safe+'% &nbsp;'+escHtml(value)+'</span></div>'+
+        '<div class="metric-bar"><div class="metric-fill" style="width:'+safe+'%;background:'+color+';"></div></div>'+
+        '</div>';
+}
+
+function toolsRender(tab, data, filter){
+    var content=document.getElementById('toolsContent');
+    var info=document.getElementById('toolsFooterInfo');
+
+    // ── Métricas ──────────────────────────────────────────────────────────────
+    if(tab==='met'){
+        var m=data;
+        if(!m||m.error){ content.innerHTML='<div style="text-align:center;padding:40px;color:var(--danger);">'+(m&&m.error?escHtml(m.error):'Sin datos')+'</div>'; return; }
+        var cpuC=m.cpu>80?'var(--danger)':m.cpu>60?'var(--warning)':'var(--success)';
+        var ramC=m.usedPct>80?'var(--danger)':m.usedPct>60?'var(--warning)':'var(--success)';
+        var disksHtml=(m.disks||[]).map(function(d){
+            var c=d.p>85?'var(--danger)':d.p>70?'var(--warning)':'var(--primary)';
+            return metricBar('Disco '+d.d,(d.t-d.f).toFixed(1)+' / '+d.t+' GB',d.p,c);
+        }).join('');
+        content.innerHTML='<div class="metric-wrap">'+
+            '<div style="font-size:11px;color:var(--muted);text-align:right;margin-bottom:14px;">Snapshot: '+escHtml(m.ts||'—')+'</div>'+
+            metricBar('CPU',m.cpu+'%',m.cpu,cpuC)+
+            metricBar('Memoria RAM',(m.usedMB/1024).toFixed(1)+' / '+(m.totalMB/1024).toFixed(1)+' GB',m.usedPct,ramC)+
+            disksHtml+'</div>';
+        info.textContent='Snapshot a las '+escHtml(m.ts||'—');
+        return;
+    }
+
+    // ── Event Log ─────────────────────────────────────────────────────────────
+    if(tab==='evt'){
+        var all=data||[];
+        var lf=_toolsEvtLevel;
+        var list=lf?all.filter(function(e){ return e.lvl===lf; }):all;
+        if(filter) list=list.filter(function(e){ return JSON.stringify(e).toLowerCase().includes(filter); });
+        var levels=[{lbl:'Todos',val:null,c:'var(--muted)'},{lbl:'Critical',val:'Critical',c:'#9b1c1c'},{lbl:'Error',val:'Error',c:'var(--danger)'},{lbl:'Warning',val:'Warning',c:'var(--warning)'}];
+        var fBar='<div class="evt-filter-bar">'+levels.map(function(l){
+            var ac=l.val===lf;
+            return '<button class="evt-filter-btn'+(ac?' active':'')+'" style="color:'+l.c+';'+(ac?'background:'+l.c+'22;border-color:'+l.c+';':'')+'" onclick="setEvtLevel('+JSON.stringify(l.val)+')">'+escHtml(l.lbl)+'</button>';
+        }).join('')+'<span style="margin-left:auto;font-size:11px;color:var(--muted);">'+list.length+' eventos</span></div>';
+        info.textContent=list.length+' de '+all.length+' eventos';
+        if(!list.length){ content.innerHTML=fBar+'<div style="text-align:center;padding:40px;color:var(--muted);">Sin eventos para el filtro seleccionado</div>'; return; }
+        content.innerHTML=fBar+'<div style="overflow-x:auto;"><table class="tools-table"><thead><tr><th style="white-space:nowrap;">Fecha/Hora</th><th>Nivel</th><th>Fuente</th><th>Mensaje</th></tr></thead><tbody>'+
+            list.map(function(e){
+                var lc=e.lvl==='Critical'?'#9b1c1c':e.lvl==='Error'?'var(--danger)':'var(--warning)';
+                var badge='<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:'+lc+'22;color:'+lc+';font-weight:700;white-space:nowrap;">'+escHtml(e.lvl)+'</span>';
+                return '<tr><td style="font-size:11px;font-family:monospace;white-space:nowrap;">'+escHtml(e.t||'')+'</td>'+
+                    '<td>'+badge+'</td>'+
+                    '<td style="font-size:11px;color:var(--muted);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">'+escHtml(e.src||'')+'</td>'+
+                    '<td style="font-size:12px;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+escHtml(e.msg||'')+'">'+escHtml(e.msg||'')+'</td></tr>';
+            }).join('')+'</tbody></table></div>';
+        return;
+    }
+
+    // ── Procesos / Servicios / Software (tablas) ───────────────────────────────
+    var list2=filter?data.filter(function(r){ return JSON.stringify(r).toLowerCase().includes(filter); }):data;
+
+    if(tab==='proc'){
+        info.textContent=list2.length+' procesos';
+        if(!list2.length){ content.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);">Sin procesos</div>'; return; }
+        content.innerHTML='<table class="tools-table"><thead><tr><th>Proceso</th><th class="num">PID</th><th class="num">CPU (s)</th><th class="num">RAM (MB)</th><th></th></tr></thead><tbody>'+
+            list2.map(function(p){
+                var cs=p.cpu>10?'color:var(--danger);font-weight:700;':p.cpu>2?'color:var(--warning);':'';
+                return '<tr><td style="font-weight:600;">'+escHtml(p.name)+'</td>'+
+                    '<td class="num" style="color:var(--muted);">'+p.pid+'</td>'+
+                    '<td class="num" style="'+cs+'">'+p.cpu+'</td>'+
+                    '<td class="num">'+p.mem+'</td>'+
+                    '<td style="text-align:right;"><button class="btn-sm" style="padding:3px 8px;font-size:11px;color:var(--danger);border-color:var(--danger-dim);" onclick="killProcess('+p.pid+',\''+escHtml(p.name)+'\')"><i class="bi bi-x-circle"></i> Terminar</button></td></tr>';
+            }).join('')+'</tbody></table>';
+    } else if(tab==='svc'){
+        info.textContent=list2.length+' servicios';
+        if(!list2.length){ content.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);">Sin servicios</div>'; return; }
+        content.innerHTML='<table class="tools-table"><thead><tr><th>Servicio</th><th>Estado</th><th></th></tr></thead><tbody>'+
+            list2.map(function(s){
+                var run=s.status==='Running',stop=s.status==='Stopped';
+                var bc=run?'var(--success)':stop?'var(--danger)':'var(--warning)';
+                var badge='<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:'+bc+'22;color:'+bc+';font-weight:700;">'+escHtml(s.status)+'</span>';
+                return '<tr><td><div style="font-weight:600;font-size:12.5px;">'+escHtml(s.display||s.name)+'</div><div style="font-size:10px;color:var(--muted);font-family:monospace;">'+escHtml(s.name)+'</div></td>'+
+                    '<td>'+badge+'</td>'+
+                    '<td style="text-align:right;white-space:nowrap;">'+
+                    (!run?'<button class="btn-sm" style="padding:3px 8px;font-size:11px;margin-right:3px;" title="Iniciar" onclick="serviceAction(\''+escHtml(s.name)+'\',\'start\')"><i class="bi bi-play-fill" style="color:var(--success);"></i></button>':'')+
+                    (run?'<button class="btn-sm" style="padding:3px 8px;font-size:11px;margin-right:3px;" title="Detener" onclick="serviceAction(\''+escHtml(s.name)+'\',\'stop\')"><i class="bi bi-stop-fill" style="color:var(--danger);"></i></button>':'')+
+                    '<button class="btn-sm" style="padding:3px 8px;font-size:11px;" title="Reiniciar" onclick="serviceAction(\''+escHtml(s.name)+'\',\'restart\')"><i class="bi bi-arrow-repeat"></i></button>'+
+                    '</td></tr>';
+            }).join('')+'</tbody></table>';
+    } else if(tab==='tasks'){
+        info.textContent=list2.length+' tareas';
+        if(!list2.length){ content.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);">Sin tareas encontradas</div>'; return; }
+        var stateColor={'Ready':'var(--success)','Running':'var(--primary)','Disabled':'var(--muted)','Queued':'var(--warning)'};
+        content.innerHTML='<table class="tools-table"><thead><tr><th>Tarea</th><th>Estado</th><th>Última ejecución</th><th>Próxima</th><th></th></tr></thead><tbody>'+
+            list2.map(function(t){
+                var sc=stateColor[t.state]||'var(--muted)';
+                var badge='<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:'+sc+'22;color:'+sc+';font-weight:700;">'+escHtml(t.state||'')+'</span>';
+                var runBtn=t.state!=='Disabled'?'<button class="btn-sm" style="padding:3px 8px;font-size:11px;" title="Ejecutar ahora" onclick="taskRun(\''+escHtml(t.name)+'\')"><i class="bi bi-play-fill" style="color:var(--success);"></i></button>':'';
+                return '<tr><td><div style="font-weight:600;font-size:12.5px;">'+escHtml(t.name||'')+'</div>'+
+                    '<div style="font-size:10px;color:var(--muted);font-family:monospace;">'+escHtml(t.path||'')+'</div></td>'+
+                    '<td>'+badge+'</td>'+
+                    '<td style="font-size:11px;color:var(--muted);white-space:nowrap;">'+escHtml(t.lastRun||'—')+'</td>'+
+                    '<td style="font-size:11px;color:var(--muted);white-space:nowrap;">'+escHtml(t.nextRun||'—')+'</td>'+
+                    '<td style="text-align:right;">'+runBtn+'</td></tr>';
+            }).join('')+'</tbody></table>';
+    } else if(tab==='users'){
+        info.textContent=list2.length+' usuarios';
+        if(!list2.length){ content.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);">Sin usuarios encontrados</div>'; return; }
+        content.innerHTML='<table class="tools-table"><thead><tr><th>Usuario</th><th>Estado</th><th>Último inicio</th><th></th></tr></thead><tbody>'+
+            list2.map(function(u){
+                var ec=u.enabled?'var(--success)':'var(--muted)';
+                var badge='<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:'+ec+'22;color:'+ec+';font-weight:700;">'+(u.enabled?'Habilitado':'Deshabilitado')+'</span>';
+                var action=u.enabled?'disable':'enable';
+                var actionLbl=u.enabled?'Deshabilitar':'Habilitar';
+                var actionColor=u.enabled?'var(--danger)':'var(--success)';
+                return '<tr><td><div style="font-weight:600;font-size:12.5px;">'+escHtml(u.name||'')+'</div>'+
+                    (u.full?'<div style="font-size:10px;color:var(--muted);">'+escHtml(u.full)+'</div>':'')+
+                    (u.desc?'<div style="font-size:10px;color:var(--muted);">'+escHtml(u.desc)+'</div>':'')+
+                    '</td><td>'+badge+'</td>'+
+                    '<td style="font-size:11px;color:var(--muted);white-space:nowrap;">'+escHtml(u.lastLogon||'—')+'</td>'+
+                    '<td style="text-align:right;"><button class="btn-sm" style="padding:3px 8px;font-size:11px;color:'+actionColor+';border-color:'+actionColor+'44;" onclick="userAction(\''+escHtml(u.name)+'\',\''+action+'\')">'+actionLbl+'</button></td></tr>';
+            }).join('')+'</tbody></table>';
+    } else if(tab==='net'){
+        var net=data;
+        if(!net||net.error){ content.innerHTML='<div style="text-align:center;padding:40px;color:var(--danger);">'+(net&&net.error?escHtml(net.error):'Sin datos')+'</div>'; return; }
+        var ips=Array.isArray(net.ips)?net.ips:[];
+        var gws=Array.isArray(net.gateways)?net.gateways:[];
+        var dnss=Array.isArray(net.dns)?net.dns:[];
+        var ads=Array.isArray(net.adapters)?net.adapters:[];
+        var rows=ips.map(function(ip){
+            var gw=(gws.find(function(g){return g.iface===ip.iface;})||{}).gw||'—';
+            var dns=(dnss.find(function(d){return d.iface===ip.iface;})||{}).servers||'—';
+            var ad=(ads.find(function(a){return a.name===ip.iface;})||{});
+            return '<tr>'+
+                '<td style="font-weight:600;">'+escHtml(ip.iface||'')+'</td>'+
+                '<td style="font-family:monospace;font-size:12px;">'+escHtml(ip.ip||'')+'<span style="color:var(--muted);">/'+ip.prefix+'</span></td>'+
+                '<td style="font-family:monospace;font-size:12px;">'+escHtml(gw)+'</td>'+
+                '<td style="font-size:11px;color:var(--muted);">'+escHtml(dns)+'</td>'+
+                '<td style="font-size:11px;color:var(--muted);">'+escHtml(ad.mac||'')+'</td>'+
+                '<td style="font-size:11px;color:var(--muted);">'+escHtml(ad.speed||'')+'</td></tr>';
+        });
+        info.textContent=ips.length+' interfaz(ces)';
+        content.innerHTML='<table class="tools-table"><thead><tr><th>Interfaz</th><th>IP</th><th>Gateway</th><th>DNS</th><th>MAC</th><th>Velocidad</th></tr></thead><tbody>'+(rows.length?rows.join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);">Sin interfaces activas</td></tr>')+'</tbody></table>';
+    } else {
+        info.textContent=list2.length+' aplicaciones';
+        if(!list2.length){ content.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);">Sin software encontrado</div>'; return; }
+        content.innerHTML='<table class="tools-table"><thead><tr><th>Aplicación</th><th>Versión</th><th>Publisher</th><th>Fecha</th></tr></thead><tbody>'+
+            list2.map(function(a){
+                return '<tr><td style="font-weight:600;">'+escHtml(a.name||'')+'</td>'+
+                    '<td style="font-size:11px;font-family:monospace;color:var(--muted);">'+escHtml(a.version||'—')+'</td>'+
+                    '<td style="font-size:11px;color:var(--muted);">'+escHtml(a.publisher||'—')+'</td>'+
+                    '<td style="font-size:11px;color:var(--muted);">'+escHtml(a.date||'—')+'</td></tr>';
+            }).join('')+'</tbody></table>';
+    }
+}
+
+function killProcess(pid, name){
+    if(!confirm('¿Terminar proceso "'+name+'" (PID '+pid+')?')) return;
+    fetch('/api/rmm/device/process/kill',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeId:_toolsNodeId,pid:pid})})
+    .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ _toolsData['proc']=null; toolsLoad('proc'); termLine('t-ok','✔ Proceso '+name+' (PID '+pid+') terminado'); }
+        else alert('Error: '+(d.error||'desconocido'));
+    }).catch(function(e){ alert('Error: '+e.message); });
+}
+
+function serviceAction(name, action){
+    var labels={start:'iniciado',stop:'detenido',restart:'reiniciado'};
+    fetch('/api/rmm/device/service/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeId:_toolsNodeId,name:name,action:action})})
+    .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ termLine('t-ok','✔ Servicio '+name+' '+labels[action]); setTimeout(function(){ _toolsData['svc']=null; toolsLoad('svc'); },1500); }
+        else alert('Error: '+(d.error||'desconocido'));
+    }).catch(function(e){ alert('Error: '+e.message); });
+}
+
+function taskRun(name){
+    if(!confirm('¿Ejecutar tarea "'+name+'" ahora?')) return;
+    fetch('/api/rmm/device/task/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeId:_toolsNodeId,name:name})})
+    .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ alert('✔ Tarea "'+name+'" iniciada'); _toolsData['tasks']=null; toolsLoad('tasks'); }
+        else alert('Error: '+(d.error||'desconocido'));
+    }).catch(function(e){ alert('Error: '+e.message); });
+}
+
+function userAction(name, action){
+    var lbl=action==='enable'?'habilitar':'deshabilitar';
+    if(!confirm('¿'+lbl[0].toUpperCase()+lbl.slice(1)+' usuario "'+name+'"?')) return;
+    fetch('/api/rmm/device/user/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeId:_toolsNodeId,name:name,action:action})})
+    .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ _toolsData['users']=null; toolsLoad('users'); }
+        else alert('Error: '+(d.error||'desconocido'));
+    }).catch(function(e){ alert('Error: '+e.message); });
+}
+
+function ctxOpenTerminal(){
+    hideCtxMenu();
+    if(!_ctxNodeId) return;
+    fetch('/api/rmm/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeId:_ctxNodeId,viewmode:1})})
+    .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok && d.url) window.open(d.url,'_blank','noopener,noreferrer');
+        else alert('Error al abrir terminal: '+(d.error||'desconocido'));
+    }).catch(function(e){ alert('Error: '+e.message); });
+}
+
+// ── Toast notification modal ────────────────────────────────────────────────────
+var _toastNodeId=null, _toastName=null;
+
+function openToastModal(nodeId, name){
+    _toastNodeId=nodeId; _toastName=name;
+    document.getElementById('toastDeviceName').textContent=name;
+    document.getElementById('toastTitle').value='';
+    document.getElementById('toastMessage').value='';
+    document.getElementById('toastModal').classList.add('show');
+    setTimeout(function(){ document.getElementById('toastMessage').focus(); },120);
+}
+
+function closeToastModal(){ document.getElementById('toastModal').classList.remove('show'); _toastNodeId=null; _toastName=null; }
+
+function confirmToast(){
+    var msg   = document.getElementById('toastMessage').value.trim();
+    var title = document.getElementById('toastTitle').value.trim()||'Aviso del administrador';
+    if(!msg){ alert('El mensaje no puede estar vacío'); return; }
+    if(!_toastNodeId) return;
+    var name=_toastName;
+    fetch('/api/rmm/device/toast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeId:_toastNodeId,title:title,message:msg})})
+    .then(function(r){ return r.json(); }).then(function(d){
+        closeToastModal();
+        if(d.ok) termLine('t-ok','✔ Notificación enviada a '+name);
+        else alert('Error: '+(d.error||'desconocido'));
+    }).catch(function(e){ alert('Error de red: '+e.message); });
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', function(e){
+    if(!e.target.closest('#devicePickerWrap')) hideDeviceDropdown();
+    if(!e.target.closest('#colModal') && !e.target.closest('[onclick*="openAddCollection"]')) {
+        // managed by show/hide
+    }
+});
+
+// ── Grupos multi-tenant ────────────────────────────────────────────────────────
+var _groupsMeshes  = [];
+var _groupsTenants = [];
+var _groupsList    = [];
+
+function openGroupsModal() {
+    document.getElementById('groupsModal').style.display = 'flex';
+    Promise.all([
+        fetch('/api/rmm/meshes').then(r => r.json()),
+        fetch('/api/rmm/tenant-groups').then(r => r.json()),
+        fetch('/api/admin/tenants').then(r => r.json()).catch(() => ({ ok: false, data: [] })),
+    ]).then(function(results) {
+        // Meshes
+        _groupsMeshes = results[0].ok ? (results[0].meshes || []) : [];
+        var meshSel = document.getElementById('grpMeshSel');
+        meshSel.innerHTML = '<option value="">Seleccionar grupo…</option>'
+            + _groupsMeshes.map(function(m) {
+                return '<option value="' + escHtml(m.meshId) + '">' + escHtml(m.meshId.slice(0,20)) + ' (' + m.deviceCount + ' dispositivos)</option>';
+            }).join('');
+
+        // Grupos asignados
+        _groupsList = results[1].ok ? (results[1].groups || []) : [];
+
+        // Tenants — intentar vía /api/admin/tenants primero, luego fallback
+        var tenantData = results[2];
+        _groupsTenants = Array.isArray(tenantData?.data) ? tenantData.data
+                       : Array.isArray(tenantData?.tenants) ? tenantData.tenants : [];
+        var tenantSel = document.getElementById('grpTenantSel');
+        tenantSel.innerHTML = '<option value="">Seleccionar tenant…</option>'
+            + _groupsTenants.map(function(t) {
+                return '<option value="' + t.id + '">' + escHtml(t.name || t.slug || String(t.id)) + '</option>';
+            }).join('');
+
+        renderGroupsTable();
+    }).catch(function(e) {
+        document.getElementById('grpTableBody').innerHTML =
+            '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger);">Error: ' + e.message + '</td></tr>';
+    });
+}
+
+function closeGroupsModal() {
+    document.getElementById('groupsModal').style.display = 'none';
+}
+
+function renderGroupsTable() {
+    if (!_groupsList.length) {
+        document.getElementById('grpTableBody').innerHTML =
+            '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">Sin asignaciones. Agrega grupos para segmentar por tenant.</td></tr>';
+        return;
+    }
+    // Enriquecer con deviceCount desde _groupsMeshes
+    var meshMap = {};
+    _groupsMeshes.forEach(function(m) { meshMap[m.meshId] = m.deviceCount; });
+
+    document.getElementById('grpTableBody').innerHTML = _groupsList.map(function(g) {
+        var devCount = meshMap[g.mesh_id] !== undefined ? meshMap[g.mesh_id] + ' dispositivos' : '—';
+        var tenantName = g.tenant_name || ('Tenant #' + g.tenant_id);
+        return '<tr>'
+            + '<td style="padding:10px 14px;font-size:13px;font-weight:600;">' + escHtml(tenantName) + '</td>'
+            + '<td style="padding:10px 14px;font-size:12px;font-family:monospace;color:var(--primary);">' + escHtml(g.mesh_name || g.mesh_id) + '</td>'
+            + '<td style="padding:10px 14px;font-size:12px;color:var(--muted);">' + devCount + '</td>'
+            + '<td style="padding:10px 14px;text-align:right;"><button onclick="removeTenantGroup(' + g.id + ')" style="background:var(--danger-dim);color:var(--danger);border:none;border-radius:7px;padding:4px 12px;cursor:pointer;font-size:12px;font-weight:600;"><i class="bi bi-trash"></i></button></td>'
+            + '</tr>';
+    }).join('');
+}
+
+function addTenantGroup() {
+    var tenantId = document.getElementById('grpTenantSel').value;
+    var meshId   = document.getElementById('grpMeshSel').value;
+    if (!tenantId || !meshId) { alert('Selecciona tenant y grupo.'); return; }
+    var meshObj  = _groupsMeshes.find(function(m) { return m.meshId === meshId; });
+    fetch('/api/rmm/tenant-groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: parseInt(tenantId), mesh_id: meshId, mesh_name: meshObj ? meshObj.meshId : meshId }),
+    }).then(r => r.json()).then(function(d) {
+        if (!d.ok) { alert('Error: ' + d.error); return; }
+        fetch('/api/rmm/tenant-groups').then(r => r.json()).then(function(r2) {
+            _groupsList = r2.ok ? (r2.groups || []) : [];
+            renderGroupsTable();
+        });
+    });
+}
+
+function removeTenantGroup(id) {
+    if (!confirm('¿Eliminar esta asignación?')) return;
+    fetch('/api/rmm/tenant-groups/' + id, { method: 'DELETE' })
+        .then(r => r.json()).then(function(d) {
+            if (!d.ok) { alert('Error: ' + d.error); return; }
+            _groupsList = _groupsList.filter(function(g) { return g.id !== id; });
+            renderGroupsTable();
+        });
+}
+</script>
+</body>
+</html>

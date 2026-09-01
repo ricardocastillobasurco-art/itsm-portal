@@ -1,0 +1,38 @@
+<div id="tabGarantias" class="corp-tabpanel" style="display:none;">
+  <div style="background:linear-gradient(135deg,#d1fae5,#ecfdf5);border:1px solid #a7f3d0;border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+    <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#065f46,#059669);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">
+      <i class="bi bi-patch-check-fill" style="color:#fff;"></i>
+    </div>
+    <div>
+      <div style="font-size:15px;font-weight:800;color:#064e3b;">Aprobaciones de Garantías</div>
+      <div style="font-size:13px;color:#065f46;margin-top:2px;">Revisa, aprueba o rechaza las solicitudes de garantía técnica y reportes de pérdida/robo desde el portal de autogestión.</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;"><i class="bi bi-info-circle"></i> Los reportes de <strong>pérdida/robo</strong> se distinguen con etiqueta roja.</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+    <div style="font-size:17px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+      <i class="bi bi-patch-check-fill" style="color:#059669"></i> Solicitudes de Garantía
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="garReqFilterStatus" onchange="loadGarantiaRequests()" style="font-size:12px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:7px 10px;">
+        <option value="">Todas</option>
+        <option value="pendiente">Pendientes</option>
+        <option value="aprobado">Aprobadas</option>
+        <option value="rechazado">Rechazadas</option>
+      </select>
+      <select id="garReqFilterTipo" onchange="loadGarantiaRequests()" style="font-size:12px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--text-main);padding:7px 10px;">
+        <option value="">Todos los tipos</option>
+        <option value="tecnica">Garantía técnica</option>
+        <option value="robo">Pérdida / Robo</option>
+      </select>
+      <button onclick="loadGarantiaRequests()" class="btn-jira" style="font-size:12px;padding:6px 14px;"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+    </div>
+  </div>
+  <div class="card-panel" style="padding:0;overflow:hidden;">
+    <div id="garReqList">
+      <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">
+        <i class="bi bi-hourglass-split" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4;"></i>Cargando solicitudes...
+      </div>
+    </div>
+  </div>
+</div>

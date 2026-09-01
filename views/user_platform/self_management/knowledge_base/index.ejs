@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base de Conocimiento</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+:root,[data-theme="light"]{
+  --bg:#f0f4f8;--card:#fff;--hdr:#f8fafc;--border:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;--primary:#3b82f6;--success:#10b981;
+  --warning:#f59e0b;--danger:#ef4444;--purple:#8b5cf6;
+  --hover:#f1f5f9;--sh-sm:0 1px 3px rgba(0,0,0,.06);--sh-md:0 4px 12px rgba(0,0,0,.08);
+}
+[data-theme="dark"]{
+  --bg:#0b1120;--card:#131f35;--hdr:#0f1c2f;--border:#1e3050;
+  --text:#e2e8f0;--muted:#94a3b8;--primary:#60a5fa;--success:#34d399;
+  --warning:#fbbf24;--danger:#f87171;--purple:#a78bfa;--hover:#1a2d4a;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',-apple-system,sans-serif;}
+.pg{max-width:1700px;margin:0 auto;padding:24px 20px;}
+
+/* HEADER */
+.page-hdr{display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+.page-hdr-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:var(--sh-md);}
+.page-hdr h1{font-size:22px;font-weight:800;margin:0;}
+.page-hdr p{margin:3px 0 0;font-size:13px;color:var(--muted);}
+.page-hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.user-chip{background:var(--hover);border:1px solid var(--border);border-radius:20px;padding:5px 12px 5px 8px;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text);}
+.user-chip-av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;}
+
+/* TABS */
+.kb-tabs{display:flex;gap:6px;margin-bottom:20px;border-bottom:2px solid var(--border);padding-bottom:0;}
+.kb-tab{padding:10px 20px;font-size:13px;font-weight:700;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:7px;}
+.kb-tab:hover{color:var(--text);background:var(--hover);}
+.kb-tab.active{color:var(--primary);border-bottom-color:var(--primary);background:transparent;}
+
+/* SEARCH HERO */
+.search-hero{background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:16px;padding:28px 32px;text-align:center;margin-bottom:20px;color:#fff;}
+.search-hero h2{font-size:22px;font-weight:800;margin-bottom:6px;}
+.search-hero p{font-size:13px;opacity:.85;margin-bottom:18px;}
+.search-box{display:flex;max-width:560px;margin:0 auto;gap:0;}
+.search-box input{flex:1;border:none;border-radius:10px 0 0 10px;padding:12px 18px;font-size:14px;outline:none;color:#1e293b;}
+.search-box button{background:#fff;color:var(--primary);border:none;border-radius:0 10px 10px 0;padding:12px 20px;font-size:16px;cursor:pointer;font-weight:700;}
+.search-not-found-bar{margin-top:14px;font-size:13px;opacity:.9;}
+.search-not-found-bar button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer;margin-left:8px;}
+.search-not-found-bar button:hover{background:rgba(255,255,255,.35);}
+
+/* SEARCH RESULTS */
+.search-results{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px;display:none;}
+.search-result-item{padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+.search-result-item:last-child{border-bottom:none;}
+.search-result-item:hover{background:var(--hover);}
+.search-result-item .sr-title{font-weight:700;margin-bottom:3px;}
+.search-result-item .sr-excerpt{font-size:12px;color:var(--muted);}
+
+/* LAYOUT ARTÍCULOS */
+.three-col{display:grid;grid-template-columns:260px 1fr 300px;gap:16px;}
+@media(max-width:1200px){.three-col{grid-template-columns:1fr 1fr;}}
+@media(max-width:800px){.three-col{grid-template-columns:1fr;}}
+
+/* CARDS */
+.card-ui{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--sh-sm);overflow:hidden;margin-bottom:16px;}
+.card-head{padding:13px 18px;background:var(--hdr);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-head .title{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+.cat-item{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;font-size:13px;font-weight:600;}
+.cat-item:last-child{border-bottom:none;}
+.cat-item:hover,.cat-item.active{background:var(--hover);}
+.cat-item.active{color:var(--primary);border-left:3px solid var(--primary);}
+.cat-icon{font-size:16px;width:24px;text-align:center;}
+.art-item{padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+.art-item:last-child{border-bottom:none;}
+.art-item:hover{background:var(--hover);}
+.art-title{font-weight:700;font-size:14px;margin-bottom:4px;}
+.art-excerpt{font-size:12px;color:var(--muted);line-height:1.5;}
+.art-meta{display:flex;gap:10px;align-items:center;margin-top:6px;font-size:11px;color:var(--muted);}
+.pop-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;}
+.pop-item:last-child{border-bottom:none;}
+.pop-item:hover{background:var(--hover);}
+.pop-rank{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+
+/* ARTÍCULO DETALLE */
+.article-view{display:none;}
+.article-view.open{display:block;}
+.article-content{padding:24px 28px;line-height:1.8;font-size:14px;}
+.article-content h2,.article-content h3{font-weight:700;margin:20px 0 10px;}
+.article-content pre{background:var(--hdr);border-radius:8px;padding:12px;overflow:auto;font-size:12px;}
+.helpful-bar{padding:16px 28px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--hdr);}
+
+/* BOTONES */
+.btn-sm{padding:6px 14px;font-size:12px;font-weight:600;border-radius:8px;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{opacity:.88;}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.btn-outline:hover{background:var(--hover);}
+.btn-success{background:var(--success);color:#fff;}
+.btn-warning{background:var(--warning);color:#fff;}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-purple{background:var(--purple);color:#fff;}
+
+/* FORMULARIOS */
+.form-ctrl{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;background:var(--card);color:var(--text);outline:none;}
+.form-ctrl:focus{border-color:var(--primary);}
+.form-group{margin-bottom:14px;}
+.form-lbl{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px;display:block;}
+
+/* PROCEDIMIENTOS */
+.proc-cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.proc-cat-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;transition:all .2s;}
+.proc-cat-btn:hover,.proc-cat-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.proc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.proc-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--sh-sm);transition:box-shadow .2s;display:flex;flex-direction:column;gap:10px;}
+.proc-card:hover{box-shadow:var(--sh-md);}
+.proc-card-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.proc-card-title{font-size:15px;font-weight:800;color:var(--text);margin:0;}
+.proc-card-desc{font-size:12px;color:var(--muted);line-height:1.5;flex:1;}
+.proc-card-meta{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--muted);}
+.proc-type-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;}
+.proc-type-pdf{background:#fee2e2;color:#dc2626;}
+.proc-type-image{background:#d1fae5;color:#059669;}
+.proc-type-ppt{background:#fef3c7;color:#d97706;}
+.proc-type-text{background:#dbeafe;color:#1d4ed8;}
+
+/* SOLICITUDES TABLA */
+.req-table{width:100%;border-collapse:collapse;font-size:13px;}
+.req-table th{background:var(--hdr);padding:10px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);text-align:left;}
+.req-table td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.req-table tr:hover td{background:var(--hover);}
+.status-badge{padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;}
+.status-pendiente{background:#fef3c7;color:#92400e;}
+.status-en_progreso{background:#dbeafe;color:#1e40af;}
+.status-resuelto{background:#d1fae5;color:#065f46;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal-box{background:var(--card);border-radius:20px;width:720px;max-width:95vw;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.25);transform:translateY(20px);transition:transform .2s;}
+.modal-overlay.open .modal-box{transform:translateY(0);}
+.modal-hdr{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-hdr h3{margin:0;font-size:16px;font-weight:800;}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1;}
+.modal-ftr{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+
+/* VISOR PROCEDIMIENTO */
+.proc-viewer-embed{width:100%;height:500px;border:none;border-radius:8px;background:#000;}
+.proc-viewer-img{max-width:100%;border-radius:8px;}
+.proc-viewer-text{line-height:1.8;font-size:14px;}
+.proc-viewer-text h2,.proc-viewer-text h3{font-weight:700;margin:16px 0 8px;}
+
+/* NO RESULTS ADMIN */
+.no-res-item{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px;}
+.no-res-item:last-child{border-bottom:none;}
+
+.theme-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;}
+.toggle-track{width:38px;height:22px;border-radius:11px;background:var(--border);position:relative;transition:background .3s;flex-shrink:0;}
+[data-theme="dark"] .toggle-track{background:var(--primary);}
+.toggle-knob{width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 4px rgba(0,0,0,.3);}
+[data-theme="dark"] .toggle-knob{transform:translateX(16px);}
+.toggle-label{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;}
+.empty-state{text-align:center;padding:32px 20px;color:var(--muted);}
+.section-tab{display:none;}
+.section-tab.active{display:block;}
+
+/* LEARNING */
+.learn-cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.learn-cat-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;transition:all .2s;}
+.learn-cat-btn:hover,.learn-cat-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.learn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.learn-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--sh-sm);transition:box-shadow .2s;display:flex;flex-direction:column;}
+.learn-card:hover{box-shadow:var(--sh-md);}
+.learn-card-cover{height:96px;display:flex;align-items:center;justify-content:center;font-size:38px;}
+.learn-card-body{padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:6px;}
+.learn-card-title{font-size:14px;font-weight:800;color:var(--text);line-height:1.4;}
+.learn-card-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:var(--muted);align-items:center;}
+.learn-cat-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:8px;font-size:10px;font-weight:700;}
+.learn-card-footer{padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+
+/* APORTES DE LA COMUNIDAD */
+.contrib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;}
+.contrib-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--sh-sm);transition:box-shadow .2s;display:flex;flex-direction:column;gap:10px;}
+.contrib-card:hover{box-shadow:var(--sh-md);}
+.contrib-cat-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:10px;font-size:10px;font-weight:700;background:#dbeafe;color:#1d4ed8;}
+.contrib-author{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;}
+.star-row{display:flex;align-items:center;gap:3px;margin-top:4px;}
+.star{font-size:17px;cursor:pointer;transition:color .1s;line-height:1;}
+.contrib-pending-row{background:var(--card);border:1.5px solid var(--border);border-left:4px solid var(--warning);border-radius:10px;padding:14px 16px;display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<style>
+.kb-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;background:var(--card,#fff);border-bottom:1px solid var(--border,#e2e8f0);position:sticky;top:0;z-index:999;}
+.kb-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted,#64748b);background:var(--hover,#f0f4f8);border:1px solid var(--border,#e2e8f0);border-radius:20px;padding:5px 12px;text-decoration:none;transition:color .2s;}
+.kb-back:hover{color:var(--primary,#3b82f6);}
+.kb-bc{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted,#64748b);}
+.kb-bc a{color:var(--muted,#64748b);text-decoration:none;font-weight:500;transition:color .2s;}
+.kb-bc a:hover{color:var(--primary,#3b82f6);}
+.kb-bc .sep{opacity:.4;}
+.kb-bc .current{color:var(--text,#1e293b);font-weight:700;}
+</style>
+<div class="kb-topbar">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="/home" class="kb-back"><i class="bi bi-arrow-left"></i> Inicio</a>
+    <div class="kb-bc">
+      <a href="/home"><i class="bi bi-house-fill"></i> Inicio</a>
+      <span class="sep">/</span>
+      <span class="current"><i class="bi bi-book-half"></i> Base de Conocimiento</span>
+    </div>
+  </div>
+  <button onclick="toggleTheme()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:8px;">
+    <div id="themeTrack" style="width:32px;height:18px;border-radius:9px;background:#cbd5e1;position:relative;transition:background .3s;">
+      <div id="themeKnob" style="width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .3s;"></div>
+    </div>
+    <i id="toggleIcon" class="bi bi-moon-stars-fill" style="font-size:14px;color:var(--muted,#64748b);"></i>
+    <span id="toggleLabel" style="font-size:12px;color:var(--muted,#64748b);font-weight:500;">Oscuro</span>
+  </button>
+</div>
+<div class="pg" style="padding-top:16px;">
+
+  <!-- HEADER -->
+  <div class="page-hdr">
+    <div class="page-hdr-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2);">
+      <i class="bi bi-book-half" style="color:#fff;"></i>
+    </div>
+    <div>
+      <h1>Base de Conocimiento</h1>
+      <p>Artículos, guías, procedimientos y soluciones del equipo de soporte</p>
+    </div>
+    <div class="page-hdr-right">
+      <!-- Botón solo admin -->
+      <% if (user && ['administrador','especialista'].includes(user.role)) { %>
+      <button class="btn-sm btn-primary" onclick="openModal('modalArt')">
+        <i class="bi bi-plus-lg"></i> Nuevo Artículo
+      </button>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- HERO BUSCADOR -->
+  <div class="search-hero">
+    <h2><i class="bi bi-search"></i> ¿Qué necesitas saber?</h2>
+    <p>Busca artículos técnicos, guías y procedimientos de gestión</p>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Buscar..." oninput="debounceSearch()">
+      <button onclick="doSearch()"><i class="bi bi-search"></i></button>
+    </div>
+    <!-- Botón solicitar procedimiento (solo usuarios no admin) -->
+    <% if (!['administrador','especialista'].includes(user?.role)) { %>
+    <div class="search-not-found-bar">
+      ¿No encontraste lo que buscabas?
+      <button onclick="openModal('modalRequest')"><i class="bi bi-send"></i> Solicitar procedimiento</button>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- RESULTADOS DE BÚSQUEDA -->
+  <div class="search-results" id="searchResults"></div>
+
+  <!-- ARTÍCULO DETALLE -->
+  <div class="article-view card-ui" id="articleView">
+    <div class="card-head" id="articleHead">
+      <span class="title" id="articleTitle">Artículo</span>
+      <button class="btn-sm btn-outline" onclick="closeArticle()"><i class="bi bi-arrow-left"></i> Volver</button>
+    </div>
+    <div class="article-content" id="articleContent"></div>
+    <div class="helpful-bar">
+      <span style="font-size:13px;color:var(--muted);">¿Fue útil este artículo?</span>
+      <button class="btn-sm btn-success" onclick="vote('yes')"><i class="bi bi-hand-thumbs-up"></i> Sí</button>
+      <button class="btn-sm btn-outline" onclick="vote('no')"><i class="bi bi-hand-thumbs-down"></i> No</button>
+    </div>
+  </div>
+
+  <!-- TABS PRINCIPALES -->
+  <div class="kb-tabs" id="mainTabs">
+    <button class="kb-tab active" id="tabBtnArticulos" onclick="switchTab('articulos')">
+      <i class="bi bi-file-text"></i> Artículos Técnicos
+    </button>
+    <button class="kb-tab" id="tabBtnProc" onclick="switchTab('procedimientos')">
+      <i class="bi bi-diagram-3"></i> Gestión de Procedimientos
+    </button>
+    <button class="kb-tab" id="tabBtnLearning" onclick="switchTab('learning')">
+      <i class="bi bi-mortarboard-fill"></i> Learning
+    </button>
+    <button class="kb-tab" id="tabBtnAportes" onclick="switchTab('aportes')">
+      <i class="bi bi-people-fill"></i> Aportes de la Comunidad
+      <span id="kbAportesBadge" style="display:none;background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;"></span>
+    </button>
+    <% if (['administrador','especialista'].includes(user?.role)) { %>
+    <button class="kb-tab" id="tabBtnSolicitudes" onclick="switchTab('solicitudes')">
+      <i class="bi bi-inbox"></i> Solicitudes <span id="solBadge" style="display:none;background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;"></span>
+    </button>
+    <% } %>
+  </div>
+
+  <!-- ─── TAB: ARTÍCULOS ─────────────────────────────────────────────────── -->
+  <div class="section-tab active" id="tabArticulos">
+    <div class="three-col" id="mainLayout">
+      <!-- Categorías -->
+      <div class="card-ui">
+        <div class="card-head"><span class="title"><i class="bi bi-grid"></i> Categorías</span></div>
+        <div id="catList"><div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">Cargando...</div></div>
+      </div>
+
+      <!-- Lista artículos -->
+      <div class="card-ui">
+        <div class="card-head">
+          <span class="title" id="artListTitle"><i class="bi bi-file-text"></i> Artículos</span>
+          <span id="artCount" style="font-size:12px;color:var(--muted);">—</span>
+          <button id="artRefreshBtn" onclick="refreshArticles()" title="Actualizar" style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;border:1.5px solid var(--border,#e2e8f0);background:transparent;color:var(--muted,#64748b);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;">
+            <i class="bi bi-arrow-clockwise" id="artRefreshIcon"></i> Actualizar
+          </button>
+        </div>
+        <div id="artList"><div class="empty-state"><i class="bi bi-arrow-clockwise"></i> Cargando...</div></div>
+      </div>
+
+      <!-- Panel derecho -->
+      <div>
+        <div class="card-ui">
+          <div class="card-head"><span class="title"><i class="bi bi-fire"></i> Más Populares</span></div>
+          <div id="popList"><div class="empty-state"><i class="bi bi-arrow-clockwise"></i></div></div>
+        </div>
+
+        <!-- Búsquedas sin resultado — SOLO ADMIN -->
+        <% if (user && ['administrador','especialista'].includes(user.role)) { %>
+        <div class="card-ui">
+          <div class="card-head"><span class="title"><i class="bi bi-question-circle"></i> Búsquedas sin respuesta</span></div>
+          <div id="noResultsList"><div class="empty-state" style="padding:20px;"><i class="bi bi-arrow-clockwise"></i></div></div>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TAB: PROCEDIMIENTOS ───────────────────────────────────────────── -->
+  <div class="section-tab" id="tabProcedimientos">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div class="proc-cats" id="procCatFilter">
+        <button class="proc-cat-btn active" onclick="filterProcs('')">Todos</button>
+        <button class="proc-cat-btn" onclick="filterProcs('acceso_seguridad')"><i class="bi bi-shield-lock"></i> Acceso y Seguridad</button>
+        <button class="proc-cat-btn" onclick="filterProcs('microsoft365')"><i class="bi bi-microsoft"></i> Microsoft 365</button>
+        <button class="proc-cat-btn" onclick="filterProcs('onboarding')"><i class="bi bi-person-plus"></i> Onboarding / RRHH</button>
+        <button class="proc-cat-btn" onclick="filterProcs('equipos')"><i class="bi bi-laptop"></i> Equipos</button>
+        <button class="proc-cat-btn" onclick="filterProcs('general')"><i class="bi bi-folder"></i> General</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="procRefreshBtn" onclick="refreshProcedures()" title="Actualizar" style="display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:20px;border:1.5px solid var(--border,#e2e8f0);background:var(--bg-card,#fff);color:var(--muted,#64748b);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+          <i class="bi bi-arrow-clockwise" id="procRefreshIcon"></i> Actualizar
+        </button>
+        <% if (!['administrador','especialista'].includes(user?.role)) { %>
+        <button class="btn-sm btn-purple" onclick="openModal('modalRequest')">
+          <i class="bi bi-send"></i> Solicitar procedimiento
+        </button>
+        <% } else { %>
+        <button class="btn-sm btn-primary" onclick="openModal('modalProc')">
+          <i class="bi bi-plus-lg"></i> Agregar procedimiento
+        </button>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Procedimientos predefinidos destacados (solo si no hay filtro activo o es general) -->
+    <div id="procDefaultCards" style="margin-bottom:20px;"></div>
+
+    <div class="proc-grid" id="procGrid">
+      <div class="empty-state" style="grid-column:1/-1;padding:40px;"><i class="bi bi-arrow-clockwise" style="font-size:24px;"></i><br>Cargando procedimientos...</div>
+    </div>
+  </div>
+
+  <!-- ─── TAB: LEARNING ────────────────────────────────────────────────── -->
+  <div class="section-tab" id="tabLearning">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div class="learn-cats" id="learnCatFilter">
+        <button class="learn-cat-btn active" onclick="filterLearn('',this)"><i class="bi bi-grid"></i> Todos</button>
+        <button class="learn-cat-btn" onclick="filterLearn('ofimática',this)"><i class="bi bi-microsoft"></i> Ofimática</button>
+        <button class="learn-cat-btn" onclick="filterLearn('seguridad',this)"><i class="bi bi-shield-lock"></i> Seguridad</button>
+        <button class="learn-cat-btn" onclick="filterLearn('redes',this)"><i class="bi bi-diagram-2"></i> Redes</button>
+        <button class="learn-cat-btn" onclick="filterLearn('desarrollo',this)"><i class="bi bi-code-slash"></i> Desarrollo</button>
+        <button class="learn-cat-btn" onclick="filterLearn('itsm',this)"><i class="bi bi-headset"></i> ITSM</button>
+        <button class="learn-cat-btn" onclick="filterLearn('general',this)"><i class="bi bi-book"></i> General</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="learnRefreshBtn" onclick="refreshLearning()" title="Actualizar" style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;border:1.5px solid var(--border,#e2e8f0);background:var(--bg-card,#fff);color:var(--muted,#64748b);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+          <i class="bi bi-arrow-clockwise" id="learnRefreshIcon"></i> Actualizar
+        </button>
+        <button class="btn-sm btn-purple" onclick="openModal('modalLearn')">
+          <i class="bi bi-cloud-upload"></i> Subir recurso
+        </button>
+      </div>
+    </div>
+    <div class="learn-grid" id="learnGrid">
+      <div class="empty-state" style="grid-column:1/-1;padding:40px;">
+        <i class="bi bi-arrow-clockwise" style="font-size:24px;"></i><br>Cargando recursos...
+      </div>
+    </div>
+    <!-- Mis envíos -->
+    <div id="misEnviosSection" style="display:none;margin-top:28px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <i class="bi bi-send-fill" style="color:var(--primary);"></i>
+        <span style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.3px;">MIS ENVÍOS</span>
+        <span style="font-size:11px;color:var(--muted);">— recursos que has subido pendientes de revisión o rechazados</span>
+      </div>
+      <div id="misEnviosGrid" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+  </div>
+
+  <!-- ─── TAB: APORTES DE LA COMUNIDAD ────────────────────────────────── -->
+  <div class="section-tab" id="tabAportes">
+    <!-- Toolbar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;" id="kbContribFilterBar">
+        <button class="learn-cat-btn active" onclick="filterKbContribs('all',this)"><i class="bi bi-grid"></i> Todos</button>
+        <button class="learn-cat-btn" onclick="filterKbContribs('ofimática',this)"><i class="bi bi-microsoft"></i> Ofimática</button>
+        <button class="learn-cat-btn" onclick="filterKbContribs('seguridad',this)"><i class="bi bi-shield-lock"></i> Seguridad</button>
+        <button class="learn-cat-btn" onclick="filterKbContribs('redes',this)"><i class="bi bi-diagram-2"></i> Redes</button>
+        <button class="learn-cat-btn" onclick="filterKbContribs('general',this)"><i class="bi bi-book"></i> General</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="loadKbContribs()" title="Actualizar" style="display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+          <i class="bi bi-arrow-clockwise"></i> Actualizar
+        </button>
+        <button class="btn-sm btn-purple" onclick="openModal('modalContribKb')">
+          <i class="bi bi-lightbulb-fill"></i> Compartir conocimiento
+        </button>
+      </div>
+    </div>
+
+    <!-- Grid de aportes aprobados -->
+    <div class="contrib-grid" id="kbContribGrid">
+      <div class="empty-state" style="grid-column:1/-1;padding:40px;">
+        <i class="bi bi-arrow-clockwise" style="font-size:24px;"></i><br>Cargando aportes...
+      </div>
+    </div>
+
+    <!-- Sección revisión admin -->
+    <% if (['administrador','especialista'].includes(user?.role)) { %>
+    <div id="kbAdminAportesSection" style="margin-top:32px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <i class="bi bi-clipboard2-check-fill" style="color:var(--warning);"></i>
+          <span style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.3px;">REVISIÓN DE APORTES PENDIENTES</span>
+          <span id="kbPendingCount" style="background:var(--danger);color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;display:none;"></span>
+        </div>
+        <button class="btn-sm btn-outline" onclick="loadKbPendingAportes()"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+      </div>
+      <div id="kbPendingWrap">
+        <div class="empty-state" style="padding:24px;"><i class="bi bi-inbox"></i> Sin aportes pendientes</div>
+      </div>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- ─── TAB: SOLICITUDES (solo admin) ─────────────────────────────────── -->
+  <% if (['administrador','especialista'].includes(user?.role)) { %>
+  <div class="section-tab" id="tabSolicitudes">
+    <div class="card-ui">
+      <div class="card-head">
+        <span class="title"><i class="bi bi-inbox"></i> Solicitudes de Procedimientos</span>
+        <button class="btn-sm btn-outline" onclick="loadProcRequests()"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="req-table" id="reqTable">
+          <thead>
+            <tr>
+              <th>#</th><th>Usuario</th><th>Correo</th><th>Solicitud</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="reqTableBody">
+            <tr><td colspan="8" class="empty-state">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+</div><!-- /.pg -->
+
+<!-- ═══════ MODAL: NUEVO ARTÍCULO (admin) ═══════════════════════════════════ -->
+<div class="modal-overlay" id="modalArt">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-file-earmark-plus" style="color:var(--primary)"></i> Nuevo Artículo</h3>
+      <button class="btn-sm btn-outline" onclick="closeModal('modalArt')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-lbl">Categoría</label>
+        <select id="artCatId" class="form-ctrl"><option value="">Sin categoría</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Título *</label>
+        <input type="text" id="artTitle" class="form-ctrl" placeholder="Ej: Cómo restablecer contraseña en Active Directory">
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Tags (separados por coma)</label>
+        <input type="text" id="artTags" class="form-ctrl" placeholder="contraseña, AD, usuario, acceso">
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Contenido * (HTML permitido)</label>
+        <textarea id="artContent" class="form-ctrl" rows="9" placeholder="Redacta el artículo..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Estado</label>
+        <select id="artStatus" class="form-ctrl">
+          <option value="borrador">Borrador</option>
+          <option value="publicado">Publicado</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-sm btn-outline" onclick="closeModal('modalArt')">Cancelar</button>
+      <button class="btn-sm btn-primary" onclick="crearArticulo()"><i class="bi bi-save"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: AGREGAR PROCEDIMIENTO (admin) ═══════════════════════════ -->
+<div class="modal-overlay" id="modalProc">
+  <div class="modal-box" style="width:760px;">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-diagram-3" style="color:var(--purple)"></i> Agregar Procedimiento</h3>
+      <button class="btn-sm btn-outline" onclick="closeModal('modalProc')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-lbl">Título *</label>
+          <input type="text" id="procTitle" class="form-ctrl" placeholder="Ej: Cómo solicitar acceso VPN">
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Categoría</label>
+          <select id="procCategory" class="form-ctrl">
+            <option value="acceso_seguridad">Acceso y Seguridad</option>
+            <option value="microsoft365">Microsoft 365</option>
+            <option value="onboarding">Onboarding / RRHH</option>
+            <option value="equipos">Equipos</option>
+            <option value="general">General</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Descripción breve</label>
+        <input type="text" id="procDesc" class="form-ctrl" placeholder="Describe brevemente el procedimiento">
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Tipo de contenido</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;">
+            <input type="radio" name="procType" value="text" checked onchange="onProcTypeChange(this.value)"> <i class="bi bi-file-text"></i> Texto/HTML
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;">
+            <input type="radio" name="procType" value="pdf" onchange="onProcTypeChange(this.value)"> <i class="bi bi-file-pdf" style="color:#dc2626;"></i> PDF
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;">
+            <input type="radio" name="procType" value="image" onchange="onProcTypeChange(this.value)"> <i class="bi bi-image" style="color:#059669;"></i> Imagen
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;">
+            <input type="radio" name="procType" value="ppt" onchange="onProcTypeChange(this.value)"> <i class="bi bi-file-earmark-ppt" style="color:#d97706;"></i> PPT/PPTX
+          </label>
+        </div>
+      </div>
+      <!-- Contenido texto -->
+      <div id="procTextArea" class="form-group">
+        <label class="form-lbl">Contenido (HTML permitido)</label>
+        <textarea id="procContent" class="form-ctrl" rows="8" placeholder="Redacta el procedimiento paso a paso..."></textarea>
+      </div>
+      <!-- Upload archivo -->
+      <div id="procFileArea" class="form-group" style="display:none;">
+        <label class="form-lbl">Archivo <span id="procFileHint" style="color:var(--muted);font-weight:400;">(PDF, imagen o PPT — máx. 8MB)</span></label>
+        <input type="file" id="procFile" class="form-ctrl" onchange="onProcFileChange(this)" accept="">
+        <div id="procFilePreview" style="margin-top:10px;display:none;"></div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-sm btn-outline" onclick="closeModal('modalProc')">Cancelar</button>
+      <button class="btn-sm btn-purple" onclick="guardarProcedimiento()"><i class="bi bi-save"></i> Guardar procedimiento</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: SOLICITAR PROCEDIMIENTO (usuario) ════════════════════════ -->
+<div class="modal-overlay" id="modalRequest">
+  <div class="modal-box" style="width:500px;">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-send" style="color:var(--purple)"></i> Solicitar un procedimiento</h3>
+      <button class="btn-sm btn-outline" onclick="closeModal('modalRequest')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Describe qué procedimiento necesitas. El equipo de soporte lo creará y te notificará cuando esté disponible.
+      </p>
+      <div class="form-group">
+        <label class="form-lbl">¿Qué procedimiento necesitas? *</label>
+        <input type="text" id="reqQuery" class="form-ctrl" placeholder="Ej: Cómo solicitar acceso a buzón genérico de área">
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Descripción adicional (opcional)</label>
+        <textarea id="reqDesc" class="form-ctrl" rows="4" placeholder="Agrega contexto adicional sobre lo que necesitas..."></textarea>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-sm btn-outline" onclick="closeModal('modalRequest')">Cancelar</button>
+      <button class="btn-sm btn-purple" onclick="enviarSolicitud()"><i class="bi bi-send"></i> Enviar solicitud</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: VER PROCEDIMIENTO ════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalViewProc">
+  <div class="modal-box" style="width:860px;">
+    <div class="modal-hdr">
+      <h3 id="viewProcTitle">Procedimiento</h3>
+      <div style="display:flex;gap:8px;">
+        <span id="viewProcMeta" style="font-size:12px;color:var(--muted);align-self:center;"></span>
+        <button class="btn-sm btn-outline" onclick="closeModal('modalViewProc')">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="viewProcBody" style="min-height:300px;">
+      <div class="empty-state"><i class="bi bi-arrow-clockwise"></i> Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: SUBIR RECURSO DE APRENDIZAJE ══════════════════════════════ -->
+<div class="modal-overlay" id="modalLearn">
+  <div class="modal-box" style="width:580px;">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-mortarboard-fill" style="color:var(--purple)"></i> Subir recurso de aprendizaje</h3>
+      <button class="btn-sm btn-outline" onclick="closeModal('modalLearn')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-lbl">Título *</label>
+          <input type="text" id="learnTitle" class="form-ctrl" placeholder="Ej: Curso de Excel avanzado para el trabajo">
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Categoría</label>
+          <select id="learnCategory" class="form-ctrl">
+            <option value="ofimática">Ofimática</option>
+            <option value="seguridad">Seguridad</option>
+            <option value="redes">Redes</option>
+            <option value="desarrollo">Desarrollo</option>
+            <option value="itsm">ITSM</option>
+            <option value="general">General</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Duración</label>
+          <input type="text" id="learnDuration" class="form-ctrl" placeholder="Ej: 2h 30min">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-lbl">Autor / Instructor</label>
+          <input type="text" id="learnAuthor" class="form-ctrl" placeholder="Nombre del autor o plataforma">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-lbl">Descripción</label>
+          <textarea id="learnDesc" class="form-ctrl" rows="3" placeholder="Describe brevemente el contenido del recurso…"></textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-lbl">Tipo de acceso</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;">
+              <input type="radio" name="learnType" value="link" checked onchange="onLearnTypeChange(this.value)"> <i class="bi bi-link-45deg"></i> URL / Enlace
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;">
+              <input type="radio" name="learnType" value="pdf" onchange="onLearnTypeChange(this.value)"> <i class="bi bi-file-pdf" style="color:#dc2626;"></i> PDF
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;">
+              <input type="radio" name="learnType" value="video" onchange="onLearnTypeChange(this.value)"> <i class="bi bi-play-circle" style="color:#ef4444;"></i> Video
+            </label>
+          </div>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;" id="learnLinkArea">
+          <label class="form-lbl">URL del recurso *</label>
+          <input type="url" id="learnUrl" class="form-ctrl" placeholder="https://…">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;display:none;" id="learnFileArea">
+          <label class="form-lbl">Archivo (PDF — máx. 8MB)</label>
+          <input type="file" id="learnFile" class="form-ctrl" accept="application/pdf" onchange="onLearnFileChange(this)">
+          <div id="learnFilePreview" style="margin-top:8px;display:none;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-sm btn-outline" onclick="closeModal('modalLearn')">Cancelar</button>
+      <button class="btn-sm btn-purple" onclick="guardarLearn()"><i class="bi bi-cloud-upload"></i> Publicar recurso</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: COMPARTIR CONOCIMIENTO KB ═════════════════════════════════ -->
+<div class="modal-overlay" id="modalContribKb">
+  <div class="modal-box" style="width:600px;">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-lightbulb-fill" style="color:var(--warning)"></i> Compartir conocimiento</h3>
+      <button class="btn-sm btn-outline" onclick="closeModal('modalContribKb')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Comparte un recurso, artículo o tip técnico con la comunidad. El equipo lo revisará antes de publicarlo.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-lbl">Título *</label>
+          <input type="text" id="kbContribTitle" class="form-ctrl" placeholder="Ej: Cómo optimizar búsquedas en Active Directory">
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Categoría</label>
+          <select id="kbContribCategory" class="form-ctrl">
+            <option value="ofimática">Ofimática</option>
+            <option value="seguridad">Seguridad</option>
+            <option value="redes">Redes</option>
+            <option value="desarrollo">Desarrollo</option>
+            <option value="itsm">ITSM</option>
+            <option value="general" selected>General</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Tu nombre</label>
+          <input type="text" id="kbContribName" class="form-ctrl" placeholder="Nombre o apodo">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-lbl">Tipo de contenido</label>
+          <div style="display:flex;gap:8px;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;">
+              <input type="radio" name="kbContribType" value="text" checked onchange="onKbContribTypeChange(this.value)"> <i class="bi bi-file-text"></i> Texto
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;">
+              <input type="radio" name="kbContribType" value="link" onchange="onKbContribTypeChange(this.value)"> <i class="bi bi-link-45deg"></i> URL / Enlace
+            </label>
+          </div>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;" id="kbContribTextArea">
+          <label class="form-lbl">Contenido *</label>
+          <textarea id="kbContribBody" class="form-ctrl" rows="7" placeholder="Escribe el contenido de tu aporte..."></textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;display:none;" id="kbContribLinkArea">
+          <label class="form-lbl">URL del recurso *</label>
+          <input type="url" id="kbContribUrl" class="form-ctrl" placeholder="https://...">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-lbl">Descripción breve</label>
+          <input type="text" id="kbContribDesc" class="form-ctrl" placeholder="Resumen de una línea sobre el aporte">
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-sm btn-outline" onclick="closeModal('modalContribKb')">Cancelar</button>
+      <button class="btn-sm btn-purple" id="kbContribSubmitBtn" onclick="sendContribKb(this)"><i class="bi bi-send-fill"></i> Enviar aporte</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: VER APORTE KB ════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalViewKbAporte">
+  <div class="modal-box" style="width:680px;">
+    <div class="modal-hdr">
+      <h3 id="kbAporteViewTitle">Aporte</h3>
+      <button class="btn-sm btn-outline" onclick="closeModal('modalViewKbAporte')">✕</button>
+    </div>
+    <div class="modal-body" id="kbAporteViewBody"></div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: RESPONDER APORTE KB (admin) ══════════════════════════════ -->
+<div class="modal-overlay" id="modalRespKbAporte">
+  <div class="modal-box" style="width:500px;">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-reply-fill" style="color:var(--primary)"></i> Enviar respuesta al aporte</h3>
+      <button class="btn-sm btn-outline" onclick="closeModal('modalRespKbAporte')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="kbRespAporteMeta" style="font-size:13px;color:var(--muted);margin-bottom:14px;"></p>
+      <div class="form-group">
+        <label class="form-lbl">Mensaje al contribuidor</label>
+        <textarea id="kbRespAporteText" class="form-ctrl" rows="5" placeholder="Escribe tu nota..."></textarea>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-sm btn-outline" onclick="closeModal('modalRespKbAporte')">Cancelar</button>
+      <button class="btn-sm btn-primary" id="kbRespAporteBtn" onclick="sendRespKbAporte(this)"><i class="bi bi-send"></i> Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastCont" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;"></div>
+
+<script>
+// ── Datos del usuario desde servidor ──────────────────────────────────────────
+const _user = <%- JSON.stringify({
+  id:       user ? user.id : null,
+  username: user ? (user.username || '') : '',
+  full_name: user ? (user.full_name || user.nombre || user.username || '') : '',
+  role:     user ? (user.role || user.rol || '') : '',
+  email:    user ? (user.email || '') : ''
+}) %>;
+const _isAdmin = <%- JSON.stringify(user && ['administrador','especialista'].includes(user.role || user.rol || '')) %>;
+// Portal autogestion identity passed from server via query params (same pattern as faq.ejs)
+const _reporterEmail = <%- JSON.stringify(reporterEmail || '') %>;
+const _reporterName  = <%- JSON.stringify(reporterName  || '') %>;
+
+// ── Init avatar — prioriza identidad del portal autogestion (como faq.ejs) ────
+(function(){
+  // Priority: 1. server query params, 2. localStorage, 3. JWT user
+  var name  = _reporterName  || localStorage.getItem('portal_user_name')  || '';
+  var email = _reporterEmail || localStorage.getItem('portal_user_email') || '';
+  if (!name) name = email || _user.full_name || _user.username || '?';
+  // Persist to localStorage so chip stays consistent within session
+  if (_reporterName)  localStorage.setItem('portal_user_name',  _reporterName);
+  if (_reporterEmail) localStorage.setItem('portal_user_email', _reporterEmail);
+  var parts = name.trim().split(/\s+/);
+  var ini = parts.length >= 2 ? (parts[0][0]+parts[parts.length-1][0]).toUpperCase() : name.slice(0,2).toUpperCase();
+  const _av = document.getElementById('userAvatar');
+  const _nc = document.getElementById('userNameChip');
+  if (_av) _av.textContent = ini;
+  if (_nc) _nc.textContent = name;
+})();
+
+// ── Variables ─────────────────────────────────────────────────────────────────
+let allCats = [], activeCatId = '', activeArticleId = '', searchTimer = null;
+let _procFileB64 = '', _procFileName = '', _activeProcCat = '';
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+function toast(msg, type='info'){
+  const el = document.createElement('div');
+  el.style.cssText = `background:${type==='success'?'#059669':type==='error'?'#dc2626':'#1d4ed8'};color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.2);max-width:340px;`;
+  el.textContent = msg;
+  document.getElementById('toastCont').appendChild(el);
+  setTimeout(()=>el.remove(), 3500);
+}
+
+// ── Tema ───────────────────────────────────────────────────────────────────────
+function _syncThemeIcon(t){
+  const lbl=document.getElementById('kbToggleLabel');
+  if(lbl) lbl.textContent=t==='dark'?'Claro':'Oscuro';
+  const dark=t==='dark';
+  const icon=document.getElementById('toggleIcon'),label=document.getElementById('toggleLabel'),track=document.getElementById('themeTrack'),knob=document.getElementById('themeKnob');
+  if(icon)icon.className=dark?'bi bi-sun-fill':'bi bi-moon-stars-fill';
+  if(label)label.textContent=dark?'Claro':'Oscuro';
+  if(track)track.style.background=dark?'#3b82f6':'#cbd5e1';
+  if(knob)knob.style.transform=dark?'translateX(15px)':'translateX(0)';
+}
+function toggleTheme(){
+  const h=document.documentElement, t=h.getAttribute('data-theme')==='dark'?'light':'dark';
+  h.setAttribute('data-theme',t); localStorage.setItem('dashboardTheme',t); _syncThemeIcon(t);
+}
+document.addEventListener('DOMContentLoaded',function(){_syncThemeIcon(document.documentElement.getAttribute('data-theme')||'light');});
+
+// ── Modales ───────────────────────────────────────────────────────────────────
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click',function(e){ if(e.target===this) closeModal(this.id); }));
+
+// ── Tabs principales ──────────────────────────────────────────────────────────
+// mapear IDs de tabs
+const _tabSections = {articulos:'tabArticulos',procedimientos:'tabProcedimientos',learning:'tabLearning',aportes:'tabAportes',solicitudes:'tabSolicitudes'};
+const _tabBtns = {articulos:'tabBtnArticulos',procedimientos:'tabBtnProc',learning:'tabBtnLearning',aportes:'tabBtnAportes',solicitudes:'tabBtnSolicitudes'};
+function switchTab(tab){
+  document.querySelectorAll('.section-tab').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.kb-tab').forEach(el=>el.classList.remove('active'));
+  const sec = _tabSections[tab]; if(sec) document.getElementById(sec)?.classList.add('active');
+  const btn = _tabBtns[tab];    if(btn) document.getElementById(btn)?.classList.add('active');
+  if(tab==='solicitudes')    loadProcRequests();
+  if(tab==='procedimientos') loadProcedures(_activeProcCat);
+  if(tab==='learning')       loadLearning(_activeLearnCat);
+  if(tab==='aportes')        loadKbContribs();
+}
+
+// ── Esc ──────────────────────────────────────────────────────────────────────
+function esc(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ═══════════════ ARTÍCULOS ═══════════════════════════════════════════════════
+
+async function init(){
+  await Promise.all([loadCats(), loadArticles(), loadPopular()]);
+  if(_isAdmin){ loadNoResults(); checkKbPendingBadge(); }
+}
+
+async function loadCats(){
+  try {
+    const d = await apiFetch('/api/kb/categories');
+    allCats = d.data||[];
+    const list = document.getElementById('catList');
+    const sel  = document.getElementById('artCatId');
+    if(sel) sel.innerHTML = '<option value="">Sin categoría</option>'+allCats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    list.innerHTML = `<div class="cat-item ${!activeCatId?'active':''}" onclick="selectCat('')"><span class="cat-icon"><i class="bi bi-grid-3x3-gap"></i></span> Todos</div>`+
+      allCats.map(c=>`<div class="cat-item ${activeCatId===c.id?'active':''}" onclick="selectCat('${c.id}')">
+        <span class="cat-icon"><i class="bi bi-${esc(c.icon||'folder')}"></i></span>${esc(c.name)}
+        <span style="margin-left:auto;font-size:11px;color:var(--muted);">${c.articulos?.length||0}</span></div>`).join('');
+  } catch(e){ console.error(e); }
+}
+
+async function loadArticles(catId=''){
+  activeCatId = catId;
+  const params = new URLSearchParams({ status:'publicado', limit:50 });
+  if(catId) params.set('categoryId',catId);
+  try {
+    const d    = await apiFetch(`/api/kb?${params}`);
+    const rows = d.data||[];
+    document.getElementById('artCount').textContent = `${rows.length} artículo${rows.length!==1?'s':''}`;
+    const list = document.getElementById('artList');
+    if(!rows.length){ list.innerHTML='<div class="empty-state"><i class="bi bi-inbox"></i> Sin artículos</div>'; return; }
+    list.innerHTML = rows.map(a=>`<div class="art-item" onclick="openArticle('${a.id}')">
+      <div class="art-title">${esc(a.title)}</div>
+      <div class="art-excerpt">${esc(a.excerpt||'')}</div>
+      <div class="art-meta">
+        <span><i class="bi bi-eye"></i> ${a.views}</span>
+        <span><i class="bi bi-hand-thumbs-up"></i> ${a.helpfulYes||0}</span>
+        ${a.tags?`<span><i class="bi bi-tags"></i> ${esc(a.tags.split(',').slice(0,3).join(', '))}</span>`:''}
+      </div></div>`).join('');
+  } catch(e){ console.error(e); }
+}
+
+function selectCat(id){ loadCats().then(()=>{}); loadArticles(id); }
+
+async function loadPopular(){
+  try {
+    const d    = await apiFetch('/api/kb/popular');
+    const rows = d.data||[];
+    const list = document.getElementById('popList');
+    if(!rows.length){ list.innerHTML='<div class="empty-state">Sin datos</div>'; return; }
+    list.innerHTML = rows.map((a,i)=>`<div class="pop-item" onclick="openArticle('${a.id}')">
+      <div class="pop-rank">${i+1}</div>
+      <div style="flex:1;font-size:13px;font-weight:600;">${esc(a.title)}</div>
+      <span style="font-size:11px;color:var(--muted);">${a.views} vistas</span></div>`).join('');
+  } catch(e){}
+}
+
+async function loadNoResults(){
+  try {
+    const d    = await apiFetch('/api/kb/no-results');
+    const rows = d.data||[];
+    const list = document.getElementById('noResultsList');
+    if(!rows.length){ list.innerHTML='<div class="empty-state" style="padding:16px;">Sin búsquedas sin resultado</div>'; return; }
+    list.innerHTML = rows.slice(0,8).map(r=>`<div class="no-res-item">
+      <span>"${esc(r.query)}"</span>
+      <span style="color:var(--danger);font-weight:700;">${r.searches}x</span></div>`).join('');
+  } catch(e){}
+}
+
+async function openArticle(id){
+  try {
+    const d = await apiFetch(`/api/kb/${id}`);
+    if(!d.success) return toast('Error cargando artículo','error');
+    activeArticleId = id;
+    const a = d.data;
+    document.getElementById('articleTitle').textContent = a.title;
+    document.getElementById('articleContent').innerHTML = a.content +
+      (a.tags?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <strong>Tags:</strong> ${a.tags.split(',').map(t=>`<span style="background:var(--hover);padding:2px 8px;border-radius:12px;font-size:12px;margin-right:4px;">${esc(t.trim())}</span>`).join('')}</div>`:'');
+    document.getElementById('articleView').classList.add('open');
+    document.getElementById('mainTabs').style.display='none';
+    document.querySelectorAll('.section-tab').forEach(el=>el.style.display='none');
+    document.getElementById('searchResults').style.display='none';
+  } catch(e){ toast('Error cargando artículo','error'); }
+}
+
+function closeArticle(){
+  document.getElementById('articleView').classList.remove('open');
+  document.getElementById('mainTabs').style.display='';
+  document.querySelectorAll('.section-tab').forEach(el=>el.style.display='');
+  // solo el tab activo queda visible
+  document.querySelectorAll('.section-tab:not(.active)').forEach(el=>el.style.display='none');
+  document.getElementById('tabArticulos').style.display='';
+  activeArticleId='';
+}
+
+async function vote(v){
+  if(!activeArticleId) return;
+  await apiFetch(`/api/kb/${activeArticleId}/helpful`,{method:'POST',body:{vote:v}});
+  toast(v==='yes'?'¡Gracias por tu feedback! 👍':'Gracias. Mejoraremos este artículo.','success');
+}
+
+// ─ Búsqueda ────────────────────────────────────────────────────────────────
+function debounceSearch(){ clearTimeout(searchTimer); searchTimer=setTimeout(doSearch,400); }
+
+async function doSearch(){
+  const q = document.getElementById('searchInput').value.trim();
+  const box = document.getElementById('searchResults');
+  if(!q){ box.style.display='none'; return; }
+  try {
+    const d    = await apiFetch(`/api/kb/search?q=${encodeURIComponent(q)}`);
+    const rows = d.data||[];
+    box.style.display='block';
+    if(!rows.length){
+      box.innerHTML=`<div class="empty-state" style="padding:20px;">
+        <i class="bi bi-search" style="font-size:24px;display:block;margin-bottom:8px;"></i>
+        Sin resultados para <strong>"${esc(q)}"</strong>
+        <div style="margin-top:12px;font-size:12px;">
+          ${!_isAdmin ? `<button class="btn-sm btn-purple" onclick="document.getElementById('reqQuery').value='${esc(q)}';openModal('modalRequest')"><i class="bi bi-send"></i> Solicitar este procedimiento</button>` : ''}
+        </div></div>`;
+      return;
+    }
+    box.innerHTML=`<div style="padding:10px 18px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">${rows.length} resultado${rows.length!==1?'s':''} para "${esc(q)}"</div>`+
+      rows.map(a=>`<div class="search-result-item" onclick="openArticle('${a.id}')">
+        <div class="sr-title">${esc(a.title)}</div>
+        <div class="sr-excerpt">${esc(a.excerpt||'')}</div></div>`).join('');
+  } catch(e){}
+}
+
+async function crearArticulo(){
+  const title=document.getElementById('artTitle').value.trim();
+  const content=document.getElementById('artContent').value.trim();
+  if(!title||!content){ toast('Título y contenido son requeridos','error'); return; }
+  const d = await apiFetch('/api/kb',{method:'POST',body:{title,content,
+    kbCategoryId:document.getElementById('artCatId').value||null,
+    tags:document.getElementById('artTags').value,
+    status:document.getElementById('artStatus').value}});
+  if(!d.success){ toast(d.error||'Error','error'); return; }
+  toast('Artículo creado','success');
+  closeModal('modalArt');
+  init();
+}
+
+// ═══════════════ PROCEDIMIENTOS ══════════════════════════════════════════════
+
+const _procCatLabels = {
+  acceso_seguridad: {label:'Acceso y Seguridad', icon:'shield-lock', color:'#3b82f6'},
+  microsoft365:     {label:'Microsoft 365',      icon:'microsoft',   color:'#0078d4'},
+  onboarding:       {label:'Onboarding / RRHH',  icon:'person-plus', color:'#10b981'},
+  equipos:          {label:'Equipos',             icon:'laptop',      color:'#8b5cf6'},
+  general:          {label:'General',             icon:'folder',      color:'#64748b'},
+};
+
+const _procTypeInfo = {
+  text:  {icon:'file-text',        cls:'proc-type-text',  label:'Texto'},
+  pdf:   {icon:'file-pdf',         cls:'proc-type-pdf',   label:'PDF'},
+  image: {icon:'image',            cls:'proc-type-image', label:'Imagen'},
+  ppt:   {icon:'file-earmark-ppt', cls:'proc-type-ppt',   label:'PPT'},
+};
+
+async function loadProcedures(cat=''){
+  _activeProcCat = cat;
+  const url = '/api/kb/procedures' + (cat ? `?category=${encodeURIComponent(cat)}` : '');
+  try {
+    const d    = await apiFetch(url);
+    const rows = d.data||[];
+    const grid = document.getElementById('procGrid');
+
+    // Mostrar procedimientos predefinidos de ejemplo si no hay ninguno cargado
+    if(!rows.length){
+      grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1;padding:40px;">
+        <i class="bi bi-diagram-3" style="font-size:32px;display:block;margin-bottom:12px;"></i>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Sin procedimientos ${cat?'en esta categoría':''}</div>
+        <div style="font-size:13px;">${_isAdmin?'Usa el botón "Agregar procedimiento" para subir el primero.':'Puedes solicitar un procedimiento al equipo de soporte.'}</div>
+      </div>`;
+      return;
+    }
+
+    grid.innerHTML = rows.map(p => {
+      const cat2 = _procCatLabels[p.procedure_category]||{label:p.procedure_category,icon:'folder',color:'#64748b'};
+      const ti  = _procTypeInfo[p.content_type]||{icon:'file',cls:'proc-type-text',label:'Texto'};
+      return `<div class="proc-card">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div class="proc-card-icon" style="background:${cat2.color}20;">
+            <i class="bi bi-${cat2.icon}" style="color:${cat2.color};"></i>
+          </div>
+          <div style="flex:1;">
+            <div class="proc-card-title">${esc(p.title)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">${esc(cat2.label)}</div>
+          </div>
+        </div>
+        <div class="proc-card-desc">${esc(p.description||'')}</div>
+        <div class="proc-card-meta">
+          <span class="proc-type-badge ${ti.cls}"><i class="bi bi-${ti.icon}"></i> ${ti.label}</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-sm btn-primary" onclick="verProcedimiento(${p.id})"><i class="bi bi-eye"></i> Ver</button>
+            ${_isAdmin?`<button class="btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);" onclick="eliminarProc(${p.id})"><i class="bi bi-trash"></i></button>`:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e){ console.error(e); }
+}
+
+function filterProcs(cat){
+  _activeProcCat = cat;
+  document.querySelectorAll('.proc-cat-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  loadProcedures(cat);
+}
+
+async function verProcedimiento(id){
+  document.getElementById('viewProcTitle').textContent = 'Cargando...';
+  document.getElementById('viewProcBody').innerHTML='<div class="empty-state"><i class="bi bi-arrow-clockwise"></i> Cargando...</div>';
+  openModal('modalViewProc');
+  try {
+    const d = await apiFetch(`/api/kb/procedures/${id}`);
+    if(!d.success){ document.getElementById('viewProcBody').innerHTML='<div class="empty-state">Error al cargar</div>'; return; }
+    const p = d.data;
+    const cat2 = _procCatLabels[p.procedure_category]||{label:p.procedure_category};
+    document.getElementById('viewProcTitle').textContent = p.title;
+    document.getElementById('viewProcMeta').textContent  = `${cat2.label} · Por ${p.created_by||'Soporte TI'}`;
+
+    let bodyHtml = '';
+    if(p.content_type === 'text'){
+      bodyHtml = `<div class="proc-viewer-text">${p.content_data||'Sin contenido'}</div>`;
+    } else if(p.content_type === 'image'){
+      bodyHtml = `<div style="text-align:center;"><img src="${p.content_data}" class="proc-viewer-img" alt="${esc(p.title)}"></div>`;
+    } else if(p.content_type === 'pdf'){
+      bodyHtml = `<embed src="${p.content_data}" type="application/pdf" class="proc-viewer-embed">
+        <div style="margin-top:10px;text-align:center;">
+          <a href="${p.content_data}" download="${esc(p.file_name||'procedimiento.pdf')}" class="btn-sm btn-primary" style="text-decoration:none;">
+            <i class="bi bi-download"></i> Descargar PDF
+          </a>
+        </div>`;
+    } else if(p.content_type === 'ppt'){
+      bodyHtml = `<div style="text-align:center;padding:40px 20px;">
+        <i class="bi bi-file-earmark-ppt" style="font-size:48px;color:#d97706;"></i>
+        <div style="font-size:15px;font-weight:700;margin:12px 0 8px;">${esc(p.file_name||'Presentación')}</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Los archivos PPT/PPTX no se pueden previsualizar en el navegador</div>
+        <a href="${p.content_data}" download="${esc(p.file_name||'presentacion.pptx')}" class="btn-sm btn-warning" style="text-decoration:none;">
+          <i class="bi bi-download"></i> Descargar presentación
+        </a>
+      </div>`;
+    }
+    document.getElementById('viewProcBody').innerHTML = bodyHtml;
+  } catch(e){
+    document.getElementById('viewProcBody').innerHTML='<div class="empty-state">Error al cargar el procedimiento</div>';
+  }
+}
+
+async function eliminarProc(id){
+  if(!confirm('¿Eliminar este procedimiento?')) return;
+  const d = await apiFetch(`/api/kb/procedures/${id}`,{method:'DELETE'});
+  if(d.success){ toast('Procedimiento eliminado','success'); loadProcedures(_activeProcCat); }
+  else toast(d.error||'Error','error');
+}
+
+// ── Upload de archivo ─────────────────────────────────────────────────────────
+function onProcTypeChange(type){
+  const textArea = document.getElementById('procTextArea');
+  const fileArea = document.getElementById('procFileArea');
+  const fileInput = document.getElementById('procFile');
+  const hint = document.getElementById('procFileHint');
+  if(type === 'text'){
+    textArea.style.display=''; fileArea.style.display='none';
+  } else {
+    textArea.style.display='none'; fileArea.style.display='';
+    _procFileB64=''; _procFileName='';
+    document.getElementById('procFilePreview').style.display='none';
+    if(type==='pdf')   { fileInput.accept='application/pdf'; hint.textContent='(PDF — máx. 8MB)'; }
+    if(type==='image') { fileInput.accept='image/*';         hint.textContent='(PNG, JPG, WEBP — máx. 8MB)'; }
+    if(type==='ppt')   { fileInput.accept='.ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation'; hint.textContent='(PPT, PPTX — máx. 8MB)'; }
+    fileInput.value='';
+  }
+}
+
+function onProcFileChange(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 8*1024*1024){ toast('El archivo no debe superar 8MB','error'); input.value=''; return; }
+  _procFileName = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _procFileB64 = e.target.result; // data URL completa con prefijo
+    const type  = document.querySelector('input[name="procType"]:checked').value;
+    const prev  = document.getElementById('procFilePreview');
+    prev.style.display='block';
+    if(type==='image'){
+      prev.innerHTML=`<img src="${_procFileB64}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;">`;
+    } else {
+      prev.innerHTML=`<div style="background:var(--hover);border-radius:8px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-check-circle-fill" style="color:var(--success);"></i> <strong>${esc(file.name)}</strong>
+        <span style="color:var(--muted);">(${(file.size/1024).toFixed(0)} KB)</span></div>`;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function guardarProcedimiento(){
+  const title = document.getElementById('procTitle').value.trim();
+  if(!title){ toast('El título es requerido','error'); return; }
+  const type = document.querySelector('input[name="procType"]:checked').value;
+  let content_data='', file_name='';
+  if(type==='text'){
+    content_data = document.getElementById('procContent').value.trim();
+    if(!content_data){ toast('El contenido es requerido','error'); return; }
+  } else {
+    if(!_procFileB64){ toast('Selecciona un archivo','error'); return; }
+    content_data = _procFileB64;
+    file_name    = _procFileName;
+  }
+  const body = {
+    title,
+    description: document.getElementById('procDesc').value.trim(),
+    procedure_category: document.getElementById('procCategory').value,
+    content_type: type,
+    content_data,
+    file_name,
+  };
+  const d = await apiFetch('/api/kb/procedures',{method:'POST',body});
+  if(!d.success){ toast(d.error||'Error al guardar','error'); return; }
+  toast('Procedimiento guardado','success');
+  closeModal('modalProc');
+  // reset
+  document.getElementById('procTitle').value='';
+  document.getElementById('procDesc').value='';
+  document.getElementById('procContent').value='';
+  document.getElementById('procFile').value='';
+  _procFileB64=''; _procFileName='';
+  document.getElementById('procFilePreview').style.display='none';
+  loadProcedures(_activeProcCat);
+}
+
+// ═══════════════ SOLICITUDES DE PROCEDIMIENTO ════════════════════════════════
+
+async function enviarSolicitud(){
+  const query = document.getElementById('reqQuery').value.trim();
+  const desc  = document.getElementById('reqDesc').value.trim();
+  if(!query){ toast('Describe qué procedimiento necesitas','error'); return; }
+  // Priority: server query params > localStorage > JWT user
+  const portalName  = _reporterName  || localStorage.getItem('portal_user_name')  || '';
+  const portalEmail = _reporterEmail || localStorage.getItem('portal_user_email') || '';
+  const d = await apiFetch('/api/kb/procedure-requests',{method:'POST',body:{
+    query, description:desc,
+    user_name:  portalName  || _user.full_name || _user.username || '',
+    user_email: portalEmail || _user.email     || '',
+  }});
+  if(!d.success){ toast(d.error||'Error','error'); return; }
+  toast('¡Solicitud enviada! El equipo de soporte la revisará pronto.','success');
+  closeModal('modalRequest');
+  document.getElementById('reqQuery').value='';
+  document.getElementById('reqDesc').value='';
+}
+
+async function loadProcRequests(){
+  try {
+    const d    = await apiFetch('/api/kb/procedure-requests');
+    const rows = d.data||[];
+    const tbody = document.getElementById('reqTableBody');
+    if(!rows.length){ tbody.innerHTML='<tr><td colspan="8" class="empty-state">Sin solicitudes</td></tr>'; return; }
+
+    // Badge contador de pendientes
+    const pending = rows.filter(r=>r.status==='pendiente').length;
+    const badge = document.getElementById('solBadge');
+    if(badge){ badge.style.display = pending>0?'':'none'; badge.textContent=pending; }
+
+    tbody.innerHTML = rows.map(r=>`<tr>
+      <td style="font-weight:700;color:var(--muted);">#${r.id}</td>
+      <td style="font-weight:600;">${esc(r.user_name||'—')}</td>
+      <td style="color:var(--muted);font-size:12px;">${esc(r.user_email||'—')}</td>
+      <td style="font-weight:700;max-width:220px;">${esc(r.query)}</td>
+      <td style="font-size:12px;color:var(--muted);max-width:180px;">${esc(r.description||'—')}</td>
+      <td style="font-size:12px;color:var(--muted);white-space:nowrap;">${new Date(r.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'})}</td>
+      <td><span class="status-badge status-${r.status}">${r.status.replace('_',' ')}</span></td>
+      <td>
+        <div style="display:flex;gap:4px;">
+          ${r.status!=='resuelto'?`<button class="btn-sm btn-success" style="padding:4px 10px;" onclick="updateReqStatus(${r.id},'resuelto')"><i class="bi bi-check2"></i></button>`:''}
+          ${r.status==='pendiente'?`<button class="btn-sm btn-primary" style="padding:4px 10px;" onclick="updateReqStatus(${r.id},'en_progreso')"><i class="bi bi-play-fill"></i></button>`:''}
+        </div>
+      </td>
+    </tr>`).join('');
+  } catch(e){ console.error(e); }
+}
+
+async function updateReqStatus(id, status){
+  const d = await apiFetch(`/api/kb/procedure-requests/${id}/status`,{method:'PATCH',body:{status}});
+  if(d.success){ toast('Estado actualizado','success'); loadProcRequests(); }
+  else toast(d.error||'Error','error');
+}
+
+// ═══════════════ FETCH HELPER ════════════════════════════════════════════════
+async function apiFetch(url, opts={}){
+  const res = await fetch(url, {
+    method:  opts.method||'GET',
+    credentials: 'include',
+    headers: opts.body ? {'Content-Type':'application/json'} : {},
+    body:    opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  return res.json();
+}
+
+// ═══════════════ LEARNING ════════════════════════════════════════════════════
+
+let _activeLearnCat = '', _learnFileB64 = '', _learnFileName = '';
+
+const _learnCatMeta = {
+  'ofimática':  { icon: '📊', color: '#0078d4', bg: '#e6f2ff' },
+  'seguridad':  { icon: '🔒', color: '#10b981', bg: '#d1fae5' },
+  'redes':      { icon: '🌐', color: '#8b5cf6', bg: '#ede9fe' },
+  'desarrollo': { icon: '💻', color: '#f59e0b', bg: '#fef3c7' },
+  'itsm':       { icon: '🎧', color: '#ef4444', bg: '#fee2e2' },
+  'general':    { icon: '📚', color: '#64748b', bg: '#f1f5f9' },
+};
+
+async function loadLearning(cat = '') {
+  _activeLearnCat = cat;
+  // Siempre filtra solo publicados en el portal de usuario
+  const params = new URLSearchParams({ status: 'publicado' });
+  if (cat) params.set('category', cat);
+  const url = '/api/kb/learning?' + params.toString();
+  const grid = document.getElementById('learnGrid');
+  try {
+    const d = await apiFetch(url);
+    const rows = d.data || [];
+    if (!rows.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:40px;">
+        <i class="bi bi-mortarboard" style="font-size:32px;display:block;margin-bottom:12px;"></i>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Sin recursos${cat ? ' en esta categoría' : ''}</div>
+        <div style="font-size:13px;">Sube el primer recurso usando el botón "Subir recurso".</div>
+      </div>`;
+      return;
+    }
+    grid.innerHTML = rows.map(r => renderLearnCard(r)).join('');
+  } catch(e) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:40px;">
+      <i class="bi bi-exclamation-circle" style="font-size:32px;display:block;margin-bottom:12px;"></i>
+      <div style="font-size:13px;">No se pudieron cargar los recursos.</div>
+    </div>`;
+  }
+  // Cargar también los envíos propios del usuario
+  loadMisEnvios();
+}
+
+async function loadMisEnvios() {
+  const section = document.getElementById('misEnviosSection');
+  const grid    = document.getElementById('misEnviosGrid');
+  try {
+    const d = await apiFetch('/api/kb/learning?mine=1');
+    const rows = (d.data || []).filter(r => r.status !== 'publicado');
+    if (!rows.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    grid.innerHTML = rows.map(r => {
+      const stColor = r.status === 'rechazado' ? '#dc2626' : '#d97706';
+      const stBg    = r.status === 'rechazado' ? '#fee2e2' : '#fef3c7';
+      const stIcon  = r.status === 'rechazado' ? 'bi-x-circle-fill' : 'bi-clock-fill';
+      const stLabel = r.status === 'rechazado' ? 'Rechazado' : 'Pendiente de aprobación';
+      return `<div style="background:var(--bg-card,#fff);border:1.5px solid ${stBg};border-left:4px solid ${stColor};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text,#1e293b);">${esc(r.title)}</div>
+          <div style="font-size:11px;color:var(--muted,#64748b);margin-top:3px;">${r.category||'general'} · ${r.content_type||'url'} · ${_fmtLearnDate(r.created_at)}</div>
+          ${r.admin_response ? `<div style="margin-top:8px;padding:8px 12px;background:${stBg};border-radius:7px;font-size:12px;color:${stColor};"><i class="bi bi-reply-fill"></i> <strong>Respuesta del administrador:</strong> ${esc(r.admin_response)}</div>` : ''}
+        </div>
+        <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;background:${stBg};color:${stColor};white-space:nowrap;"><i class="bi ${stIcon}"></i> ${stLabel}</span>
+      </div>`;
+    }).join('');
+  } catch(e) { section.style.display = 'none'; }
+}
+
+function _fmtLearnDate(d){ if(!d) return ''; try{ return new Date(d).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return d; } }
+
+function renderLearnCard(r) {
+  const meta  = _learnCatMeta[r.category] || _learnCatMeta['general'];
+  const type  = r.content_type || 'link';
+  const typeIcon = type === 'pdf' ? '📄' : type === 'video' ? '▶️' : '🔗';
+  const typeLabel = type === 'pdf' ? 'PDF' : type === 'video' ? 'Video' : 'Enlace';
+  const typeColor = type === 'pdf' ? '#dc2626' : type === 'video' ? '#ef4444' : '#3b82f6';
+  const adminBtns = _isAdmin ? `<button class="btn-sm btn-outline" style="padding:4px 8px;color:var(--danger);border-color:var(--danger);" onclick="deleteLearn(${r.id})" title="Eliminar"><i class="bi bi-trash"></i></button>` : '';
+  return `
+    <div class="learn-card">
+      <div class="learn-card-cover" style="background:${meta.bg};">${meta.icon}</div>
+      <div class="learn-card-body">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span class="learn-cat-badge" style="background:${meta.bg};color:${meta.color};">${esc(r.category || 'general')}</span>
+          <span style="font-size:10px;font-weight:700;color:${typeColor};background:${typeColor}18;border-radius:6px;padding:2px 7px;">${typeIcon} ${typeLabel}</span>
+        </div>
+        <div class="learn-card-title">${esc(r.title)}</div>
+        ${r.description ? `<div style="font-size:12px;color:var(--muted);line-height:1.5;flex:1;">${esc(r.description)}</div>` : ''}
+        <div class="learn-card-meta">
+          ${r.author ? `<span><i class="bi bi-person-fill"></i> ${esc(r.author)}</span>` : ''}
+          ${r.duration ? `<span><i class="bi bi-clock"></i> ${esc(r.duration)}</span>` : ''}
+          <span><i class="bi bi-eye"></i> ${r.views || 0} vistas</span>
+        </div>
+      </div>
+      <div class="learn-card-footer">
+        ${adminBtns}
+        <button class="btn-sm btn-purple" onclick="accessLearn(${r.id},'${type}',this)">
+          <i class="bi bi-play-circle-fill"></i> Acceder
+        </button>
+      </div>
+    </div>`;
+}
+
+function filterLearn(cat, btn) {
+  _activeLearnCat = cat;
+  document.querySelectorAll('.learn-cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadLearning(cat);
+}
+
+async function refreshArticles() {
+  const btn  = document.getElementById('artRefreshBtn');
+  const icon = document.getElementById('artRefreshIcon');
+  if(btn) btn.disabled = true;
+  if(icon){ icon.style.transition='transform .6s'; icon.style.transform='rotate(360deg)'; setTimeout(()=>{ icon.style.transition=''; icon.style.transform=''; },650); }
+  await loadArticles(activeCatId || '');
+  if(btn) btn.disabled = false;
+}
+
+async function refreshProcedures() {
+  const btn  = document.getElementById('procRefreshBtn');
+  const icon = document.getElementById('procRefreshIcon');
+  if(btn) btn.disabled = true;
+  if(icon){ icon.style.transition='transform .6s'; icon.style.transform='rotate(360deg)'; setTimeout(()=>{ icon.style.transition=''; icon.style.transform=''; },650); }
+  await loadProcedures(_activeProcCat || '');
+  if(btn) btn.disabled = false;
+}
+
+async function refreshLearning() {
+  const btn  = document.getElementById('learnRefreshBtn');
+  const icon = document.getElementById('learnRefreshIcon');
+  btn.disabled = true;
+  icon.style.transition = 'transform .6s';
+  icon.style.transform  = 'rotate(360deg)';
+  setTimeout(() => { icon.style.transition = ''; icon.style.transform = ''; }, 650);
+  await loadLearning(_activeLearnCat);
+  btn.disabled = false;
+}
+
+async function accessLearn(id, type, btn) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i>'; }
+  const d = await apiFetch(`/api/kb/learning/${id}/content`);
+  // Bloqueo si no está publicado
+  if (d.blocked) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-play-circle-fill"></i> Acceder'; }
+    const st     = d.status === 'rechazado' ? 'Rechazado' : 'Pendiente de aprobación';
+    const stClr  = d.status === 'rechazado' ? '#dc2626' : '#d97706';
+    const msgHtml = d.admin_response
+      ? `<div style="margin-top:12px;padding:12px 14px;background:#f8fafc;border-left:4px solid ${stClr};border-radius:8px;font-size:13px;">
+           <div style="font-weight:700;margin-bottom:4px;color:${stClr};"><i class="bi bi-reply-fill"></i> Respuesta del administrador</div>
+           <div>${esc(d.admin_response)}</div>
+         </div>`
+      : `<div style="margin-top:10px;font-size:12px;color:#64748b;">Aún no hay comentarios del administrador. Vuelve más tarde.</div>`;
+    // Modal inline de bloqueo
+    let overlay = document.getElementById('_learnBlockOverlay');
+    if(!overlay){
+      overlay = document.createElement('div');
+      overlay.id = '_learnBlockOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+      overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `<div style="background:#fff;border-radius:16px;padding:28px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.25);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:38px;height:38px;border-radius:50%;background:${d.status==='rechazado'?'#fee2e2':'#fef3c7'};display:flex;align-items:center;justify-content:center;font-size:18px;color:${stClr};">
+          <i class="bi ${d.status==='rechazado'?'bi-x-circle-fill':'bi-clock-fill'}"></i>
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#1e293b;">Recurso no disponible</div>
+          <div style="font-size:12px;color:${stClr};font-weight:700;">${st}</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#64748b;margin:0 0 4px;">Este recurso está pendiente de aprobación por el administrador antes de poder ser accedido.</p>
+      ${msgHtml}
+      <div style="margin-top:18px;text-align:right;">
+        <button onclick="document.getElementById('_learnBlockOverlay').remove()" style="padding:8px 20px;border-radius:8px;background:#f1f5f9;border:none;font-weight:700;cursor:pointer;font-size:13px;">Cerrar</button>
+      </div>
+    </div>`;
+    overlay.style.display = 'flex';
+    return;
+  }
+  apiFetch(`/api/kb/learning/${id}/view`, { method: 'POST' }).catch(() => {});
+  if (type !== 'pdf') {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-play-circle-fill"></i> Acceder'; }
+    if (d.success && d.data) window.open(d.data, '_blank');
+    return;
+  }
+  // PDF: usar d.data ya obtenido arriba
+  try {
+    if (!d.success || !d.data) { toast('No se pudo cargar el PDF', 'error'); if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-play-circle-fill"></i> Acceder';} return; }
+    const b64 = d.data.includes(',') ? d.data.split(',')[1] : d.data;
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const blob  = new Blob([bytes], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(blob);
+    const win = window.open(blobUrl, '_blank');
+    // Revoke after 60s to free memory
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    if (!win) toast('Permite las ventanas emergentes para ver el PDF', 'warn');
+  } catch(e) {
+    toast('Error al abrir el PDF', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-play-circle-fill"></i> Acceder'; }
+  }
+}
+
+async function deleteLearn(id) {
+  if (!confirm('¿Eliminar este recurso de aprendizaje?')) return;
+  const d = await apiFetch(`/api/kb/learning/${id}`, { method: 'DELETE' });
+  if (d.success) { toast('Recurso eliminado', 'success'); loadLearning(_activeLearnCat); }
+  else toast(d.error || 'Error', 'error');
+}
+
+function onLearnTypeChange(type) {
+  document.getElementById('learnLinkArea').style.display = type !== 'pdf' ? '' : 'none';
+  document.getElementById('learnFileArea').style.display = type === 'pdf' ? '' : 'none';
+  _learnFileB64 = ''; _learnFileName = '';
+  document.getElementById('learnFilePreview').style.display = 'none';
+}
+
+function onLearnFileChange(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) { toast('El archivo no debe superar 8MB', 'error'); input.value = ''; return; }
+  _learnFileName = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _learnFileB64 = e.target.result;
+    const prev = document.getElementById('learnFilePreview');
+    prev.style.display = 'block';
+    prev.innerHTML = `<div style="background:var(--hover);border-radius:8px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:8px;">
+      <i class="bi bi-check-circle-fill" style="color:var(--success);"></i>
+      <strong>${esc(file.name)}</strong>
+      <span style="color:var(--muted);">(${(file.size / 1024).toFixed(0)} KB)</span>
+    </div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function guardarLearn() {
+  const title    = document.getElementById('learnTitle').value.trim();
+  const category = document.getElementById('learnCategory').value;
+  const author   = document.getElementById('learnAuthor').value.trim();
+  const duration = document.getElementById('learnDuration').value.trim();
+  const desc     = document.getElementById('learnDesc').value.trim();
+  const type     = document.querySelector('input[name="learnType"]:checked').value;
+  if (!title) { toast('El título es requerido', 'error'); return; }
+  let content_data = '', file_name = '';
+  if (type === 'pdf') {
+    if (!_learnFileB64) { toast('Selecciona un archivo PDF', 'error'); return; }
+    content_data = _learnFileB64;
+    file_name    = _learnFileName;
+  } else {
+    content_data = document.getElementById('learnUrl').value.trim();
+    if (!content_data) { toast('Ingresa la URL del recurso', 'error'); return; }
+  }
+  const d = await apiFetch('/api/kb/learning', { method: 'POST', body: {
+    title, category, author, duration, description: desc,
+    content_type: type, content_data, file_name,
+  }});
+  if (!d.success) { toast(d.error || 'Error al guardar', 'error'); return; }
+  toast(d.pendiente ? 'Recurso enviado — quedará pendiente de aprobación por el administrador' : 'Recurso publicado con éxito', 'success');
+  closeModal('modalLearn');
+  document.getElementById('learnTitle').value    = '';
+  document.getElementById('learnAuthor').value   = '';
+  document.getElementById('learnDuration').value = '';
+  document.getElementById('learnDesc').value     = '';
+  document.getElementById('learnUrl').value      = '';
+  document.getElementById('learnFile').value     = '';
+  _learnFileB64 = ''; _learnFileName = '';
+  document.getElementById('learnFilePreview').style.display = 'none';
+  loadLearning(_activeLearnCat);
+}
+
+// ═══════════════ APORTES DE LA COMUNIDAD (KB) ════════════════════════════════
+// Fuente: kb_learning_resources (misma tabla que admin hub "Aportes de Usuarios")
+// POST   /api/kb/learning          — enviar aporte (pendiente)
+// GET    /api/kb/learning?status=publicado — aportes aprobados (público)
+// PATCH  /api/kb/learning/:id/status {status} — aprobar/denegar (admin)
+// PATCH  /api/kb/learning/:id/response {response} — responder (admin)
+
+let _kbContribAll = [], _kbContribFilter = 'all', _kbRespAporteId = null, _kbPendingMap = {};
+
+function _kbUserEmail(){
+  return _reporterEmail || localStorage.getItem('portal_user_email') || _user.email || '';
+}
+
+function onKbContribTypeChange(type){
+  document.getElementById('kbContribTextArea').style.display = type === 'text' ? '' : 'none';
+  document.getElementById('kbContribLinkArea').style.display = type === 'link' ? '' : 'none';
+}
+
+async function loadKbContribs(){
+  const grid = document.getElementById('kbContribGrid');
+  try {
+    const d = await apiFetch('/api/kb/learning?status=publicado');
+    _kbContribAll = d.data||[];
+    renderKbContribs();
+    if(_isAdmin) loadKbPendingAportes();
+  } catch(e){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:40px;"><i class="bi bi-exclamation-circle"></i> No se pudieron cargar los aportes.</div>`;
+  }
+}
+
+function filterKbContribs(cat, btn){
+  _kbContribFilter = cat;
+  document.querySelectorAll('#kbContribFilterBar .learn-cat-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderKbContribs();
+}
+
+function renderKbContribs(){
+  const grid = document.getElementById('kbContribGrid');
+  let list = _kbContribAll;
+  if(_kbContribFilter && _kbContribFilter !== 'all') list = list.filter(c => c.category === _kbContribFilter);
+  if(!list.length){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:40px;">
+      <i class="bi bi-people" style="font-size:32px;display:block;margin-bottom:12px;"></i>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Sin aportes todavía</div>
+      <div style="font-size:13px;">Sé el primero en compartir tu conocimiento con la comunidad.</div>
+    </div>`;
+    return;
+  }
+  const meta = _learnCatMeta;
+  grid.innerHTML = list.map(c => {
+    const catMeta = meta[c.category] || meta['general'];
+    const typeIcon = c.content_type==='pdf'?'📄':c.content_type==='video'?'▶️':'🔗';
+    const date = c.created_at ? new Date(c.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) : '';
+    return `<div class="contrib-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span class="contrib-cat-badge" style="background:${catMeta.bg};color:${catMeta.color};">${esc(c.category||'general')}</span>
+        <span style="font-size:11px;color:var(--muted);">${typeIcon} ${date}</span>
+      </div>
+      <div style="font-size:15px;font-weight:800;color:var(--text);line-height:1.4;">${esc(c.title)}</div>
+      ${c.description?`<div style="font-size:12px;color:var(--muted);line-height:1.6;flex:1;">${esc(c.description.slice(0,180))}${c.description.length>180?'…':''}</div>`:''}
+      <div class="contrib-author"><i class="bi bi-person-circle"></i> ${esc(c.author||'Anónimo')}</div>
+      <div style="margin-top:6px;">
+        ${c.content_type==='text'
+          ? `<button class="btn-sm btn-outline" style="font-size:11px;" onclick="viewKbAporte(${c.id})"><i class="bi bi-eye"></i> Leer</button>`
+          : `<button class="btn-sm btn-outline" style="font-size:11px;" onclick="accessLearn(${c.id},'${c.content_type}',this)"><i class="bi bi-play-circle"></i> Ver recurso</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function sendContribKb(btn){
+  const title    = document.getElementById('kbContribTitle').value.trim();
+  const category = document.getElementById('kbContribCategory').value;
+  const name     = document.getElementById('kbContribName').value.trim();
+  const desc     = document.getElementById('kbContribDesc').value.trim();
+  const type     = document.querySelector('input[name="kbContribType"]:checked').value;
+  const body     = type === 'text'
+    ? document.getElementById('kbContribBody').value.trim()
+    : document.getElementById('kbContribUrl').value.trim();
+  if(!title){ toast('El título es requerido','error'); return; }
+  if(!body){  toast(type==='text'?'El contenido es requerido':'La URL es requerida','error'); return; }
+  const email = _kbUserEmail();
+  const author = name || email || 'Colaborador';
+  if(btn) btn.disabled = true;
+  const d = await apiFetch('/api/kb/learning',{method:'POST',body:{
+    title, category, author,
+    description: desc,
+    content_type: type === 'text' ? 'text' : 'url',
+    content_data: body,
+  }});
+  if(btn) btn.disabled = false;
+  if(!d.success){ toast(d.error||'Error al enviar','error'); return; }
+  toast('¡Gracias! Tu aporte fue enviado y será revisado por el equipo.','success');
+  closeModal('modalContribKb');
+  document.getElementById('kbContribTitle').value = '';
+  document.getElementById('kbContribBody').value  = '';
+  document.getElementById('kbContribUrl').value   = '';
+  document.getElementById('kbContribName').value  = '';
+  document.getElementById('kbContribDesc').value  = '';
+}
+
+async function checkKbPendingBadge(){
+  if(!_isAdmin) return;
+  try {
+    const d = await apiFetch('/api/kb/learning');
+    const pending = (d.data||[]).filter(c => c.status === 'pendiente').length;
+    const badge = document.getElementById('kbAportesBadge');
+    const cnt   = document.getElementById('kbPendingCount');
+    if(badge){ badge.style.display = pending>0?'':'none'; badge.textContent = pending; }
+    if(cnt){   cnt.style.display   = pending>0?'':'none'; cnt.textContent   = pending; }
+  } catch(e){}
+}
+
+async function loadKbPendingAportes(){
+  if(!_isAdmin) return;
+  const wrap = document.getElementById('kbPendingWrap');
+  if(!wrap) return;
+  try {
+    const d = await apiFetch('/api/kb/learning');
+    const rows = (d.data||[]).filter(c => c.status === 'pendiente');
+    const badge = document.getElementById('kbAportesBadge');
+    const cnt   = document.getElementById('kbPendingCount');
+    if(badge){ badge.style.display = rows.length>0?'':'none'; badge.textContent = rows.length; }
+    if(cnt){   cnt.style.display   = rows.length>0?'':'none'; cnt.textContent   = rows.length; }
+    if(!rows.length){
+      wrap.innerHTML = '<div class="empty-state" style="padding:24px;"><i class="bi bi-inbox"></i> Sin aportes pendientes</div>';
+      return;
+    }
+    _kbPendingMap = {};
+    rows.forEach(c => _kbPendingMap[c.id] = c);
+    wrap.innerHTML = rows.map(c => `
+      <div class="contrib-pending-row" id="kb-pending-${c.id}">
+        <div style="flex:1;min-width:200px;">
+          <div style="font-size:13px;font-weight:800;margin-bottom:3px;">${esc(c.title)}</div>
+          <div style="font-size:11px;color:var(--muted);">Por ${esc(c.author||'Anónimo')} · ${esc(c.category||'general')} · ${c.content_type||'text'} · ${new Date(c.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'})}</div>
+          ${c.description?`<div style="font-size:12px;color:var(--muted);margin-top:5px;">${esc(c.description)}</div>`:''}
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <button class="btn-sm btn-outline" style="font-size:11px;" onclick="viewKbAporte(${c.id})"><i class="bi bi-eye"></i> Ver</button>
+          <button class="btn-sm btn-success" style="font-size:11px;" onclick="approveKbAporte(${c.id},this)"><i class="bi bi-check2-circle"></i> Aprobar</button>
+          <button class="btn-sm" style="font-size:11px;background:#fef3c7;color:#92400e;border:none;cursor:pointer;" onclick="openRespKbAporte(${c.id},'${esc(c.title).replace(/'/g,"\\'")}')"><i class="bi bi-reply-fill"></i> Responder</button>
+          <button class="btn-sm btn-danger" style="font-size:11px;" onclick="rejectKbAporte(${c.id},this)"><i class="bi bi-x-circle"></i> Denegar</button>
+        </div>
+      </div>`).join('');
+  } catch(e){ wrap.innerHTML='<div class="empty-state" style="padding:24px;">Error al cargar</div>'; }
+}
+
+async function viewKbAporte(id){
+  const c = _kbPendingMap[id] || (_kbContribAll||[]).find(x=>x.id===id) || null;
+  if(!c){ toast('No se pudo cargar el detalle','error'); return; }
+  document.getElementById('kbAporteViewTitle').textContent = c.title||'Aporte';
+  const date = c.created_at ? new Date(c.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) : '';
+  const meta = `<p style="font-size:12px;color:var(--muted);margin-bottom:10px;">${esc(c.category||'general')} · Por ${esc(c.author||'Anónimo')} · ${date}</p>
+    ${c.description?`<p style="font-size:13px;margin-bottom:12px;">${esc(c.description)}</p>`:''}`;
+  document.getElementById('kbAporteViewBody').innerHTML = meta + '<div class="empty-state" style="padding:20px;"><i class="bi bi-arrow-clockwise"></i> Cargando...</div>';
+  openModal('modalViewKbAporte');
+  try {
+    const d = await apiFetch(`/api/kb/learning/${id}/content`);
+    let bodyHtml = '';
+    if(d.blocked){
+      bodyHtml = `<div style="padding:14px;background:var(--hover);border-radius:10px;font-size:13px;color:var(--muted);">${d.admin_response?`<strong>Nota:</strong> ${esc(d.admin_response)}`:'Pendiente de aprobación'}</div>`;
+    } else if(c.content_type === 'text'){
+      bodyHtml = `<div style="font-size:14px;line-height:1.8;white-space:pre-wrap;background:var(--hover);padding:16px;border-radius:10px;">${esc(d.data||'')}</div>`;
+    } else {
+      bodyHtml = `<div style="font-size:13px;margin-top:4px;"><a href="${esc(d.data||'#')}" target="_blank" style="color:var(--primary);font-weight:600;"><i class="bi bi-box-arrow-up-right"></i> Abrir recurso</a></div>`;
+    }
+    document.getElementById('kbAporteViewBody').innerHTML = meta + bodyHtml;
+  } catch(e){
+    document.getElementById('kbAporteViewBody').innerHTML = meta + '<div class="empty-state">No se pudo cargar el contenido</div>';
+  }
+}
+
+function openRespKbAporte(id, titleSnippet){
+  _kbRespAporteId = id;
+  document.getElementById('kbRespAporteMeta').textContent = `Aporte: "${titleSnippet}"`;
+  document.getElementById('kbRespAporteText').value = '';
+  openModal('modalRespKbAporte');
+}
+
+async function sendRespKbAporte(btn){
+  if(!_kbRespAporteId) return;
+  const response = document.getElementById('kbRespAporteText').value.trim();
+  if(!response){ toast('Escribe un mensaje','error'); return; }
+  if(btn) btn.disabled = true;
+  const d = await apiFetch(`/api/kb/learning/${_kbRespAporteId}/response`,{method:'PATCH',body:{response}});
+  if(btn) btn.disabled = false;
+  if(!d.success){ toast(d.error||'Error','error'); return; }
+  toast('Respuesta enviada','success');
+  closeModal('modalRespKbAporte');
+  _kbRespAporteId = null;
+  loadKbPendingAportes();
+}
+
+async function approveKbAporte(id, btn){
+  if(!confirm('¿Aprobar y publicar este aporte?')) return;
+  if(btn) btn.disabled = true;
+  const d = await apiFetch(`/api/kb/learning/${id}/status`,{method:'PATCH',body:{status:'publicado'}});
+  if(btn) btn.disabled = false;
+  if(!d.success){ toast(d.error||'Error','error'); return; }
+  toast('Aporte aprobado y publicado','success');
+  document.getElementById(`kb-pending-${id}`)?.remove();
+  delete _kbPendingMap[id];
+  checkKbPendingBadge();
+  loadKbContribs();
+}
+
+async function rejectKbAporte(id, btn){
+  if(!confirm('¿Denegar este aporte?')) return;
+  if(btn) btn.disabled = true;
+  const d = await apiFetch(`/api/kb/learning/${id}/status`,{method:'PATCH',body:{status:'rechazado'}});
+  if(btn) btn.disabled = false;
+  if(!d.success){ toast(d.error||'Error','error'); return; }
+  toast('Aporte denegado','success');
+  document.getElementById(`kb-pending-${id}`)?.remove();
+  delete _kbPendingMap[id];
+  checkKbPendingBadge();
+}
+
+// ── Arranque ──────────────────────────────────────────────────────────────────
+init().then(() => {
+  const urlTab = new URLSearchParams(location.search).get('tab');
+  if (urlTab && _tabSections[urlTab]) switchTab(urlTab);
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

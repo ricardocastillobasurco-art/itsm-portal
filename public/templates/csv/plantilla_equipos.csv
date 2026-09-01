@@ -1,0 +1,8 @@
+name,ci_type_id,status,environment,location,serial_number,ip_address
+Laptop Dell Inspiron Juan García,2,activo,produccion,Oficina Lima - Piso 3,SN-DELL-001,192.168.1.101
+Laptop HP ProBook Ana Torres,2,activo,produccion,Sede Miraflores,SN-HP-002,192.168.1.102
+Servidor HPE ProLiant Principal,1,activo,produccion,Data Center Lima,SN-SRV-001,10.0.0.1
+PC Escritorio Carlos Ramos,3,activo,produccion,Oficina Lima - Piso 2,SN-PC-003,192.168.1.50
+Impresora HP LaserJet Recepción,4,activo,produccion,Recepción,SN-IMP-001,192.168.1.200
+Switch Cisco 24 puertos,5,activo,produccion,Cuarto de Redes,SN-SW-001,10.0.0.10
+Laptop Dell Viejo (baja),2,retirado,produccion,Almacén,SN-DELL-OLD,,

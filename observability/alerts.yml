@@ -1,0 +1,65 @@
+groups:
+  - name: itsm_sla
+    rules:
+      # Más de 5 brechas de SLA en 10 minutos
+      - alert: SLABreachRateHigh
+        expr: increase(itsm_sla_breaches_total[10m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto número de breaches de SLA (tenant={{ $labels.tenant }})"
+          description: "{{ $value }} tickets han superado el SLA en los últimos 10 minutos."
+
+      # P1 sin resolver después de 1 hora
+      - alert: CriticalTicketSLABreach
+        expr: increase(itsm_sla_breaches_total{priority="P1"}[1h]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ticket P1 ha superado el SLA"
+          description: "Un ticket crítico (P1) ha excedido su tiempo de resolución."
+
+  - name: itsm_errors
+    rules:
+      # Tasa de errores 5xx > 5% en 5 minutos
+      - alert: HighErrorRate
+        expr: |
+          rate(itsm_http_errors_total{status_code=~"5.."}[5m])
+          /
+          rate(itsm_http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alta tasa de errores 5xx ({{ $labels.tenant }})"
+          description: "La tasa de errores supera el 5% en los últimos 5 minutos."
+
+      # Latencia p95 > 3 segundos
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(itsm_http_request_duration_seconds_bucket[5m])
+          ) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latencia p95 elevada"
+          description: "El percentil 95 de latencia supera los 3 segundos."
+
+  - name: itsm_ai
+    rules:
+      # Llamadas IA > 10 segundos en mediana
+      - alert: AIProviderSlow
+        expr: |
+          histogram_quantile(0.50,
+            rate(itsm_ai_request_duration_seconds_bucket[10m])
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proveedor de IA lento"
+          description: "La mediana de duración de llamadas a Groq supera los 10 segundos."

@@ -1,0 +1,29 @@
+  <!-- ─── TABS 1,4,5,6: PRÓXIMAMENTE | 2,3: activos ──────────────────────── -->
+  <% const _soonTabs = [
+    { custom: true },
+    { custom: true },
+    { custom: true },
+    { icon:'bi-plug-fill',        color:'#f59e0b', bg:'#fef3c7', label:'Integraciones',  desc:'Conexiones con plataformas externas: Slack, Teams, GitHub y más.' },
+    { icon:'bi-activity',         color:'#ef4444', bg:'#fee2e2', label:'Observabilidad', desc:'Monitoreo de infraestructura, alertas y trazabilidad de incidentes.' },
+    { icon:'bi-share-fill',       color:'#0ea5e9', bg:'#e0f2fe', label:'Compartido',     desc:'Recursos, plantillas y documentos compartidos por el equipo TI.' },
+  ]; %>
+  <% _soonTabs.forEach(function(t, i) { %>
+  <% if (!t.custom) { %>
+  <div class="section-tab" id="toolTab<%= i+1 %>">
+    <div class="card-ui">
+      <div class="coming-soon">
+        <div class="coming-soon-icon" style="background:<%= t.bg %>;color:<%= t.color %>;">
+          <i class="bi <%= t.icon %>"></i>
+        </div>
+        <span class="soon-pill">Próximamente 🚀</span>
+        <h3><%= t.label %></h3>
+        <p><%= t.desc %></p>
+        <p style="font-size:12px;color:var(--muted);background:var(--hover);border-radius:8px;padding:8px 16px;margin-top:4px;">
+          <i class="bi bi-bell-fill" style="color:var(--warning);"></i>
+          Te notificaremos cuando esta herramienta esté disponible.
+        </p>
+      </div>
+    </div>
+  </div>
+  <% } %>
+  <% }); %>

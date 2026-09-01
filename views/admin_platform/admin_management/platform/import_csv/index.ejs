@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Centro de Datos — Gestión Masiva</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+:root {
+  --bg:        #f1f5f9;
+  --card:      #ffffff;
+  --border:    #e2e8f0;
+  --text:      #1e293b;
+  --muted:     #64748b;
+  --primary:   #3b82f6;
+  --primary-dk:#2563eb;
+  --success:   #10b981;
+  --warning:   #f59e0b;
+  --danger:    #ef4444;
+  --insert-bg: #f0fdf4;
+  --insert-bd: #bbf7d0;
+  --insert-tx: #166534;
+  --update-bg: #fffbeb;
+  --update-bd: #fde68a;
+  --update-tx: #92400e;
+  --skip-bg:   #f8fafc;
+  --skip-bd:   #e2e8f0;
+  --skip-tx:   #64748b;
+  --error-bg:  #fef2f2;
+  --error-bd:  #fecaca;
+  --error-tx:  #991b1b;
+  --radius:    10px;
+  --sh:        0 1px 4px rgba(0,0,0,.07);
+}
+[data-theme="dark"] {
+  --bg:        #0f172a;
+  --card:      #1e293b;
+  --border:    #334155;
+  --text:      #f1f5f9;
+  --muted:     #94a3b8;
+  --insert-bg: #052e16;
+  --insert-bd: #166534;
+  --insert-tx: #86efac;
+  --update-bg: #451a03;
+  --update-bd: #92400e;
+  --update-tx: #fde68a;
+  --skip-bg:   #1e293b;
+  --skip-bd:   #334155;
+  --skip-tx:   #94a3b8;
+  --error-bg:  #450a0a;
+  --error-bd:  #991b1b;
+  --error-tx:  #fca5a5;
+  --card:      #1e293b;
+}
+@media (prefers-color-scheme:dark) { :root { --bg:#0f172a;--card:#1e293b;--border:#334155;--text:#f1f5f9;--muted:#94a3b8; } }
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* ── Layout ── */
+.layout { display:flex; min-height:100vh; }
+.sidebar {
+  width:220px; flex-shrink:0; background:var(--card); border-right:1px solid var(--border);
+  padding:1.5rem 1rem; display:flex; flex-direction:column; gap:.5rem;
+  position:sticky; top:0; height:100vh; overflow-y:auto;
+}
+.sidebar-logo {
+  display:flex; align-items:center; gap:.6rem; margin-bottom:1rem;
+  padding-bottom:1rem; border-bottom:1px solid var(--border);
+}
+.sidebar-logo .icon { font-size:1.5rem; }
+.sidebar-logo .title { font-size:.9rem; font-weight:700; line-height:1.2; color:var(--text); }
+.sidebar-logo .sub   { font-size:.72rem; color:var(--muted); }
+
+.nav-btn {
+  display:flex; align-items:center; gap:.6rem; padding:.6rem .875rem;
+  border-radius:8px; cursor:pointer; border:none; background:none;
+  font-size:.85rem; font-weight:500; color:var(--muted); text-align:left; width:100%;
+  transition:background .15s, color .15s;
+}
+.nav-btn:hover    { background:var(--border); color:var(--text); }
+.nav-btn.active   { background:var(--primary); color:#fff; }
+.nav-btn .badge-count {
+  margin-left:auto; background:rgba(0,0,0,.12); padding:.1rem .45rem;
+  border-radius:99px; font-size:.7rem; font-weight:700;
+}
+.nav-sep { height:1px; background:var(--border); margin:.5rem 0; }
+
+.main { flex:1; padding:2rem; overflow-x:hidden; max-width:calc(100vw - 220px); }
+@media (max-width:768px) { .sidebar{display:none;} .main{max-width:100vw;padding:1rem;} }
+
+/* ── Header ── */
+.page-header { margin-bottom:1.75rem; }
+.page-header h1 { font-size:1.5rem; font-weight:700; margin-bottom:.25rem; }
+.page-header p  { font-size:.875rem; color:var(--muted); }
+
+/* ── Stats bar ── */
+.stats-bar {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.75rem;
+}
+.stat-card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:1rem 1.25rem; display:flex; align-items:center; gap:.875rem;
+  box-shadow:var(--sh);
+}
+.stat-icon { font-size:1.5rem; }
+.stat-val  { font-size:1.6rem; font-weight:800; line-height:1; }
+.stat-lbl  { font-size:.78rem; color:var(--muted); margin-top:.1rem; }
+
+/* ── Tab panels ── */
+.panel { display:none; }
+.panel.active { display:block; }
+
+/* ── Card ── */
+.card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--sh); margin-bottom:1.25rem;
+}
+.card-head {
+  padding:1rem 1.25rem; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.card-head h3 { font-size:.9rem; font-weight:700; display:flex; align-items:center; gap:.5rem; }
+.card-body  { padding:1.25rem; }
+
+/* ── Buttons row ── */
+.action-row { display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+.btn {
+  display:inline-flex; align-items:center; gap:.4rem; padding:.6rem 1.1rem;
+  border-radius:8px; font-size:.84rem; font-weight:600; cursor:pointer;
+  border:1.5px solid transparent; transition:all .15s; text-decoration:none;
+}
+.btn-primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+.btn-primary:hover { background:var(--primary-dk); border-color:var(--primary-dk); }
+.btn-outline { background:transparent; color:var(--text); border-color:var(--border); }
+.btn-outline:hover { background:var(--border); }
+.btn-success { background:var(--success); color:#fff; border-color:var(--success); }
+.btn-success:hover { filter:brightness(.92); }
+.btn-danger  { background:var(--danger);  color:#fff; border-color:var(--danger);  }
+.btn:disabled { opacity:.5; cursor:not-allowed; pointer-events:none; }
+
+/* ── Drop zone ── */
+.drop-zone {
+  border:2.5px dashed var(--border); border-radius:var(--radius);
+  padding:2.5rem 2rem; text-align:center; cursor:pointer;
+  position:relative; transition:all .2s;
+}
+.drop-zone:hover, .drop-zone.over { border-color:var(--primary); background:#eff6ff22; }
+[data-theme="dark"] .drop-zone:hover,
+[data-theme="dark"] .drop-zone.over { background:#1d4ed822; }
+.drop-zone input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+.dz-icon  { font-size:2.5rem; display:block; margin-bottom:.5rem; }
+.dz-label { font-size:.95rem; font-weight:600; margin-bottom:.25rem; }
+.dz-hint  { font-size:.78rem; color:var(--muted); }
+
+.file-selected {
+  display:none; align-items:center; gap:.75rem;
+  background:var(--insert-bg); border:1px solid var(--insert-bd);
+  border-radius:8px; padding:.75rem 1rem; margin-top:.875rem;
+}
+.file-selected.show { display:flex; }
+.file-selected .name { flex:1; font-size:.84rem; font-weight:600; color:var(--insert-tx); }
+.file-selected .size { font-size:.78rem; color:var(--muted); }
+.remove-file { background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--danger);padding:.2rem; }
+
+/* ── Preview table ── */
+.preview-wrap { display:none; margin-top:1.25rem; }
+.preview-wrap.show { display:block; }
+.preview-summary {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:1rem;
+}
+@media (max-width:600px) { .preview-summary{grid-template-columns:1fr 1fr;} }
+.sum-pill {
+  border-radius:8px; padding:.75rem .875rem; text-align:center;
+}
+.sum-pill .val { font-size:1.5rem; font-weight:800; display:block; }
+.sum-pill .lbl { font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.pill-ins  { background:var(--insert-bg); color:var(--insert-tx); border:1px solid var(--insert-bd); }
+.pill-upd  { background:var(--update-bg); color:var(--update-tx); border:1px solid var(--update-bd); }
+.pill-ski  { background:var(--skip-bg);   color:var(--skip-tx);   border:1px solid var(--skip-bd);   }
+.pill-err  { background:var(--error-bg);  color:var(--error-tx);  border:1px solid var(--error-bd);  }
+
+.table-wrap { overflow-x:auto; border-radius:8px; border:1px solid var(--border); }
+table { width:100%; border-collapse:collapse; font-size:.8rem; }
+thead th {
+  background:var(--bg); padding:.55rem .75rem; text-align:left;
+  font-weight:700; font-size:.73rem; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--muted); white-space:nowrap; position:sticky; top:0;
+  border-bottom:1px solid var(--border);
+}
+tbody td { padding:.5rem .75rem; border-top:1px solid var(--border); vertical-align:top; }
+tbody tr:hover td { background:var(--border)22; }
+.row-insert { background:var(--insert-bg)55; }
+.row-update { background:var(--update-bg)55; }
+.row-skip   { background:var(--skip-bg);   opacity:.7; }
+.row-error  { background:var(--error-bg)55; }
+.badge-action {
+  display:inline-block; padding:.15rem .55rem; border-radius:99px;
+  font-size:.7rem; font-weight:700; white-space:nowrap;
+}
+.ba-ins { background:var(--insert-bg); color:var(--insert-tx); border:1px solid var(--insert-bd); }
+.ba-upd { background:var(--update-bg); color:var(--update-tx); border:1px solid var(--update-bd); }
+.ba-ski { background:var(--skip-bg);   color:var(--skip-tx);   border:1px solid var(--skip-bd);   }
+.ba-err { background:var(--error-bg);  color:var(--error-tx);  border:1px solid var(--error-bd);  }
+
+/* ── Progress ── */
+.prog-wrap { display:none; margin-top:1rem; }
+.prog-wrap.show { display:block; }
+.prog-bar { height:6px; background:var(--border); border-radius:99px; overflow:hidden; margin-bottom:.4rem; }
+.prog-fill { height:100%; background:var(--primary); border-radius:99px; width:0%; transition:width .4s; }
+.prog-lbl  { font-size:.78rem; color:var(--muted); text-align:center; }
+
+/* ── Result box ── */
+.result-box { display:none; border-radius:var(--radius); padding:1.25rem; margin-top:1rem; }
+.result-box.show { display:block; }
+.result-box.ok  { background:var(--insert-bg); border:1px solid var(--insert-bd); }
+.result-box.err { background:var(--error-bg);  border:1px solid var(--error-bd); }
+.result-title { font-weight:700; font-size:.95rem; margin-bottom:.875rem; }
+
+/* ── Info block ── */
+.info-block {
+  background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:1rem 1.25rem; font-size:.82rem; line-height:1.7; color:var(--muted);
+}
+.info-block strong { color:var(--text); }
+.info-block code { background:var(--border); border-radius:4px; padding:.1rem .4rem; font-size:.8rem; }
+
+/* ── History table ── */
+.hist-entity { display:inline-flex; align-items:center; gap:.35rem; font-weight:600; }
+
+/* ── Toast ── */
+#toast {
+  position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999;
+  background:var(--text); color:var(--card); padding:.75rem 1.25rem;
+  border-radius:8px; font-size:.84rem; font-weight:600;
+  opacity:0; transform:translateY(8px); transition:all .25s;
+  pointer-events:none; max-width:320px;
+}
+#toast.show { opacity:1; transform:translateY(0); }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="icon">🗄️</span>
+      <div>
+        <div class="title">Centro de Datos</div>
+        <div class="sub">Gestión masiva</div>
+      </div>
+    </div>
+
+    <button class="nav-btn active" data-panel="employees" onclick="switchPanel('employees',this)">
+      <i class="bi bi-people-fill"></i> Empleados
+      <span class="badge-count" id="cnt-employees">—</span>
+    </button>
+    <button class="nav-btn" data-panel="equipment" onclick="switchPanel('equipment',this)">
+      <i class="bi bi-laptop"></i> Equipos
+      <span class="badge-count" id="cnt-equipment">—</span>
+    </button>
+    <button class="nav-btn" data-panel="assignments" onclick="switchPanel('assignments',this)">
+      <i class="bi bi-link-45deg"></i> Asignaciones
+      <span class="badge-count" id="cnt-assignments">—</span>
+    </button>
+
+    <div class="nav-sep"></div>
+    <button class="nav-btn" data-panel="bulk" onclick="switchPanel('bulk',this)" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:700;">
+      <i class="bi bi-lightning-charge-fill"></i> Carga Total
+    </button>
+
+    <div class="nav-sep"></div>
+    <button class="nav-btn" data-panel="history" onclick="switchPanel('history',this)">
+      <i class="bi bi-clock-history"></i> Historial
+    </button>
+
+    <div style="margin-top:auto;padding-top:1rem;border-top:1px solid var(--border)">
+      <a href="/administracion" class="nav-btn" style="text-decoration:none">
+        <i class="bi bi-arrow-left"></i> Volver
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+
+    <div class="page-header">
+      <h1>Centro de Gestión de Datos</h1>
+      <p>Importa, actualiza y exporta datos masivamente. Sin duplicados, con preview antes de confirmar.</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <span class="stat-icon">👥</span>
+        <div>
+          <div class="stat-val" id="stat-employees">—</div>
+          <div class="stat-lbl">Empleados activos</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">💻</span>
+        <div>
+          <div class="stat-val" id="stat-equipment">—</div>
+          <div class="stat-lbl">Equipos registrados</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🔗</span>
+        <div>
+          <div class="stat-val" id="stat-assignments">—</div>
+          <div class="stat-lbl">Asignaciones activas</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════ PANEL EMPLEADOS ═══════════════════════════════════════ -->
+    <div id="panel-employees" class="panel active">
+      <%- include('./entity-panel', { entity: 'employees', label: 'Empleados', icon: 'bi-people-fill',
+          keyLabel: 'Clave única: CIP (o email si no tiene CIP)',
+          columns: 'cip, full_name, email, department_name, position, position_name, category, employee_group, state, supervisor_name, cost_center, is_active',
+          notes: [
+            '<strong>cip</strong> — Clave única. Si ya existe, actualiza los datos del empleado sin duplicar.',
+            '<strong>email</strong> — Obligatorio. Si no hay CIP, el email actúa como clave única.',
+            '<strong>department_name</strong> — Nombre exacto del departamento registrado en el sistema.',
+            '<strong>state</strong> — Sede o ciudad (ej: Lima, Arequipa).',
+            '<strong>is_active</strong> — 1 = activo, 0 = dado de baja.',
+          ]
+        }) %>
+    </div>
+
+    <!-- ════════════════════════════════════ PANEL EQUIPOS ════════════════════════════════════════ -->
+    <div id="panel-equipment" class="panel">
+      <%- include('./entity-panel', { entity: 'equipment', label: 'Equipos', icon: 'bi-laptop',
+          keyLabel: 'Clave única: device_code',
+          columns: 'device_code, serial_number, equipment_type, brand, model, operating_system, processor, ram_memory, disk_capacity, status, domain, obsolescence_years',
+          notes: [
+            '<strong>device_code</strong> — Obligatorio. Código de inventario único (ej: LPT-001). Si ya existe, se actualizan sus datos.',
+            '<strong>equipment_type</strong> — Valores: <code>Laptop</code>, <code>Desktop</code>, <code>Ultraligera</code>, <code>Otro</code>.',
+            '<strong>status</strong> — Valores: <code>Operativo</code>, <code>En mantenimiento</code>, <code>Dado de baja</code>.',
+            '<strong>domain</strong> — Dominio de red del equipo (ej: INTEGRATEL).',
+            '<strong>obsolescence_years</strong> — Año de obsolescencia (ej: 2027).',
+          ]
+        }) %>
+    </div>
+
+    <!-- ════════════════════════════════════ PANEL ASIGNACIONES ═══════════════════════════════════ -->
+    <div id="panel-assignments" class="panel">
+      <%- include('./entity-panel', { entity: 'assignments', label: 'Asignaciones', icon: 'bi-link-45deg',
+          keyLabel: 'Clave única: employee_cip + device_code',
+          columns: 'employee_cip, device_code, assignment_date, notes',
+          notes: [
+            '<strong>employee_cip</strong> — CIP del empleado (debe existir ya en Empleados).',
+            '<strong>device_code</strong> — Código del equipo (debe existir ya en Equipos).',
+            '<strong>assignment_date</strong> — Formato <code>YYYY-MM-DD</code>. Si está vacío se usa la fecha de hoy.',
+            'Si ya existe una asignación activa entre ese empleado y ese equipo, se actualiza el campo <code>notes</code>.',
+          ]
+        }) %>
+    </div>
+
+    <!-- ════════════════════════════════════ PANEL CARGA TOTAL ═══════════════════════════════════ -->
+    <div id="panel-bulk" class="panel">
+
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="bi bi-lightning-charge-fill" style="color:#8b5cf6"></i> Carga Total — Actualización Consolidada</h3>
+        </div>
+        <div class="card-body">
+
+          <!-- Toggle de modo -->
+          <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:.4rem">
+            <button id="bulk-toggle-multi" onclick="switchBulkMode('multi')"
+              style="flex:1;padding:.55rem .75rem;border-radius:7px;border:none;cursor:pointer;font-size:.85rem;font-weight:700;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;transition:all .2s">
+              <i class="bi bi-files"></i> 3 archivos separados
+            </button>
+            <button id="bulk-toggle-single" onclick="switchBulkMode('single')"
+              style="flex:1;padding:.55rem .75rem;border-radius:7px;border:none;cursor:pointer;font-size:.85rem;font-weight:700;background:transparent;color:var(--muted);transition:all .2s">
+              <i class="bi bi-file-earmark-zip-fill"></i> 1 CSV unificado
+            </button>
+          </div>
+
+          <!-- ── MODO MULTI (3 archivos) ── -->
+          <div id="bulk-mode-multi">
+
+          <div class="info-block" style="margin-bottom:1.5rem;border-color:#c4b5fd;background:#f5f3ff">
+            <strong>¿Cómo funciona?</strong><br>
+            Sube los tres archivos CSV de una sola vez. El sistema los procesa en orden:
+            <span style="background:#e0e7ff;color:#4338ca;padding:.1rem .5rem;border-radius:4px;font-size:.8rem;font-weight:700;">1 Empleados</span>
+            → <span style="background:#dcfce7;color:#166534;padding:.1rem .5rem;border-radius:4px;font-size:.8rem;font-weight:700;">2 Equipos</span>
+            → <span style="background:#fef3c7;color:#92400e;padding:.1rem .5rem;border-radius:4px;font-size:.8rem;font-weight:700;">3 Asignaciones</span><br>
+            Puedes subir solo los que necesites. El análisis muestra el impacto en cada tabla antes de confirmar.
+          </div>
+
+          <!-- Tres pickers en grid -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-bottom:1.5rem">
+
+            <!-- Empleados -->
+            <div>
+              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4338ca;margin-bottom:.6rem">
+                <i class="bi bi-people-fill"></i> Empleados
+              </div>
+              <label style="display:block;border:2px dashed #c4b5fd;border-radius:8px;padding:1rem;text-align:center;cursor:pointer;transition:all .2s;background:#f5f3ff" id="bulk-emp-lbl">
+                <input type="file" id="bulk-emp" accept=".csv,.tsv,.txt" style="display:none" onchange="bulkFileSet('emp',this)">
+                <i class="bi bi-upload" style="font-size:1.5rem;color:#8b5cf6;display:block;margin-bottom:.4rem"></i>
+                <span id="bulk-emp-name" style="font-size:.82rem;color:#6d28d9;font-weight:600">Seleccionar CSV</span>
+              </label>
+              <div id="bulk-emp-clear" style="display:none;text-align:right;margin-top:.3rem">
+                <button onclick="bulkFileClear('emp')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer">✕ Quitar</button>
+              </div>
+              <a href="/api/data-center/employees/template" style="display:block;text-align:center;font-size:.75rem;color:var(--muted);margin-top:.4rem;text-decoration:none">
+                <i class="bi bi-download"></i> Descargar plantilla
+              </a>
+            </div>
+
+            <!-- Equipos -->
+            <div>
+              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#166534;margin-bottom:.6rem">
+                <i class="bi bi-laptop"></i> Equipos
+              </div>
+              <label style="display:block;border:2px dashed #86efac;border-radius:8px;padding:1rem;text-align:center;cursor:pointer;transition:all .2s;background:#f0fdf4" id="bulk-eq-lbl">
+                <input type="file" id="bulk-eq" accept=".csv,.tsv,.txt" style="display:none" onchange="bulkFileSet('eq',this)">
+                <i class="bi bi-upload" style="font-size:1.5rem;color:#10b981;display:block;margin-bottom:.4rem"></i>
+                <span id="bulk-eq-name" style="font-size:.82rem;color:#065f46;font-weight:600">Seleccionar CSV</span>
+              </label>
+              <div id="bulk-eq-clear" style="display:none;text-align:right;margin-top:.3rem">
+                <button onclick="bulkFileClear('eq')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer">✕ Quitar</button>
+              </div>
+              <a href="/api/data-center/equipment/template" style="display:block;text-align:center;font-size:.75rem;color:var(--muted);margin-top:.4rem;text-decoration:none">
+                <i class="bi bi-download"></i> Descargar plantilla
+              </a>
+            </div>
+
+            <!-- Asignaciones -->
+            <div>
+              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#92400e;margin-bottom:.6rem">
+                <i class="bi bi-link-45deg"></i> Asignaciones
+              </div>
+              <label style="display:block;border:2px dashed #fde68a;border-radius:8px;padding:1rem;text-align:center;cursor:pointer;transition:all .2s;background:#fffbeb" id="bulk-asg-lbl">
+                <input type="file" id="bulk-asg" accept=".csv,.tsv,.txt" style="display:none" onchange="bulkFileSet('asg',this)">
+                <i class="bi bi-upload" style="font-size:1.5rem;color:#f59e0b;display:block;margin-bottom:.4rem"></i>
+                <span id="bulk-asg-name" style="font-size:.82rem;color:#78350f;font-weight:600">Seleccionar CSV</span>
+              </label>
+              <div id="bulk-asg-clear" style="display:none;text-align:right;margin-top:.3rem">
+                <button onclick="bulkFileClear('asg')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer">✕ Quitar</button>
+              </div>
+              <a href="/api/data-center/assignments/template" style="display:block;text-align:center;font-size:.75rem;color:var(--muted);margin-top:.4rem;text-decoration:none">
+                <i class="bi bi-download"></i> Descargar plantilla
+              </a>
+            </div>
+
+          </div>
+
+          <!-- Botón analizar -->
+          <button class="btn btn-primary" id="bulk-btn-analyze" onclick="bulkAnalyze()" disabled
+            style="width:100%;padding:.875rem;font-size:1rem;justify-content:center;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-color:#6366f1">
+            <i class="bi bi-search"></i> Analizar todo
+          </button>
+
+          <!-- Progreso -->
+          <div class="prog-wrap" id="bulk-prog" style="margin-top:1rem">
+            <div class="prog-bar"><div class="prog-fill" id="bulk-progfill" style="background:linear-gradient(90deg,#6366f1,#8b5cf6)"></div></div>
+            <div class="prog-lbl" id="bulk-proglbl">Procesando...</div>
+          </div>
+
+          <!-- Preview consolidado -->
+          <div id="bulk-preview" style="display:none;margin-top:1.5rem">
+
+            <!-- Resumen total -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.25rem" id="bulk-totals"></div>
+
+            <!-- Sección por entidad -->
+            <div id="bulk-sections"></div>
+
+            <!-- Botón confirmar -->
+            <button class="btn btn-success" id="bulk-btn-commit" onclick="bulkCommit()"
+              style="width:100%;padding:.875rem;font-size:1rem;justify-content:center;margin-top:1rem">
+              <i class="bi bi-check-circle-fill"></i> Confirmar y guardar todo
+            </button>
+          </div>
+
+          <!-- Resultado -->
+          <div id="bulk-result" style="display:none;margin-top:1.25rem"></div>
+
+          </div><!-- /bulk-mode-multi -->
+
+          <!-- ── MODO SINGLE (1 CSV unificado) ── -->
+          <div id="bulk-mode-single" style="display:none">
+
+            <div class="info-block" style="margin-bottom:1.5rem;border-color:#10b981;background:#f0fdf4">
+              <strong>Inventario completo en un solo CSV.</strong><br>
+              Cada fila representa un equipo con su asignación (si tiene). Las columnas de asignación se dejan vacías si el equipo está disponible.<br>
+              Al subir: actualiza la tabla de <strong>equipos</strong> y la tabla de <strong>asignaciones</strong> automáticamente.
+              <div style="margin-top:.6rem;display:flex;gap:.5rem;flex-wrap:wrap">
+                <code style="background:#dcfce7;color:#166534;padding:.2rem .5rem;border-radius:4px;font-size:.78rem">device_code</code>
+                <code style="background:#dcfce7;color:#166534;padding:.2rem .5rem;border-radius:4px;font-size:.78rem">brand / model / status …</code>
+                <code style="background:#fef3c7;color:#92400e;padding:.2rem .5rem;border-radius:4px;font-size:.78rem">employee_cip</code>
+                <code style="background:#fef3c7;color:#92400e;padding:.2rem .5rem;border-radius:4px;font-size:.78rem">assignment_date</code>
+              </div>
+            </div>
+
+            <!-- Acciones de descarga -->
+            <div style="display:flex;gap:.75rem;margin-bottom:1.25rem">
+              <a href="/api/data-center/equipment-full/template" class="btn btn-outline" style="flex:1;justify-content:center;font-size:.85rem">
+                <i class="bi bi-download"></i> Plantilla (con ejemplos)
+              </a>
+              <a href="/api/data-center/equipment-full/export" class="btn btn-outline" style="flex:1;justify-content:center;font-size:.85rem">
+                <i class="bi bi-database-down"></i> Exportar inventario actual
+              </a>
+            </div>
+
+            <!-- Picker único -->
+            <label style="display:block;border:2.5px dashed #86efac;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:all .2s;background:#f0fdf4" id="single-lbl">
+              <input type="file" id="single-file" accept=".csv,.tsv,.txt" style="display:none" onchange="singleFileSet(this)">
+              <i class="bi bi-table" style="font-size:2.5rem;color:#10b981;display:block;margin-bottom:.6rem"></i>
+              <div style="font-size:.95rem;font-weight:700;color:#065f46" id="single-file-name">Seleccionar o arrastrar CSV de inventario</div>
+              <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem">CSV plano — una fila por equipo, con asignación incluida si aplica</div>
+            </label>
+            <div id="single-file-clear" style="display:none;text-align:right;margin-top:.4rem">
+              <button onclick="singleFileClear()" style="background:none;border:none;color:var(--danger);font-size:.8rem;cursor:pointer">✕ Quitar archivo</button>
+            </div>
+
+            <!-- Botón analizar -->
+            <button class="btn btn-primary" id="single-btn-analyze" onclick="singleAnalyze()" disabled
+              style="width:100%;padding:.875rem;font-size:1rem;justify-content:center;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-color:#6366f1;margin-top:1.25rem">
+              <i class="bi bi-search"></i> Analizar CSV
+            </button>
+
+            <!-- Progreso -->
+            <div class="prog-wrap" id="single-prog" style="margin-top:1rem">
+              <div class="prog-bar"><div class="prog-fill" id="single-progfill" style="background:linear-gradient(90deg,#6366f1,#8b5cf6)"></div></div>
+              <div class="prog-lbl" id="single-proglbl">Procesando...</div>
+            </div>
+
+            <!-- Preview -->
+            <div id="single-preview" style="display:none;margin-top:1.5rem">
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.25rem" id="single-totals"></div>
+              <div id="single-sections"></div>
+              <button class="btn btn-success" id="single-btn-commit" onclick="singleCommit()"
+                style="width:100%;padding:.875rem;font-size:1rem;justify-content:center;margin-top:1rem">
+                <i class="bi bi-check-circle-fill"></i> Confirmar y guardar todo
+              </button>
+            </div>
+
+            <!-- Resultado -->
+            <div id="single-result" style="display:none;margin-top:1.25rem"></div>
+
+          </div><!-- /bulk-mode-single -->
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════ PANEL HISTORIAL ══════════════════════════════════════ -->
+    <div id="panel-history" class="panel">
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="bi bi-clock-history"></i> Historial de cargas</h3>
+          <button class="btn btn-outline" onclick="loadHistory()" style="font-size:.78rem;padding:.4rem .8rem">
+            <i class="bi bi-arrow-clockwise"></i> Refrescar
+          </button>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Entidad</th>
+                  <th>Total</th>
+                  <th style="color:var(--insert-tx)">Insertados</th>
+                  <th style="color:var(--update-tx)">Actualizados</th>
+                  <th style="color:var(--error-tx)">Errores</th>
+                  <th>Subido por</th>
+                </tr>
+              </thead>
+              <tbody id="history-body">
+                <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+// ── Panel switching ───────────────────────────────────────────────────────────
+window.switchPanel = function(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'history') loadHistory();
+};
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch('/api/data-center/stats', { credentials:'include' });
+    const j = await r.json();
+    if (!j.success) return;
+    const d = j.data;
+    document.getElementById('stat-employees').textContent   = Number(d.employees).toLocaleString();
+    document.getElementById('stat-equipment').textContent   = Number(d.equipment).toLocaleString();
+    document.getElementById('stat-assignments').textContent = Number(d.assignments).toLocaleString();
+    document.getElementById('cnt-employees').textContent   = d.employees;
+    document.getElementById('cnt-equipment').textContent   = d.equipment;
+    document.getElementById('cnt-assignments').textContent = d.assignments;
+  } catch(_) {}
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+window.loadHistory = async function() {
+  const body = document.getElementById('history-body');
+  body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Cargando...</td></tr>';
+  try {
+    const r = await fetch('/api/data-center/history', { credentials:'include' });
+    const j = await r.json();
+    if (!j.data.length) {
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Sin cargas registradas aún</td></tr>';
+      return;
+    }
+    const entityIcon = { employees:'👥', equipment:'💻', assignments:'🔗' };
+    body.innerHTML = j.data.map(row => `
+      <tr>
+        <td style="white-space:nowrap;font-size:.78rem">${fmtDate(row.created_at)}</td>
+        <td><span class="hist-entity">${entityIcon[row.entity]||'📄'} ${row.entity}</span></td>
+        <td style="font-weight:700">${row.total}</td>
+        <td style="color:var(--insert-tx);font-weight:700">${row.inserted}</td>
+        <td style="color:var(--update-tx);font-weight:700">${row.updated}</td>
+        <td style="color:${row.errored>0?'var(--danger)':'var(--muted)'};font-weight:700">${row.errored}</td>
+        <td style="font-size:.78rem;color:var(--muted)">${esc(row.uploaded_by)}</td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--danger)">Error al cargar historial</td></tr>';
+  }
+};
+
+// ── Upload controller — instanciado por cada entidad ─────────────────────────
+window.DataUploader = function(entity) {
+  const $ = id => document.getElementById(id + '-' + entity);
+  let selectedFile = null;
+  let previewData  = null;
+
+  // Drag & drop
+  const dz = $('dropzone');
+  const fi = $('fileinput');
+
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); setFile(e.dataTransfer.files[0]); });
+  fi.addEventListener('change', () => setFile(fi.files[0]));
+  $('removefile').addEventListener('click', clearFile);
+
+  function setFile(f) {
+    if (!f) return;
+    if (!f.name.match(/\.(csv|tsv|txt)$/i)) { toast('Solo se aceptan archivos .csv', true); return; }
+    selectedFile = f;
+    $('filename').textContent = f.name;
+    $('filesize').textContent = fmtSize(f.size);
+    $('filesel').classList.add('show');
+    $('btnPreview').disabled = false;
+    clearPreview();
+  }
+
+  function clearFile() {
+    selectedFile = null; previewData = null;
+    fi.value = '';
+    $('filesel').classList.remove('show');
+    $('btnPreview').disabled = true;
+    $('btnCommit').disabled  = true;
+    clearPreview();
+  }
+
+  function clearPreview() {
+    $('preview').classList.remove('show');
+    $('resultbox').classList.remove('show','ok','err');
+  }
+
+  // Preview
+  $('btnPreview').addEventListener('click', async () => {
+    if (!selectedFile) return;
+    const btn = $('btnPreview');
+    btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Analizando...';
+    clearPreview(); $('resultbox').classList.remove('show','ok','err');
+    const fd = new FormData(); fd.append('file', selectedFile);
+    try {
+      showProg('Analizando CSV...', 30);
+      const r = await fetch('/api/data-center/' + entity + '/upload', { method:'POST', body:fd, credentials:'include' });
+      showProg('Procesando...', 75);
+      const j = await r.json();
+      showProg('Listo', 100);
+      setTimeout(() => hideProg(), 600);
+      if (!j.success) { toast(j.error || 'Error al analizar', true); return; }
+      previewData = j;
+      renderPreview(j);
+    } catch(e) { toast('Error de red: ' + e.message, true); hideProg(); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Analizar CSV'; }
+  });
+
+  // Commit
+  $('btnCommit').addEventListener('click', async () => {
+    if (!selectedFile || !previewData) return;
+    if (!confirm('¿Confirmas aplicar los cambios en la base de datos?')) return;
+    const btn = $('btnCommit');
+    btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Aplicando...';
+    const fd = new FormData(); fd.append('file', selectedFile);
+    try {
+      showProg('Aplicando cambios...', 40);
+      const r = await fetch('/api/data-center/' + entity + '/commit', { method:'POST', body:fd, credentials:'include' });
+      showProg('Finalizando...', 85);
+      const j = await r.json();
+      showProg('Listo', 100);
+      setTimeout(() => hideProg(), 600);
+      renderResult(j);
+      loadStats();
+    } catch(e) { toast('Error: ' + e.message, true); hideProg(); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle"></i> Confirmar y guardar'; }
+  });
+
+  function renderPreview(j) {
+    $('cnt-total').textContent  = j.total;
+    $('cnt-ins').textContent    = j.toInsert;
+    $('cnt-upd').textContent    = j.toUpdate;
+    $('cnt-ski').textContent    = j.toSkip;
+    $('cnt-err').textContent    = j.toError;
+
+    const colsMap = {
+      employees:   ['cip','full_name','email','department_name','position'],
+      equipment:   ['device_code','serial_number','equipment_type','brand','model','status'],
+      assignments: ['employee_cip','device_code','assignment_date','notes'],
+    };
+    const cols = colsMap[entity] || Object.keys((j.preview[0]||{data:{}}).data||{}).slice(0,5);
+    const head = `<tr><th>Fila</th><th>Acción</th>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+    const body = j.preview.map(row => {
+      const cl = {insert:'row-insert',update:'row-update',skip:'row-skip',error:'row-error'}[row.action]||'';
+      const ba = {insert:'ba-ins',update:'ba-upd',skip:'ba-ski',error:'ba-err'}[row.action]||'ba-ski';
+      const lbl = {insert:'✚ Nuevo',update:'↻ Actualiza',skip:'– Omite',error:'✕ Error'}[row.action]||row.action;
+      const cells = cols.map(c=>`<td>${esc(row.data?.[c]??'')}</td>`).join('');
+      const errNote = row.reason ? `<br><small style="color:var(--danger)">${esc(row.reason)}</small>` : '';
+      return `<tr class="${cl}"><td style="font-size:.75rem;color:var(--muted)">${row.row}</td>
+              <td><span class="badge-action ${ba}">${lbl}</span>${errNote}</td>${cells}</tr>`;
+    }).join('');
+
+    $('preview-table').innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+    $('preview').classList.add('show');
+    $('btnCommit').disabled = j.toInsert === 0 && j.toUpdate === 0;
+    if (j.hasMore) {
+      $('preview-more').textContent = `Mostrando primeras 200 filas. Total: ${j.total}`;
+      $('preview-more').style.display = 'block';
+    }
+  }
+
+  function renderResult(j) {
+    const box = $('resultbox');
+    box.innerHTML = '';
+    box.classList.remove('ok','err');
+    if (!j.success) {
+      box.classList.add('show','err');
+      box.innerHTML = `<div class="result-title">❌ ${esc(j.error||'Error desconocido')}</div>`;
+      return;
+    }
+    box.classList.add('show','ok');
+    box.innerHTML = `
+      <div class="result-title">✅ Carga completada correctamente</div>
+      <div class="preview-summary">
+        <div class="sum-pill pill-ins"><span class="val">${j.inserted}</span><span class="lbl">Insertados</span></div>
+        <div class="sum-pill pill-upd"><span class="val">${j.updated}</span><span class="lbl">Actualizados</span></div>
+        <div class="sum-pill pill-ski"><span class="val">${j.skipped}</span><span class="lbl">Omitidos</span></div>
+        <div class="sum-pill pill-err"><span class="val">${j.errored}</span><span class="lbl">Errores</span></div>
+      </div>
+      ${j.errorRows?.length ? `
+        <div style="margin-top:.75rem;font-size:.82rem;color:var(--error-tx);font-weight:600">Filas con error:</div>
+        <div class="table-wrap" style="margin-top:.5rem;max-height:200px;overflow-y:auto">
+          <table><thead><tr><th>Fila</th><th>Motivo</th></tr></thead>
+          <tbody>${j.errorRows.map(e=>`<tr class="row-error"><td>${e.row}</td><td>${esc(e.reason)}</td></tr>`).join('')}</tbody>
+          </table></div>` : ''}
+    `;
+    previewData = null;
+    $('preview').classList.remove('show');
+    toast(`Carga completada: ${j.inserted} nuevos, ${j.updated} actualizados`);
+  }
+
+  function showProg(label, pct) {
+    const pw = $('prog'); pw.classList.add('show');
+    $('progfill').style.width = pct + '%';
+    $('proglbl').textContent = label;
+  }
+  function hideProg() {
+    const pw = $('prog'); pw.classList.remove('show');
+    $('progfill').style.width = '0%';
+  }
+};
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtSize(b) {
+  return b < 1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(1)+' MB';
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+window.toast = function(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isErr ? 'var(--danger)' : '#1e293b';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CARGA TOTAL — lógica del panel consolidado
+// ══════════════════════════════════════════════════════════════════════════════
+const _bulkFiles = { emp: null, eq: null, asg: null };
+const _bulkEntityMap = { emp: 'employees', eq: 'equipment', asg: 'assignments' };
+const _bulkEntityLabel = { emp: 'Empleados', eq: 'Equipos', asg: 'Asignaciones' };
+const _bulkEntityIcon  = { emp: '👥', eq: '💻', asg: '🔗' };
+let _bulkPreviewData = null;
+
+window.bulkFileSet = function(key, input) {
+  const file = input.files[0];
+  if (!file) return;
+  _bulkFiles[key] = file;
+  document.getElementById('bulk-'+key+'-name').textContent = file.name;
+  document.getElementById('bulk-'+key+'-clear').style.display = 'block';
+  document.getElementById('bulk-btn-analyze').disabled = !Object.values(_bulkFiles).some(f => f);
+};
+
+window.bulkFileClear = function(key) {
+  _bulkFiles[key] = null;
+  document.getElementById('bulk-'+key).value = '';
+  document.getElementById('bulk-'+key+'-name').textContent = 'Seleccionar CSV';
+  document.getElementById('bulk-'+key+'-clear').style.display = 'none';
+  document.getElementById('bulk-btn-analyze').disabled = !Object.values(_bulkFiles).some(f => f);
+};
+
+function _bulkProg(pct, label) {
+  const pw = document.getElementById('bulk-prog'); pw.classList.add('show');
+  document.getElementById('bulk-progfill').style.width = pct + '%';
+  document.getElementById('bulk-proglbl').textContent = label;
+}
+function _bulkHideProg() { document.getElementById('bulk-prog').classList.remove('show'); }
+
+window.bulkAnalyze = async function() {
+  const btn = document.getElementById('bulk-btn-analyze');
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Analizando...';
+  document.getElementById('bulk-preview').style.display = 'none';
+  document.getElementById('bulk-result').style.display = 'none';
+  _bulkPreviewData = {};
+
+  const order = ['emp', 'eq', 'asg'];
+  const active = order.filter(k => _bulkFiles[k]);
+  let step = 0;
+
+  for (const key of order) {
+    if (!_bulkFiles[key]) continue;
+    step++;
+    const entity = _bulkEntityMap[key];
+    const label  = _bulkEntityLabel[key];
+    _bulkProg(Math.round((step / active.length) * 80), `Analizando ${label}...`);
+    const fd = new FormData(); fd.append('file', _bulkFiles[key]);
+    try {
+      const r = await fetch('/api/data-center/' + entity + '/upload', { method:'POST', body:fd, credentials:'include' });
+      const j = await r.json();
+      if (!j.success) { toast('Error en ' + label + ': ' + (j.error||'Error'), true); continue; }
+      _bulkPreviewData[key] = { ...j, entity, label, icon: _bulkEntityIcon[key] };
+    } catch(e) { toast('Error de red en ' + label + ': ' + e.message, true); }
+  }
+
+  _bulkProg(100, 'Análisis completo');
+  setTimeout(_bulkHideProg, 600);
+  btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Analizar todo';
+  _bulkRenderPreview();
+};
+
+function _bulkRenderPreview() {
+  const sections = Object.values(_bulkPreviewData);
+  if (!sections.length) return;
+
+  // Totales globales
+  const tot = sections.reduce((a,s) => ({
+    total: a.total + (s.total||0),
+    ins:   a.ins   + (s.toInsert||0),
+    upd:   a.upd   + (s.toUpdate||0),
+    err:   a.err   + (s.toError||0),
+  }), { total:0, ins:0, upd:0, err:0 });
+
+  document.getElementById('bulk-totals').innerHTML = `
+    <div class="sum-pill pill-ins"><span class="val">${tot.ins}</span><span class="lbl">Nuevos</span></div>
+    <div class="sum-pill pill-upd"><span class="val">${tot.upd}</span><span class="lbl">Actualizan</span></div>
+    <div class="sum-pill pill-ski"><span class="val">${tot.total - tot.ins - tot.upd - tot.err}</span><span class="lbl">Sin cambio</span></div>
+    <div class="sum-pill pill-err"><span class="val">${tot.err}</span><span class="lbl">Errores</span></div>
+  `;
+
+  // Detalle por entidad
+  let html = '';
+  const keys = ['emp','eq','asg'];
+  let stepNum = 0;
+  for (const key of keys) {
+    const s = _bulkPreviewData[key];
+    if (!s) continue;
+    stepNum++;
+    const colors = { emp:'#6366f1', eq:'#10b981', asg:'#f59e0b' };
+    const col = colors[key];
+    const errRows = (s.preview||[]).filter(p => p.action === 'error').slice(0,5);
+    html += `
+      <div style="border:1.5px solid ${col}33;border-radius:10px;margin-bottom:1rem;overflow:hidden">
+        <div style="background:${col}11;padding:.75rem 1.25rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid ${col}22">
+          <span style="background:${col};color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;flex-shrink:0">${stepNum}</span>
+          <strong style="font-size:.95rem">${s.icon} ${s.label}</strong>
+          <span style="margin-left:auto;font-size:.8rem;color:var(--muted)">${s.total} filas</span>
+        </div>
+        <div style="padding:.875rem 1.25rem;display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem">
+          <div style="text-align:center"><div style="font-size:1.4rem;font-weight:800;color:var(--insert-tx)">${s.toInsert||0}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Nuevos</div></div>
+          <div style="text-align:center"><div style="font-size:1.4rem;font-weight:800;color:var(--update-tx)">${s.toUpdate||0}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Actualizan</div></div>
+          <div style="text-align:center"><div style="font-size:1.4rem;font-weight:800;color:var(--skip-tx)">${s.toSkip||0}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Omiten</div></div>
+          <div style="text-align:center"><div style="font-size:1.4rem;font-weight:800;color:var(--danger)">${s.toError||0}</div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Errores</div></div>
+        </div>
+        ${errRows.length ? `
+          <div style="padding:0 1.25rem .875rem">
+            <div style="font-size:.78rem;font-weight:700;color:var(--error-tx);margin-bottom:.4rem">⚠ Filas con error (primeras ${errRows.length}):</div>
+            ${errRows.map(e => `<div style="font-size:.76rem;background:var(--error-bg);border:1px solid var(--error-bd);border-radius:5px;padding:.3rem .6rem;margin-bottom:.3rem;color:var(--error-tx)">Fila ${e.row}: ${esc(e.reason||'Error desconocido')}</div>`).join('')}
+          </div>` : ''}
+      </div>`;
+  }
+
+  document.getElementById('bulk-sections').innerHTML = html;
+  document.getElementById('bulk-preview').style.display = 'block';
+  document.getElementById('bulk-btn-commit').disabled =
+    (tot.ins === 0 && tot.upd === 0);
+}
+
+window.bulkCommit = async function() {
+  if (!confirm('¿Confirmar la actualización de todos los datos seleccionados?')) return;
+  const btn = document.getElementById('bulk-btn-commit');
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+
+  const order  = ['emp','eq','asg'];
+  const results = [];
+  let step = 0;
+  const active = order.filter(k => _bulkFiles[k]);
+
+  for (const key of order) {
+    if (!_bulkFiles[key]) continue;
+    step++;
+    const entity = _bulkEntityMap[key];
+    const label  = _bulkEntityLabel[key];
+    _bulkProg(Math.round((step / active.length) * 90), `Guardando ${label}...`);
+
+    const fd = new FormData(); fd.append('file', _bulkFiles[key]);
+    try {
+      const r = await fetch('/api/data-center/' + entity + '/commit', { method:'POST', body:fd, credentials:'include' });
+      const j = await r.json();
+      results.push({ key, label, icon: _bulkEntityIcon[key], ...j });
+    } catch(e) {
+      results.push({ key, label, icon: _bulkEntityIcon[key], success:false, error: e.message });
+    }
+  }
+
+  _bulkProg(100, 'Completado'); setTimeout(_bulkHideProg, 600);
+  btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Confirmar y guardar todo';
+  btn.disabled = false;
+  document.getElementById('bulk-preview').style.display = 'none';
+  _bulkRenderResult(results);
+  loadStats();
+};
+
+function _bulkRenderResult(results) {
+  const box = document.getElementById('bulk-result');
+  const allOk = results.every(r => r.success);
+  const totalIns = results.reduce((a,r) => a + (r.inserted||0), 0);
+  const totalUpd = results.reduce((a,r) => a + (r.updated||0), 0);
+  const totalErr = results.reduce((a,r) => a + (r.errored||0), 0);
+
+  let html = `
+    <div style="background:${allOk?'var(--insert-bg)':'var(--update-bg)'};border:1.5px solid ${allOk?'var(--insert-bd)':'var(--update-bd)'};border-radius:10px;padding:1.25rem">
+      <div style="font-size:1rem;font-weight:700;margin-bottom:1rem">${allOk?'✅':'⚠️'} Carga completada</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.25rem">
+        <div class="sum-pill pill-ins"><span class="val">${totalIns}</span><span class="lbl">Nuevos</span></div>
+        <div class="sum-pill pill-upd"><span class="val">${totalUpd}</span><span class="lbl">Actualizados</span></div>
+        <div class="sum-pill pill-err"><span class="val">${totalErr}</span><span class="lbl">Errores</span></div>
+      </div>
+      ${results.map(r => `
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .875rem;border-radius:8px;background:var(--card);border:1px solid var(--border);margin-bottom:.5rem">
+          <span style="font-size:1.2rem">${r.icon}</span>
+          <strong style="flex:1">${r.label}</strong>
+          ${r.success ? `
+            <span style="font-size:.78rem;color:var(--insert-tx)">+${r.inserted||0} nuevos</span>
+            <span style="font-size:.78rem;color:var(--update-tx);margin-left:.5rem">↻${r.updated||0} actualizados</span>
+            ${r.errored>0 ? `<span style="font-size:.78rem;color:var(--danger);margin-left:.5rem">✕${r.errored} errores</span>` : ''}
+          ` : `<span style="font-size:.78rem;color:var(--danger)">${esc(r.error||'Error')}</span>`}
+        </div>`).join('')}
+    </div>`;
+
+  box.innerHTML = html;
+  box.style.display = 'block';
+  toast(`Carga total: ${totalIns} nuevos, ${totalUpd} actualizados`);
+}
+
+// ── Modo toggle Carga Total ────────────────────────────────────────────────────
+let _bulkMode = 'multi';
+window.switchBulkMode = function(mode) {
+  _bulkMode = mode;
+  document.getElementById('bulk-mode-multi').style.display  = mode === 'multi'  ? '' : 'none';
+  document.getElementById('bulk-mode-single').style.display = mode === 'single' ? '' : 'none';
+  const btnMulti  = document.getElementById('bulk-toggle-multi');
+  const btnSingle = document.getElementById('bulk-toggle-single');
+  const active    = 'background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;';
+  const inactive  = 'background:transparent;color:var(--muted);';
+  btnMulti.style.cssText  += mode === 'multi'  ? active : inactive;
+  btnSingle.style.cssText += mode === 'single' ? active : inactive;
+};
+
+// ── CSV Unificado (single) ─────────────────────────────────────────────────────
+let _singleFile = null;
+
+window.singleFileSet = function(input) {
+  const f = input.files[0];
+  if (!f) return;
+  _singleFile = f;
+  document.getElementById('single-file-name').textContent = f.name;
+  document.getElementById('single-file-clear').style.display = 'block';
+  document.getElementById('single-btn-analyze').disabled = false;
+};
+
+window.singleFileClear = function() {
+  _singleFile = null;
+  document.getElementById('single-file').value = '';
+  document.getElementById('single-file-name').textContent = 'Seleccionar o arrastrar CSV unificado';
+  document.getElementById('single-file-clear').style.display = 'none';
+  document.getElementById('single-btn-analyze').disabled = true;
+  document.getElementById('single-preview').style.display = 'none';
+  document.getElementById('single-result').style.display  = 'none';
+};
+
+function _singleProg(pct, label) {
+  const w = document.getElementById('single-prog'); w.classList.add('show');
+  document.getElementById('single-progfill').style.width = pct + '%';
+  document.getElementById('single-proglbl').textContent = label;
+}
+function _singleHideProg() { document.getElementById('single-prog').classList.remove('show'); }
+
+window.singleAnalyze = async function() {
+  if (!_singleFile) return;
+  const btn = document.getElementById('single-btn-analyze');
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Analizando...';
+  document.getElementById('single-preview').style.display = 'none';
+  document.getElementById('single-result').style.display  = 'none';
+  _singleProg(30, 'Analizando inventario...');
+
+  const fd = new FormData(); fd.append('file', _singleFile);
+  let j;
+  try {
+    const r = await fetch('/api/data-center/equipment-full/upload', { method:'POST', body:fd, credentials:'include' });
+    j = await r.json();
+  } catch(e) { toast('Error de red: ' + e.message, true); btn.disabled=false; btn.innerHTML='<i class="bi bi-search"></i> Analizar CSV'; return; }
+
+  _singleProg(100, 'Completo'); setTimeout(_singleHideProg, 500);
+  btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Analizar CSV';
+  if (!j.success) { toast('Error: ' + (j.error||'Error'), true); return; }
+
+  const eq  = j.eq  || {};
+  const asg = j.asg || {};
+  const errs = j.errors || [];
+  const totalNew = (eq.inserted||0)+(asg.inserted||0);
+  const totalUpd = (eq.updated||0)+(asg.updated||0);
+  const totalErr = (eq.errored||0)+(asg.errored||0);
+
+  document.getElementById('single-totals').innerHTML = `
+    <div class="sum-pill pill-ins"><span class="val">${totalNew}</span><span class="lbl">Nuevos</span></div>
+    <div class="sum-pill pill-upd"><span class="val">${totalUpd}</span><span class="lbl">Actualizan</span></div>
+    <div class="sum-pill pill-ski"><span class="val">${asg.skipped||0}</span><span class="lbl">Sin asignación</span></div>
+    <div class="sum-pill pill-err"><span class="val">${totalErr}</span><span class="lbl">Errores</span></div>
+  `;
+
+  let html = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">`;
+
+  // Tarjeta Equipos (solo si hay algo)
+  if (j.total > 0) {
+    const eqItems = [
+      eq.inserted ? `<li><strong style="color:var(--insert-tx)">${eq.inserted}</strong> equipos nuevos</li>` : '',
+      eq.updated  ? `<li><strong style="color:var(--update-tx)">${eq.updated}</strong> equipos a actualizar</li>` : '',
+      eq.errored  ? `<li><strong style="color:var(--danger)">${eq.errored}</strong> con error</li>` : '',
+    ].filter(Boolean).join('');
+    html += `
+      <div style="border:1.5px solid #10b98133;border-radius:10px;overflow:hidden">
+        <div style="background:#10b98111;padding:.65rem 1.1rem;border-bottom:1px solid #10b98122;font-weight:700;font-size:.88rem">💻 Equipos <span style="font-weight:400;color:var(--muted);font-size:.8rem">(${j.total} filas)</span></div>
+        <div style="padding:.75rem 1.1rem">
+          ${eqItems ? `<ul style="margin:0;padding-left:1.1rem;font-size:.85rem;line-height:1.8">${eqItems}</ul>` : '<p style="font-size:.82rem;color:var(--muted);margin:0">Sin cambios detectados</p>'}
+        </div>
+      </div>`;
+  }
+
+  // Tarjeta Asignaciones (solo si hay movimiento)
+  const asgTotal = (asg.inserted||0)+(asg.updated||0)+(asg.skipped||0)+(asg.errored||0);
+  if (asgTotal > 0) {
+    const asgItems = [
+      asg.inserted ? `<li><strong style="color:var(--insert-tx)">${asg.inserted}</strong> asignaciones nuevas</li>` : '',
+      asg.updated  ? `<li><strong style="color:var(--update-tx)">${asg.updated}</strong> asignaciones a actualizar</li>` : '',
+      asg.skipped  ? `<li><span style="color:var(--muted)">${asg.skipped}</span> equipos sin asignación</li>` : '',
+      asg.errored  ? `<li><strong style="color:var(--danger)">${asg.errored}</strong> conflictos de asignación</li>` : '',
+    ].filter(Boolean).join('');
+    html += `
+      <div style="border:1.5px solid #f59e0b33;border-radius:10px;overflow:hidden">
+        <div style="background:#f59e0b11;padding:.65rem 1.1rem;border-bottom:1px solid #f59e0b22;font-weight:700;font-size:.88rem">🔗 Asignaciones</div>
+        <div style="padding:.75rem 1.1rem">
+          <ul style="margin:0;padding-left:1.1rem;font-size:.85rem;line-height:1.8">${asgItems}</ul>
+        </div>
+      </div>`;
+  }
+
+  html += '</div>';
+
+  // Tabla de errores (si hay)
+  if (errs.length) {
+    html += `
+      <div style="border:1.5px solid #fca5a5;border-radius:10px;overflow:hidden;margin-top:.5rem">
+        <div style="background:#fef2f2;padding:.65rem 1.1rem;border-bottom:1px solid #fca5a5;font-weight:700;font-size:.88rem;color:#b91c1c">
+          ⚠ ${errs.length} error${errs.length>1?'es':''} detectado${errs.length>1?'s':''}
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+            <thead>
+              <tr style="background:#fef2f2;color:#7f1d1d">
+                <th style="padding:.45rem .75rem;text-align:left;white-space:nowrap;border-bottom:1px solid #fca5a5">Fila</th>
+                <th style="padding:.45rem .75rem;text-align:left;white-space:nowrap;border-bottom:1px solid #fca5a5">Código</th>
+                <th style="padding:.45rem .75rem;text-align:left;white-space:nowrap;border-bottom:1px solid #fca5a5">Tipo</th>
+                <th style="padding:.45rem .75rem;text-align:left;border-bottom:1px solid #fca5a5">Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${errs.map((e,i)=>`
+                <tr style="border-bottom:1px solid #fee2e2;background:${i%2?'#fff7f7':'#fff'}">
+                  <td style="padding:.4rem .75rem;color:#6b7280">${e.row}</td>
+                  <td style="padding:.4rem .75rem;font-weight:600;font-family:monospace">${esc(e.device_code)}</td>
+                  <td style="padding:.4rem .75rem"><span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:.1rem .4rem;font-size:.74rem">${esc(e.tipo)}</span></td>
+                  <td style="padding:.4rem .75rem;color:#b91c1c">${esc(e.motivo)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('single-sections').innerHTML = html;
+  document.getElementById('single-preview').style.display = 'block';
+  document.getElementById('single-btn-commit').disabled = (totalNew + totalUpd === 0);
+};
+
+window.singleCommit = async function() {
+  if (!_singleFile) return;
+  if (!confirm('¿Confirmar actualización del inventario completo (equipos + asignaciones)?')) return;
+  const btn = document.getElementById('single-btn-commit');
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+  _singleProg(40, 'Actualizando equipos y asignaciones...');
+
+  const fd = new FormData(); fd.append('file', _singleFile);
+  let j;
+  try {
+    const r = await fetch('/api/data-center/equipment-full/commit', { method:'POST', body:fd, credentials:'include' });
+    j = await r.json();
+  } catch(e) { toast('Error de red: ' + e.message, true); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-circle-fill"></i> Confirmar y guardar todo'; return; }
+
+  _singleProg(100, 'Completado'); setTimeout(_singleHideProg, 500);
+  btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Confirmar y guardar todo';
+  btn.disabled  = false;
+  document.getElementById('single-preview').style.display = 'none';
+  if (!j.success) { toast('Error: ' + (j.error||'Error'), true); return; }
+
+  const eq   = j.eq  || {};
+  const asg  = j.asg || {};
+  const errs = j.errors || [];
+  const totalNew = (eq.inserted||0)+(asg.inserted||0);
+  const totalUpd = (eq.updated||0)+(asg.updated||0);
+  const totalErr = (eq.errored||0)+(asg.errored||0);
+  const allOk    = totalErr === 0;
+  const box      = document.getElementById('single-result');
+
+  // Informe de cambios (solo secciones con datos)
+  const changeLines = [
+    eq.inserted  ? `<tr><td style="padding:.4rem .75rem">💻 Equipos nuevos</td><td style="padding:.4rem .75rem;text-align:right;font-weight:700;color:var(--insert-tx)">${eq.inserted}</td></tr>` : '',
+    eq.updated   ? `<tr><td style="padding:.4rem .75rem">💻 Equipos actualizados</td><td style="padding:.4rem .75rem;text-align:right;font-weight:700;color:var(--update-tx)">${eq.updated}</td></tr>` : '',
+    asg.inserted ? `<tr><td style="padding:.4rem .75rem">🔗 Asignaciones nuevas</td><td style="padding:.4rem .75rem;text-align:right;font-weight:700;color:var(--insert-tx)">${asg.inserted}</td></tr>` : '',
+    asg.updated  ? `<tr><td style="padding:.4rem .75rem">🔗 Asignaciones actualizadas</td><td style="padding:.4rem .75rem;text-align:right;font-weight:700;color:var(--update-tx)">${asg.updated}</td></tr>` : '',
+    totalErr     ? `<tr><td style="padding:.4rem .75rem;color:var(--danger)">⚠ Errores</td><td style="padding:.4rem .75rem;text-align:right;font-weight:700;color:var(--danger)">${totalErr}</td></tr>` : '',
+  ].filter(Boolean).join('');
+
+  let html = `
+    <div style="border:1.5px solid ${allOk?'var(--insert-bd)':'var(--update-bd)'};border-radius:10px;overflow:hidden">
+      <div style="background:${allOk?'var(--insert-bg)':'var(--update-bg)'};padding:.875rem 1.25rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid ${allOk?'var(--insert-bd)':'var(--update-bd)'}">
+        <span style="font-size:1.3rem">${allOk?'✅':'⚠️'}</span>
+        <div>
+          <div style="font-weight:700;font-size:.95rem">Informe de carga — ${j.total} equipos procesados</div>
+          <div style="font-size:.78rem;color:var(--muted)">${new Date().toLocaleString('es-PE')}</div>
+        </div>
+      </div>
+      ${totalNew+totalUpd > 0 ? `
+        <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+          <tbody style="divide-y">
+            ${changeLines}
+          </tbody>
+          <tfoot>
+            <tr style="border-top:2px solid var(--border);font-weight:700">
+              <td style="padding:.5rem .75rem">Total cambios aplicados</td>
+              <td style="padding:.5rem .75rem;text-align:right">${totalNew+totalUpd}</td>
+            </tr>
+          </tfoot>
+        </table>` : `<p style="padding:1rem;color:var(--muted);font-size:.85rem;margin:0">No se detectaron cambios que aplicar.</p>`}
+    </div>`;
+
+  // Tabla de errores (si los hay)
+  if (errs.length) {
+    html += `
+      <div style="border:1.5px solid #fca5a5;border-radius:10px;overflow:hidden;margin-top:1rem">
+        <div style="background:#fef2f2;padding:.65rem 1.1rem;border-bottom:1px solid #fca5a5;font-weight:700;font-size:.88rem;color:#b91c1c">
+          ⚠ ${errs.length} registro${errs.length>1?'s':''} con error — no ${errs.length>1?'fueron guardados':'fue guardado'}
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+            <thead>
+              <tr style="background:#fef2f2;color:#7f1d1d">
+                <th style="padding:.45rem .75rem;text-align:left;border-bottom:1px solid #fca5a5">Fila</th>
+                <th style="padding:.45rem .75rem;text-align:left;border-bottom:1px solid #fca5a5">Código</th>
+                <th style="padding:.45rem .75rem;text-align:left;border-bottom:1px solid #fca5a5">Tipo</th>
+                <th style="padding:.45rem .75rem;text-align:left;border-bottom:1px solid #fca5a5">Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${errs.map((e,i)=>`
+                <tr style="border-bottom:1px solid #fee2e2;background:${i%2?'#fff7f7':'#fff'}">
+                  <td style="padding:.4rem .75rem;color:#6b7280">${e.row}</td>
+                  <td style="padding:.4rem .75rem;font-weight:600;font-family:monospace">${esc(e.device_code)}</td>
+                  <td style="padding:.4rem .75rem"><span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:.1rem .4rem;font-size:.74rem">${esc(e.tipo)}</span></td>
+                  <td style="padding:.4rem .75rem;color:#b91c1c">${esc(e.motivo)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  box.innerHTML = html;
+  box.style.display = 'block';
+  if (totalNew+totalUpd > 0) toast(`Inventario: ${totalNew} nuevos, ${totalUpd} actualizados${totalErr?' · '+totalErr+' errores':''}`);
+  loadStats();
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadStats();
+
+})();
+</script>
+
+</body>
+</html>

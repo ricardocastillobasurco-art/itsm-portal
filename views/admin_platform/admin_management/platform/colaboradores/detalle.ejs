@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="/css/core/style.css">
+<script>(function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('dashboardTheme')||'light'); })();</script>
+<style>
+:root,[data-theme="light"]{--pg-bg:var(--bg-primary,#f0f4f8);--card-bg:var(--bg-card,#fff);--hdr-bg:var(--bg-primary,#f8fafc);--bdr:var(--border-color,#e2e8f0);--txt:var(--text-primary,#1e293b);--mut:var(--text-secondary,#64748b);--clr-ok:#10b981;--clr-red:#ef4444;--clr-blue:#3b82f6;--clr-warn:#f59e0b;--sh:0 1px 3px rgba(0,0,0,.07);--sh-md:0 4px 16px rgba(0,0,0,.10);}
+[data-theme="dark"]{--pg-bg:#0f172a;--card-bg:#1e293b;--hdr-bg:#162032;--bdr:#2d3f55;--txt:#e2e8f0;--mut:#94a3b8;--clr-ok:#34d399;--clr-red:#f87171;--clr-blue:#60a5fa;--clr-warn:#fbbf24;--sh:0 1px 3px rgba(0,0,0,.3);--sh-md:0 4px 16px rgba(0,0,0,.4);}
+*,*::before,*::after{box-sizing:border-box;}
+body{background:var(--pg-bg);color:var(--txt);}
+.pg{max-width:900px;margin:0 auto;padding:24px 20px;margin-top:0;}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mut);text-decoration:none;margin-bottom:20px;padding:6px 12px;border:1px solid var(--bdr);border-radius:8px;background:var(--card-bg);transition:all .15s;}
+.back-link:hover{color:var(--clr-blue);border-color:var(--clr-blue);}
+.emp-header{background:var(--card-bg);border:1px solid var(--bdr);border-radius:16px;padding:28px;box-shadow:var(--sh-md);margin-bottom:20px;display:flex;align-items:flex-start;gap:20px;}
+.emp-avatar{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;flex-shrink:0;}
+.emp-avatar.activo{background:linear-gradient(135deg,#10b981,#059669);}
+.emp-avatar.baja{background:linear-gradient(135deg,#ef4444,#dc2626);}
+.emp-info{flex:1;}
+.emp-name{font-size:22px;font-weight:800;color:var(--txt);margin:0 0 4px;}
+.emp-pos{font-size:13px;color:var(--mut);margin:0 0 10px;}
+.emp-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.badge-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;}
+.badge-activo{background:#dcfce7;color:#16a34a;}
+.badge-baja{background:#fee2e2;color:#dc2626;}
+.badge-info{background:rgba(59,130,246,.12);color:var(--clr-blue);}
+.baja-alert{background:linear-gradient(135deg,rgba(239,68,68,.08),rgba(220,38,38,.05));border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:16px 20px;margin-top:16px;display:flex;align-items:center;gap:14px;}
+.baja-alert-icon{font-size:28px;flex-shrink:0;}
+.baja-alert-body{}
+.baja-alert-title{font-size:13px;font-weight:700;color:var(--clr-red);margin:0 0 2px;}
+.baja-alert-date{font-size:20px;font-weight:900;color:var(--clr-red);letter-spacing:-.5px;}
+.baja-alert-ago{font-size:11px;color:var(--mut);margin-top:2px;}
+.meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+@media(max-width:600px){.meta-grid{grid-template-columns:1fr 1fr;} .emp-header{flex-direction:column;}}
+.meta-card{background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:14px 16px;box-shadow:var(--sh);}
+.meta-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);font-weight:700;margin-bottom:4px;}
+.meta-val{font-size:14px;font-weight:600;color:var(--txt);word-break:break-all;}
+.section-card{background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;box-shadow:var(--sh);margin-bottom:20px;}
+.section-head{padding:13px 18px;background:var(--hdr-bg);border-bottom:1px solid var(--bdr);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);display:flex;align-items:center;justify-content:space-between;}
+.section-head .hl{display:flex;align-items:center;gap:7px;}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.tbl thead th{font-size:10px;text-transform:uppercase;color:var(--mut);font-weight:700;padding:10px 14px;background:var(--hdr-bg);border-bottom:1px solid var(--bdr);white-space:nowrap;text-align:left;}
+.tbl tbody td{padding:11px 14px;border-bottom:1px solid var(--bdr);color:var(--txt);vertical-align:middle;}
+.tbl tbody tr:last-child td{border-bottom:none;}
+.tbl tbody tr:hover td{background:rgba(0,0,0,.02);}
+[data-theme="dark"] .tbl tbody tr:hover td{background:rgba(255,255,255,.03);}
+.eq-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;}
+.eq-Laptop{background:#dbeafe;color:#2563eb;}
+.eq-Desktop{background:#d1fae5;color:#059669;}
+.eq-Monitor{background:#fef3c7;color:#d97706;}
+.eq-Tablet{background:#ede9fe;color:#7c3aed;}
+.eq-other{background:rgba(100,116,139,.12);color:var(--mut);}
+[data-theme="dark"] .eq-Laptop{background:#1e3a5f;color:#93c5fd;}
+[data-theme="dark"] .eq-Desktop{background:#064e3b;color:#6ee7b7;}
+[data-theme="dark"] .eq-Monitor{background:#422006;color:#fde68a;}
+[data-theme="dark"] .eq-Tablet{background:#2e1065;color:#c4b5fd;}
+.status-active{color:var(--clr-ok);font-weight:600;}
+.status-returned{color:var(--mut);}
+.empty-state{text-align:center;padding:40px 20px;color:var(--mut);}
+.empty-state i{font-size:32px;display:block;margin-bottom:8px;opacity:.3;}
+</style>
+</head>
+<body>
+<style>
+.itsm-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 24px;background:var(--card,#fff);border-bottom:1px solid var(--border,#e2e8f0);position:sticky;top:0;z-index:999;}
+.itsm-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--mut,#64748b);background:var(--bg,#f0f4f8);border:1px solid var(--border,#e2e8f0);border-radius:20px;padding:5px 12px;text-decoration:none;transition:color .2s;}
+.itsm-back:hover{color:var(--primary,#3b82f6);}
+.itsm-breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut,#64748b);}
+.itsm-breadcrumb a{color:var(--mut,#64748b);text-decoration:none;font-weight:500;}
+.itsm-breadcrumb a:hover{color:var(--primary,#3b82f6);}
+.itsm-breadcrumb .sep{opacity:.4;}
+.itsm-breadcrumb .current{color:var(--txt,#1e293b);font-weight:700;}
+</style>
+<script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('dashboardTheme')||'light');})();</script>
+<div class="itsm-topbar">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="/colaboradores" class="itsm-back"><i class="bi bi-arrow-left"></i> Colaboradores</a>
+    <div class="itsm-breadcrumb">
+      <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
+      <span class="sep">/</span>
+      <a href="/colaboradores">Colaboradores</a>
+      <span class="sep">/</span>
+      <span class="current"><i class="bi bi-person-badge"></i> Detalle</span>
+    </div>
+  </div>
+  <button onclick="toggleTheme()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:8px;">
+    <div id="themeTrack" style="width:32px;height:18px;border-radius:9px;background:#cbd5e1;position:relative;transition:background .3s;">
+      <div id="themeKnob" style="width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .3s;"></div>
+    </div>
+    <i id="toggleIcon" class="bi bi-moon-stars-fill" style="font-size:14px;color:var(--mut,#64748b);"></i>
+    <span id="toggleLabel" style="font-size:12px;color:var(--mut,#64748b);font-weight:500;">Oscuro</span>
+  </button>
+</div>
+
+<div class="pg">
+  <a href="javascript:history.back()" class="back-link"><i class="bi bi-arrow-left"></i> Volver</a>
+
+  <%
+    const isActive = employee.is_active == 1 || employee.is_active === true;
+    const initials = (employee.full_name || '').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+    const bajDate  = !isActive && employee.updated_at ? new Date(employee.updated_at) : null;
+    const now      = new Date();
+    const diffDays = bajDate ? Math.floor((now - bajDate) / 86400000) : 0;
+    const diffText = diffDays === 0 ? 'hoy' : diffDays === 1 ? 'hace 1 día' : `hace ${diffDays} días`;
+    const activeAsg = assignments.filter(a => !a.return_date);
+  %>
+
+  <!-- Header -->
+  <div class="emp-header">
+    <div class="emp-avatar <%= isActive ? 'activo' : 'baja' %>"><%= initials %></div>
+    <div class="emp-info">
+      <div class="emp-name"><%= employee.full_name || '—' %></div>
+      <div class="emp-pos"><%= employee.position_name || employee.position || 'Sin cargo' %></div>
+      <div class="emp-badges">
+        <span class="badge-pill <%= isActive ? 'badge-activo' : 'badge-baja' %>">
+          <i class="bi bi-circle-fill" style="font-size:6px;"></i>
+          <%= isActive ? 'Activo' : 'De Baja' %>
+        </span>
+        <% if (employee.cip) { %>
+          <span class="badge-pill badge-info"><i class="bi bi-person-badge"></i> CIP: <%= employee.cip %></span>
+        <% } %>
+        <% if (employee.state) { %>
+          <span class="badge-pill badge-info"><i class="bi bi-geo-alt"></i> <%= employee.state %></span>
+        <% } %>
+      </div>
+
+      <% if (!isActive && bajDate) { %>
+      <div class="baja-alert">
+        <div class="baja-alert-icon">🔴</div>
+        <div class="baja-alert-body">
+          <div class="baja-alert-title">Fecha de Baja</div>
+          <div class="baja-alert-date">
+            <%= bajDate.toLocaleDateString('es-PE', {day:'2-digit', month:'long', year:'numeric'}) %>
+          </div>
+          <div class="baja-alert-ago"><%= diffText %></div>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Datos personales -->
+  <div class="meta-grid">
+    <div class="meta-card">
+      <div class="meta-lbl"><i class="bi bi-envelope"></i> Email</div>
+      <div class="meta-val"><%= employee.email || '—' %></div>
+    </div>
+    <div class="meta-card">
+      <div class="meta-lbl"><i class="bi bi-person-badge"></i> CIP</div>
+      <div class="meta-val"><%= employee.cip || '—' %></div>
+    </div>
+    <div class="meta-card">
+      <div class="meta-lbl"><i class="bi bi-calendar-plus"></i> Fecha de Alta</div>
+      <div class="meta-val"><%= employee.created_at ? new Date(employee.created_at).toLocaleDateString('es-PE') : '—' %></div>
+    </div>
+    <% if (!isActive) { %>
+    <div class="meta-card" style="border-left:3px solid var(--clr-red);">
+      <div class="meta-lbl"><i class="bi bi-calendar-x"></i> Fecha de Baja</div>
+      <div class="meta-val" style="color:var(--clr-red);">
+        <%= bajDate ? bajDate.toLocaleDateString('es-PE') : '—' %>
+      </div>
+    </div>
+    <% } %>
+    <div class="meta-card">
+      <div class="meta-lbl"><i class="bi bi-laptop"></i> Equipos activos</div>
+      <div class="meta-val"><%= activeAsg.length %></div>
+    </div>
+    <div class="meta-card">
+      <div class="meta-lbl"><i class="bi bi-clock-history"></i> Total asignaciones</div>
+      <div class="meta-val"><%= assignments.length %></div>
+    </div>
+  </div>
+
+  <!-- Tabla equipos -->
+  <div class="section-card">
+    <div class="section-head">
+      <span class="hl"><i class="bi bi-laptop" style="color:var(--clr-blue);"></i> Historial de Equipos</span>
+      <span style="font-size:11px;color:var(--mut);"><%= assignments.length %> registro<%= assignments.length !== 1 ? 's' : '' %></span>
+    </div>
+    <% if (!assignments.length) { %>
+      <div class="empty-state"><i class="bi bi-inbox"></i><p>Sin asignaciones registradas</p></div>
+    <% } else { %>
+    <div style="overflow:auto;">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Código</th><th>Marca / Modelo</th><th>Tipo</th>
+            <th>Departamento</th><th>F. Asignación</th><th>F. Devolución</th><th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% assignments.forEach(a => {
+            const returned = !!a.return_date;
+            const typeClass = ['Laptop','Desktop','Monitor','Tablet'].includes(a.equipment_type) ? a.equipment_type : 'other';
+          %>
+          <tr>
+            <td><span style="font-family:monospace;font-size:11px;background:rgba(100,116,139,.1);padding:2px 7px;border-radius:5px;"><%= a.device_code || '—' %></span></td>
+            <td>
+              <div style="font-weight:600;font-size:12.5px;"><%= a.brand || '' %> <%= a.model || '—' %></div>
+              <% if (a.serial_number) { %><div style="font-size:10px;color:var(--mut);font-family:monospace;">S/N: <%= a.serial_number %></div><% } %>
+            </td>
+            <td><span class="eq-pill eq-<%= typeClass %>"><%= a.equipment_type || '—' %></span></td>
+            <td style="font-size:12px;color:var(--mut);"><%= a.department_name || '—' %></td>
+            <td style="font-size:12px;"><%= a.assignment_date ? new Date(a.assignment_date).toLocaleDateString('es-PE') : '—' %></td>
+            <td style="font-size:12px;<%= returned ? '' : 'color:var(--clr-ok);font-weight:600;' %>">
+              <%= returned ? new Date(a.return_date).toLocaleDateString('es-PE') : 'En uso' %>
+            </td>
+            <td>
+              <% if (!returned) { %>
+                <span style="font-size:11px;font-weight:700;color:var(--clr-ok);"><i class="bi bi-circle-fill" style="font-size:6px;"></i> Asignado</span>
+              <% } else { %>
+                <span style="font-size:11px;color:var(--mut);"><i class="bi bi-check2-circle"></i> Devuelto</span>
+              <% } %>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function _syncToggleUI(theme){const dark=theme==='dark';const icon=document.getElementById('toggleIcon'),label=document.getElementById('toggleLabel'),track=document.getElementById('themeTrack'),knob=document.getElementById('themeKnob');if(icon)icon.className=dark?'bi bi-sun-fill':'bi bi-moon-stars-fill';if(label)label.textContent=dark?'Claro':'Oscuro';if(track)track.style.background=dark?'#3b82f6':'#cbd5e1';if(knob)knob.style.transform=dark?'translateX(15px)':'translateX(0)';}
+function toggleTheme(){const h=document.documentElement,n=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',n);localStorage.setItem('dashboardTheme',n);_syncToggleUI(n);}
+document.addEventListener('DOMContentLoaded',()=>_syncToggleUI(localStorage.getItem('dashboardTheme')||'light'));
+</script>
+
+</body>
+</html>

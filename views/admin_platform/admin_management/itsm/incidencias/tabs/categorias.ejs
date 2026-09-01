@@ -1,0 +1,323 @@
+  <div id="tabCategorias" class="corp-tabpanel" style="display:none;">
+    <div style="display:grid;grid-template-columns:1fr 400px;gap:20px;align-items:start;">
+      <!-- Lista -->
+      <div class="card-panel">
+        <div class="card-panel-title"><i class="bi bi-tags" style="color:#7c6ff7"></i> Categorías configuradas</div>
+        <div id="catListInline" style="display:flex;flex-direction:column;gap:8px;min-height:60px;"></div>
+      </div>
+      <!-- Formulario sticky -->
+      <div class="card-panel" style="position:sticky;top:80px;">
+        <div class="card-panel-title" id="catFormTitleInline"><i class="bi bi-plus-circle" style="color:#7c6ff7"></i> Nueva Categoría</div>
+        <input type="hidden" id="catEditIdInline">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <div class="form-label-custom">Categoría padre <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(opcional — para subcategorías)</span></div>
+            <select id="cati_parent" class="form-select-custom">
+              <option value="">— Categoría raíz —</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label-custom">Nombre *</div>
+            <input type="text" id="cati_name" class="form-control-custom" placeholder="Ej: Correo Corporativo">
+          </div>
+          <div>
+            <div class="form-label-custom">Ícono <a href="https://icons.getbootstrap.com" target="_blank" style="font-size:10px;color:var(--jira-blue);">Bootstrap Icons ↗</a></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="cati_icon" class="form-control-custom" placeholder="bi-tag" oninput="previewIcon()">
+              <i id="iconPreview" class="bi bi-tag" style="font-size:22px;color:#7c6ff7;width:28px;text-align:center;flex-shrink:0;"></i>
+            </div>
+          </div>
+          <div>
+            <div class="form-label-custom">Componente Jira</div>
+            <select id="cati_component" class="form-select-custom">
+              <option value="">Sin definir</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11277|Workplace">Workplace</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11278|Red">Red</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11279|Software">Software</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label-custom">Aplicación Jira</div>
+            <select id="cati_app" class="form-select-custom">
+              <option value="">Sin definir</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11280|Equipo Corporativo">Equipo Corporativo</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11281|Sistema ERP">Sistema ERP</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11282|Correo Corporativo">Correo Corporativo</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11283|VPN">VPN</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11284|Impresora">Impresora</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label-custom">Tipología Jira</div>
+            <select id="cati_tipologia" class="form-select-custom">
+              <option value="">Sin definir</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11378|Almacenamiento - Disco D lleno">Almacenamiento - Disco D lleno</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11379|Sin acceso al sistema">Sin acceso al sistema</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11380|Pantalla azul / crash">Pantalla azul / crash</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11381|Sin conexión a internet">Sin conexión a internet</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11382|Problema de impresión">Problema de impresión</option>
+              <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11383|Equipo lento">Equipo lento</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label-custom">Urgencia por defecto</div>
+            <select id="cati_urgency" class="form-select-custom">
+              <option value="618440|Inconvenientes con formato de aplicación">🟢 No impide (formato)</option>
+              <option value="618441|El error no me impide trabajar" selected>🟡 No impide trabajar</option>
+              <option value="618442|No puedo trabajar por este error">🔴 No puedo trabajar</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label-custom">Plantilla descripción <span style="font-weight:400;color:var(--text-muted);font-size:10px;">{summary} → inserta el resumen</span></div>
+            <input type="text" id="cati_desc" class="form-control-custom" placeholder="Problemas con {summary}. Requiere soporte.">
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px;">
+            <button class="btn-outline-sm" onclick="resetCatFormInline()"><i class="bi bi-x-circle"></i> Limpiar</button>
+            <button class="btn-create" style="padding:9px 18px;" onclick="saveCatInline()">
+                <i class="bi bi-save"></i> <span id="catSaveLabelInline">Guardar</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<!-- #modalCreate eliminado — reemplazado por tabCreate -->
+<div class="modal fade" id="modalCreate" tabindex="-1" style="display:none!important;visibility:hidden!important;">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header-custom">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <i class="bi bi-plus-circle-fill" style="font-size:20px;"></i>
+            <div>
+                <div style="font-weight:700;font-size:16px;">Nueva Incidencia</div>
+                <div style="font-size:11px;opacity:.8;">Portal: Registro de Incidencias · Jira Service Management</div>
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:22px 24px;">
+        <!-- Categoría -->
+        <div style="margin-bottom:14px;">
+            <div class="form-label-custom" style="margin-bottom:8px;"><i class="bi bi-grid-3x3-gap"></i> Categoría del problema</div>
+            <div id="categoryTiles" style="display:flex;flex-wrap:wrap;gap:8px;min-height:36px;">
+                <span style="color:var(--text-muted);font-size:12px;display:inline-flex;align-items:center;gap:6px;">
+                    <span class="spinner-border spinner-border-sm"></span> Cargando...
+                </span>
+            </div>
+        </div>
+        <hr style="border-color:var(--border-soft);margin:14px 0;">
+        <div class="quick-form">
+            <!-- Reporter -->
+            <div style="grid-column:1/-1;">
+                <div class="form-label-custom">Usuario afectado *</div>
+                <div class="autocomplete-wrap">
+                    <input type="email" id="f_reporter" class="form-control-custom"
+                           placeholder="Escribe el correo del usuario..." autocomplete="off"
+                           oninput="acReporter(this.value)"
+                           onkeydown="acKeydown(event,'acReporterDrop')">
+                    <div id="acReporterDrop" class="ac-dropdown"></div>
+                </div>
+            </div>
+            <!-- Summary -->
+            <div style="grid-column:1/-1;">
+                <div class="form-label-custom">Resumen del problema *</div>
+                <input type="text" id="f_summary" class="form-control-custom"
+                       placeholder="Ej: No puedo ingresar al sistema..." autocomplete="off"
+                       oninput="autoFillDescription()">
+            </div>
+            <!-- Description -->
+            <div style="grid-column:1/-1;">
+                <div class="form-label-custom">Descripción <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(auto-generada, editable)</span></div>
+                <textarea id="f_description" class="form-control-custom" rows="3"
+                          placeholder="Se completará al seleccionar categoría o escribir el resumen..."></textarea>
+            </div>
+        </div>
+        <!-- Advanced collapsible -->
+        <details id="advancedSection" style="margin-top:14px;">
+            <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);padding:9px 12px;border-radius:8px;border:1.5px solid var(--border-soft);list-style:none;display:flex;align-items:center;gap:8px;background:var(--bg-header);user-select:none;">
+                <i class="bi bi-sliders" style="font-size:13px;"></i>
+                <span>Opciones avanzadas</span>
+                <div id="advancedPreview" style="display:flex;gap:5px;flex-wrap:wrap;flex:1;margin-left:4px;"></div>
+                <i class="bi bi-chevron-down" style="font-size:10px;flex-shrink:0;"></i>
+            </summary>
+            <div style="padding:14px 2px 4px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                    <div class="form-label-custom">Componente</div>
+                    <select id="f_component" class="form-select-custom" onchange="updateAdvancedPreview()">
+                        <option value="">Selecciona...</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11277">Workplace</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11278">Red</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11279">Software</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label-custom">Aplicación</div>
+                    <select id="f_app" class="form-select-custom" onchange="updateAdvancedPreview()">
+                        <option value="">Selecciona...</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11280">Equipo Corporativo</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11281">Sistema ERP</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11282">Correo Corporativo</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11283">VPN</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11284">Impresora</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label-custom">Tipología</div>
+                    <select id="f_tipologia" class="form-select-custom" onchange="updateAdvancedPreview()">
+                        <option value="">Selecciona...</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11378">Almacenamiento - Disco D lleno</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11379">Sin acceso al sistema</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11380">Pantalla azul / crash</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11381">Sin conexión a internet</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11382">Problema de impresión</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11383">Equipo lento</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label-custom">Impacto</div>
+                    <select id="f_impact" class="form-select-custom">
+                        <option value="618437">🟢 1-5 usuarios</option>
+                        <option value="618438">🟡 6-19 usuarios</option>
+                        <option value="618439">🔴 20+ usuarios</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label-custom">Urgencia</div>
+                    <select id="f_urgency" class="form-select-custom">
+                        <option value="618440">🟢 Formato app</option>
+                        <option value="618441">🟡 No impide trabajar</option>
+                        <option value="618442">🔴 No puedo trabajar</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label-custom">Teléfono de contacto</div>
+                    <input type="text" id="f_phone" class="form-control-custom" placeholder="-">
+                </div>
+            </div>
+        </details>
+        <!-- Attachment optional -->
+        <div style="margin-top:14px;">
+            <div class="form-label-custom">Adjunto <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(opcional)</span></div>
+            <div class="upload-zone" id="uploadZone" style="padding:14px;">
+                <input type="file" id="f_attachment" accept="image/*,.pdf,.png,.jpg,.jpeg" onchange="handleFileSelect(this)">
+                <i class="bi bi-cloud-upload" style="font-size:20px;display:block;margin-bottom:4px;"></i>
+                Arrastra o haz clic para adjuntar evidencia
+                <div style="font-size:11px;margin-top:2px;opacity:.7">PNG, JPG, PDF hasta 10MB</div>
+            </div>
+            <div class="upload-preview" id="uploadPreview" style="display:none;">
+                <i class="bi bi-check-circle-fill"></i>
+                <span id="uploadFileName"></span>
+                <button type="button" onclick="clearFile()" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;">✕ quitar</button>
+            </div>
+        </div>
+        <!-- Result -->
+        <div id="createResult" style="display:none;margin-top:16px;padding:14px;border-radius:8px;background:#eff6ff;border:1.5px solid #bfdbfe;">
+            <div style="font-size:12px;color:#1e40af;font-weight:600;margin-bottom:4px;">✅ Ticket creado exitosamente</div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span class="ticket-key" id="createdKey" style="font-size:16px;"></span>
+                <a id="createdUrl" href="#" target="_blank" class="btn-outline-sm"><i class="bi bi-box-arrow-up-right"></i> Ver en Jira</a>
+                <button class="btn-outline-sm" onclick="copyTicketKey()"><i class="bi bi-clipboard"></i> Copiar número</button>
+            </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--border-soft);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <button type="button" class="btn-outline-sm" onclick="openCategoryManager()" style="border-color:#7c6ff7;color:#7c6ff7;"><i class="bi bi-gear"></i> Categorías</button>
+        <div style="display:flex;gap:8px;">
+            <button type="button" class="btn-outline-sm" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn-create" id="btnSubmit" onclick="submitTicket()"><i class="bi bi-send-fill"></i> Crear Incidencia</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- #modalCategories eliminado — reemplazado por tabCategorias -->
+<div class="modal fade" id="modalCategories" tabindex="-1" style="display:none!important;visibility:hidden!important;">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header-custom" style="background:linear-gradient(135deg,#7c6ff7,#9333ea);">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <i class="bi bi-tag-fill" style="font-size:20px;"></i>
+            <div>
+                <div style="font-weight:700;font-size:16px;">Gestionar Categorías</div>
+                <div style="font-size:11px;opacity:.8;">Configura las categorías del formulario rápido</div>
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:20px;">
+        <div id="catListWrap" style="margin-bottom:16px;"></div>
+        <div style="border:1.5px solid var(--border-soft);border-radius:10px;padding:16px;background:var(--bg-header);">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px;" id="catFormTitle">
+                <i class="bi bi-plus-circle"></i> Nueva Categoría
+            </div>
+            <input type="hidden" id="catEditId">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                    <div class="form-label-custom">Nombre *</div>
+                    <input type="text" id="cat_name" class="form-control-custom" placeholder="Ej: Correo Corporativo">
+                </div>
+                <div>
+                    <div class="form-label-custom">Ícono <a href="https://icons.getbootstrap.com" target="_blank" style="font-size:10px;color:var(--jira-blue);">bootstrap-icons</a></div>
+                    <input type="text" id="cat_icon" class="form-control-custom" placeholder="Ej: bi-envelope-x">
+                </div>
+                <div>
+                    <div class="form-label-custom">Componente</div>
+                    <select id="cat_component" class="form-select-custom">
+                        <option value="">Sin definir</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11277|Workplace">Workplace</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11278|Red">Red</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11279|Software">Software</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label-custom">Aplicación</div>
+                    <select id="cat_app" class="form-select-custom">
+                        <option value="">Sin definir</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11280|Equipo Corporativo">Equipo Corporativo</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11281|Sistema ERP">Sistema ERP</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11282|Correo Corporativo">Correo Corporativo</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11283|VPN">VPN</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11284|Impresora">Impresora</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label-custom">Tipología por defecto</div>
+                    <select id="cat_tipologia" class="form-select-custom">
+                        <option value="">Sin definir</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11378|Almacenamiento - Disco D lleno">Almacenamiento - Disco D lleno</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11379|Sin acceso al sistema" selected>Sin acceso al sistema</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11380|Pantalla azul / crash">Pantalla azul / crash</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11381|Sin conexión a internet">Sin conexión a internet</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11382|Problema de impresión">Problema de impresión</option>
+                        <option value="ae0390c7-daf0-4efd-8181-99c3b55f1d1c:11383|Equipo lento">Equipo lento</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label-custom">Urgencia por defecto</div>
+                    <select id="cat_urgency" class="form-select-custom">
+                        <option value="618440|Inconvenientes con formato de aplicación">🟢 No impide (formato)</option>
+                        <option value="618441|El error no me impide trabajar" selected>🟡 No impide trabajar</option>
+                        <option value="618442|No puedo trabajar por este error">🔴 No puedo trabajar</option>
+                    </select>
+                </div>
+                <div style="grid-column:1/-1;">
+                    <div class="form-label-custom">Plantilla de descripción <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(usa {summary} para incluir el resumen)</span></div>
+                    <input type="text" id="cat_desc_template" class="form-control-custom"
+                           placeholder="Ej: Problemas con {summary}. Adjunto captura del error.">
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
+                <button class="btn-outline-sm" onclick="resetCatForm()"><i class="bi bi-x-circle"></i> Limpiar</button>
+                <button class="btn-create" style="padding:8px 18px;" onclick="saveCat()">
+                    <i class="bi bi-save"></i> <span id="catSaveLabel">Guardar</span>
+                </button>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ TAB 4: INDICADORES / KPIs ══ -->

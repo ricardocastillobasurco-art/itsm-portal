@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; background: #f8f9fa; color: #333; }
+        .error-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1 { color: #dc3545; }
+        pre { background: #eee; padding: 15px; overflow-x: auto; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1><%= title %></h1>
+        <p><strong>Error:</strong> <%= error %></p>
+        <% if (locals.stack) { %>
+            <hr>
+            <h3>Stack Trace:</h3>
+            <pre><%= stack %></pre>
+        <% } %>
+    </div>
+</body>
+</html>

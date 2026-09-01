@@ -1,0 +1,103 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script>(function(){var p=new URLSearchParams(window.location.search);document.documentElement.setAttribute('data-theme',p.get('theme')||localStorage.getItem('dashboardTheme')||'light');})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Equipment Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/core/style.css">
+    <link rel="stylesheet" href="../css/modules/helpdesk.css">
+    <link rel="stylesheet" href="../css/core/shared.css">
+    <% if (embed) { %>
+    <style>
+      html, body { background: var(--bg-card) !important; margin: 0; padding: 0; min-height: 100vh; }
+      .sidebar, .sidebar-overlay, .navbar, .topbar { display: none !important; }
+      .dashboard-content { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+      .corp-tabpanel > div:first-child { max-width: 100% !important; margin: 0 !important; padding: 8px !important; }
+      .card-panel { border-radius: 12px !important; box-shadow: none !important; border: none !important; background: transparent !important; }
+    </style>
+    <% } %>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<script>
+window.addEventListener('message',function(e){
+  if(e.data&&e.data.type==='theme'){
+    document.documentElement.setAttribute('data-theme',e.data.theme);
+  }
+});
+</script>
+<div class="dashboard-content">
+
+  <!-- ── Tab Nav corporativo ── -->
+  <%
+    const _role = user?.role || 'usuario';
+    // Perfiles de acceso
+    // administrador : todo
+    // especialista  : Registrar, Gestión, Indicadores, Categorías
+    // visor         : Registrar, Indicadores
+    // usuario       : Registrar
+    const _isAdmin       = _role === 'administrador';
+    const _isEspecialista= ['especialista','agente','tecnico'].includes(_role);
+    const _isVisor       = _role === 'visor';
+    // alias para JS client-side
+  %>
+<% if (!embed) { %><%- include('../../../admin_platform/admin_management/itsm/incidencias/partials/nav-tabs', { _isAdmin, _isEspecialista, _isVisor }) %><% } %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/create', { _isAdmin, _isEspecialista, _isVisor }) %>
+<% if (_isAdmin || _isEspecialista) { %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/gestion', { _isAdmin, _isEspecialista, _isVisor }) %>
+<% } %>
+<% if (_isAdmin || _isEspecialista || _isVisor) { %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/kpis', { _isAdmin, _isEspecialista, _isVisor }) %>
+<% } %>
+<% if (_isAdmin || _isEspecialista) { %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/categorias', { _isAdmin, _isEspecialista, _isVisor }) %>
+<% } %>
+<% if (_isAdmin) { %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/especialistas', { _isAdmin, _isEspecialista, _isVisor }) %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/automaciones', { _isAdmin, _isEspecialista, _isVisor }) %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/admin', { _isAdmin, _isEspecialista, _isVisor }) %>
+<% } %>
+<% if (_isAdmin || _isEspecialista) { %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/portal', { _isAdmin, _isEspecialista, _isVisor }) %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/preguntas', { _isAdmin, _isEspecialista, _isVisor }) %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/encuesta', { _isAdmin, _isEspecialista, _isVisor }) %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/whatsapp', { _isAdmin, _isEspecialista, _isVisor }) %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/kbreqs', { _isAdmin, _isEspecialista, _isVisor }) %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/devoluciones', { _isAdmin, _isEspecialista, _isVisor }) %>
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/tabs/garantias', { _isAdmin, _isEspecialista, _isVisor }) %>
+<% } %>
+
+<%- include('../../../admin_platform/admin_management/itsm/incidencias/partials/modals', { _isAdmin, _isEspecialista, _isVisor }) %>
+</div>
+<div class="toast-container-custom" id="toastContainer"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<% if (locals.jiraEnabled === false) { %>
+<div style="margin:16px;padding:14px 18px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;display:flex;align-items:flex-start;gap:12px;">
+  <span style="font-size:22px;flex-shrink:0;">🖥️</span>
+  <div>
+    <div style="font-size:13px;font-weight:700;color:#1e40af;">Gestión interna de tickets</div>
+    <div style="font-size:12px;color:#1d4ed8;margin-top:3px;">Los tickets se registran y gestionan directamente en esta plataforma.</div>
+  </div>
+</div>
+<% } %>
+<script>
+const CURRENT_USER_ID       = <%- JSON.stringify(locals.currentUserId || null) %>;
+const CURRENT_USER_ROLE     = <%- JSON.stringify(locals.user?.role || 'usuario') %>;
+const CURRENT_USER_NAME     = <%- JSON.stringify(locals.user?.full_name || locals.user?.nombre || locals.user?.username || '') %>;
+const CURRENT_USER_EMAIL    = <%- JSON.stringify(locals.user?.email || locals.user?.username || '') %>;
+const JIRA_ENABLED          = <%- JSON.stringify(locals.jiraEnabled !== false) %>;
+const CURRENT_TENANT_ID     = <%- JSON.stringify(locals.user?.tenant_id || 1) %>;
+const TENANT_EMAIL_DOMAIN   = <%- JSON.stringify(locals.tenantDomain || 'integratel.com.pe') %>;
+const LOCAL_VIEW            = <%- JSON.stringify(locals.jiraEnabled === false) %>;
+</script>
+<script src="/js/incidencias/app.js?v=54"></script>
+
+</body>
+</html>
+            
