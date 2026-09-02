@@ -551,11 +551,12 @@ router.get('/microsoft/callback', async (req, res) => {
             const fullName = emp[0]?.full_name || result.account?.name || msEmail.split('@')[0];
             const username = msEmail.split('@')[0];
             const crypto   = require('crypto');
+            const { v4: uuidv4 } = require('uuid');
             const roleInicial = SUPERADMIN_EMAILS.includes(msEmail) ? 'superadmin' : ADMIN_EMAILS.includes(msEmail) ? 'admin' : 'usuario';
             await executeQuery(equipmentPool,
-                `INSERT INTO users (username, full_name, email, password_hash, role, is_active, is_verified, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, 1, 1, NOW(), NOW())`,
-                [username, fullName, msEmail, crypto.randomBytes(32).toString('hex'), roleInicial]
+                `INSERT INTO users (id, username, full_name, email, password_hash, role, is_active, is_verified, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, 1, 1, NOW(), NOW())`,
+                [uuidv4(), username, fullName, msEmail, crypto.randomBytes(32).toString('hex'), roleInicial]
             );
             userRows = await executeQuery(equipmentPool,
                 `SELECT id, username, email, role, is_active FROM users WHERE LOWER(email)=? LIMIT 1`,
