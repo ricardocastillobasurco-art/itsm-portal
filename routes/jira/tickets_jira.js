@@ -936,29 +936,26 @@ router.post('/ticket/:key/close', authenticateToken, async (req, res) => {
         console.error(`❌ Error transición Jira [${err.response?.status || 'local'}]: ${jiraError}`);
     }
 
-    try {
-        await dbQuery(
-            `UPDATE jira_tickets
-             SET status = 'Resuelto', internal_status = 'cerrado', closed_at = NOW(),
-                 closed_by = ?, close_comment = ?, tipo_atencion = ?, resolved_at = IFNULL(resolved_at, NOW())
-             WHERE ticket_key = ?`,
-            [req.user?.username || 'sistema', comment.trim(), tipo_atencion, key]
-        );
-        const closedBy = req.user?.full_name || req.user?.username || 'Sistema';
-        dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'cierre', ?)`,
-            [key, req.user?.id || 0, closedBy, `Ticket cerrado por ${closedBy}. Tipo: ${tipo_atencion}. ${comment.trim()}`]).catch(() => { });
+    const closedBy = req.user?.full_name || req.user?.username || 'Sistema';
+    // Actualización local — no bloqueante: si la tabla no existe o el ticket no está en caché, no falla el cierre
+    dbQuery(
+        `UPDATE jira_tickets
+         SET status = 'Resuelto', internal_status = 'cerrado', closed_at = NOW(),
+             closed_by = ?, close_comment = ?, tipo_atencion = ?, resolved_at = IFNULL(resolved_at, NOW())
+         WHERE ticket_key = ?`,
+        [req.user?.username || 'sistema', comment.trim(), tipo_atencion, key]
+    ).catch(() => {});
+    dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'cierre', ?)`,
+        [key, req.user?.id || 0, closedBy, `Ticket cerrado por ${closedBy}. Tipo: ${tipo_atencion}. ${comment.trim()}`]).catch(() => {});
 
-        // Notificar en tiempo real
-        try {
-            const io = req.app.get('io');
-            if (io) {
-                io.to('jira:agents').emit('ticket:closed', { key, by: closedBy });
-                io.to('tv:dashboard').emit('ticket:event', { action: 'closed', key });
-            }
-        } catch (_) {}
-    } catch (dbErr) {
-        return res.status(500).json({ success: false, message: 'Error actualizando base de datos' });
-    }
+    // Notificar en tiempo real
+    try {
+        const io = req.app.get('io');
+        if (io) {
+            io.to('jira:agents').emit('ticket:closed', { key, by: closedBy });
+            io.to('tv:dashboard').emit('ticket:event', { action: 'closed', key });
+        }
+    } catch (_) {}
 
     // Encuesta de satisfacción (no bloqueante)
     ; (async () => {
