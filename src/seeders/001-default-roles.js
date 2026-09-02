@@ -4,8 +4,6 @@
 
 'use strict';
 
-const { v4: uuidv4 } = require('uuid');
-
 const ROLES = [
     { nombre: 'admin',      descripcion: 'Administrador del sistema — acceso total' },
     { nombre: 'supervisor', descripcion: 'Supervisor — lectura amplia y aprobación de operaciones' },
@@ -24,8 +22,8 @@ module.exports = {
             );
             if (!existing) {
                 await queryInterface.sequelize.query(
-                    'INSERT INTO roles (id, nombre, descripcion, activo, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)',
-                    { replacements: [uuidv4(), rol.nombre, rol.descripcion, now, now] }
+                    'INSERT INTO roles (nombre, descripcion, activo, created_at, updated_at) VALUES (?, ?, 1, ?, ?)',
+                    { replacements: [rol.nombre, rol.descripcion, now, now] }
                 );
                 console.log(`  ✅ Rol creado: ${rol.nombre}`);
             } else {
