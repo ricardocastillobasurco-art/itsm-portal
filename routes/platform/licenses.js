@@ -20,15 +20,17 @@ async function dbQuery(sql, params = []) {
 }
 
 // ── MSAL ─────────────────────────────────────────────────────────────────────
-const msalClient = new ConfidentialClientApplication({
+const msalEnabled = !!(process.env.MS_CLIENT_ID && process.env.MS_TENANT_ID && process.env.MS_CLIENT_SECRET);
+const msalClient = msalEnabled ? new ConfidentialClientApplication({
     auth: {
         clientId:     process.env.MS_CLIENT_ID,
         authority:    `https://login.microsoftonline.com/${process.env.MS_TENANT_ID}`,
         clientSecret: process.env.MS_CLIENT_SECRET,
     }
-});
+}) : null;
 let _tokenCache = { token: null, exp: 0 };
 async function getToken() {
+    if (!msalClient) throw new Error('MSAL no configurado — requiere MS_CLIENT_ID, MS_TENANT_ID y MS_CLIENT_SECRET');
     if (_tokenCache.token && Date.now() < _tokenCache.exp - 60000) return _tokenCache.token;
     const r = await msalClient.acquireTokenByClientCredential({ scopes: ['https://graph.microsoft.com/.default'] });
     _tokenCache = { token: r.accessToken, exp: r.expiresOn?.getTime() || (Date.now() + 3600000) };
