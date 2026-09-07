@@ -51,6 +51,7 @@ module.exports = {
                 tenant_id             INT          DEFAULT NULL,
                 created_at            DATETIME     DEFAULT CURRENT_TIMESTAMP,
                 updated_at            DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                deleted_at            DATETIME     DEFAULT NULL,
                 INDEX idx_jira_reporter  (reporter),
                 INDEX idx_jira_status    (status),
                 INDEX idx_jira_priority  (priority),

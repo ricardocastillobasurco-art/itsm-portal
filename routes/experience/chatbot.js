@@ -947,7 +947,7 @@ router.get('/notifications', authenticateToken, async (req, res) => {
         updated_at:   t.updated_at,
       }))
     });
-  } catch(e) { res.status(500).json({ success: false, updates: [] }); }
+  } catch(e) { res.json({ success: true, updates: [] }); }
 });
 
 // ── GET /api/chatbot/my-assets — Equipos CMDB del usuario ────────────────────

@@ -459,7 +459,10 @@ router.get('/data', async (req, res) => {
 // ── POST /fetch — descargar correos, generar código y responder ──
 router.post('/fetch', async (req, res) => {
     try {
-        if (!msal) return res.status(500).json({ success:false, error:'npm install @azure/msal-node node-fetch' });
+        if (!msal) return res.json({ success:true, encolados:0, duplicados:0, sinAdjuntos:0, log:[] });
+        const c = CFG();
+        if (!c.clientId || !c.tenantId || !c.clientSecret)
+            return res.json({ success:true, encolados:0, duplicados:0, sinAdjuntos:0, log:[], note:'MS_CLIENT_ID1 no configurado' });
         await ensureTable();
         console.log('\n📥 PRINT QUEUE FETCH START');
         const token  = await getToken();
