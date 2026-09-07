@@ -31,15 +31,18 @@ router.get('/login', authenticateToken, requireVerified, (req, res) => {
 // ============================================================================
 // VISTAS SIMPLES â€” Sin lÃ³gica de BD (render directo)
 // ============================================================================
-router.get('/requerimientos', optionalAuth, async (req, res) => {
-    const tenantId = req.user?.tenant_id || (req.query.tenant ? parseInt(req.query.tenant) : null);
-    // Usa la config del tenant; si no hay config registrada cae a false (seguro por defecto)
-    const { loadTenantConfig } = require('../utils/tenantConfig');
-    const tenantCfg = tenantId ? loadTenantConfig(tenantId) : null;
-    const jiraEnabled = tenantCfg?.features?.jira ?? res.locals.jiraEnabled ?? false;
-    const userForForm = req.user ? { ...req.user, tenant_id: tenantId } : null;
+router.get('/requerimientos', authenticateToken, async (req, res) => {
+    const tenantId = req.user?.tenant_id;
+    let jiraEnabled = true;
+    if (tenantId && parseInt(tenantId) !== 1) {
+        try {
+            const FeatureFlagService = require('../src/services/FeatureFlagService');
+            const flags = await FeatureFlagService.getAll(parseInt(tenantId));
+            if (flags['jira'] !== undefined && flags['jira'].enabled === false) jiraEnabled = false;
+        } catch(_) {}
+    }
     res.render('admin_platform/admin_management/itsm/requerimientos/form_legacy', {
-        title: 'Requerimientos', user: userForForm, reporterEmail: req.query.reporter || '',
+        title: 'Requerimientos', user: req.user, reporterEmail: req.query.reporter || '',
         reporterName: req.query.name || '', embed: !!req.query.embed, jiraEnabled
     });
 });
