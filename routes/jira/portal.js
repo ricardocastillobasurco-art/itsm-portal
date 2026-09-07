@@ -74,7 +74,7 @@ router.get('/my-tickets', optionalAuth, async (req, res) => {
         const dbParams = [email];
         if (applyDaysInDb) { dbQuery_ += ` AND jt.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`; dbParams.push(days); }
         dbQuery_ += ` ORDER BY jt.created_at DESC LIMIT 100`;
-        let dbRows = await dbQuery(dbQuery_, dbParams);
+        let dbRows = await dbQuery(dbQuery_, dbParams).catch(() => []);
 
         // Fallback: buscar por nombre (tickets legacy donde reporter = full_name)
         if (!dbRows.length) {

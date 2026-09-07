@@ -1172,7 +1172,7 @@ img{max-width:100%;height:auto;}
     transition:transform .25s cubic-bezier(.4,0,.2,1);
     box-shadow:none;
   }
-  .sidebar.mobile-open{
+  .sidebar.mobile-open,.sidebar.collapsed.mobile-open{
     transform:translateX(0);
     box-shadow:4px 0 24px rgba(0,0,0,.18);
   }
@@ -1970,6 +1970,7 @@ if(_sbCollapsed) sidebar.classList.add('collapsed');
 window.toggleSidebar=function(){
   if(window.innerWidth<=768){
     const opening=!sidebar.classList.contains('mobile-open');
+    if(opening) sidebar.classList.remove('collapsed');
     sidebar.classList.toggle('mobile-open',opening);
     overlay.classList.toggle('show',opening);
     document.body.style.overflow=opening?'hidden':'';
@@ -2639,7 +2640,7 @@ async function _loadHomeExtra(){
   if(kbEl){
     let articles=[];
     try{
-      const d=await fetch('/api/kb/articles?limit=4',{credentials:'include'}).then(r=>r.ok?r.json():null);
+      const d=await fetch('/api/kb?limit=4&status=publicado',{credentials:'include'}).then(r=>r.ok?r.json():null);
       articles=(d?.data||d?.articles||[]).slice(0,4);
     }catch{}
     const list=articles.length?articles.map((a,i)=>({t:a.title||a.name||KB_FALLBACK[i]||'—',cat:a.category||KB_META[i%4].tag,...KB_META[i%4]})):KB_FALLBACK.map((t,i)=>({t,...KB_META[i]}));
