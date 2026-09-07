@@ -10,31 +10,68 @@ const sequelize  = require('../../../config/database');
 const auth = authenticateToken;
 const can  = requirePolicy;
 
-// ── eLearning table bootstrap ─────────────────────────────────────────────────
-sequelize.query(`
-  CREATE TABLE IF NOT EXISTS kb_learning_resources (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
-    title        VARCHAR(400) NOT NULL,
-    category     VARCHAR(100) DEFAULT 'general',
-    author       VARCHAR(200),
-    duration     VARCHAR(100),
-    description  TEXT,
-    content_type VARCHAR(20) DEFAULT 'url',
-    content_data MEDIUMTEXT,
-    file_name    VARCHAR(400),
-    views        INT DEFAULT 0,
-    status       VARCHAR(20) DEFAULT 'publicado',
-    created_by   INT,
-    created_at   DATETIME DEFAULT NOW(),
-    deleted_at   DATETIME NULL
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-`).catch(e => console.error('[kb_learning] table init:', e.message));
+// ── KB table bootstrap ────────────────────────────────────────────────────────
+(async () => {
+  try {
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS kb_learning_resources (
+        id           INT AUTO_INCREMENT PRIMARY KEY,
+        title        VARCHAR(400) NOT NULL,
+        category     VARCHAR(100) DEFAULT 'general',
+        author       VARCHAR(200),
+        duration     VARCHAR(100),
+        description  TEXT,
+        content_type VARCHAR(20) DEFAULT 'url',
+        content_data MEDIUMTEXT,
+        file_name    VARCHAR(400),
+        views        INT DEFAULT 0,
+        status       VARCHAR(20) DEFAULT 'publicado',
+        admin_response TEXT NULL,
+        created_by   INT,
+        created_at   DATETIME DEFAULT NOW(),
+        deleted_at   DATETIME NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
 
-// Agregar columnas si la tabla ya existía sin ellas
-sequelize.query(`ALTER TABLE kb_learning_resources ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'publicado'`).catch(() => {});
-sequelize.query(`ALTER TABLE kb_learning_resources ADD COLUMN IF NOT EXISTS admin_response TEXT NULL`).catch(() => {});
-// Ampliar ENUM de kb_articles para soportar revision y oculto
-sequelize.query(`ALTER TABLE kb_articles MODIFY COLUMN status ENUM('borrador','publicado','archivado','revision','oculto') DEFAULT 'borrador'`).catch(() => {});
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS kb_procedures (
+        id                 INT AUTO_INCREMENT PRIMARY KEY,
+        title              VARCHAR(400) NOT NULL,
+        description        TEXT,
+        procedure_category VARCHAR(100) DEFAULT 'general',
+        content_type       VARCHAR(20) DEFAULT 'text',
+        content_data       MEDIUMTEXT,
+        file_name          VARCHAR(400),
+        created_by         VARCHAR(200),
+        sort_order         INT DEFAULT 0,
+        active             TINYINT DEFAULT 1,
+        created_at         DATETIME DEFAULT NOW()
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS kb_procedure_requests (
+        id                 INT AUTO_INCREMENT PRIMARY KEY,
+        title              VARCHAR(400) NOT NULL,
+        description        TEXT,
+        procedure_category VARCHAR(100) DEFAULT 'general',
+        content_type       VARCHAR(20) DEFAULT 'text',
+        content_data       MEDIUMTEXT,
+        file_name          VARCHAR(400),
+        requested_by       VARCHAR(200),
+        status             VARCHAR(20) DEFAULT 'pendiente',
+        created_at         DATETIME DEFAULT NOW()
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+    // Agregar columna admin_response si la tabla ya existía sin ella (MySQL 8 compatible)
+    const [cols] = await sequelize.query(`SHOW COLUMNS FROM kb_learning_resources LIKE 'admin_response'`);
+    if (!cols.length) {
+      await sequelize.query(`ALTER TABLE kb_learning_resources ADD COLUMN admin_response TEXT NULL`);
+    }
+    // Ampliar ENUM de kb_articles
+    await sequelize.query(`ALTER TABLE kb_articles MODIFY COLUMN status ENUM('borrador','publicado','archivado','revision','oculto') DEFAULT 'borrador'`).catch(() => {});
+  } catch (e) {
+    console.error('[kb bootstrap]', e.message);
+  }
+})();
 
 // ── eLearning endpoints ───────────────────────────────────────────────────────
 router.get('/learning', optionalAuth, async (req, res, next) => {
