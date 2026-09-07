@@ -1586,13 +1586,13 @@ img{max-width:100%;height:auto;}
             </button>
           </div>
 
-          <div class="qa-card qa-req" data-tags="requerimiento solicitud servicio acceso" onclick="openPageModal('/requerimientos?embed=1&tenant=<%- user?.tenant_id||1 %>',{wide:true})">
+          <div class="qa-card qa-req" data-tags="requerimiento solicitud servicio acceso" onclick="openPageModal('/itsm/requerimientos/registrar?embed=1',{wide:true})">
             <div class="qa-icon"><i class="bi bi-clipboard2-plus-fill"></i></div>
             <div>
               <div class="qa-title">Generar Requerimiento</div>
               <div class="qa-desc">Solicita formalmente un servicio, equipo, acceso o recurso TI vía Jira Service Management.</div>
             </div>
-            <button class="qa-btn" onclick="event.stopPropagation();openPageModal('/requerimientos?embed=1',{wide:true})">
+            <button class="qa-btn" onclick="event.stopPropagation();openPageModal('/itsm/requerimientos/registrar?embed=1',{wide:true})">
               <i class="bi bi-plus-lg"></i> Nueva solicitud
             </button>
           </div>
