@@ -868,15 +868,21 @@ img{max-width:100%;height:auto;}
 .dl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 .dl-label{flex:1;color:var(--muted);}
 .dl-val{font-weight:800;color:var(--text);}
-.feed-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--sh-xs);display:flex;flex-direction:column;}
+.feed-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--sh-xs);display:flex;flex-direction:column;overflow:hidden;}
 .feed-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
 .feed-see-all{font-size:11px;font-weight:700;color:var(--primary);text-transform:none;letter-spacing:0;cursor:pointer;border:none;background:none;font-family:inherit;}
-.feed-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.feed-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);min-width:0;}
 .feed-item:last-child{border-bottom:none;padding-bottom:0;}
 .feed-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.feed-key{font-family:monospace;font-size:11px;font-weight:800;color:var(--primary);min-width:74px;}
-.feed-sum{flex:1;font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.feed-key{font-family:monospace;font-size:11px;font-weight:800;color:var(--primary);min-width:74px;flex-shrink:0;}
+.feed-sum{flex:1;min-width:0;font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .feed-status{font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;flex-shrink:0;}
+@media(max-width:640px){
+  .donut-card{text-align:center;}
+  .donut-legend{align-items:center;}
+  .feed-card{padding:14px;}
+  .feed-key{min-width:60px;font-size:10px;}
+}
 
 /* ══ MI EQUIPO VIEW ═════════════════════════════════════════ */
 .equipo-grid{display:flex;flex-direction:column;gap:20px;}
