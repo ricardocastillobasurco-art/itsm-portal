@@ -3,6 +3,9 @@ node_modules/
 .env.*
 .env *
 !.env.example
+datos_locales.sql
+import-railway.js
+*.sql
 *.log
 logs/
 
