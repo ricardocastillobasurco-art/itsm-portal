@@ -558,14 +558,13 @@ async function loadItsm() {
     const today = new Date().toISOString().slice(0, 10);
     const closed = '"Cerrado","Closed","Cancelado","Cancelled","Resuelto","Resolved"';
 
-    // Mismo approach que /administracion: POST a search/jql, contar issues.length
     function jiraCount(jql) {
       return fetch(base + '/api/jira/rest/api/3/search/jql', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql, fields: ['id'], maxResults: 500 })
+        body: JSON.stringify({ jql, fields: ['id'], maxResults: 1 })
       }).then(r => r.json())
-        .then(d => Array.isArray(d.issues) ? d.issues.length : '—')
+        .then(d => typeof d.total === 'number' ? d.total : (Array.isArray(d.issues) ? d.issues.length : '—'))
         .catch(() => '—');
     }
 
