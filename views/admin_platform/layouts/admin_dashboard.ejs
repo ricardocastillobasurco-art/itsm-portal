@@ -399,10 +399,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;}
 
       <!-- KPI Grid -->
       <div class="kpi-grid">
-        <div class="kpi-card kpi-blue"><div class="kpi-label">Total Tickets</div><div class="kpi-val" id="k-total">—</div><div class="kpi-sub">Todos los estados</div><i class="bi bi-ticket-perforated kpi-icon"></i></div>
-        <div class="kpi-card kpi-yellow"><div class="kpi-label">Abiertos</div><div class="kpi-val" id="k-open">—</div><div class="kpi-sub">Sin resolver</div><i class="bi bi-folder2-open kpi-icon"></i></div>
-        <div class="kpi-card kpi-red"><div class="kpi-label">SLA Vencido</div><div class="kpi-val" id="k-breach">—</div><div class="kpi-sub">Superaron el plazo</div><i class="bi bi-alarm kpi-icon"></i></div>
-        <div class="kpi-card kpi-green"><div class="kpi-label">Resueltos Hoy</div><div class="kpi-val" id="k-today">—</div><div class="kpi-sub">Cierres registrados hoy</div><i class="bi bi-check-circle kpi-icon"></i></div>
+        <div class="kpi-card kpi-red"><div class="kpi-label">Sin Asignar</div><div class="kpi-val" id="k-total">—</div><div class="kpi-sub">Sin asignar en Jira</div><i class="bi bi-person-slash kpi-icon"></i></div>
+        <div class="kpi-card kpi-yellow"><div class="kpi-label">Abiertos</div><div class="kpi-val" id="k-open">—</div><div class="kpi-sub">Sin asignar · Jira</div><i class="bi bi-folder2-open kpi-icon"></i></div>
+        <div class="kpi-card kpi-blue"><div class="kpi-label">SLA Vencido</div><div class="kpi-val" id="k-breach">—</div><div class="kpi-sub">Superaron el plazo</div><i class="bi bi-alarm kpi-icon"></i></div>
+        <div class="kpi-card kpi-green"><div class="kpi-label">Resueltos Hoy</div><div class="kpi-val" id="k-today">—</div><div class="kpi-sub">Cerrados hoy</div><i class="bi bi-check-circle kpi-icon"></i></div>
         <div class="kpi-card kpi-cyan"><div class="kpi-label">% SLA Cumplido</div><div class="kpi-val" id="k-sla-pct">—</div><div class="kpi-sub">Últimos 30 días</div><i class="bi bi-graph-up kpi-icon"></i></div>
         <div class="kpi-card kpi-purple"><div class="kpi-label">Usuarios Portal</div><div class="kpi-val" id="k-portal-users">—</div><div class="kpi-sub">Únicos este mes</div><i class="bi bi-people kpi-icon"></i></div>
         <div class="kpi-card kpi-green"><div class="kpi-label">CSAT Promedio</div><div class="kpi-val" id="k-csat">—</div><div class="kpi-sub">Satisfacción portal</div><i class="bi bi-star-half kpi-icon"></i></div>
@@ -556,27 +556,31 @@ async function loadItsm() {
   try {
     const base  = APP_URL || '';
     const today = new Date().toISOString().slice(0, 10);
-    const enc   = encodeURIComponent;
     const closed = '"Cerrado","Closed","Cancelado","Cancelled","Resuelto","Resolved"';
 
+    // Mismo approach que /administracion: POST a search/jql, contar issues.length
     function jiraCount(jql) {
-      return fetch(base + '/api/jira/rest/api/3/search?jql=' + enc(jql) + '&maxResults=0', { credentials: 'include' })
-        .then(r => r.json()).catch(() => ({ total: 0 }));
+      return fetch(base + '/api/jira/rest/api/3/search/jql', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jql, fields: ['id'], maxResults: 500 })
+      }).then(r => r.json())
+        .then(d => Array.isArray(d.issues) ? d.issues.length : '—')
+        .catch(() => '—');
     }
 
-    const [jTotal, jOpen, jToday, jBreach, sRaw, tRaw] = await Promise.all([
-      jiraCount('project = INC'),
-      jiraCount(`project = INC AND status not in (${closed})`),
-      jiraCount(`project = INC AND resolutiondate >= "${today}"`),
+    const [jOpen, jToday, jBreach, sRaw, tRaw] = await Promise.all([
+      jiraCount(`project = INC AND status not in (${closed}) AND assignee is EMPTY`),
+      jiraCount(`project = INC AND resolutiondate >= startOfDay()`),
       jiraCount(`project = INC AND status not in (${closed}) AND created <= -8h`),
       fetch(base + '/api/reports-itsm/sla-compliance', { credentials: 'include' }).then(r => r.json()).catch(() => ({})),
       fetch(base + '/api/reports-itsm/trends', { credentials: 'include' }).then(r => r.json()).catch(() => ({}))
     ]);
 
-    set('k-total',  jTotal.total  ?? 0);
-    set('k-open',   jOpen.total   ?? 0);
-    set('k-breach', jBreach.total ?? 0);
-    set('k-today',  jToday.total  ?? 0);
+    set('k-total',  jOpen   !== '—' ? jOpen   : '—');
+    set('k-open',   jOpen   !== '—' ? jOpen   : '—');
+    set('k-breach', jBreach !== '—' ? jBreach : '—');
+    set('k-today',  jToday  !== '—' ? jToday  : '—');
 
     const sRes = sRaw.data || {};
     let slaOk = 0, slaTotal = 0;
@@ -644,10 +648,10 @@ async function loadPortal() {
 async function loadAssets() {
   try {
     const base = APP_URL || '';
-    const raw  = await fetch(base + '/api/dashboard-stats/stats-only').then(r => r.json());
-    const s    = raw.stats || {};
-    set('k-equip', s.totalEquipment ?? '—');
-    set('k-emp',   s.totalEmployees ?? '—');
+    // /tickets/cmdb/quick-stats devuelve {empleados, equipos} — mismo que /administracion
+    const raw  = await fetch(base + '/tickets/cmdb/quick-stats', { credentials: 'include' }).then(r => r.json()).catch(() => ({}));
+    set('k-equip', raw.equipos   ?? '—');
+    set('k-emp',   raw.empleados ?? '—');
   } catch(e) { console.error('loadAssets:', e); }
 }
 
