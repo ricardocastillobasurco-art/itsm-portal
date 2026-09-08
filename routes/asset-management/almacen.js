@@ -78,9 +78,10 @@ router.get('/disponibles', async (req, res) => {
         const tipo   = req.query.tipo   || null;
         const search = req.query.search || null;
 
-        const tId  = parseInt(req.user?.tenant_id || 1);
-        let where  = ['e.status = "Disponible"', 'e.tenant_id = ?'];
-        let params = [tId];
+        const tId  = req.user?.tenant_id ? parseInt(req.user.tenant_id) : null;
+        let where  = ['e.status = "Disponible"'];
+        let params = [];
+        if (tId !== null) { where.push('e.tenant_id = ?'); params.push(tId); }
 
         if (tipo) {
             where.push('e.equipment_type = ?');
