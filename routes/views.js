@@ -727,7 +727,9 @@ router.get('/agent-dashboard', authenticateToken, requireVerified, (req, res) =>
 });
 
 router.get('/admin-dashboard', authenticateToken, requireRole('administrador'), (req, res) => {
-    res.render('admin_platform/layouts/admin_dashboard', { title: 'Dashboard Administrador', user: req.user });
+    const { loadTenantConfig } = require('../utils/tenantConfig');
+    const tenantCfg = req.user?.tenant_id ? loadTenantConfig(req.user.tenant_id) : null;
+    res.render('admin_platform/layouts/admin_dashboard', { title: 'Dashboard Administrador', user: req.user, tenantCfg });
 });
 
 router.get('/knowledge-base', (req, res) => {
