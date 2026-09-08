@@ -106,7 +106,7 @@ router.get('/disponibles', async (req, res) => {
                     DATE_ADD(e.created_at, INTERVAL COALESCE(e.warranty_months, 0) MONTH) AS warranty_expiry_calc,
                     e.created_at
                 FROM equipment e
-                LEFT JOIN sccm_inventory s ON (s.hostname = e.device_code OR s.bios_serial = e.serial_number)
+                LEFT JOIN sccm_inventory s ON (s.hostname COLLATE utf8mb4_0900_ai_ci = e.device_code OR s.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number)
                 ${whereStr}
                 ORDER BY e.equipment_type, e.brand, e.model
                 LIMIT ? OFFSET ?
@@ -144,7 +144,7 @@ router.get('/disponibles/:id', async (req, res) => {
                    COALESCE(e.domain, s.dominio)                     AS domain,
                    DATE_ADD(e.created_at, INTERVAL COALESCE(e.warranty_months, 0) MONTH) AS warranty_expiry_calc
             FROM equipment e
-            LEFT JOIN sccm_inventory s ON (s.hostname = e.device_code OR s.bios_serial = e.serial_number)
+            LEFT JOIN sccm_inventory s ON (s.hostname COLLATE utf8mb4_0900_ai_ci = e.device_code OR s.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number)
             WHERE e.id = ?
         `, [req.params.id]);
 

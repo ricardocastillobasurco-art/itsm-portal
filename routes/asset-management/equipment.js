@@ -301,8 +301,8 @@ router.get('/', authenticateToken, checkPermission('equipment', 'read'), async (
       : '';
 
     // JOINs SCCM separados y JOIN asignación activa
-    const J1   = `LEFT JOIN sccm_inventory s1 ON s1.hostname    = e.device_code`;
-    const J2   = `LEFT JOIN sccm_inventory s2 ON s2.bios_serial = e.serial_number AND s1.hostname IS NULL`;
+    const J1   = `LEFT JOIN sccm_inventory s1 ON s1.hostname    COLLATE utf8mb4_0900_ai_ci = e.device_code`;
+    const J2   = `LEFT JOIN sccm_inventory s2 ON s2.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number AND s1.hostname IS NULL`;
     const JASG = `LEFT JOIN (
                     SELECT a.equipment_id, emp.full_name AS assigned_to, emp.cip AS assigned_cip, emp.email AS assigned_email
                     FROM assignments a
@@ -465,8 +465,8 @@ router.get('/charts', authenticateToken, async (req, res) => {
                ) AS label,
                COUNT(*) AS cnt
         FROM equipment e
-        LEFT JOIN sccm_inventory s1 ON s1.hostname    = e.device_code
-        LEFT JOIN sccm_inventory s2 ON s2.bios_serial = e.serial_number AND s1.hostname IS NULL
+        LEFT JOIN sccm_inventory s1 ON s1.hostname    COLLATE utf8mb4_0900_ai_ci = e.device_code
+        LEFT JOIN sccm_inventory s2 ON s2.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number AND s1.hostname IS NULL
         WHERE e.tenant_id = ?
         GROUP BY label ORDER BY cnt DESC LIMIT 20
       `, [tId]),
@@ -501,8 +501,8 @@ router.get('/:id/details', authenticateToken, async (req, res, next) => {
         COALESCE(e.ram_memory,        s1.memoria_ram,       s2.memoria_ram)       AS ram_memory,
         COALESCE(e.disk_capacity,     s1.disco_1_capacidad, s2.disco_1_capacidad) AS disk_capacity
       FROM equipment e
-      LEFT JOIN sccm_inventory s1 ON s1.hostname    = e.device_code
-      LEFT JOIN sccm_inventory s2 ON s2.bios_serial = e.serial_number AND s1.hostname IS NULL
+      LEFT JOIN sccm_inventory s1 ON s1.hostname    COLLATE utf8mb4_0900_ai_ci = e.device_code
+      LEFT JOIN sccm_inventory s2 ON s2.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number AND s1.hostname IS NULL
       WHERE e.device_code = ? AND e.tenant_id = ? LIMIT 1
     `, [device_code, parseInt(req.user?.tenant_id || 1)]);
     if (!rows.length) return res.status(404).json({ success: false, error: 'Equipo no encontrado' });
