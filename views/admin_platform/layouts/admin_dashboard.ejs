@@ -587,6 +587,13 @@ async function loadItsm() {
     renderStatusChart((d.porEstado || []).map(e => ({ status: e.internal_status || e.status, total: e.total })));
     renderPriorityChart(d.porPrioridad || []);
     renderTrendChart((d.evolucion || []).map(e => ({ fecha: e.dia, creados: e.total, resueltos: e.cerrados })));
+    renderCatChart((d.topCategorias || []).map(e => ({ categoria: e.summary, total: e.total })));
+
+    // SLA por prioridad y agente — desde BD local (sla-compliance)
+    const sRaw = await fetch(base + '/api/reports-itsm/sla-compliance', { credentials: 'include' }).then(r => r.json()).catch(() => ({}));
+    const sRes = sRaw.data || {};
+    renderSlaPriorityBars(sRes.byPriority || []);
+    renderSlaAgentBars(sRes.byAgent    || []);
 
   } catch (e) { console.error('loadItsm:', e); }
 }
