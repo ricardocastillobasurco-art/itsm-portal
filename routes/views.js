@@ -590,7 +590,9 @@ router.get('/employees/:id',
 
 // GET /itsm – Hub ITSM
 router.get('/itsm', authenticateToken, requireVerified, (req, res) => {
-    res.render('admin_platform/admin_management/itsm/hub', { title: 'ITSM · Centro de Servicios TI', user: req.user });
+    const { loadTenantConfig } = require('../utils/tenantConfig');
+    const tenantCfg = req.user?.tenant_id ? loadTenantConfig(req.user.tenant_id) : null;
+    res.render('admin_platform/admin_management/itsm/hub', { title: 'ITSM · Centro de Servicios TI', user: req.user, tenantCfg });
 });
 
 // GET /activos – Hub Gestión de Activos
