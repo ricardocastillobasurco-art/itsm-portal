@@ -554,48 +554,40 @@ async function loadAll() {
 /* ── ITSM KPIs + charts ─────────────────────────────── */
 async function loadItsm() {
   try {
-    const base  = APP_URL || '';
-    const today = new Date().toISOString().slice(0, 10);
-    const closed = '"Cerrado","Closed","Cancelado","Cancelled","Resuelto","Resolved"';
+    const base = APP_URL || '';
+    const raw  = await fetch(base + '/api/jira/stats-live', { credentials: 'include' }).then(r => r.json());
+    if (!raw.success) throw new Error(raw.message || 'stats-live error');
+    const d = raw.data;
 
-    function jiraCount(jql) {
-      return fetch(base + '/api/jira/rest/api/3/search/jql', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql, fields: ['id'], maxResults: 1 })
-      }).then(r => r.json())
-        .then(d => typeof d.total === 'number' ? d.total : (Array.isArray(d.issues) ? d.issues.length : '—'))
-        .catch(() => '—');
-    }
+    const sla    = d.slaStats || {};
+    const alerta = d.alertas  || {};
+    const today  = new Date().toISOString().slice(0, 10);
 
-    const [jOpen, jToday, jBreach, sRaw, tRaw] = await Promise.all([
-      jiraCount(`project = INC AND status not in (${closed}) AND assignee is EMPTY`),
-      jiraCount(`project = INC AND resolutiondate >= startOfDay()`),
-      jiraCount(`project = INC AND status not in (${closed}) AND created <= -8h`),
-      fetch(base + '/api/reports-itsm/sla-compliance', { credentials: 'include' }).then(r => r.json()).catch(() => ({})),
-      fetch(base + '/api/reports-itsm/trends', { credentials: 'include' }).then(r => r.json()).catch(() => ({}))
-    ]);
+    // Sin Asignar total (campo alertas.sinAsignar)
+    set('k-total', alerta.sinAsignar ?? '—');
 
-    set('k-total',  jOpen   !== '—' ? jOpen   : '—');
-    set('k-open',   jOpen   !== '—' ? jOpen   : '—');
-    set('k-breach', jBreach !== '—' ? jBreach : '—');
-    set('k-today',  jToday  !== '—' ? jToday  : '—');
+    // Abiertos = suma de porEstado (todos los estados no cerrados)
+    const totalOpen = (d.porEstado || []).reduce((s, e) => s + (parseInt(e.total) || 0), 0);
+    set('k-open', totalOpen || '—');
 
-    const sRes = sRaw.data || {};
-    let slaOk = 0, slaTotal = 0;
-    (sRes.byPriority || []).forEach(p => {
-      slaTotal += parseInt(p.total)     || 0;
-      slaOk    += parseInt(p.cumplidos) || 0;
-    });
-    set('k-sla-pct', slaTotal ? Math.round(slaOk / slaTotal * 100) + '%' : '—');
+    // SLA Vencido = tickets abiertos que superaron plazo
+    set('k-breach', sla.vencidos_abiertos ?? '—');
 
-    const tRes = tRaw.data || {};
-    renderStatusChart(tRes.byStatus    || []);
-    renderPriorityChart(tRes.byPriority || []);
-    renderCatChart(tRes.byCat          || []);
-    renderTrendChart(tRes.daily        || []);
-    renderSlaPriorityBars(sRes.byPriority || []);
-    renderSlaAgentBars(sRes.byAgent    || []);
+    // Resueltos Hoy = último registro de evolución con fecha de hoy
+    const todayEv = (d.evolucion || []).find(e => e.dia === today);
+    set('k-today', todayEv ? (todayEv.cerrados || 0) : 0);
+
+    // % SLA Cumplido = dentro_sla / (dentro_sla + fuera_sla)
+    const den = Number(sla.dentro_sla) || 0;
+    const fue = Number(sla.fuera_sla)  || 0;
+    const tot = den + fue;
+    set('k-sla-pct', tot > 0 ? Math.round(den / tot * 100) + '%' : '—');
+
+    // Gráficos con datos reales (normalizar nombres de campos)
+    renderStatusChart((d.porEstado || []).map(e => ({ status: e.internal_status || e.status, total: e.total })));
+    renderPriorityChart(d.porPrioridad || []);
+    renderTrendChart((d.evolucion || []).map(e => ({ fecha: e.dia, creados: e.total, resueltos: e.cerrados })));
+
   } catch (e) { console.error('loadItsm:', e); }
 }
 
