@@ -19,6 +19,18 @@ async function dbQuery(sql, params = []) {
     return executeQuery(equipmentPool, sql, safeParams(params));
 }
 
+// Tolera JSON arrays, strings planas ("M365 E3") y strings CSV ("M365 E1, M365 E3")
+function parseLicGroups(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch {
+            return val.split(',').map(s => s.trim()).filter(Boolean);
+        }
+    }
+    return [];
+}
+
 // ── MSAL ─────────────────────────────────────────────────────────────────────
 const msalEnabled = !!(process.env.MS_CLIENT_ID && process.env.MS_TENANT_ID && process.env.MS_CLIENT_SECRET);
 const msalClient = msalEnabled ? new ConfidentialClientApplication({
@@ -437,7 +449,7 @@ router.get('/overview', authenticateToken, async (req, res) => {
         const inactiveUsers = await dbQuery(`SELECT license_groups FROM m365_user_licenses WHERE activity_status IN ('SIN USO','INACTIVO') AND account_enabled=1`);
         let savingsPotential = 0;
         for (const u of inactiveUsers) {
-            const groups = JSON.parse(u.license_groups || '[]');
+            const groups = parseLicGroups(u.license_groups);
             for (const grp of groups) {
                 const sku = GROUP_TO_SKU[grp];
                 savingsPotential += sku ? (costMap[sku] || 0) : 0;
@@ -500,11 +512,11 @@ router.get('/users', authenticateToken, async (req, res) => {
         // Filter by group (JSON field) in JS
         if (group) {
             rows = rows.filter(r => {
-                try { return JSON.parse(r.license_groups || '[]').includes(group); } catch { return false; }
+                return parseLicGroups(r.license_groups).includes(group);
             });
         }
 
-        rows = rows.map(r => ({ ...r, license_groups: JSON.parse(r.license_groups || '[]') }));
+        rows = rows.map(r => ({ ...r, license_groups: parseLicGroups(r.license_groups) }));
 
         res.json({ success: true, data: rows, total: parseInt(total), page: parseInt(page), pages: Math.ceil(total / limit) });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
@@ -536,7 +548,7 @@ router.get('/departments', authenticateToken, async (req, res) => {
         const deptCostMap = {};
         for (const u of usersByDept) {
             const dept = u.department || 'Sin departamento';
-            const groups = JSON.parse(u.license_groups || '[]');
+            const groups = parseLicGroups(u.license_groups);
             let cost = 0;
             for (const grp of groups) { cost += costMap[GROUP_TO_SKU[grp]] || 0; }
             deptCostMap[dept] = (deptCostMap[dept] || 0) + cost;
@@ -576,7 +588,7 @@ router.get('/direcciones', authenticateToken, async (req, res) => {
         const usersByDir = await dbQuery(`SELECT COALESCE(NULLIF(TRIM(direccion),''),'Sin dirección') AS dir, license_groups FROM m365_user_licenses WHERE account_enabled=1`);
         const dirCostMap = {};
         for (const u of usersByDir) {
-            const groups = JSON.parse(u.license_groups || '[]');
+            const groups = parseLicGroups(u.license_groups);
             let cost = 0;
             for (const grp of groups) cost += costMap[GROUP_TO_SKU[grp]] || 0;
             dirCostMap[u.dir] = (dirCostMap[u.dir] || 0) + cost;
@@ -619,7 +631,7 @@ router.get('/direccion-areas', authenticateToken, async (req, res) => {
         const usersByArea = await dbQuery(`SELECT COALESCE(NULLIF(TRIM(department),''),'Sin área') AS area, license_groups FROM m365_user_licenses WHERE account_enabled=1 AND ${dirCond}`, dirParam);
         const areaCostMap = {};
         for (const u of usersByArea) {
-            const groups = JSON.parse(u.license_groups || '[]');
+            const groups = parseLicGroups(u.license_groups);
             let cost = 0;
             for (const grp of groups) cost += costMap[GROUP_TO_SKU[grp]] || 0;
             areaCostMap[u.area] = (areaCostMap[u.area] || 0) + cost;
@@ -653,7 +665,7 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
         // Group by license group
         const byGroup = {};
         for (const u of inactiveUsers) {
-            const groups = JSON.parse(u.license_groups || '[]');
+            const groups = parseLicGroups(u.license_groups);
             for (const grp of groups) {
                 if (!byGroup[grp]) byGroup[grp] = [];
                 byGroup[grp].push({ ...u, license_groups: groups });
@@ -680,7 +692,7 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
         }
 
         // Rec 2: E5 users inactive → downgrade to E3 (save ~$21/user)
-        const e5Inactive = inactiveUsers.filter(u => JSON.parse(u.license_groups || '[]').includes('M365 E5'));
+        const e5Inactive = inactiveUsers.filter(u => parseLicGroups(u.license_groups).includes('M365 E5'));
         if (e5Inactive.length) {
             const e5Cost = costMap['SPE_E5'] || 57;
             const e3Cost = costMap['ENTERPRISEPACK'] || 36;
@@ -922,7 +934,7 @@ router.get('/export', authenticateToken, async (req, res) => {
         const lines = [headers.map(escape).join(',')];
 
         for (const r of rows) {
-            const groups = JSON.parse(r.license_groups || '[]');
+            const groups = parseLicGroups(r.license_groups);
             const cost = groups.reduce((s, grp) => s + (costMap[GROUP_TO_SKU[grp]] || 0), 0);
             lines.push([
                 r.display_name, r.email, r.upn, r.department, r.job_title,
