@@ -180,6 +180,7 @@ module.exports = {
                 eq.equipment_type,
                 eq.brand,
                 eq.model,
+                eq.model       AS equipment_model,
                 eq.status      AS equipment_status,
                 d.department_name,
                 l.location_name
