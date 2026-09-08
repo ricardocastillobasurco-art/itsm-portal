@@ -5,278 +5,492 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ITSM · Centro de Servicios TI</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-<%- include('../../../shared/partials/autogestion/styles') %>
 <style>
-/* ── Admin navbar tokens (match /administracion) ── */
+/* ══ VARIABLES (idéntico a /administracion) ══════════════════ */
 :root,[data-theme="light"]{
-  --nav-bg:rgba(255,255,255,.95);
-  --navbar-h:44px;
-  --border:#e2e8f0;
+  --bg:#f1f5f9;--bg-subtle:#e9eef5;--card:#ffffff;
+  --border:#e2e8f0;--border-strong:#cbd5e1;
   --text:#0f172a;--text-2:#1e293b;--muted:#64748b;--muted-2:#94a3b8;
-  --primary:#2563eb;--bg-subtle:#e9eef5;
+  --primary:#2563eb;--primary-dim:rgba(37,99,235,.1);--primary-glow:rgba(37,99,235,.25);
+  --success:#059669;--warning:#d97706;--danger:#dc2626;--purple:#7c3aed;--info:#0891b2;
+  --sh-xs:0 1px 2px rgba(0,0,0,.06);
+  --sh-sm:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.04);
+  --sh-md:0 4px 16px rgba(0,0,0,.1),0 16px 40px rgba(0,0,0,.07);
+  --nav-bg:rgba(255,255,255,.95);
+  --radius-sm:8px;--radius:12px;--radius-lg:16px;
+  --sidebar-w:220px;--navbar-h:44px;
+  --sidebar-bg:var(--card);
 }
 [data-theme="dark"]{
-  --nav-bg:rgba(8,13,28,.95);
-  --border:#1e293b;
+  --bg:#080d1c;--bg-subtle:#0d1425;--card:#111827;
+  --border:#1e293b;--border-strong:#2d3f55;
   --text:#f1f5f9;--text-2:#e2e8f0;--muted:#94a3b8;--muted-2:#64748b;
-  --primary:#3b82f6;--bg-subtle:#0d1425;
+  --primary:#3b82f6;--primary-dim:rgba(59,130,246,.14);--primary-glow:rgba(59,130,246,.2);
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;--purple:#8b5cf6;--info:#06b6d4;
+  --sh-xs:0 1px 2px rgba(0,0,0,.4);
+  --sh-sm:0 1px 3px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
+  --sh-md:0 4px 16px rgba(0,0,0,.4),0 16px 40px rgba(0,0,0,.3);
+  --nav-bg:rgba(8,13,28,.95);
+  --sidebar-bg:var(--bg-subtle);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',-apple-system,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;}
+*::-webkit-scrollbar{width:5px;height:5px;}
+*::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px;}
+
+/* ══ NAVBAR ══════════════════════════════════════════════════ */
+.navbar{position:fixed;top:0;left:0;right:0;z-index:500;height:var(--navbar-h);display:flex;align-items:center;gap:6px;padding:0 16px;background:var(--nav-bg);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border-bottom:1px solid var(--border);}
+.nav-hamburger{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .15s;cursor:pointer;flex-shrink:0;}
+.nav-hamburger:hover{background:var(--bg-subtle);color:var(--text);}
+.nav-brand{display:flex;align-items:center;gap:7px;padding:0 8px;}
+.nav-logo{height:18px;width:auto;}
+.nav-divider{width:1px;height:16px;background:var(--border);}
+.nav-name{font-size:12px;font-weight:700;color:var(--text);}
+.nav-badge{font-size:8px;font-weight:800;padding:1px 6px;border-radius:20px;background:linear-gradient(135deg,#0052cc,#2684ff);color:#fff;letter-spacing:.5px;text-transform:uppercase;}
+.nav-space{flex:1;}
+.nav-icon-btn{width:30px;height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);transition:all .15s;cursor:pointer;}
+.nav-icon-btn:hover{background:var(--bg-subtle);color:var(--text);}
+.nav-breadcrumb{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);padding-left:2px;}
+.nav-breadcrumb a{color:var(--muted);font-weight:500;transition:color .15s;}
+.nav-breadcrumb a:hover{color:var(--primary);}
+.nav-breadcrumb .sep{opacity:.35;}
+.nav-breadcrumb .cur{color:var(--text-2);font-weight:700;}
+.nav-user{display:flex;align-items:center;gap:5px;padding:3px 8px 3px 4px;border-radius:20px;background:var(--bg-subtle);border:1px solid var(--border);}
+.nav-avatar{width:24px;height:24px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#0052cc,#2684ff);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;}
+.nav-username{font-size:11px;font-weight:600;color:var(--text-2);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nav-exit{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600;color:var(--muted);transition:all .15s;cursor:pointer;}
+.nav-exit:hover{color:var(--danger);background:rgba(220,38,38,.06);}
+
+/* ══ APP SHELL ═══════════════════════════════════════════════ */
+.app-shell{display:flex;position:fixed;top:var(--navbar-h);left:0;right:0;bottom:0;overflow:hidden;}
+
+/* ══ SIDEBAR ═════════════════════════════════════════════════ */
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1);position:relative;z-index:200;}
+.sidebar.collapsed{width:52px;}
+.sb-header{display:flex;align-items:center;gap:8px;padding:0 12px;height:46px;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden;}
+.sb-icon-box{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#0052cc,#2684ff);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;flex-shrink:0;}
+.sb-brand{flex:1;min-width:0;overflow:hidden;}
+.sb-brand-name{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;}
+.sb-brand-sub{font-size:9px;color:var(--muted);font-weight:500;}
+.sidebar.collapsed .sb-brand{display:none;}
+.sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 0;}
+.sb-nav::-webkit-scrollbar{width:3px;}
+.sb-section-label{font-size:9px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted-2);padding:10px 14px 3px;white-space:nowrap;overflow:hidden;display:block;}
+.sidebar.collapsed .sb-section-label{display:none;}
+.sb-item{display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--muted);transition:all .15s;white-space:nowrap;overflow:hidden;border:none;background:none;width:100%;text-align:left;position:relative;}
+.sb-item:hover{background:var(--bg-subtle);color:var(--text);}
+.sb-item.active{background:var(--primary-dim);color:var(--primary);font-weight:700;}
+.sb-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--primary);border-radius:0 2px 2px 0;}
+.sb-icon{font-size:15px;flex-shrink:0;width:18px;text-align:center;}
+.sb-label{flex:1;overflow:hidden;text-overflow:ellipsis;}
+.sidebar.collapsed .sb-item{justify-content:center;padding:9px 0;}
+.sidebar.collapsed .sb-label,.sidebar.collapsed .sb-section-label{display:none;}
+.sidebar.collapsed .sb-icon{font-size:17px;width:auto;}
+.sb-divider{height:1px;background:var(--border);margin:6px 14px;}
+.sidebar.collapsed .sb-divider{margin:6px 8px;}
+.sb-footer{border-top:1px solid var(--border);padding:10px 12px;flex-shrink:0;display:flex;align-items:center;gap:8px;overflow:hidden;}
+.sb-user-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#0052cc,#2684ff);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;}
+.sb-user-info{flex:1;min-width:0;overflow:hidden;}
+.sb-user-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-user-role{font-size:10px;color:var(--muted);}
+.sidebar.collapsed .sb-user-info{display:none;}
+.sidebar.collapsed .sb-footer{justify-content:center;padding:10px 0;}
+.sb-theme-btn{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);transition:all .15s;flex-shrink:0;}
+.sb-theme-btn:hover{background:var(--bg-subtle);color:var(--text);}
+.sidebar.collapsed .sb-theme-btn{display:none;}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:299;backdrop-filter:blur(2px);}
+@media(max-width:768px){
+  .sidebar{position:fixed;top:var(--navbar-h);bottom:0;left:0;z-index:300;transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);}
+  .sidebar.mobile-open{transform:translateX(0);}
+  .sb-overlay.visible{display:block;}
 }
 
-/* ── Navbar ── */
-.adm-navbar{
-  position:fixed;top:0;left:0;right:0;z-index:9000;
-  height:var(--navbar-h);display:flex;align-items:center;gap:6px;padding:0 16px;
-  background:var(--nav-bg);backdrop-filter:blur(16px) saturate(160%);
-  -webkit-backdrop-filter:blur(16px) saturate(160%);
-  border-bottom:1px solid var(--border);
-  font-family:'DM Sans',-apple-system,'Segoe UI',sans-serif;
-}
-.adm-nav-brand{display:flex;align-items:center;gap:7px;padding:0 8px;}
-.adm-nav-logo{height:18px;width:auto;}
-.adm-nav-divider{width:1px;height:16px;background:var(--border);}
-.adm-nav-name{font-size:12px;font-weight:700;color:var(--text);}
-.adm-nav-badge{font-size:8px;font-weight:800;padding:1px 6px;border-radius:20px;background:linear-gradient(135deg,#0052cc,#2684ff);color:#fff;letter-spacing:.5px;text-transform:uppercase;}
-.adm-nav-space{flex:1;}
-.adm-nav-btn{width:30px;height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);transition:all .15s;cursor:pointer;border:none;background:none;}
-.adm-nav-btn:hover{background:var(--bg-subtle);color:var(--text);}
-.adm-nav-user{display:flex;align-items:center;gap:5px;padding:3px 8px 3px 4px;border-radius:20px;background:var(--bg-subtle);border:1px solid var(--border);}
-.adm-nav-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#0052cc,#2684ff);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;}
-.adm-nav-username{font-size:11px;font-weight:600;color:var(--text-2);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.adm-nav-exit{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600;color:var(--muted);transition:all .15s;cursor:pointer;border:none;background:none;text-decoration:none;}
-.adm-nav-exit:hover{color:#dc2626;background:rgba(220,38,38,.06);}
-.adm-nav-breadcrumb{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);padding:0 4px;}
-.adm-nav-breadcrumb a{color:var(--muted);text-decoration:none;font-weight:500;}
-.adm-nav-breadcrumb a:hover{color:var(--primary);}
-.adm-nav-breadcrumb .sep{opacity:.4;font-size:10px;}
-.adm-nav-breadcrumb .cur{color:var(--text-2);font-weight:700;}
+/* ══ CONTENT AREA ════════════════════════════════════════════ */
+.content-area{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;background:var(--bg);min-width:0;}
+.content-header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:14px;flex-shrink:0;position:sticky;top:0;z-index:100;}
+.ch-title{font-size:14px;font-weight:800;color:var(--text);}
+.ch-sub{font-size:11px;color:var(--muted);}
+.ch-actions{display:flex;align-items:center;gap:8px;margin-left:auto;}
+.content-body{padding:24px;flex:1;}
 
-/* ── Layout adjustment for fixed navbar ── */
-body::before{top:var(--navbar-h);}
-.home-wrapper{padding-top:calc(var(--navbar-h) + 28px);padding-bottom:60px;}
+/* ══ MODULE CARDS ════════════════════════════════════════════ */
+.hub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media(max-width:1100px){.hub-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.hub-grid{grid-template-columns:1fr;}}
+.hub-card{background:var(--card);border:1px solid var(--border);border-top:3px solid var(--ac,var(--primary));border-radius:var(--radius);padding:20px;cursor:pointer;position:relative;overflow:hidden;box-shadow:var(--sh-xs);transition:transform .2s,box-shadow .2s,border-color .2s;display:flex;flex-direction:column;text-decoration:none;color:inherit;}
+.hub-card:hover{transform:translateY(-3px);box-shadow:var(--sh-md);border-color:color-mix(in srgb,var(--ac,var(--primary)) 30%,var(--border));}
+.hub-card-icon{width:40px;height:40px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;flex-shrink:0;}
+.hub-card-name{font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.hub-card-desc{font-size:11.5px;color:var(--muted);line-height:1.55;flex:1;}
+.hub-card-arrow{position:absolute;bottom:14px;right:16px;font-size:13px;color:var(--border-strong);transition:all .2s;}
+.hub-card:hover .hub-card-arrow{transform:translateX(4px);color:var(--ac,var(--primary));}
 
-/* ── Hide old floating toggle ── */
-.theme-toggle{display:none!important;}
+/* color accents */
+.hc-blue{--ac:#2563eb;}.hc-blue .hub-card-icon{background:rgba(37,99,235,.1);color:#2563eb;}
+.hc-red{--ac:#dc2626;}.hc-red .hub-card-icon{background:rgba(220,38,38,.1);color:#dc2626;}
+.hc-green{--ac:#059669;}.hc-green .hub-card-icon{background:rgba(5,150,105,.1);color:#059669;}
+.hc-indigo{--ac:#4338ca;}.hc-indigo .hub-card-icon{background:rgba(67,56,202,.1);color:#4338ca;}
+.hc-amber{--ac:#d97706;}.hc-amber .hub-card-icon{background:rgba(217,119,6,.1);color:#d97706;}
+.hc-cyan{--ac:#0891b2;}.hc-cyan .hub-card-icon{background:rgba(8,145,178,.1);color:#0891b2;}
+.hc-purple{--ac:#7c3aed;}.hc-purple .hub-card-icon{background:rgba(124,58,237,.1);color:#7c3aed;}
 
-/* ── Sub-module cards (3 col) ── */
-.sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:1040px;}
-@media(max-width:740px){.sub-grid{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:460px){.sub-grid{grid-template-columns:1fr;}}
+/* ══ SECTION HEADER ══════════════════════════════════════════ */
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.sec-hdr-icon{width:34px;height:34px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.sec-hdr-title{font-size:15px;font-weight:800;color:var(--text);}
+.sec-hdr-sub{font-size:11px;color:var(--muted);}
 
-/* ── Tabs wrapper limit ── */
-.tabs-wrapper,.tab-panel{width:100%;max-width:1040px;}
-.section-label{font-family:'DM Sans',-apple-system,sans-serif;font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:6px;border-bottom:1px solid var(--border-soft);}
-.home-footer{font-family:'DM Sans',-apple-system,sans-serif;}
+/* panels */
+.hub-panel{display:none;}
+.hub-panel.active{display:block;}
 
-/* ── Mobile ── */
-@media(max-width:680px){
-  .adm-nav-breadcrumb,.adm-nav-username{display:none;}
-  .home-wrapper{padding-top:calc(var(--navbar-h) + 16px);}
+@media(max-width:768px){
+  .content-body{padding:16px;}
+  .nav-breadcrumb,.nav-username{display:none;}
 }
 </style>
 </head>
 <body>
 <%
-  const _u    = user || {};
-  const _name = _u.full_name || _u.name || _u.email || 'Usuario';
-  const _pts  = _name.trim().split(/\s+/);
-  const _ini  = (_pts[0]?.[0]||'U').toUpperCase() + (_pts[1]?.[0]||'').toUpperCase();
-  const _fst  = _pts[0] || 'Usuario';
-  const _cfg  = (typeof tenantCfg !== 'undefined' && tenantCfg) ? tenantCfg : {};
+  const _u     = user || {};
+  const _name  = _u.full_name || _u.name || _u.email || 'Usuario';
+  const _parts = _name.trim().split(/\s+/);
+  const _ini   = (_parts[0]?.[0]||'U').toUpperCase() + (_parts[1]?.[0]||'').toUpperCase();
+  const _first = _parts[0] || 'Usuario';
+  const _role  = _u.role || 'agente';
+  const _cfg   = (typeof tenantCfg !== 'undefined' && tenantCfg) ? tenantCfg : {};
   const _tname = _cfg.name ?? 'Portal TI';
 %>
 
-<!-- ══ NAVBAR (igual que /administracion) ══ -->
-<nav class="adm-navbar">
-  <div class="adm-nav-brand">
-    <img src="/images/movistar-logo.png" alt="Logo" class="adm-nav-logo" onerror="this.style.display='none'">
-    <span class="adm-nav-divider"></span>
-    <span class="adm-nav-name"><%= _tname %></span>
-    <span class="adm-nav-badge">ITSM</span>
+<!-- ══ NAVBAR ══════════════════════════════════════════════ -->
+<nav class="navbar">
+  <button class="nav-hamburger" onclick="toggleSidebar()" title="Menú"><i class="bi bi-layout-sidebar"></i></button>
+  <div class="nav-brand">
+    <img src="/images/movistar-logo.png" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
+    <span class="nav-divider"></span>
+    <span class="nav-name"><%= _tname %></span>
+    <span class="nav-badge">ITSM</span>
   </div>
-  <div class="adm-nav-breadcrumb">
+  <div class="nav-breadcrumb">
     <span class="sep">·</span>
     <a href="/administracion"><i class="bi bi-shield-lock-fill" style="color:#7c3aed;font-size:10px;"></i> Admin</a>
     <span class="sep">/</span>
     <span class="cur"><i class="bi bi-headset"></i> ITSM</span>
   </div>
-  <div class="adm-nav-space"></div>
-  <button class="adm-nav-btn" onclick="toggleTheme()" title="Cambiar tema" id="_navThemeBtn">
-    <i class="bi bi-moon-stars-fill" id="_navThemeIcon"></i>
-  </button>
-  <div class="adm-nav-user">
-    <div class="adm-nav-avatar"><%= _ini %></div>
-    <span class="adm-nav-username"><%= _fst %></span>
+  <div class="nav-space"></div>
+  <button class="nav-icon-btn" onclick="toggleTheme()" title="Cambiar tema"><i class="bi bi-moon-stars-fill" id="navThemeIcon"></i></button>
+  <div class="nav-user">
+    <div class="nav-avatar"><%= _ini %></div>
+    <span class="nav-username"><%= _first %></span>
   </div>
-  <a href="/api/auth/logout" class="adm-nav-exit"><i class="bi bi-box-arrow-right"></i><span>Salir</span></a>
+  <a href="/api/auth/logout" class="nav-exit"><i class="bi bi-box-arrow-right"></i><span>Salir</span></a>
 </nav>
 
-<!-- viejo toggle — oculto por CSS, lo necesitamos para que los scripts del partial funcionen -->
-<div class="theme-toggle" onclick="toggleTheme()" style="display:none!important;">
-  <i id="toggleIcon" class="bi bi-moon-stars-fill toggle-icon"></i>
-  <div class="toggle-track"><div class="toggle-knob"></div></div>
-  <span id="toggleLabel" class="toggle-label">Oscuro</span>
-</div>
+<!-- ══ APP SHELL ════════════════════════════════════════════ -->
+<div class="app-shell">
 
-<div class="home-wrapper">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-header">
+      <div class="sb-icon-box"><i class="bi bi-headset"></i></div>
+      <div class="sb-brand">
+        <div class="sb-brand-name">ITSM</div>
+        <div class="sb-brand-sub">Centro de Servicios TI</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
 
-  <!-- TABS NAV -->
-  <div class="tabs-wrapper">
-    <div class="tabs-nav">
-      <button class="tab-btn active" id="tb-inc"  onclick="switchTab('inc',this)"><i class="bi bi-exclamation-triangle-fill"></i> Incidencias</button>
-      <button class="tab-btn"        id="tb-req"  onclick="switchTab('req',this)"><i class="bi bi-clipboard2-check-fill"></i> Requerimientos</button>
-      <button class="tab-btn"        id="tb-cam"  onclick="switchTab('cam',this)"><i class="bi bi-arrow-repeat"></i> Cambios</button>
-      <button class="tab-btn"        id="tb-pro"  onclick="switchTab('pro',this)"><i class="bi bi-bug-fill"></i> Problemas</button>
-      <button class="tab-btn"        id="tb-cat"  onclick="switchTab('cat',this)"><i class="bi bi-list-task"></i> Catálogo</button>
-      <button class="tab-btn"        id="tb-cmdb" onclick="switchTab('cmdb',this)"><i class="bi bi-diagram-3-fill"></i> CMDB</button>
+      <a class="sb-item" href="/administracion" title="Volver al panel admin">
+        <i class="bi bi-arrow-left-circle sb-icon" style="color:var(--muted-2);"></i>
+        <span class="sb-label">← Administración</span>
+      </a>
+      <div class="sb-divider"></div>
+
+      <!-- INCIDENCIAS -->
+      <span class="sb-section-label">Incidencias</span>
+      <button class="sb-item active" id="sb-inc" onclick="showPanel('inc',this)" title="Incidencias">
+        <i class="bi bi-exclamation-triangle-fill sb-icon" style="color:#dc2626;"></i>
+        <span class="sb-label">Gestión Incidencias</span>
+      </button>
+      <a class="sb-item" href="/itsm/incidencias/gestion" title="Ir a gestión">
+        <i class="bi bi-ticket-detailed-fill sb-icon" style="color:#dc2626;opacity:.6;"></i>
+        <span class="sb-label" style="font-size:12px;">Cola de tickets</span>
+      </a>
+      <a class="sb-item" href="/itsm/incidencias/registrar" title="Registrar incidencia">
+        <i class="bi bi-pencil-square sb-icon" style="color:#2563eb;opacity:.6;"></i>
+        <span class="sb-label" style="font-size:12px;">Registrar</span>
+      </a>
+
+      <!-- REQUERIMIENTOS -->
+      <div class="sb-divider"></div>
+      <span class="sb-section-label">Requerimientos</span>
+      <button class="sb-item" id="sb-req" onclick="showPanel('req',this)" title="Requerimientos">
+        <i class="bi bi-clipboard2-check-fill sb-icon" style="color:#7c3aed;"></i>
+        <span class="sb-label">Gestión Requerimientos</span>
+      </button>
+      <a class="sb-item" href="/itsm/requerimientos/gestion" title="Ir a gestión">
+        <i class="bi bi-clipboard2-check sb-icon" style="color:#7c3aed;opacity:.6;"></i>
+        <span class="sb-label" style="font-size:12px;">Cola</span>
+      </a>
+
+      <!-- OTROS MÓDULOS -->
+      <div class="sb-divider"></div>
+      <span class="sb-section-label">Otros módulos</span>
+      <button class="sb-item" id="sb-cam" onclick="showPanel('cam',this)" title="Cambios">
+        <i class="bi bi-arrow-repeat sb-icon" style="color:#0891b2;"></i>
+        <span class="sb-label">Cambios</span>
+      </button>
+      <button class="sb-item" id="sb-pro" onclick="showPanel('pro',this)" title="Problemas">
+        <i class="bi bi-bug-fill sb-icon" style="color:#d97706;"></i>
+        <span class="sb-label">Problemas</span>
+      </button>
+      <button class="sb-item" id="sb-cat" onclick="showPanel('cat',this)" title="Catálogo">
+        <i class="bi bi-list-task sb-icon" style="color:#059669;"></i>
+        <span class="sb-label">Catálogo</span>
+      </button>
+      <button class="sb-item" id="sb-cmdb" onclick="showPanel('cmdb',this)" title="CMDB">
+        <i class="bi bi-diagram-3-fill sb-icon" style="color:#4338ca;"></i>
+        <span class="sb-label">CMDB</span>
+      </button>
+
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-user-av"><%= _ini %></div>
+      <div class="sb-user-info">
+        <div class="sb-user-name"><%= _name %></div>
+        <div class="sb-user-role"><%= _role %></div>
+      </div>
+      <button class="sb-theme-btn" onclick="toggleTheme()" title="Cambiar tema">
+        <i class="bi bi-moon-stars-fill" id="sbThemeIcon"></i>
+      </button>
     </div>
   </div>
 
-  <!-- TAB: INCIDENCIAS -->
-  <div class="tab-panel active" id="panel-inc">
-    <div class="section-label"><i class="bi bi-exclamation-triangle-fill" style="color:#dc2626;"></i> Gestión de Incidencias</div>
-    <div class="sub-grid">
-      <a href="/itsm/incidencias/registrar" class="mod-card c-blue">
-        <div class="mod-icon ib ib-blue"><i class="bi bi-pencil-square"></i></div>
-        <div class="mod-name">Registrar Incidencia</div>
-        <div class="mod-desc">Abre el formulario de registro de incidencias para el usuario o el técnico de soporte.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
-      <a href="/itsm/incidencias/gestion" class="mod-card c-red">
-        <div class="mod-icon ib ib-red"><i class="bi bi-ticket-detailed-fill"></i></div>
-        <div class="mod-name">Gestión de Incidencias</div>
-        <div class="mod-desc">Cola de tickets activos, asignación a especialistas, SLA y escalamientos.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
-      <a href="/itsm/incidencias/gestion?view=local" class="mod-card c-green">
-        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
-        <div class="mod-name">Gestión Local</div>
-        <div class="mod-desc">Tickets gestionados directamente en la plataforma interna, con cuentas propias del sistema.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
-    </div>
-  </div>
+  <div class="sb-overlay" id="sbOverlay" onclick="closeSidebarMobile()"></div>
 
-  <!-- TAB: REQUERIMIENTOS -->
-  <div class="tab-panel" id="panel-req">
-    <div class="section-label"><i class="bi bi-clipboard2-check-fill" style="color:#7c3aed;"></i> Gestión de Requerimientos</div>
-    <div class="sub-grid">
-      <a href="/itsm/requerimientos/registrar" class="mod-card c-blue">
-        <div class="mod-icon ib ib-blue"><i class="bi bi-clipboard2-plus-fill"></i></div>
-        <div class="mod-name">Registrar Requerimiento</div>
-        <div class="mod-desc">Abre el formulario para solicitar formalmente un servicio, recurso o mejora tecnológica.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
-      <a href="/itsm/requerimientos/gestion" class="mod-card c-indigo">
-        <div class="mod-icon ib ib-indigo"><i class="bi bi-clipboard2-check-fill"></i></div>
-        <div class="mod-name">Gestión de Requerimientos</div>
-        <div class="mod-desc">Cola de requerimientos activos en Jira, asignación a especialistas y seguimiento SLA.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
-      <a href="/itsm/requerimientos/gestion?view=local" class="mod-card c-green">
-        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
-        <div class="mod-name">Gestión Local</div>
-        <div class="mod-desc">Requerimientos gestionados directamente en la plataforma interna, con cuentas propias del sistema.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
-    </div>
-  </div>
+  <!-- CONTENT AREA -->
+  <div class="content-area">
 
-  <!-- TAB: CAMBIOS -->
-  <div class="tab-panel" id="panel-cam">
-    <div class="section-label"><i class="bi bi-arrow-repeat" style="color:#0891b2;"></i> Gestión de Cambios</div>
-    <div class="sub-grid">
-      <a href="/cambios?view=local" class="mod-card c-green">
-        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
-        <div class="mod-name">Gestión Local</div>
-        <div class="mod-desc">Cambios gestionados internamente en la plataforma, sin depender de herramientas externas.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
+    <!-- ── PANEL: INCIDENCIAS ── -->
+    <div class="hub-panel active" id="panel-inc">
+      <div class="content-header">
+        <div><div class="ch-title">Gestión de Incidencias</div><div class="ch-sub">Cola de tickets · SLA · Escalamientos</div></div>
+        <div class="ch-actions">
+          <a href="/itsm/incidencias/gestion" style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--radius-sm);background:var(--primary);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+            <i class="bi bi-box-arrow-up-right"></i> Abrir gestión
+          </a>
+        </div>
+      </div>
+      <div class="content-body">
+        <div class="hub-grid">
+          <a href="/itsm/incidencias/registrar" class="hub-card hc-blue">
+            <div class="hub-card-icon"><i class="bi bi-pencil-square"></i></div>
+            <div class="hub-card-name">Registrar Incidencia</div>
+            <div class="hub-card-desc">Formulario de registro para usuario o técnico de soporte. Crea el ticket en Jira automáticamente.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+          <a href="/itsm/incidencias/gestion" class="hub-card hc-red">
+            <div class="hub-card-icon"><i class="bi bi-ticket-detailed-fill"></i></div>
+            <div class="hub-card-name">Gestión de Incidencias</div>
+            <div class="hub-card-desc">Cola de tickets activos en Jira, asignación a especialistas, seguimiento de SLA y escalamientos.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+          <a href="/itsm/incidencias/gestion?view=local" class="hub-card hc-green">
+            <div class="hub-card-icon"><i class="bi bi-hdd-network-fill"></i></div>
+            <div class="hub-card-name">Gestión Local</div>
+            <div class="hub-card-desc">Tickets gestionados directamente en la plataforma interna con cuentas propias del sistema.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+          <a href="/itsm/incidencias/gestion?tab=indicadores" class="hub-card hc-purple">
+            <div class="hub-card-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
+            <div class="hub-card-name">Indicadores</div>
+            <div class="hub-card-desc">KPIs de SLA, MTTR, evolución de tickets y estadísticas por técnico.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+          <a href="/itsm/incidencias/gestion?tab=tecnicos" class="hub-card hc-cyan">
+            <div class="hub-card-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="hub-card-name">Estadísticas por Técnico</div>
+            <div class="hub-card-desc">Carga de trabajo, tickets activos, vencidos y tiempo de resolución por especialista.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+          <a href="/itsm/noc" class="hub-card hc-amber">
+            <div class="hub-card-icon"><i class="bi bi-display-fill"></i></div>
+            <div class="hub-card-name">NOC · Dashboard TV</div>
+            <div class="hub-card-desc">Vista en tiempo real optimizada para pantalla en sala de operaciones.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <!-- TAB: PROBLEMAS -->
-  <div class="tab-panel" id="panel-pro">
-    <div class="section-label"><i class="bi bi-bug-fill" style="color:#d97706;"></i> Gestión de Problemas</div>
-    <div class="sub-grid">
-      <a href="/problemas?view=local" class="mod-card c-green">
-        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
-        <div class="mod-name">Gestión Local</div>
-        <div class="mod-desc">Problemas registrados y gestionados directamente en la plataforma interna del equipo.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
+    <!-- ── PANEL: REQUERIMIENTOS ── -->
+    <div class="hub-panel" id="panel-req">
+      <div class="content-header">
+        <div><div class="ch-title">Gestión de Requerimientos</div><div class="ch-sub">Solicitudes formales de servicio y recursos TI</div></div>
+      </div>
+      <div class="content-body">
+        <div class="hub-grid">
+          <a href="/itsm/requerimientos/registrar" class="hub-card hc-blue">
+            <div class="hub-card-icon"><i class="bi bi-clipboard2-plus-fill"></i></div>
+            <div class="hub-card-name">Registrar Requerimiento</div>
+            <div class="hub-card-desc">Formulario para solicitar formalmente un servicio, recurso o mejora tecnológica.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+          <a href="/itsm/requerimientos/gestion" class="hub-card hc-indigo">
+            <div class="hub-card-icon"><i class="bi bi-clipboard2-check-fill"></i></div>
+            <div class="hub-card-name">Gestión de Requerimientos</div>
+            <div class="hub-card-desc">Cola de requerimientos activos en Jira, asignación a especialistas y seguimiento SLA.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+          <a href="/itsm/requerimientos/gestion?view=local" class="hub-card hc-green">
+            <div class="hub-card-icon"><i class="bi bi-hdd-network-fill"></i></div>
+            <div class="hub-card-name">Gestión Local</div>
+            <div class="hub-card-desc">Requerimientos gestionados internamente en la plataforma con cuentas propias del sistema.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <!-- TAB: CATÁLOGO -->
-  <div class="tab-panel" id="panel-cat">
-    <div class="section-label"><i class="bi bi-list-task" style="color:#059669;"></i> Catálogo de Servicios</div>
-    <div class="sub-grid">
-      <a href="/catalogo?view=local" class="mod-card c-green">
-        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
-        <div class="mod-name">Gestión Local</div>
-        <div class="mod-desc">Administración del catálogo desde la plataforma interna, servicios propios del equipo TI.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
-      <a href="/catalogo?tab=admin" class="mod-card c-indigo">
-        <div class="mod-icon ib ib-indigo"><i class="bi bi-people-fill"></i></div>
-        <div class="mod-name">Administración</div>
-        <div class="mod-desc">Gestión de usuarios del sistema: creación, activación y control de accesos por rol.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
+    <!-- ── PANEL: CAMBIOS ── -->
+    <div class="hub-panel" id="panel-cam">
+      <div class="content-header">
+        <div><div class="ch-title">Gestión de Cambios</div><div class="ch-sub">Control de cambios en infraestructura y servicios TI</div></div>
+      </div>
+      <div class="content-body">
+        <div class="hub-grid">
+          <a href="/cambios?view=local" class="hub-card hc-cyan">
+            <div class="hub-card-icon"><i class="bi bi-hdd-network-fill"></i></div>
+            <div class="hub-card-name">Gestión Local</div>
+            <div class="hub-card-desc">Cambios gestionados internamente sin depender de herramientas externas.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <!-- TAB: CMDB -->
-  <div class="tab-panel" id="panel-cmdb">
-    <div class="section-label"><i class="bi bi-diagram-3-fill" style="color:#0891b2;"></i> CMDB</div>
-    <div class="sub-grid">
-      <a href="/cmdb?view=local" class="mod-card c-green">
-        <div class="mod-icon ib ib-green"><i class="bi bi-hdd-network-fill"></i></div>
-        <div class="mod-name">Gestión Local</div>
-        <div class="mod-desc">CIs y relaciones gestionados directamente en la plataforma interna del inventario.</div>
-        <i class="bi bi-arrow-right mod-arrow"></i>
-      </a>
+    <!-- ── PANEL: PROBLEMAS ── -->
+    <div class="hub-panel" id="panel-pro">
+      <div class="content-header">
+        <div><div class="ch-title">Gestión de Problemas</div><div class="ch-sub">Análisis de causa raíz y gestión de problemas recurrentes</div></div>
+      </div>
+      <div class="content-body">
+        <div class="hub-grid">
+          <a href="/problemas?view=local" class="hub-card hc-amber">
+            <div class="hub-card-icon"><i class="bi bi-hdd-network-fill"></i></div>
+            <div class="hub-card-name">Gestión Local</div>
+            <div class="hub-card-desc">Problemas registrados y gestionados directamente en la plataforma interna del equipo.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="home-footer" style="margin-top:32px;">© 2025 Stefanini Group &nbsp;·&nbsp; IT Service Management &nbsp;·&nbsp; ITIL v4</div>
-</div>
+    <!-- ── PANEL: CATÁLOGO ── -->
+    <div class="hub-panel" id="panel-cat">
+      <div class="content-header">
+        <div><div class="ch-title">Catálogo de Servicios</div><div class="ch-sub">Servicios TI disponibles para usuarios y equipos</div></div>
+      </div>
+      <div class="content-body">
+        <div class="hub-grid">
+          <a href="/catalogo?view=local" class="hub-card hc-green">
+            <div class="hub-card-icon"><i class="bi bi-hdd-network-fill"></i></div>
+            <div class="hub-card-name">Gestión Local</div>
+            <div class="hub-card-desc">Administración del catálogo desde la plataforma interna, servicios propios del equipo TI.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+          <a href="/catalogo?tab=admin" class="hub-card hc-indigo">
+            <div class="hub-card-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="hub-card-name">Administración</div>
+            <div class="hub-card-desc">Gestión de usuarios del sistema: creación, activación y control de accesos por rol.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PANEL: CMDB ── -->
+    <div class="hub-panel" id="panel-cmdb">
+      <div class="content-header">
+        <div><div class="ch-title">CMDB</div><div class="ch-sub">Configuration Management Database — activos y relaciones</div></div>
+      </div>
+      <div class="content-body">
+        <div class="hub-grid">
+          <a href="/cmdb?view=local" class="hub-card hc-indigo">
+            <div class="hub-card-icon"><i class="bi bi-hdd-network-fill"></i></div>
+            <div class="hub-card-name">Gestión Local</div>
+            <div class="hub-card-desc">CIs y relaciones gestionados directamente en la plataforma interna del inventario.</div>
+            <i class="bi bi-arrow-right hub-card-arrow"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content-area -->
+</div><!-- /app-shell -->
 
 <script>
 /* ── THEME ── */
 (function(){
-  const s = localStorage.getItem('dashboardTheme') || 'light';
-  document.documentElement.setAttribute('data-theme', s);
-  _syncUI(s);
+  const t = localStorage.getItem('dashboardTheme') || 'light';
+  document.documentElement.setAttribute('data-theme', t);
+  _syncTheme(t);
 })();
 function toggleTheme(){
   const n = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', n);
   localStorage.setItem('dashboardTheme', n);
-  _syncUI(n);
+  _syncTheme(n);
 }
-function _syncUI(t){
+function _syncTheme(t){
   const dark = t === 'dark';
-  const ico = document.getElementById('_navThemeIcon');
-  if(ico) ico.className = dark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
-  // sync old toggle (oculto pero mantiene knob)
-  const oi = document.getElementById('toggleIcon');
-  if(oi) oi.className = dark ? 'bi bi-sun-fill toggle-icon' : 'bi bi-moon-stars-fill toggle-icon';
-  const lbl = document.getElementById('toggleLabel');
-  if(lbl) lbl.textContent = dark ? 'Claro' : 'Oscuro';
+  const ni = document.getElementById('navThemeIcon'); if(ni) ni.className = dark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+  const si = document.getElementById('sbThemeIcon');  if(si) si.className = dark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
 }
-/* ── TABS ── */
-function switchTab(name, btn){
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+/* ── SIDEBAR ── */
+let _sbCollapsed = localStorage.getItem('itsmSbCollapsed') === '1';
+function toggleSidebar(){
+  const sb = document.getElementById('sidebar');
+  if(window.innerWidth <= 768){
+    sb.classList.toggle('mobile-open');
+    document.getElementById('sbOverlay').classList.toggle('visible', sb.classList.contains('mobile-open'));
+  } else {
+    _sbCollapsed = !_sbCollapsed;
+    sb.classList.toggle('collapsed', _sbCollapsed);
+    localStorage.setItem('itsmSbCollapsed', _sbCollapsed ? '1' : '0');
+  }
+}
+function closeSidebarMobile(){
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sbOverlay').classList.remove('visible');
+}
+(function(){
+  if(_sbCollapsed) document.getElementById('sidebar').classList.add('collapsed');
+})();
+
+/* ── PANELS ── */
+function showPanel(name, btn){
+  document.querySelectorAll('.hub-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sb-item[id^="sb-"]').forEach(b => { b.classList.remove('active'); });
   document.getElementById('panel-' + name).classList.add('active');
-  btn.classList.add('active');
+  document.getElementById('sb-' + name).classList.add('active');
+  if(window.innerWidth <= 768) closeSidebarMobile();
 }
+
+/* Deep-link: /itsm?tab=req */
 document.addEventListener('DOMContentLoaded', function(){
   const tab = new URLSearchParams(location.search).get('tab');
-  if(tab){ const btn = document.getElementById('tb-' + tab); if(btn) switchTab(tab, btn); }
+  const map = { req:'req', cam:'cam', pro:'pro', cat:'cat', cmdb:'cmdb' };
+  if(tab && map[tab]){
+    const btn = document.getElementById('sb-' + map[tab]);
+    if(btn) showPanel(map[tab], btn);
+  }
 });
 </script>
 
@@ -292,8 +506,8 @@ document.addEventListener('DOMContentLoaded', function(){
     const name = data.userName || data.userEmail || 'Usuario';
     const wrap = document.getElementById('_hubToastWrap');
     const t = document.createElement('div');
-    t.style.cssText = 'pointer-events:all;background:#fff;border:1.5px solid #0891b2;border-radius:12px;box-shadow:0 4px 20px rgba(8,145,178,.25);padding:12px 16px;max-width:320px;display:flex;align-items:flex-start;gap:10px;animation:uaIn .3s ease;';
-    t.innerHTML = '<span style="font-size:20px;flex-shrink:0;">💬</span><div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:2px;">Nueva consulta</div><div style="font-size:12px;color:#334155;"><b>'+name+'</b> solicita hablar con un especialista.</div><div style="margin-top:8px;display:flex;gap:6px;"><a href="/itsm/incidencias/gestion?consultId='+data.id+'" style="font-size:12px;font-weight:700;color:#fff;background:#0891b2;padding:5px 12px;border-radius:7px;text-decoration:none;">Atender</a><button onclick="this.closest(\'div[style]\').remove()" style="font-size:12px;color:#64748b;background:none;border:1.5px solid #e2e8f0;border-radius:7px;padding:5px 10px;cursor:pointer;">Cerrar</button></div></div>';
+    t.style.cssText = 'pointer-events:all;background:var(--card);border:1.5px solid #0891b2;border-radius:12px;box-shadow:0 4px 20px rgba(8,145,178,.25);padding:12px 16px;max-width:320px;display:flex;align-items:flex-start;gap:10px;animation:uaIn .3s ease;';
+    t.innerHTML = '<span style="font-size:20px;flex-shrink:0;">💬</span><div style="flex:1;"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px;">Nueva consulta</div><div style="font-size:12px;color:var(--muted);"><b>'+name+'</b> solicita hablar con un especialista.</div><div style="margin-top:8px;display:flex;gap:6px;"><a href="/itsm/incidencias/gestion?consultId='+data.id+'" style="font-size:12px;font-weight:700;color:#fff;background:#0891b2;padding:5px 12px;border-radius:7px;text-decoration:none;">Atender</a><button onclick="this.closest(\'div\').parentElement.parentElement.remove()" style="font-size:12px;color:var(--muted);background:none;border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;">Cerrar</button></div></div>';
     wrap.appendChild(t);
     setTimeout(function(){ if(t.parentNode) t.remove(); }, 10000);
   });
