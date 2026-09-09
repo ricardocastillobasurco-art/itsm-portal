@@ -35,7 +35,7 @@ router.post('/identify', async (req, res) => {
         );
         if (itsmRows.length > 0) {
             const u = itsmRows[0];
-            const elevated = ['administrador', 'especialista', 'agente', 'tecnico'];
+            const elevated = ['administrador', 'especialista', 'agente', 'tecnico', 'superadmin'];
             if (elevated.includes(u.role)) {
                 return res.json({ success: true, type: 'admin', name: u.full_name, role: u.role });
             }
@@ -598,7 +598,7 @@ router.post('/announcements/:id/comments', async (req, res) => {
 // DELETE /api/portal/announcements/:id — desactivar (admin/especialista vía JWT)
 router.delete('/announcements/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador', 'especialista'];
+        const allowed = ['administrador', 'especialista', 'superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Sin permiso' });
         await executeQuery(equipmentPool, `UPDATE portal_announcements SET active=0 WHERE id=?`, [req.params.id]);
         res.json({ success: true });
@@ -652,7 +652,7 @@ router.get('/banners', async (req, res) => {
 // POST /api/portal/banners — admin/especialista
 router.post('/banners', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador', 'especialista'];
+        const allowed = ['administrador', 'especialista', 'superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Sin permiso' });
         const { message, severity = 'warning', expires_at } = req.body;
         if (!message) return res.status(400).json({ success: false, error: 'message requerido' });
@@ -667,7 +667,7 @@ router.post('/banners', authenticateToken, async (req, res) => {
 // DELETE /api/portal/banners/:id — desactivar
 router.delete('/banners/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador', 'especialista'];
+        const allowed = ['administrador', 'especialista', 'superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Sin permiso' });
         await executeQuery(equipmentPool, `UPDATE portal_banners SET active = 0 WHERE id = ?`, [req.params.id]);
         res.json({ success: true });
@@ -677,7 +677,7 @@ router.delete('/banners/:id', authenticateToken, async (req, res) => {
 // ── GET /api/portal/activity-metrics — admin/especialista/agente/tecnico ──────
 router.get('/activity-metrics', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador', 'especialista', 'agente', 'tecnico'];
+        const allowed = ['administrador', 'especialista', 'agente', 'tecnico', 'superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Sin permiso' });
 
         const { from, to, email: filterEmail } = req.query;
@@ -768,7 +768,7 @@ router.post('/whatsapp-register', async (req, res) => {
 // GET /api/portal/whatsapp-requests — list (admin/especialista/agente/tecnico)
 router.get('/whatsapp-requests', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista','agente','tecnico'];
+        const allowed = ['administrador','especialista','agente','tecnico','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         const { status } = req.query;
         const where = status ? 'WHERE status=?' : '';
@@ -784,7 +784,7 @@ router.get('/whatsapp-requests', authenticateToken, async (req, res) => {
 // PUT /api/portal/whatsapp-requests/:id — approve or reject
 router.put('/whatsapp-requests/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         const { status } = req.body;
         if (!['approved','rejected'].includes(status)) return res.status(400).json({ success:false, error:'status inválido' });
@@ -799,7 +799,7 @@ router.put('/whatsapp-requests/:id', authenticateToken, async (req, res) => {
 // DELETE /api/portal/whatsapp-requests/:id
 router.delete('/whatsapp-requests/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         await executeQuery(equipmentPool, `DELETE FROM portal_whatsapp_requests WHERE id=?`, [req.params.id]);
         res.json({ success:true });
@@ -928,7 +928,7 @@ router.get('/contributions/approved', async (req, res) => {
 // GET /api/portal/contributions — list all (admin/especialista)
 router.get('/contributions', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         const { status } = req.query;
         const where = status ? 'WHERE c.status = ?' : '';
@@ -963,7 +963,7 @@ router.post('/contributions', async (req, res) => {
 // PUT /api/portal/contributions/:id — approve or reject (admin/especialista)
 router.put('/contributions/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         const { status } = req.body;
         if (!['approved','rejected'].includes(status)) return res.status(400).json({ success:false, error:'status inválido' });
@@ -978,7 +978,7 @@ router.put('/contributions/:id', authenticateToken, async (req, res) => {
 // PATCH /api/portal/contributions/:id/response — guardar nota/respuesta admin
 router.patch('/contributions/:id/response', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         const { response } = req.body;
         if (!response?.trim()) return res.status(400).json({ success:false, error:'Respuesta requerida' });
@@ -993,7 +993,7 @@ router.patch('/contributions/:id/response', authenticateToken, async (req, res) 
 // DELETE /api/portal/contributions/:id
 router.delete('/contributions/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         await executeQuery(equipmentPool, `DELETE FROM portal_knowledge_contributions WHERE id=?`, [req.params.id]);
         res.json({ success:true });
@@ -1041,7 +1041,7 @@ router.post('/contributions/:id/rate', async (req, res) => {
 // GET /api/portal/questions — list (admin/especialista JWT)
 router.get('/questions', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         const { status } = req.query;
         const where = status ? 'WHERE status = ?' : '';
@@ -1073,7 +1073,7 @@ router.post('/questions', async (req, res) => {
 // PUT /api/portal/questions/:id — answer (admin/especialista)
 router.put('/questions/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         const { answer, category } = req.body;
         if (!answer) return res.status(400).json({ success:false, error:'answer requerido' });
@@ -1088,7 +1088,7 @@ router.put('/questions/:id', authenticateToken, async (req, res) => {
 // POST /api/portal/questions/:id/publish — publish answered question to faq_items
 router.post('/questions/:id/publish', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         const rows = await executeQuery(equipmentPool,
             `SELECT * FROM portal_user_questions WHERE id=?`, [req.params.id]
@@ -1110,7 +1110,7 @@ router.post('/questions/:id/publish', authenticateToken, async (req, res) => {
 // DELETE /api/portal/questions/:id
 router.delete('/questions/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         await executeQuery(equipmentPool, `DELETE FROM portal_user_questions WHERE id=?`, [req.params.id]);
         res.json({ success:true });
@@ -1249,7 +1249,7 @@ router.post('/devolucion', async (req, res) => {
 // GET /api/portal/devoluciones — listar para admin/especialista
 router.get('/devoluciones', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador', 'especialista', 'agente', 'tecnico'];
+        const allowed = ['administrador', 'especialista', 'agente', 'tecnico', 'superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Sin permiso' });
         const { status = '' } = req.query;
         const rows = await executeQuery(equipmentPool,
@@ -1268,7 +1268,7 @@ router.get('/devoluciones', authenticateToken, async (req, res) => {
 // PUT /api/portal/devoluciones/:id — aprobar / rechazar
 router.put('/devoluciones/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador', 'especialista'];
+        const allowed = ['administrador', 'especialista', 'superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Sin permiso' });
         const { status } = req.body;
         if (!['pendiente', 'aprobado', 'rechazado'].includes(status))
@@ -1402,7 +1402,7 @@ router.post('/garantia', async (req, res) => {
 // GET /api/portal/garantias — listar para admin/especialista
 router.get('/garantias', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador', 'especialista', 'agente', 'tecnico'];
+        const allowed = ['administrador', 'especialista', 'agente', 'tecnico', 'superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Sin permiso' });
         const { status = '', tipo = '' } = req.query;
         const conditions = [];
@@ -1426,7 +1426,7 @@ router.get('/garantias', authenticateToken, async (req, res) => {
 // PUT /api/portal/garantias/:id — aprobar / rechazar
 router.put('/garantias/:id', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador', 'especialista'];
+        const allowed = ['administrador', 'especialista', 'superadmin'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Sin permiso' });
         const { status } = req.body;
         if (!['pendiente', 'aprobado', 'rechazado'].includes(status))
