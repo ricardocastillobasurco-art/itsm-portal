@@ -460,6 +460,7 @@ router.post('/specialists', authenticateToken, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Nombre, email y contraseña son obligatorios' });
     try {
         const bcrypt = require('bcrypt');
+        const { v4: uuidv4 } = require('uuid');
         const hash = await bcrypt.hash(password, 10);
         const uname = username || email.split('@')[0];
         const exists = await dbQuery(`SELECT id FROM users WHERE (username=? OR email=?) AND deleted_at IS NULL LIMIT 1`, [uname, email]);
@@ -467,21 +468,22 @@ router.post('/specialists', authenticateToken, async (req, res) => {
         const cols = await dbQuery(`SHOW COLUMNS FROM users LIKE 'password_hash'`);
         const passCol = cols.length ? 'password_hash' : 'password';
         const deleted = await dbQuery(`SELECT id FROM users WHERE (username=? OR email=?) LIMIT 1`, [uname, email]);
-        let result;
+        let newId;
         if (deleted.length) {
+            newId = deleted[0].id;
             await dbQuery(
                 `UPDATE users SET full_name=?, username=?, email=?, phone=?, ${passCol}=?, role='especialista', specialty=?, is_active=1, is_verified=1, deleted_at=NULL WHERE id=?`,
-                [full_name, uname, email, phone||null, hash, specialty||null, deleted[0].id]
+                [full_name, uname, email, phone||null, hash, specialty||null, newId]
             );
-            result = { insertId: deleted[0].id };
         } else {
-            result = await dbQuery(
-                `INSERT INTO users (username, email, phone, ${passCol}, full_name, role, specialty, is_active, is_verified, created_by)
-                 VALUES (?, ?, ?, ?, ?, 'especialista', ?, 1, 1, ?)`,
-                [uname, email, phone||null, hash, full_name, specialty||null, req.user?.id||null]
+            newId = uuidv4();
+            await dbQuery(
+                `INSERT INTO users (id, username, email, phone, ${passCol}, full_name, role, specialty, is_active, is_verified, created_by)
+                 VALUES (?, ?, ?, ?, ?, ?, 'especialista', ?, 1, 1, ?)`,
+                [newId, uname, email, phone||null, hash, full_name, specialty||null, req.user?.id||null]
             );
         }
-        res.status(201).json({ success: true, data: { id: result.insertId, full_name, email, username: uname } });
+        res.status(201).json({ success: true, data: { id: newId, full_name, email, username: uname } });
     } catch (e) {
         if (e.message.includes('Duplicate')) return res.status(409).json({ success: false, message: 'El email o usuario ya existe' });
         res.status(500).json({ success: false, message: e.message });
