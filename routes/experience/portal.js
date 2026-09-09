@@ -615,7 +615,7 @@ router.delete('/announcements/:id', authenticateToken, async (req, res) => {
                 severity    ENUM('critical','warning','info','success') DEFAULT 'warning',
                 active      TINYINT(1) DEFAULT 1,
                 expires_at  DATETIME NULL,
-                created_by  INT,
+                created_by  VARCHAR(36) NULL,
                 created_at  DATETIME DEFAULT NOW(),
                 INDEX idx_active (active),
                 INDEX idx_exp (expires_at)
