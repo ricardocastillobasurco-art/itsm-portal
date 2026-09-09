@@ -198,37 +198,36 @@
 
     <!-- KB: Hub cards -->
     <div class="mgmt-panel active" id="kb-hub">
-      <div class="section-label"><i class="bi bi-book-fill"></i> &nbsp;Gestión de Base de Conocimiento</div>
-      <div class="sub-grid">
-        <div class="mod-card c-purp" onclick="openModal('modalKB')">
-          <div class="mod-icon ib ib-purp"><i class="bi bi-plus-square-fill"></i></div>
-          <div class="mod-name">Publicar Artículo</div>
-          <div class="mod-desc">Crea y publica un nuevo artículo técnico, procedimiento o guía en la base de conocimiento.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+      <div class="hub-grid">
+        <div class="hub-card hc-purple" onclick="openModal('modalKB')" style="cursor:pointer;">
+          <div class="hub-card-icon"><i class="bi bi-plus-square-fill"></i></div>
+          <div class="hub-card-name">Publicar Artículo</div>
+          <div class="hub-card-desc">Crea y publica un nuevo artículo técnico, procedimiento o guía en la base de conocimiento.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </div>
-        <div class="mod-card c-indigo" onclick="showKbSection('gestion',document.querySelector('[onclick=\"showKbSection(\'gestion\',this)\"]'))">
-          <div class="mod-icon ib ib-indigo"><i class="bi bi-file-earmark-text-fill"></i></div>
-          <div class="mod-name">Gestión de Artículos</div>
-          <div class="mod-desc">Revisa, edita, publica o archiva todos los artículos del sistema. Control completo del contenido.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+        <div class="hub-card hc-indigo" onclick="showKbSection('gestion',document.querySelectorAll('#kb-subtabs .panel-filter')[1])" style="cursor:pointer;">
+          <div class="hub-card-icon"><i class="bi bi-file-earmark-text-fill"></i></div>
+          <div class="hub-card-name">Gestión de Artículos</div>
+          <div class="hub-card-desc">Revisa, edita, publica o archiva todos los artículos del sistema. Control completo del contenido.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </div>
-        <div class="mod-card c-blue" onclick="showKbSection('solicitudes',document.querySelectorAll('#kb-subtabs .panel-filter')[2])">
-          <div class="mod-icon ib ib-blue"><i class="bi bi-inbox-fill"></i></div>
-          <div class="mod-name">Solicitudes de Artículos</div>
-          <div class="mod-desc">Revisa las solicitudes enviadas por usuarios pidiendo documentación sobre temas específicos.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+        <div class="hub-card hc-blue" onclick="showKbSection('solicitudes',document.querySelectorAll('#kb-subtabs .panel-filter')[2])" style="cursor:pointer;">
+          <div class="hub-card-icon"><i class="bi bi-inbox-fill"></i></div>
+          <div class="hub-card-name">Solicitudes de Artículos</div>
+          <div class="hub-card-desc">Revisa las solicitudes enviadas por usuarios pidiendo documentación sobre temas específicos.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </div>
-        <div class="mod-card c-amber" onclick="showKbSection('aportes',document.querySelectorAll('#kb-subtabs .panel-filter')[3])">
-          <div class="mod-icon ib ib-amber"><i class="bi bi-lightbulb-fill"></i></div>
-          <div class="mod-name">Aportes de Usuarios</div>
-          <div class="mod-desc">Artículos borradores enviados por colaboradores. Revísalos y apruébalos para su publicación.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+        <div class="hub-card hc-amber" onclick="showKbSection('aportes',document.querySelectorAll('#kb-subtabs .panel-filter')[3])" style="cursor:pointer;">
+          <div class="hub-card-icon"><i class="bi bi-lightbulb-fill"></i></div>
+          <div class="hub-card-name">Aportes de Usuarios</div>
+          <div class="hub-card-desc">Artículos borradores enviados por colaboradores. Revísalos y apruébalos para su publicación.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </div>
-        <a href="/knowledge-base" class="mod-card c-cyan">
-          <div class="mod-icon ib ib-cyan"><i class="bi bi-eye-fill"></i></div>
-          <div class="mod-name">Vista de Usuario</div>
-          <div class="mod-desc">Ve cómo los colaboradores ven la base de conocimiento en el portal de autogestión.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+        <a href="/knowledge-base" class="hub-card hc-cyan">
+          <div class="hub-card-icon"><i class="bi bi-eye-fill"></i></div>
+          <div class="hub-card-name">Vista de Usuario</div>
+          <div class="hub-card-desc">Ve cómo los colaboradores ven la base de conocimiento en el portal de autogestión.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </a>
       </div>
     </div>
@@ -309,37 +308,36 @@
 
     <!-- FAQ: Hub cards -->
     <div class="mgmt-panel active" id="faq-hub">
-      <div class="section-label"><i class="bi bi-patch-question-fill"></i> &nbsp;Gestión de Preguntas Frecuentes</div>
-      <div class="sub-grid">
-        <div class="mod-card c-cyan" onclick="openModal('modalFAQ')">
-          <div class="mod-icon ib ib-cyan"><i class="bi bi-plus-square-fill"></i></div>
-          <div class="mod-name">Nueva Pregunta</div>
-          <div class="mod-desc">Agrega una nueva pregunta frecuente con su respuesta al banco de FAQs del portal.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+      <div class="hub-grid">
+        <div class="hub-card hc-cyan" onclick="openModal('modalFAQ')" style="cursor:pointer;">
+          <div class="hub-card-icon"><i class="bi bi-plus-square-fill"></i></div>
+          <div class="hub-card-name">Nueva Pregunta</div>
+          <div class="hub-card-desc">Agrega una nueva pregunta frecuente con su respuesta al banco de FAQs del portal.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </div>
-        <div class="mod-card c-teal" onclick="showFaqSection('gestion',document.querySelectorAll('#faq-subtabs .panel-filter')[1])">
-          <div class="mod-icon ib ib-teal"><i class="bi bi-list-check"></i></div>
-          <div class="mod-name">Gestión de FAQ</div>
-          <div class="mod-desc">Visualiza, edita, reordena y elimina las preguntas frecuentes publicadas por categoría.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+        <div class="hub-card hc-teal" onclick="showFaqSection('gestion',document.querySelectorAll('#faq-subtabs .panel-filter')[1])" style="cursor:pointer;">
+          <div class="hub-card-icon"><i class="bi bi-list-check"></i></div>
+          <div class="hub-card-name">Gestión de FAQ</div>
+          <div class="hub-card-desc">Visualiza, edita, reordena y elimina las preguntas frecuentes publicadas por categoría.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </div>
-        <div class="mod-card c-blue" onclick="showFaqSection('solicitudes',document.querySelectorAll('#faq-subtabs .panel-filter')[2])">
-          <div class="mod-icon ib ib-blue"><i class="bi bi-chat-left-text-fill"></i></div>
-          <div class="mod-name">Solicitudes de FAQ</div>
-          <div class="mod-desc">Preguntas enviadas por usuarios desde el portal que no tienen respuesta aún. Gestiona y responde.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+        <div class="hub-card hc-blue" onclick="showFaqSection('solicitudes',document.querySelectorAll('#faq-subtabs .panel-filter')[2])" style="cursor:pointer;">
+          <div class="hub-card-icon"><i class="bi bi-chat-left-text-fill"></i></div>
+          <div class="hub-card-name">Solicitudes de FAQ</div>
+          <div class="hub-card-desc">Preguntas enviadas por usuarios desde el portal que no tienen respuesta aún. Gestiona y responde.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </div>
-        <div class="mod-card c-amber" onclick="showFaqSection('aportes',document.querySelectorAll('#faq-subtabs .panel-filter')[3])">
-          <div class="mod-icon ib ib-amber"><i class="bi bi-lightbulb-fill"></i></div>
-          <div class="mod-name">Aportes de la Comunidad</div>
-          <div class="mod-desc">Conocimiento compartido por colaboradores desde el portal. Revisa, aprueba o rechaza antes de publicar.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+        <div class="hub-card hc-amber" onclick="showFaqSection('aportes',document.querySelectorAll('#faq-subtabs .panel-filter')[3])" style="cursor:pointer;">
+          <div class="hub-card-icon"><i class="bi bi-lightbulb-fill"></i></div>
+          <div class="hub-card-name">Aportes de la Comunidad</div>
+          <div class="hub-card-desc">Conocimiento compartido por colaboradores desde el portal. Revisa, aprueba o rechaza antes de publicar.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </div>
-        <a href="/preguntas-frecuentes" class="mod-card c-indigo">
-          <div class="mod-icon ib ib-indigo"><i class="bi bi-eye-fill"></i></div>
-          <div class="mod-name">Vista de Usuario</div>
-          <div class="mod-desc">Ve cómo los colaboradores visualizan el FAQ en el portal de autogestión.</div>
-          <i class="bi bi-arrow-right mod-arrow"></i>
+        <a href="/preguntas-frecuentes" class="hub-card hc-indigo">
+          <div class="hub-card-icon"><i class="bi bi-eye-fill"></i></div>
+          <div class="hub-card-name">Vista de Usuario</div>
+          <div class="hub-card-desc">Ve cómo los colaboradores visualizan el FAQ en el portal de autogestión.</div>
+          <i class="bi bi-arrow-right hub-card-arrow"></i>
         </a>
       </div>
     </div>
