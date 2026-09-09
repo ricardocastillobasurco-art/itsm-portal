@@ -674,10 +674,10 @@ router.delete('/banners/:id', authenticateToken, async (req, res) => {
     } catch(err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// ── GET /api/portal/activity-metrics — solo admin/especialista ───────────────
+// ── GET /api/portal/activity-metrics — admin/especialista/agente/tecnico ──────
 router.get('/activity-metrics', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador', 'especialista'];
+        const allowed = ['administrador', 'especialista', 'agente', 'tecnico'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Sin permiso' });
 
         const { from, to, email: filterEmail } = req.query;
@@ -765,10 +765,10 @@ router.post('/whatsapp-register', async (req, res) => {
     } catch(err) { res.status(500).json({ success:false, error:err.message }); }
 });
 
-// GET /api/portal/whatsapp-requests — list (admin/especialista)
+// GET /api/portal/whatsapp-requests — list (admin/especialista/agente/tecnico)
 router.get('/whatsapp-requests', authenticateToken, async (req, res) => {
     try {
-        const allowed = ['administrador','especialista'];
+        const allowed = ['administrador','especialista','agente','tecnico'];
         if (!allowed.includes(req.user?.role)) return res.status(403).json({ success:false, error:'Sin permiso' });
         const { status } = req.query;
         const where = status ? 'WHERE status=?' : '';
