@@ -47,6 +47,7 @@
               if (name==='portal') { if(typeof loadPortalMetrics==='function') loadPortalMetrics(); if(typeof pmqLoadList==='function') pmqLoadList(); }
               if (name==='preguntas' && typeof loadUserQuestions==='function') { loadUserQuestions(); loadAdminContribs(); loadWspRequests(); }
               if (name==='encuesta'    && typeof loadSurveyGeneralResults==='function') loadSurveyGeneralResults();
+              if (name==='whatsapp'    && typeof loadWspRequests         ==='function') loadWspRequests();
               if (name==='devoluciones' && typeof loadDevolucionRequests==='function') loadDevolucionRequests();
               if (name==='garantias'   && typeof loadGarantiaRequests  ==='function') loadGarantiaRequests();
           }, 0);

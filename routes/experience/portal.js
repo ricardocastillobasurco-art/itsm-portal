@@ -1130,8 +1130,11 @@ router.delete('/questions/:id', authenticateToken, async (req, res) => {
                 devolvio_celular  TINYINT(1) DEFAULT 0,
                 mantiene_llave    TINYINT(1) DEFAULT 0,
                 entrego_fotocheck TINYINT(1) DEFAULT 0,
+                entrego_mochila   TINYINT(1) NOT NULL DEFAULT 0,
                 firma_digital     LONGTEXT,
+                foto_data         LONGTEXT,
                 observaciones     TEXT,
+                status            VARCHAR(20) NOT NULL DEFAULT 'pendiente',
                 created_at        DATETIME DEFAULT NOW(),
                 INDEX idx_email (employee_email),
                 INDEX idx_employee (employee_id)
