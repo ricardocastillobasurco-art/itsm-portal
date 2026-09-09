@@ -221,6 +221,14 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', async () => {
+    // Auto-migración: corre pendientes sin bloquear arranque si falla
+    try {
+        const umzug = require('./src/config/migrator');
+        await umzug.up();
+        logger.info('✅ Migraciones aplicadas');
+    } catch (e) {
+        logger.error('⚠️  Auto-migración falló (servidor sigue activo):', e.message);
+    }
     await initCasbin();
     // Abrir puerto en Windows Firewall para acceso en red
     if (process.platform === 'win32') {

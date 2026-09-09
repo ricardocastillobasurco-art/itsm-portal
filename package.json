@@ -4,7 +4,7 @@
   "description": "API REST para gestión de CMDB y Equipment Management",
   "main": "server.js",
   "scripts": {
-    "start": "node scripts/utilities/check-env.js && node src/config/migrator.js up && node server.js",
+    "start": "node scripts/utilities/check-env.js && node server.js",
     "dev": "node -e \"console.error('ERROR: npm run dev esta deshabilitado en produccion. Usa: pm2 restart equipment-app'); process.exit(1)\"",
     "check-env": "node scripts/utilities/check-env.js",
     "test": "jest --runInBand",
