@@ -1013,7 +1013,7 @@ async function _ensureCCTables() {
     tenant_id INT NULL,
     topic TEXT,
     status ENUM('waiting','active','resolved','converted') DEFAULT 'waiting',
-    specialist_id INT NULL,
+    specialist_id VARCHAR(36) NULL,
     specialist_name VARCHAR(255) NULL,
     specialist_email VARCHAR(255) NULL,
     ticket_key VARCHAR(50) NULL,
