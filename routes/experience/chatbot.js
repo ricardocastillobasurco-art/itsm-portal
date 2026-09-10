@@ -712,17 +712,18 @@ router.post('/incident', authenticateToken, async (req, res) => {
       }
     }
 
-    // ── 2. Clave: INC-XXXX (Jira) o TK-XXXX (local) ─────────
+    // ── 2. Clave: INC-XXXX (Jira real) o INC-XXXX (local sin Jira) ─────────
     let key = jiraKey;
     if (!key) {
       try {
         const rows = await dbQuery(
-          `SELECT COUNT(*) AS cnt FROM jira_tickets WHERE ticket_key LIKE 'TK-%'${tenantId ? ' AND tenant_id = ?' : ''}`,
+          `SELECT MAX(CAST(SUBSTRING(ticket_key, 5) AS UNSIGNED)) AS maxn FROM jira_tickets WHERE ticket_key LIKE 'INC-%'${tenantId ? ' AND tenant_id = ?' : ''}`,
           tenantId ? [tenantId] : []
         );
-        key = `TK-${String((rows[0]?.cnt || 0) + 1).padStart(4, '0')}`;
+        const nextNum = (rows[0]?.maxn || 0) + 1;
+        key = `INC-${String(nextNum).padStart(4, '0')}`;
       } catch (_) {
-        key = `TK-${Date.now().toString().slice(-4)}`;
+        key = `INC-${Date.now().toString().slice(-4)}`;
       }
     }
 
