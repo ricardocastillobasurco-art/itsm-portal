@@ -12,6 +12,10 @@ const FormData = require('form-data');
 const { jira, dbQuery, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID, resolveJiraAccountId } = require('../jira/helpers');
 const SD_REQ_CHATBOT = process.env.JIRA_REQ_SD_ID || '1156';
 const RT_REQ_CHATBOT = process.env.JIRA_REQ_RT_ID || '1595';
+// Chatbot incident creation uses its own SD/RT (simpler than the form which requires many custom fields).
+// Set JIRA_INC_SD_ID / JIRA_INC_RT_ID in Railway to override; defaults to the requirement chatbot pair.
+const SD_INC_CHATBOT = process.env.JIRA_INC_SD_ID || SD_ID;
+const RT_INC_CHATBOT = process.env.JIRA_INC_RT_ID || RT_ID;
 const FeatureFlagService = require('../../src/services/FeatureFlagService');
 function _adf(text) {
   return { type:'doc', version:1, content:[{ type:'paragraph', content:[{ type:'text', text: String(text) }] }] };
@@ -689,17 +693,19 @@ router.post('/incident', authenticateToken, async (req, res) => {
       };
       if (attachmentId) rfv.attachment = [attachmentId];
 
-      const payload = { serviceDeskId: SD_ID, requestTypeId: RT_ID, requestFieldValues: rfv, raiseOnBehalfOf: userEmail || undefined };
+      const payload = { serviceDeskId: SD_INC_CHATBOT, requestTypeId: RT_INC_CHATBOT, requestFieldValues: rfv, raiseOnBehalfOf: userEmail || undefined };
       const jiraRes = await jira('POST', '/rest/servicedeskapi/request', payload);
       jiraKey = jiraRes?.issueKey || null;
       if (jiraKey) jiraUrl = `${JIRA_HOST}/browse/${jiraKey}`;
     } catch (jiraErr) {
-      console.warn('[chatbot/incident] Jira API error:', jiraErr.message);
-      // Si falla raiseOnBehalfOf, reintentar sin ese campo
-      if (jiraErr.message?.includes('raiseOnBehalfOf') || jiraErr.response?.status === 403 || jiraErr.response?.status === 400) {
+      const jiraStatus = jiraErr.response?.status;
+      const jiraBody   = JSON.stringify(jiraErr.response?.data || jiraErr.message);
+      console.error(`[chatbot/incident] Jira error ${jiraStatus}: ${jiraBody} | SD=${SD_INC_CHATBOT} RT=${RT_INC_CHATBOT}`);
+      // Retry sin raiseOnBehalfOf
+      if (jiraStatus === 403 || jiraStatus === 400) {
         try {
           const payload2 = {
-            serviceDeskId: SD_ID, requestTypeId: RT_ID,
+            serviceDeskId: SD_INC_CHATBOT, requestTypeId: RT_INC_CHATBOT,
             requestFieldValues: {
               summary: summary.trim(),
               description: _adf(`Usuario: ${reporter} (${userEmail})\n\nProblema: ${summary.trim()}`),
@@ -708,7 +714,9 @@ router.post('/incident', authenticateToken, async (req, res) => {
           const r2 = await jira('POST', '/rest/servicedeskapi/request', payload2);
           jiraKey = r2?.issueKey || null;
           if (jiraKey) jiraUrl = `${JIRA_HOST}/browse/${jiraKey}`;
-        } catch (e2) { console.error('[chatbot/incident] Jira retry failed:', e2.message); }
+        } catch (e2) {
+          console.error(`[chatbot/incident] Jira retry failed ${e2.response?.status}: ${JSON.stringify(e2.response?.data || e2.message)}`);
+        }
       }
     }
 
