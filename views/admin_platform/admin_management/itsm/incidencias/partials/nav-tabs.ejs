@@ -29,6 +29,8 @@
   var _tabBtnId = { kbreqs:'KbReqs', garantias:'Garantias', whatsapp:'Whatsapp', kpis:'Kpis' };
   function _tabBtnSuffix(n){ return _tabBtnId[n] || (n.charAt(0).toUpperCase()+n.slice(1)); }
   function doTab(name, btn) {
+      var _aliases = { indicadores:'kpis', indicators:'kpis', stats:'kpis' };
+      name = _aliases[name] || name;
       var panels = {create:'tabCreate', gestion:'tabGestion', categorias:'tabCategorias', kpis:'tabKpis', especialistas:'tabEspecialistas', automaciones:'tabAutomaciones', admin:'tabAdmin', portal:'tabPortal', preguntas:'tabPreguntas', encuesta:'tabEncuesta', whatsapp:'tabWhatsapp', kbreqs:'tabKbReqs', devoluciones:'tabDevoluciones', garantias:'tabGarantias'};
       Object.values(panels).forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
       document.querySelectorAll('.corp-tab').forEach(function(b){ b.classList.remove('active'); });
