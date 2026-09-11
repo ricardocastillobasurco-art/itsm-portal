@@ -42,7 +42,13 @@
           setTimeout(function(){
               if (name==='gestion'       && typeof loadTickets          ==='function') loadTickets();
               if (name==='categorias'    && typeof loadCatListInline   ==='function') loadCatListInline();
-              if (name==='kpis'          && typeof loadStats           ==='function') loadStats();
+              if (name==='kpis') {
+                  if (typeof loadStats       === 'function') loadStats();
+                  setTimeout(function(){ if (typeof loadHeatmap      === 'function') loadHeatmap(true); },  800);
+                  setTimeout(function(){ if (typeof loadTecStats     === 'function') loadTecStats(true); }, 1800);
+                  setTimeout(function(){ if (typeof loadMisPaneles   === 'function') loadMisPaneles(true); }, 2800);
+                  setTimeout(function(){ if (typeof preloadReportes  === 'function') preloadReportes(); },  3800);
+              }
               if (name==='especialistas' && typeof loadSpecialists     ==='function') loadSpecialists();
               if (name==='automaciones'  && typeof loadAutomations     ==='function') loadAutomations();
               if (name==='admin'         && typeof loadAdminUsers      ==='function') loadAdminUsers();
