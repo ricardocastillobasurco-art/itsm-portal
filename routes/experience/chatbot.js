@@ -687,9 +687,33 @@ router.post('/incident', authenticateToken, async (req, res) => {
         } catch (_imgErr) { console.warn('[chatbot/incident] image attach error:', _imgErr.message); }
       }
 
+      // Si no hay imagen, subir adjunto genérico (RT_213 lo requiere)
+      if (!attachmentId) {
+        try {
+          const placeholder = Buffer.from(`Ticket generado desde ARIA Chatbot.\nResumen: ${summary.trim()}\nUsuario: ${reporter}`);
+          const pFd = new FormData();
+          pFd.append('file', placeholder, { filename: 'sin-evidencia.txt', contentType: 'text/plain' });
+          const b64Auth = Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64');
+          const upR = await axios.post(
+            `${JIRA_HOST}/rest/servicedeskapi/servicedesk/${SD_ID}/attachTemporaryFile`,
+            pFd,
+            { headers: { ...pFd.getHeaders(), Authorization: `Basic ${b64Auth}`, 'X-ExperimentalApi': 'opt-in', 'X-Atlassian-Token': 'no-check' }, timeout: 15000 }
+          );
+          attachmentId = upR.data?.temporaryAttachments?.[0]?.temporaryAttachmentId || null;
+        } catch (_pErr) { console.warn('[chatbot/incident] placeholder attach error:', _pErr.message); }
+      }
+
+      // Mapear priority → urgency ID (mismo esquema que el formulario web)
+      const urgencyId = priority === 'P1' ? '618442' : priority === 'P2' ? '618441' : '618440';
+      const impactId  = '618437'; // "De 1 a 5 usuarios afectados" (mínimo impacto por defecto)
+      const userPhone = req.user?.phone || '-';
+
       const rfv = {
-        summary:     summary.trim(),
-        description: _adf(`Reporte via ARIA Chatbot\n\nUsuario: ${reporter} (${userEmail})\n\nProblema: ${summary.trim()}${_cmdbLine}`),
+        summary:           summary.trim(),
+        description:       _adf(`Reporte via ARIA Chatbot\n\nUsuario: ${reporter} (${userEmail})\n\nProblema: ${summary.trim()}${_cmdbLine}`),
+        customfield_10246: { id: impactId },
+        customfield_13269: { id: urgencyId },
+        customfield_11795: userPhone,
       };
       if (attachmentId) rfv.attachment = [attachmentId];
 
@@ -704,11 +728,15 @@ router.post('/incident', authenticateToken, async (req, res) => {
       // Retry sin raiseOnBehalfOf
       if (jiraStatus === 403 || jiraStatus === 400) {
         try {
+          const urgencyId2 = priority === 'P1' ? '618442' : priority === 'P2' ? '618441' : '618440';
           const payload2 = {
             serviceDeskId: SD_INC_CHATBOT, requestTypeId: RT_INC_CHATBOT,
             requestFieldValues: {
-              summary: summary.trim(),
-              description: _adf(`Usuario: ${reporter} (${userEmail})\n\nProblema: ${summary.trim()}`),
+              summary:           summary.trim(),
+              description:       _adf(`Usuario: ${reporter} (${userEmail})\n\nProblema: ${summary.trim()}`),
+              customfield_10246: { id: '618437' },
+              customfield_13269: { id: urgencyId2 },
+              customfield_11795: req.user?.phone || '-',
             },
           };
           const r2 = await jira('POST', '/rest/servicedeskapi/request', payload2);
