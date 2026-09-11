@@ -86,7 +86,7 @@ router.get('/local/mis-asig', authenticateToken, async (req, res) => {
             WHERE ${LOCAL(req, 'jt')}
               AND jt.assigned_to = ?
               AND jt.internal_status ${statusFilter}
-            ORDER BY jt.sla_deadline ASC, jt.created_at DESC
+            ORDER BY jt.created_at DESC, jt.sla_deadline ASC
             LIMIT 200
         `, [userId]);
 
