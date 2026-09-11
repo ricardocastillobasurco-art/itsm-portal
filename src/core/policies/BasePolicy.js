@@ -2,9 +2,9 @@
 
 const { ForbiddenError } = require('../../utils/errors');
 
-const ADMIN_ROLES        = ['administrador', 'admin'];
-const STAFF_ROLES        = ['administrador', 'especialista', 'agente', 'admin', 'supervisor'];
-const MANAGEMENT_ROLES   = ['administrador', 'especialista', 'admin', 'supervisor'];
+const ADMIN_ROLES        = ['superadmin', 'administrador', 'admin'];
+const STAFF_ROLES        = ['superadmin', 'administrador', 'especialista', 'agente', 'admin', 'supervisor'];
+const MANAGEMENT_ROLES   = ['superadmin', 'administrador', 'especialista', 'admin', 'supervisor'];
 
 class BasePolicy {
   /**
@@ -12,6 +12,7 @@ class BasePolicy {
    * Es la última línea de defensa contra fugas cross-tenant.
    */
   static _sameTenant(resource, req) {
+    if (req.user?.role === 'superadmin') return true;  // superadmin ve todos los tenants
     const resourceTenantId = resource?.tenantId ?? resource?.tenant_id;
     if (resourceTenantId == null) return true;  // sin tenant_id → recurso global
     return String(resourceTenantId) === String(req.tenant?.id);
