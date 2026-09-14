@@ -896,10 +896,131 @@ router.get('/stats-live', authenticateToken, async (_req, res) => {
         _statsLiveCacheTs = Date.now();
         res.json({ success: true, data });
     } catch (e) {
-        console.error('[stats-live]', e.message);
-        res.status(500).json({ success: false, message: e.message });
+        console.error('[stats-live] Jira falló, usando BD local:', e.message);
+        try {
+            const data = await _statsFromLocalDB();
+            res.json({ success: true, data, _source: 'local' });
+        } catch (e2) {
+            console.error('[stats-live] BD local también falló:', e2.message);
+            res.status(500).json({ success: false, message: e.message });
+        }
     }
 });
+
+async function _statsFromLocalDB() {
+    const { QueryTypes } = require('sequelize');
+    const seq = require('../../src/config/database');
+    const SLA_HRS = { P1: 1, P2: 4, P3: 8, P4: 24 };
+    const now = Date.now();
+
+    const tickets = await seq.query(`
+        SELECT t.id, t.status, t.priority, t.created_at, t.resolved_at,
+               t.sla_deadline, u_ass.full_name AS assignee_name,
+               u_rep.full_name AS reporter_name,
+               u_rep.email    AS reporter_email,
+               cat.name       AS category_name
+        FROM tickets t
+        LEFT JOIN users u_ass ON u_ass.id = t.assigned_to AND u_ass.deleted_at IS NULL
+        LEFT JOIN users u_rep ON u_rep.id = t.requester_id AND u_rep.deleted_at IS NULL
+        LEFT JOIN ticket_categories cat ON cat.id = t.category_id AND cat.deleted_at IS NULL
+        WHERE t.deleted_at IS NULL AND t.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ORDER BY t.created_at ASC
+    `, { type: QueryTypes.SELECT });
+
+    const openTix     = tickets.filter(t => !['resuelto','cerrado'].includes(t.status));
+    const resolvedTix = tickets.filter(t =>  ['resuelto','cerrado'].includes(t.status));
+
+    // SLA
+    const slaPriMap = { P1: 1, P2: 4, P3: 8, P4: 24 };
+    const dentroSla = resolvedTix.filter(t => {
+        if (!t.resolved_at || !t.created_at) return true;
+        const slaMs = new Date(t.created_at).getTime() + (slaPriMap[t.priority] || 8) * 3600000;
+        return new Date(t.resolved_at).getTime() <= slaMs;
+    }).length;
+    const fueraSla  = resolvedTix.length - dentroSla;
+    const vencidosAbiertos = openTix.filter(t => {
+        const slaMs = new Date(t.created_at).getTime() + (slaPriMap[t.priority] || 8) * 3600000;
+        return now > slaMs;
+    }).length;
+    const unassigned30 = openTix.filter(t => !t.assignee_name && (now - new Date(t.created_at).getTime()) > 1800000).length;
+
+    // MTTR
+    const mttrTix = resolvedTix.filter(t => t.resolved_at && t.created_at);
+    const avgMin  = mttrTix.length ? mttrTix.reduce((s,t) => s + (new Date(t.resolved_at) - new Date(t.created_at)) / 60000, 0) / mttrTix.length : 0;
+    const mttr    = avgMin < 60 ? Math.round(avgMin) + 'min' : (avgMin / 60).toFixed(1) + 'h';
+
+    // byTech
+    const techMap = {};
+    tickets.forEach(t => {
+        const key = t.assignee_name || 'Sin asignar';
+        if (!techMap[key]) techMap[key] = { tech: key, total: 0, resolved: 0, open: 0, mttrMs: [] };
+        techMap[key].total++;
+        if (['resuelto','cerrado'].includes(t.status)) {
+            techMap[key].resolved++;
+            if (t.resolved_at && t.created_at) techMap[key].mttrMs.push(new Date(t.resolved_at) - new Date(t.created_at));
+        } else { techMap[key].open++; }
+    });
+    const byTech = Object.values(techMap).map(t => ({
+        tech: t.tech, total: t.total, resolved: t.resolved, open: t.open,
+        avg_min: t.mttrMs.length ? t.mttrMs.reduce((a,b)=>a+b,0) / t.mttrMs.length / 60000 : null,
+    })).sort((a,b) => b.total - a.total);
+
+    // weekly
+    const now7d  = new Date(now - 7  * 86400000);
+    const now30d = new Date(now - 30 * 86400000);
+    const weeklyMap = {};
+    resolvedTix.forEach(t => {
+        const key = t.assignee_name || 'Sin asignar';
+        if (!weeklyMap[key]) weeklyMap[key] = { tech: key, semana: 0, mes: 0 };
+        if (t.resolved_at >= now7d)  weeklyMap[key].semana++;
+        if (t.resolved_at >= now30d) weeklyMap[key].mes++;
+    });
+    const weekly = Object.values(weeklyMap).sort((a,b) => b.mes - a.mes);
+
+    // topReporters
+    const repMap = {};
+    tickets.forEach(t => {
+        const k = t.reporter_name || t.reporter_email || 'Desconocido';
+        repMap[k] = (repMap[k] || 0) + 1;
+    });
+    const topReporters = Object.entries(repMap).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([reporter,total])=>({reporter,total}));
+
+    // topCategorias
+    const catMap = {};
+    tickets.forEach(t => { const k = t.category_name || 'Sin categoría'; catMap[k] = (catMap[k]||0)+1; });
+    const topCategorias = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([categoria,total])=>({categoria,total}));
+
+    // Evolución por día
+    const evolMap = {};
+    tickets.forEach(t => {
+        const d = new Date(t.created_at).toISOString().slice(0,10);
+        if (!evolMap[d]) evolMap[d] = { dia: d, total: 0, cerrados: 0 };
+        evolMap[d].total++;
+        if (t.resolved_at) {
+            const rd = new Date(t.resolved_at).toISOString().slice(0,10);
+            if (!evolMap[rd]) evolMap[rd] = { dia: rd, total: 0, cerrados: 0 };
+            evolMap[rd].cerrados++;
+        }
+    });
+    const evolucion = Object.values(evolMap).sort((a,b)=>a.dia.localeCompare(b.dia));
+
+    // por prioridad / estado
+    const priMap = {}, stMap = {};
+    tickets.forEach(t => {
+        priMap[t.priority||'Sin prioridad'] = (priMap[t.priority||'Sin prioridad']||0)+1;
+        stMap[t.status||'desconocido']       = (stMap[t.status||'desconocido']||0)+1;
+    });
+    const porPrioridad = Object.entries(priMap).map(([name,count])=>({name,count}));
+    const porEstado    = Object.entries(stMap).map(([name,count])=>({name,count}));
+
+    return {
+        byTech, weekly, topReporters, topCategorias, evolucion, porPrioridad, porEstado,
+        topEquipos: [],
+        slaStats: { dentro_sla: dentroSla, fuera_sla: fueraSla, vencidos_abiertos: vencidosAbiertos },
+        unassigned30, mttr,
+        alertas: [], slaBreachTickets: [], mttrByCat: [], csat: 0, fcr_pct: 0,
+    };
+}
 
 module.exports = router;
             
