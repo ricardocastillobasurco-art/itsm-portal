@@ -1,0 +1,46 @@
+<%
+  /* Variables esperadas:
+   *   itsmTab     : string  — parámetro del hub, ej. 'cam', 'pro', 'cat', 'inc'
+   *   pageTitle   : string  — nombre de la página actual
+   *   pageIcon    : string  — clase Bootstrap Icon, ej. 'bi-arrow-repeat'
+   *   showAdmin   : bool    — mostrar enlace /administracion (default true)
+   */
+  const _itsmTab   = locals.itsmTab   || '';
+  const _pageTitle = locals.pageTitle || 'ITSM';
+  const _pageIcon  = locals.pageIcon  || 'bi-grid';
+  const _showAdmin = locals.showAdmin !== false;
+  const _backHref  = _itsmTab ? `/itsm?tab=${_itsmTab}` : '/itsm';
+%>
+<style>
+.itsm-tb{display:flex;align-items:center;gap:12px;padding:10px 20px;background:var(--card,#fff);border-bottom:1px solid var(--border,#e2e8f0);position:sticky;top:0;z-index:200;flex-wrap:nowrap;}
+.itsm-tb-back{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--muted,#64748b);background:var(--bg,#f0f4f8);border:1px solid var(--border,#e2e8f0);border-radius:20px;padding:5px 12px;text-decoration:none;white-space:nowrap;transition:color .15s,border-color .15s;}
+.itsm-tb-back:hover{color:var(--primary,#3b82f6);border-color:var(--primary,#3b82f6);}
+.itsm-tb-bc{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted,#64748b);flex:1;min-width:0;overflow:hidden;}
+.itsm-tb-bc a{color:var(--muted,#64748b);text-decoration:none;font-weight:500;transition:color .15s;white-space:nowrap;}
+.itsm-tb-bc a:hover{color:var(--primary,#3b82f6);}
+.itsm-tb-bc .sep{opacity:.4;flex-shrink:0;}
+.itsm-tb-bc .cur{color:var(--text,#1e293b);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.itsm-tb-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0;}
+.itsm-tb-logout{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--muted,#64748b);background:none;border:1px solid var(--border,#e2e8f0);border-radius:20px;padding:5px 12px;text-decoration:none;cursor:pointer;transition:color .15s,border-color .15s,background .15s;white-space:nowrap;}
+.itsm-tb-logout:hover{color:#ef4444;border-color:#ef4444;background:#fef2f2;}
+</style>
+
+<div class="itsm-tb">
+  <a href="<%= _backHref %>" class="itsm-tb-back">
+    <i class="bi bi-arrow-left"></i> ITSM
+  </a>
+  <div class="itsm-tb-bc">
+    <% if (_showAdmin) { %>
+    <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
+    <span class="sep">/</span>
+    <% } %>
+    <a href="<%= _backHref %>">ITSM</a>
+    <span class="sep">/</span>
+    <span class="cur"><i class="bi <%= _pageIcon %>"></i> <%= _pageTitle %></span>
+  </div>
+  <div class="itsm-tb-right">
+    <a href="/api/auth/logout" class="itsm-tb-logout" title="Cerrar sesión">
+      <i class="bi bi-box-arrow-right"></i> Salir
+    </a>
+  </div>
+</div>

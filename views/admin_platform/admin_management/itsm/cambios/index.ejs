@@ -97,17 +97,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',-appl
 </style>
 </head>
 <body>
-<%- include('../../../../shared/partials/theme-toggle') %>
-<div class="itsm-topbar">
-  <a href="/itsm?tab=cam" class="itsm-back"><i class="bi bi-arrow-left"></i> ITSM</a>
-  <div class="itsm-breadcrumb">
-    <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
-    <span class="sep">/</span>
-    <a href="/itsm?tab=cam">ITSM</a>
-    <span class="sep">/</span>
-    <span class="current"><i class="bi bi-arrow-repeat"></i> Gestión de Cambios</span>
-  </div>
-</div>
+<%- include('../../../../shared/partials/itsm-topbar', { itsmTab:'cam', pageTitle:'Gestión de Cambios', pageIcon:'bi-arrow-left-right' }) %>
 <div class="pg">
   <div class="page-hdr">
     <div class="page-hdr-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706);">

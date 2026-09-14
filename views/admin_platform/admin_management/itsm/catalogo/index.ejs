@@ -47,25 +47,7 @@ document.addEventListener('DOMContentLoaded',()=>{_syncToggleUI(localStorage.get
 <div class="dashboard-wrapper">
 <div class="dashboard-content">
 
-<div class="itsm-topbar-cat" style="justify-content:space-between;">
-  <div style="display:flex;align-items:center;gap:12px;">
-    <a href="/itsm?tab=cat" class="itsm-back-cat"><i class="bi bi-arrow-left"></i> ITSM</a>
-    <div class="itsm-bc-cat">
-      <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
-      <span class="sep">/</span>
-      <a href="/itsm?tab=cat">ITSM</a>
-      <span class="sep">/</span>
-      <span class="current"><i class="bi bi-list-task"></i> Catálogo de Servicios</span>
-    </div>
-  </div>
-  <button onclick="toggleTheme()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:8px;">
-    <div id="themeTrack" style="width:32px;height:18px;border-radius:9px;background:#cbd5e1;position:relative;transition:background .3s;">
-      <div id="themeKnob" style="width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .3s;"></div>
-    </div>
-    <i id="toggleIcon" class="bi bi-moon-stars-fill" style="font-size:14px;color:var(--text-muted);"></i>
-    <span id="toggleLabel" style="font-size:12px;color:var(--text-muted);font-weight:500;">Oscuro</span>
-  </button>
-</div>
+<%- include('../../../../shared/partials/itsm-topbar', { itsmTab:'cat', pageTitle:'Catálogo de Servicios', pageIcon:'bi-list-task' }) %>
 
 <nav class="corp-tabnav" role="tablist">
   <!-- Gestión Local: Registrar + Indicadores -->

@@ -94,17 +94,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',-appl
 </style>
 </head>
 <body>
-<%- include('../../../../shared/partials/theme-toggle') %>
-<div class="itsm-topbar">
-  <a href="/itsm?tab=pro" class="itsm-back"><i class="bi bi-arrow-left"></i> ITSM</a>
-  <div class="itsm-breadcrumb">
-    <a href="/administracion"><i class="bi bi-shield-lock-fill"></i> Admin</a>
-    <span class="sep">/</span>
-    <a href="/itsm?tab=pro">ITSM</a>
-    <span class="sep">/</span>
-    <span class="current"><i class="bi bi-bug-fill"></i> Gestión de Problemas</span>
-  </div>
-</div>
+<%- include('../../../../shared/partials/itsm-topbar', { itsmTab:'pro', pageTitle:'Gestión de Problemas', pageIcon:'bi-bug-fill' }) %>
 <div class="pg">
   <div class="page-hdr">
     <div class="page-hdr-icon" style="background:linear-gradient(135deg,#ef4444,#b91c1c);">
