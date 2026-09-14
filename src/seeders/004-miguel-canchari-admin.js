@@ -3,10 +3,10 @@
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 
-const EMAIL    = 'miguel.canchari@integratel.com.pe';
-const USERNAME = 'miguel.canchari';
-const FULLNAME = 'Miguel Canchari';
-const PASSWORD = 'Integratel@2024!'; // temporal — cambiar tras primer login
+const EMAIL    = process.env.NEW_ADMIN_EMAIL    || 'admin2@empresa.com';
+const USERNAME = process.env.NEW_ADMIN_USERNAME || 'admin2';
+const FULLNAME = process.env.NEW_ADMIN_FULLNAME || 'Administrador 2';
+const PASSWORD = process.env.NEW_ADMIN_PASSWORD || 'Cambiar@PrimerLogin!';
 
 module.exports = {
     async up(queryInterface) {
