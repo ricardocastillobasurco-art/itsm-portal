@@ -7,7 +7,13 @@
 .ttf-knob{width:14px;height:14px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 4px rgba(0,0,0,.3);}
 [data-theme="dark"] .ttf-knob{transform:translateX(18px);}
 .ttf-label{font-size:11px;font-weight:600;color:var(--text-muted);}
+.ttf-logout{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text-muted,#64748b);text-decoration:none;padding:6px 12px;background:var(--bg-card,#fff);border:1px solid var(--border-soft,#e2e8f0);border-radius:30px;position:fixed;top:14px;right:170px;z-index:9999;box-shadow:0 2px 12px rgba(0,0,0,.1);transition:color .15s,border-color .15s,box-shadow .25s;white-space:nowrap;}
+.ttf-logout:hover{color:#ef4444;border-color:#ef4444;box-shadow:0 4px 16px rgba(239,68,68,.2);}
 </style>
+
+<a href="/api/auth/logout" class="ttf-logout" id="ttfLogout" title="Cerrar sesión">
+  <i class="bi bi-box-arrow-right"></i> Salir
+</a>
 
 <div class="theme-toggle-float" onclick="(function(){var n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('dashboardTheme',n);var ic=document.getElementById('ttfIcon');var lb=document.getElementById('ttfLabel');if(ic)ic.className='bi '+(n==='dark'?'bi-sun-fill':'bi-moon-stars-fill')+' ttf-icon';if(lb)lb.textContent=n==='dark'?'Claro':'Oscuro';})()">
   <i id="ttfIcon" class="bi bi-moon-stars-fill ttf-icon"></i>
@@ -25,6 +31,8 @@
   if(window.self!==window.top){
     var tgl=document.querySelector('.theme-toggle-float');
     if(tgl) tgl.style.display='none';
+    var lo=document.getElementById('ttfLogout');
+    if(lo) lo.style.display='none';
   }
 })();
 </script>

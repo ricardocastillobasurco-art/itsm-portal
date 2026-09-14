@@ -75,6 +75,23 @@ app.use((req, res, next) => {
     next();
 });
 
+// Inyectar logout-fab en todas las respuestas HTML (páginas que no usan theme-toggle.ejs)
+app.use((req, res, next) => {
+    const _render = res.render.bind(res);
+    res.render = function(view, opts, cb) {
+        const done = typeof opts === 'function' ? opts : cb;
+        _render(view, opts, function(err, html) {
+            if (err) return done ? done(err) : next(err);
+            const injected = html.includes('ttfLogout') || html.includes('/api/auth/logout')
+                ? html
+                : html.replace('</body>', '<script src="/js/logout-fab.js"></script></body>');
+            if (done) return done(null, injected);
+            res.send(injected);
+        });
+    };
+    next();
+});
+
 // ============================================================================
 // CONFIGURACIÓN DE MIDDLEWARES Y BULL BOARD
 // ============================================================================
