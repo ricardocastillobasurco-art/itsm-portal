@@ -915,7 +915,7 @@ function isOpen(s){return['open','abierto','waiting for support','por hacer','to
 function isProgress(s){return['in progress','en curso','en progreso','working'].includes((s||'').toLowerCase());}
 function isClosed(s){return['done','closed','cerrado','resolved','resuelto','completado'].includes((s||'').toLowerCase());}
 // Usuario actual inyectado desde servidor
-const IS_ADMIN       = CURRENT_USER_ROLE === 'administrador';
+const IS_ADMIN       = ['administrador','superadmin'].includes(CURRENT_USER_ROLE);
 const IS_ESPECIALISTA= ['especialista','agente','tecnico'].includes(CURRENT_USER_ROLE);
 const IS_AGENT       = IS_ADMIN || IS_ESPECIALISTA;
 
