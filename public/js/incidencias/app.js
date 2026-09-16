@@ -1222,6 +1222,8 @@ function openManage(key){
     document.getElementById('mgBtnReopen').style.display = (IS_AGENT && isCerrado) ? 'inline-flex' : 'none';
     const mgBtnCat=document.getElementById('mgBtnCategorize');
     if(mgBtnCat) mgBtnCat.style.display=(isCerrado&&!isLocal)?'inline-flex':'none';
+    const mgBtnDerive=document.getElementById('mgBtnDerive');
+    if(mgBtnDerive) mgBtnDerive.style.display=(!isLocal&&!isCerrado&&IS_AGENT)?'inline-flex':'none';
     // Ocultar sección de asignación a reporteros
     const mgTechRow = document.getElementById('mgTechRow');
     if (mgTechRow) mgTechRow.style.display = IS_AGENT ? '' : 'none';
