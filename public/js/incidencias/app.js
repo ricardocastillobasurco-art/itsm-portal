@@ -1208,19 +1208,13 @@ function openManage(key){
         ? `<span style="display:inline-flex;align-items:center;gap:8px;">${techAvatar(t.assigned_to_name)}<span style="font-size:13px;">Asignado a: <strong>${t.assigned_to_name}</strong></span></span>`
         : '<span style="color:#ef4444;font-size:13px;">⚠️ Sin técnico asignado</span>';
     document.getElementById('mgNoteWrap').style.display='none';
-    // Descripción colapsable
+    // Resetear sección descripción/adjuntos — se carga on-demand
     const descWrap = document.getElementById('mgDescWrap');
+    if (descWrap) { descWrap.style.display = ''; descWrap.dataset.loaded = ''; }
     const descText = document.getElementById('mgDescText');
-    if (descWrap && descText) {
-        const desc = (t.description || '').trim();
-        if (desc) {
-            descText.textContent = desc;
-            descText.hidden = true;
-            descWrap.style.display = '';
-        } else {
-            descWrap.style.display = 'none';
-        }
-    }
+    if (descText) { descText.textContent = ''; descText.hidden = true; }
+    const attWrap = document.getElementById('mgAttJiraWrap');
+    if (attWrap) { attWrap.hidden = true; attWrap.innerHTML = ''; }
     const isCerrado = ['cerrado','resuelto'].includes(ist);
     const isLocal   = (t.key||t.ticket_key||'').startsWith('TK-');
     // Solo agentes pueden cerrar/reabrir/asignar
@@ -1244,6 +1238,46 @@ function openManage(key){
     const emailEl=document.getElementById('mgTechEmail');
     if(emailEl) emailEl.value='';
     new bootstrap.Modal(document.getElementById('modalManage')).show();
+}
+
+async function mgLoadJiraDetail() {
+    const wrap = document.getElementById('mgDescWrap');
+    if (!wrap || wrap.dataset.loaded === 'true') return;
+    wrap.dataset.loaded = 'true';
+    const descText = document.getElementById('mgDescText');
+    const attWrap  = document.getElementById('mgAttJiraWrap');
+    if (descText) { descText.textContent = 'Cargando…'; descText.hidden = false; }
+    try {
+        const r = await fetch(`/api/jira/ticket/${mgCurrentKey}/jira-detail`, { credentials: 'include' });
+        const j = await r.json();
+        if (!j.success) throw new Error(j.error || 'Error');
+        // Descripción
+        if (descText) {
+            if (j.description) { descText.textContent = j.description; }
+            else { descText.textContent = '(sin descripción)'; descText.style.color = 'var(--text-muted)'; }
+            descText.hidden = false;
+        }
+        // Adjuntos Jira
+        if (attWrap && j.attachments && j.attachments.length) {
+            attWrap.hidden = false;
+            attWrap.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">
+                <i class="bi bi-paperclip"></i> Adjuntos de Jira (${j.attachments.length})</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">` +
+                j.attachments.map(a => {
+                    const isImg = (a.mimeType||'').startsWith('image/');
+                    const icon  = isImg ? 'bi-image' : (a.mimeType?.includes('pdf') ? 'bi-file-earmark-pdf' : 'bi-file-earmark');
+                    const size  = a.size ? (a.size > 1048576 ? (a.size/1048576).toFixed(1)+'MB' : Math.round(a.size/1024)+'KB') : '';
+                    return `<a href="${a.url}" target="_blank" rel="noopener"
+                        style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border-soft);border-radius:7px;font-size:11.5px;color:var(--text-main);text-decoration:none;background:var(--bg-main);max-width:200px;overflow:hidden;">
+                        <i class="bi ${icon}" style="flex-shrink:0;color:#2563eb;"></i>
+                        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${a.filename}">${a.filename}</span>
+                        ${size ? `<span style="flex-shrink:0;font-size:10px;color:var(--text-muted);">${size}</span>` : ''}
+                    </a>`;
+                }).join('') + '</div>';
+        }
+    } catch(e) {
+        if (descText) { descText.textContent = 'Error al cargar: ' + e.message; descText.style.color = '#ef4444'; }
+    }
 }
 
 function techAcSearch(q){

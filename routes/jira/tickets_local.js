@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { tenantWhere, tenantParam } = require('../../utils/tenantFilter');
-const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID } = require('./helpers');
+const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, jiraForTenant, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID } = require('./helpers');
 const axios = require('axios');
 const FormData = require('form-data');
 
@@ -75,6 +75,49 @@ router.get('/tickets', authenticateToken, async (req, res) => {
 
 // ── Helpers para my-tickets ──────────────────────────────────
 
+
+// ============================================================
+
+// GET /api/jira/ticket/:key/jira-detail — descripción y adjuntos en vivo desde Jira
+router.get('/ticket/:key/jira-detail', authenticateToken, async (req, res) => {
+    const { key } = req.params;
+    const isLocal = key.startsWith('TK-');
+    if (isLocal) {
+        // Ticket local: devolver descripción desde BD
+        try {
+            const rows = await dbQuery(`SELECT description FROM jira_tickets WHERE ticket_key=? LIMIT 1`, [key]);
+            return res.json({ success: true, description: rows[0]?.description || null, attachments: [] });
+        } catch (e) {
+            return res.json({ success: true, description: null, attachments: [] });
+        }
+    }
+    // Ticket Jira: consultar API directamente
+    try {
+        const tenantId = req.user?.tenant_id || null;
+        const data = await jiraForTenant(tenantId, 'get',
+            `/rest/api/3/issue/${key}?fields=description,attachment,summary`);
+        const fields = data.fields || {};
+
+        // Descripción: ADF → texto plano
+        const desc = extractAdfText(fields.description);
+
+        // Adjuntos
+        const attachments = (fields.attachment || []).map(a => ({
+            id:       a.id,
+            filename: a.filename,
+            mimeType: a.mimeType,
+            size:     a.size,
+            created:  a.created,
+            url:      a.content,      // URL directa al archivo en Jira
+            thumb:    a.thumbnail || null,
+        }));
+
+        res.json({ success: true, description: desc || null, attachments });
+    } catch (e) {
+        console.error('jira-detail error:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
 
 // ============================================================
 

@@ -75,14 +75,17 @@
           <div id="mgAssigned" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
         </div>
 
-        <!-- Descripción (colapsable) -->
-        <div id="mgDescWrap" style="display:none;">
+        <!-- Descripción + Adjuntos Jira (colapsable, carga on-demand) -->
+        <div id="mgDescWrap">
           <button type="button"
-            onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden;this.querySelector('i').className='bi bi-'+(this.nextElementSibling.hidden?'chevron-down':'chevron-up')"
+            onclick="const t=this.nextElementSibling;t.hidden=!t.hidden;this.querySelector('i').className='bi bi-'+(t.hidden?'chevron-down':'chevron-up');mgLoadJiraDetail();"
             style="width:100%;display:flex;align-items:center;gap:6px;background:var(--bg-main,#f1f5f9);border:1px solid var(--border-soft,#e2e8f0);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;text-align:left;">
-            <i class="bi bi-chevron-down"></i> Ver descripción
+            <i class="bi bi-chevron-down"></i> Descripción y adjuntos de Jira
           </button>
-          <div hidden style="background:var(--bg-main,#f8fafc);border:1px solid var(--border-soft,#e2e8f0);border-radius:0 0 8px 8px;border-top:none;padding:10px 14px;font-size:12.5px;color:var(--text-main);white-space:pre-wrap;max-height:180px;overflow-y:auto;line-height:1.55;" id="mgDescText"></div>
+          <div hidden style="background:var(--bg-main,#f8fafc);border:1px solid var(--border-soft,#e2e8f0);border-radius:0 0 8px 8px;border-top:none;padding:10px 14px;">
+            <div id="mgDescText" style="font-size:12.5px;color:var(--text-main);white-space:pre-wrap;max-height:160px;overflow-y:auto;line-height:1.55;margin-bottom:8px;"></div>
+            <div id="mgAttJiraWrap" hidden style="border-top:1px solid var(--border-soft,#e2e8f0);padding-top:8px;"></div>
+          </div>
         </div>
 
         <!-- Asignación (solo agentes) -->
