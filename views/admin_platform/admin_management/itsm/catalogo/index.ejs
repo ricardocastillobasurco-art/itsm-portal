@@ -27,7 +27,7 @@
 <body>
 <%
   const _role = user?.role || 'usuario';
-  const _isAdmin       = _role === 'administrador';
+  const _isAdmin       = ['administrador','superadmin'].includes(_role);
   const _isEsp         = ['especialista','agente','tecnico'].includes(_role);
   const _isVisor       = _role === 'visor';
   const _canRequest    = !_isVisor;

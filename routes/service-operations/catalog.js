@@ -19,7 +19,7 @@ router.get('/categories', authenticateToken, async (req, res) => {
 });
 
 // POST /api/catalog/categories  (admin)
-router.post('/categories', authenticateToken, requireRole('administrador'), async (req, res) => {
+router.post('/categories', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
         const { name, description, icon } = req.body;
         if (!name) return res.status(400).json({ success: false, error: 'Nombre requerido' });
@@ -31,7 +31,7 @@ router.post('/categories', authenticateToken, requireRole('administrador'), asyn
 });
 
 // PATCH /api/catalog/categories/:id  (admin)
-router.patch('/categories/:id', authenticateToken, requireRole('administrador'), async (req, res) => {
+router.patch('/categories/:id', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
         const cat = await ServiceCategory.findByPk(req.params.id);
         if (!cat) return res.status(404).json({ success: false, error: 'Categoría no encontrada' });
@@ -46,7 +46,7 @@ router.patch('/categories/:id', authenticateToken, requireRole('administrador'),
 });
 
 // DELETE /api/catalog/categories/:id  (admin) — soft-delete via isActive=false
-router.delete('/categories/:id', authenticateToken, requireRole('administrador'), async (req, res) => {
+router.delete('/categories/:id', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
         const cat = await ServiceCategory.findByPk(req.params.id);
         if (!cat) return res.status(404).json({ success: false, error: 'Categoría no encontrada' });
@@ -93,7 +93,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // POST /api/catalog  (admin)
-router.post('/', authenticateToken, requireRole('administrador'), async (req, res) => {
+router.post('/', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
         const { categoryId, name, description, slaHours, approvalRequired, approverRole, formSchema } = req.body;
         if (!categoryId || !name) return res.status(400).json({ success: false, error: 'categoryId y name requeridos' });
@@ -113,7 +113,7 @@ router.post('/', authenticateToken, requireRole('administrador'), async (req, re
 });
 
 // PATCH /api/catalog/:id (admin)
-router.patch('/:id', authenticateToken, requireRole('administrador'), async (req, res) => {
+router.patch('/:id', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
         const svc = await Service.findByPk(req.params.id);
         if (!svc) return res.status(404).json({ success: false, error: 'Servicio no encontrado' });
@@ -131,7 +131,7 @@ router.patch('/:id', authenticateToken, requireRole('administrador'), async (req
 });
 
 // DELETE /api/catalog/:id (admin)
-router.delete('/:id', authenticateToken, requireRole('administrador'), async (req, res) => {
+router.delete('/:id', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
         const svc = await Service.findByPk(req.params.id);
         if (!svc) return res.status(404).json({ success: false, error: 'Servicio no encontrado' });
