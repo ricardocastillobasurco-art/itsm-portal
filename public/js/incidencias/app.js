@@ -2594,6 +2594,11 @@ function _localTableRow(t) {
 function _localList(containerId, tickets, emptyMsg) {
     const el = document.getElementById(containerId);
     if (!el) return;
+    // Merge into allTickets so openManage can find them by key
+    if (tickets && tickets.length) {
+        const seen = new Set(allTickets.map(t => t.key));
+        tickets.forEach(t => { if (t.key && !seen.has(t.key)) allTickets.push(t); });
+    }
     if (!tickets || !tickets.length) {
         el.innerHTML = `<div class="empty-state"><i class="bi bi-check2-circle" style="color:#10b981;font-size:32px;"></i><p>${emptyMsg||'Sin tickets'}</p></div>`;
         return;

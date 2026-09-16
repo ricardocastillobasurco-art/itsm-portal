@@ -36,7 +36,7 @@ router.get('/tickets', authenticateToken, async (req, res) => {
         const tickets = await dbQuery(
             `SELECT jt.*, u.full_name AS tech_name
              FROM jira_tickets jt
-             LEFT JOIN users u ON u.id = jt.assigned_to AND jt.assigned_to IS NOT NULL AND jt.assigned_to > 0 AND u.deleted_at IS NULL
+             LEFT JOIN users u ON u.id = jt.assigned_to AND jt.assigned_to IS NOT NULL AND u.deleted_at IS NULL
              WHERE ${where}
              ORDER BY jt.created_at DESC LIMIT 500`
         );
