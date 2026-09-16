@@ -587,6 +587,21 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
           <button class="sb-sub-item" onclick="openModal('modalDeploy')"><i class="bi bi-rocket-takeoff-fill sb-sub-icon" style="color:#dc2626;"></i>Despliegues Intune</button>
         </div>
       </div>
+
+      <!-- DATOS Y PLATAFORMA -->
+      <div class="sb-section">
+        <span class="sb-section-label">Plataforma</span>
+        <a class="sb-item" href="/import-csv">
+          <i class="bi bi-database-up sb-icon" style="color:#10b981;"></i>
+          <span class="sb-label">Centro de Datos</span>
+        </a>
+        <% if (_role === 'superadmin') { %>
+        <a class="sb-item" href="/superadmin">
+          <i class="bi bi-shield-shaded sb-icon" style="color:#7c3aed;"></i>
+          <span class="sb-label">Super Admin</span>
+        </a>
+        <% } %>
+      </div>
     </nav>
 
     <div class="sb-footer">
