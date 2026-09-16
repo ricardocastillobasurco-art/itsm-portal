@@ -43,10 +43,12 @@ router.get('/tickets', authenticateToken, async (req, res) => {
         const data = tickets.map(t => ({
             key:             t.ticket_key,
             summary:         t.summary,
+            description:     t.description || null,
             status:          t.status,
             internal_status: t.internal_status || 'abierto',
             priority:        t.priority || 'P3',
             reporter:        t.reporter,
+            phone:           t.phone,
             urgency:         t.urgency,
             urgency_level:   t.urgency_level,
             impact:          t.impact,

@@ -1208,6 +1208,19 @@ function openManage(key){
         ? `<span style="display:inline-flex;align-items:center;gap:8px;">${techAvatar(t.assigned_to_name)}<span style="font-size:13px;">Asignado a: <strong>${t.assigned_to_name}</strong></span></span>`
         : '<span style="color:#ef4444;font-size:13px;">⚠️ Sin técnico asignado</span>';
     document.getElementById('mgNoteWrap').style.display='none';
+    // Descripción colapsable
+    const descWrap = document.getElementById('mgDescWrap');
+    const descText = document.getElementById('mgDescText');
+    if (descWrap && descText) {
+        const desc = (t.description || '').trim();
+        if (desc) {
+            descText.textContent = desc;
+            descText.hidden = true;
+            descWrap.style.display = '';
+        } else {
+            descWrap.style.display = 'none';
+        }
+    }
     const isCerrado = ['cerrado','resuelto'].includes(ist);
     const isLocal   = (t.key||t.ticket_key||'').startsWith('TK-');
     // Solo agentes pueden cerrar/reabrir/asignar
