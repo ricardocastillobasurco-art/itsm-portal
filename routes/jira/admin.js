@@ -478,8 +478,8 @@ router.post('/specialists', authenticateToken, async (req, res) => {
         } else {
             newId = uuidv4();
             await dbQuery(
-                `INSERT INTO users (id, username, email, phone, ${passCol}, full_name, role, specialty, is_active, is_verified, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, 'especialista', ?, 1, 1, ?)`,
+                `INSERT INTO users (id, username, email, phone, ${passCol}, full_name, role, specialty, is_active, is_verified, created_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, 'especialista', ?, 1, 1, ?, NOW(), NOW())`,
                 [newId, uname, email, phone||null, hash, full_name, specialty||null, req.user?.id||null]
             );
         }
