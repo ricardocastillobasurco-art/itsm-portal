@@ -12,6 +12,16 @@ module.exports = {
         const CHECK  = await qr(`SELECT id FROM jira_tickets WHERE ticket_key LIKE 'TK-P%' AND tenant_id=? LIMIT 1`, [TENANT]);
         if (CHECK.length) { console.log('ℹ️  Demo Petrotal ya existe, se omite.'); return; }
 
+        // ── 0. Asegurar que el tenant Petrotal existe ─────────────────────────
+        const tenantCheck = await qr(`SELECT id FROM tenants WHERE id=? LIMIT 1`, [TENANT]);
+        if (!tenantCheck.length) {
+            await q(
+                `INSERT INTO tenants (id, slug, name, plan, domain, contact_email, is_active, created_at, updated_at)
+                 VALUES (?, 'petrotal', 'Petrotal', 'enterprise', 'petrotal-corp.com', 'it@petrotal-corp.com', 1, NOW(), NOW())`,
+                [TENANT]
+            );
+        }
+
         // ── 1. Equipo TI Petrotal ─────────────────────────────────────────────
         const bcrypt = require('bcrypt');
         const hash   = await bcrypt.hash('Demo.Petrotal2026!', 10);
