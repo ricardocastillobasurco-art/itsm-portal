@@ -2835,6 +2835,7 @@ var _invUpdates  = [];
 var _invApps     = [];
 var _invLoaded   = { sys: false, upd: false, apps: false, run: false };
 var _invFrontCache = {}; // nodeId → { apps: {data,ts}, upd: {data,ts} }
+var _invSysData  = null; // datos de sistema para _showOSDetail
 var _INV_CACHE_TTL = 5 * 60 * 1000; // 5 minutos en frontend
 
 function openRMMInventory(nodeId, name, online, exip) {
@@ -2957,6 +2958,7 @@ function loadInvSys() {
             _invScriptUnavailable(el, 'sys'); return;
         }
         var d = j.data || {};
+        _invSysData = d;
 
         // Guardar en cache y actualizar fila de la tabla con datos reales
         if (_invNodeId && d.cpuName) {
@@ -3029,7 +3031,7 @@ function loadInvSys() {
             // Sistema Operativo (clickable para ver build)
             + '<div style="padding:8px 16px 0;">'
             + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="bi bi-windows"></i>SISTEMA OPERATIVO</div>'
-            + '<div style="background:var(--bg-header);border:1px solid var(--border-soft);border-radius:10px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;">'
+            + '<div style="background:var(--bg-header);border:1px solid var(--border-soft);border-radius:10px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;cursor:pointer;" onclick="_showOSDetail(_invSysData)" title="Ver detalle completo del SO">'
             + '<div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px;">Nombre</div><div style="font-size:13px;font-weight:700;">' + _esc(d.osName || '—') + '</div>' + (d.osBuild ? '<div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:monospace;">Build ' + _esc(String(d.osBuild)) + (osVerName ? ' · ' + _esc(osVerName) : '') + '</div>' : '') + '</div>'
             + (d.lastPatch ? '<div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px;">Último parche</div><div style="font-size:13px;font-weight:700;color:' + patchColor + ';">' + _esc(d.lastPatch) + ' <span style="font-size:10px;">(' + patchLabel + ')</span></div><div style="font-size:10px;font-weight:700;color:' + patchColor + ';">' + patchStatus + '</div></div>' : '')
             + '</div></div>'
