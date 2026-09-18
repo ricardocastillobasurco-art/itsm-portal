@@ -2788,11 +2788,11 @@ function connectRMM(nodeId, name, ip) {
     // Página de carga mientras se obtiene la URL
     popup.document.write(
         '<!DOCTYPE html><html><head><meta charset="UTF-8">'
-        + '<title>Conectando a ' + name + '...</title>'
+        + '<title>Conectando a ' + name + '...<\/title>'
         + '<style>body{margin:0;background:#0a0f1e;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#94a3b8;flex-direction:column;gap:16px;}'
         + '.spin{width:40px;height:40px;border:3px solid #1e293b;border-top-color:#60a5fa;border-radius:50%;animation:s .7s linear infinite;}'
-        + '@keyframes s{to{transform:rotate(360deg)}}</style></head>'
-        + '<body><div class="spin"></div><div style="font-size:14px;">Estableciendo sesión remota con <strong style="color:#e2e8f0;">' + name + '</strong>...</div></body></html>'
+        + '@keyframes s{to{transform:rotate(360deg)}}<\/style><\/head>'
+        + '<body><div class="spin"><\/div><div style="font-size:14px;">Estableciendo sesión remota con <strong style="color:#e2e8f0;">' + name + '<\/strong>...<\/div><\/body><\/html>'
     );
     popup.document.close();
 
