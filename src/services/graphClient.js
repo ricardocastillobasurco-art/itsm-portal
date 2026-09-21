@@ -20,6 +20,8 @@ const GRAPH_SCOPES = [
   'DeviceManagementManagedDevices.Read.All',
   'DeviceManagementConfiguration.Read.All',
   'DeviceManagementApps.Read.All',
+  'DeviceLocalCredential.Read.All',
+  'BitlockerKey.Read.All',
   'DeviceManagementServiceConfig.Read.All',
   'Sites.Read.All',
   'Files.Read.All',

@@ -1893,6 +1893,53 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
 </div>
 
+<!-- MODAL: INTUNE / AZURE -->
+<div class="modal fade" id="intuneModal" tabindex="-1">
+    <div class="modal-dialog modal-lg" style="max-width:760px;">
+        <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;">
+            <div class="modal-header" style="background:var(--bg-header);border-bottom:1px solid var(--border-soft);padding:14px 20px;gap:12px;">
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:#0078d420;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="bi bi-microsoft" style="color:#0078d4;font-size:16px;"></i>
+                    </div>
+                    <div style="min-width:0;">
+                        <div id="intune-modal-title" style="font-size:14px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Cargando...</div>
+                        <div id="intune-modal-sub" style="font-size:11px;color:var(--text-muted);"></div>
+                    </div>
+                </div>
+                <div id="intune-compliance-badge" style="flex-shrink:0;"></div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div style="display:flex;border-bottom:1px solid var(--border-soft);background:var(--bg-header);padding:0 16px;">
+                <button id="itab-info"  class="intune-tab active" onclick="_iTab('info')"><i class="bi bi-cpu me-1"></i>Info</button>
+                <button id="itab-bl"    class="intune-tab"        onclick="_iTab('bl')"><i class="bi bi-key me-1"></i>BitLocker</button>
+                <button id="itab-laps"  class="intune-tab"        onclick="_iTab('laps')"><i class="bi bi-shield-lock me-1"></i>LAPS</button>
+            </div>
+            <div class="modal-body" id="intune-body" style="max-height:68vh;overflow-y:auto;min-height:180px;padding:0;background:var(--bg-main);"></div>
+            <div class="modal-footer" style="background:var(--bg-header);border-top:1px solid var(--border-soft);padding:10px 16px;">
+                <div id="intune-footer-note" style="flex:1;font-size:10px;color:var(--text-muted);"></div>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.intune-tab{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-muted);font-size:12px;font-weight:600;padding:10px 14px;cursor:pointer;transition:.15s;white-space:nowrap;}
+.intune-tab:hover{color:var(--text-primary);}
+.intune-tab.active{color:#0078d4;border-bottom-color:#0078d4;}
+.in-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:16px 18px;margin:0;}
+.in-field{margin-bottom:10px;}
+.in-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:3px;}
+.in-val{font-size:13px;color:var(--text-primary);font-weight:500;word-break:break-all;}
+.in-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);padding:16px 20px 8px;}
+.in-key-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:8px;padding:12px 16px;margin:0 16px 8px;}
+.in-key-val{font-family:monospace;font-size:13px;letter-spacing:.5px;color:#10b981;background:#10b98112;border:1px solid #10b98130;border-radius:6px;padding:6px 12px;word-break:break-all;}
+.in-masked{font-family:monospace;font-size:18px;color:var(--text-muted);letter-spacing:2px;}
+.in-reveal-btn{flex-shrink:0;background:#0078d415;color:#0078d4;border:1px solid #0078d440;border-radius:6px;font-size:11px;font-weight:600;padding:5px 12px;cursor:pointer;white-space:nowrap;}
+.in-reveal-btn:hover{background:#0078d430;}
+</style>
+
 <!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -5128,6 +5175,293 @@ function switchCfgPanel(name, btn) {
     document.querySelectorAll('.cfg-nav-btn').forEach(function(b){ b.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     if (name === 'mesh' && !_cfgLoaded) { _cfgLoaded = true; loadRMMConfig(); }
+}
+
+// ── Intune / Azure Panel ──────────────────────────────────────────────────────
+var _intuneDevId   = null;
+var _intuneSerial  = null;
+var _intuneTabData = {};
+
+function openIntunePanel(serial, displayName) {
+    _intuneDevId   = null;
+    _intuneSerial  = serial;
+    _intuneTabData = {};
+    document.getElementById('intune-modal-title').textContent = displayName || serial;
+    document.getElementById('intune-modal-sub').textContent   = 'Buscando en Intune...';
+    document.getElementById('intune-compliance-badge').innerHTML = '';
+    document.getElementById('intune-footer-note').textContent  = '';
+    document.getElementById('intune-body').innerHTML = _iSpinner();
+    ['info','bl','laps'].forEach(function(t){
+        var el = document.getElementById('itab-'+t);
+        if (el) { el.className = 'intune-tab' + (t==='info'?' active':''); }
+    });
+    new bootstrap.Modal(document.getElementById('intuneModal')).show();
+    _loadIntuneInfo(serial);
+}
+
+function _iSpinner(msg) {
+    return '<div style="display:flex;align-items:center;justify-content:center;padding:48px;gap:10px;">'
+         + '<span class="spinner-border spinner-border-sm" style="color:#0078d4;"></span>'
+         + '<span style="font-size:13px;color:var(--text-muted);">' + (msg || 'Consultando Microsoft Graph...') + '</span>'
+         + '</div>';
+}
+
+function _iTab(tab) {
+    ['info','bl','laps'].forEach(function(t){
+        var el = document.getElementById('itab-'+t);
+        if (el) el.className = 'intune-tab' + (t===tab?' active':'');
+    });
+    if      (tab === 'bl')   _loadIntuneBL();
+    else if (tab === 'laps') _loadIntuneLAPS();
+}
+
+function _loadIntuneInfo(serial) {
+    fetch('/api/ms/devices/by-serial/' + encodeURIComponent(serial), { credentials:'include' })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+        if (j.msReauth) { _intuneAuthErr(); return; }
+        if (!j.success) { _intuneErr(j.error || 'Error Graph'); return; }
+        if (!j.found) {
+            document.getElementById('intune-body').innerHTML =
+                '<div style="padding:40px;text-align:center;color:var(--text-muted);">'
+                +'<i class="bi bi-search" style="font-size:32px;display:block;margin-bottom:12px;color:#0078d4;"></i>'
+                +'<div style="font-weight:700;margin-bottom:4px;">No registrado en Intune</div>'
+                +'<div style="font-size:12px;">Serie: <code>'+serial+'</code></div>'
+                +'</div>';
+            return;
+        }
+        var d = j.device;
+        _intuneDevId = d.id;
+        document.getElementById('intune-modal-title').textContent = d.deviceName || serial;
+        document.getElementById('intune-modal-sub').textContent   = (d.manufacturer||'') + ' ' + (d.model||'') + ' · ' + (d.operatingSystem||'');
+        document.getElementById('intune-compliance-badge').innerHTML = _iComplianceBadge(d.complianceState);
+        document.getElementById('intune-footer-note').textContent = 'Última sync: ' + _iDate(d.lastSyncDateTime);
+        document.getElementById('intune-body').innerHTML = _renderIntuneInfo(d, j.compliance || []);
+    })
+    .catch(function(e){ _intuneErr(e.message); });
+}
+
+function _loadIntuneBL() {
+    if (!_intuneDevId) { _intuneNotFound(); return; }
+    if (_intuneTabData.bl) { document.getElementById('intune-body').innerHTML = _intuneTabData.bl; return; }
+    document.getElementById('intune-body').innerHTML = _iSpinner('Cargando claves BitLocker...');
+    fetch('/api/ms/devices/'+_intuneDevId+'/bitlocker', { credentials:'include' })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+        if (j.msReauth) { _intuneAuthErr(); return; }
+        var html = '<div class="in-section-title">Claves de recuperación BitLocker</div>';
+        if (!j.data || !j.data.length) {
+            html += '<div style="padding:0 20px 20px;font-size:13px;color:var(--text-muted);">No se encontraron claves BitLocker para este dispositivo.</div>';
+        } else {
+            j.data.forEach(function(k){
+                html += '<div class="in-key-row">'
+                    + '<div><div class="in-label">ID de clave</div>'
+                    + '<div style="font-size:12px;color:var(--text-muted);font-family:monospace;">'+k.id+'</div>'
+                    + '<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">'+_iDate(k.createdDateTime)+'</div></div>'
+                    + '<button class="in-reveal-btn" onclick="_revealBL(\''+k.id+'\',this)"><i class="bi bi-eye me-1"></i>Ver clave</button>'
+                    + '</div>';
+            });
+        }
+        _intuneTabData.bl = html;
+        document.getElementById('intune-body').innerHTML = html;
+    })
+    .catch(function(e){ _intuneErr(e.message); });
+}
+
+function _revealBL(keyId, btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    fetch('/api/ms/bitlocker/key/'+keyId, { credentials:'include' })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+        if (!j.success) { btn.disabled=false; btn.innerHTML='Error'; return; }
+        var row = btn.parentElement;
+        var keyDiv = document.createElement('div');
+        keyDiv.className = 'in-key-val';
+        keyDiv.style.marginTop = '8px';
+        keyDiv.textContent = j.key || '(vacía)';
+        row.appendChild(keyDiv);
+        btn.remove();
+        _intuneTabData.bl = null; // invalidar cache para mostrar la clave la próxima vez
+    })
+    .catch(function(){ btn.disabled=false; btn.innerHTML='Error'; });
+}
+
+function _loadIntuneLAPS() {
+    if (!_intuneDevId) { _intuneNotFound(); return; }
+    if (_intuneTabData.laps) { document.getElementById('intune-body').innerHTML = _intuneTabData.laps; return; }
+    document.getElementById('intune-body').innerHTML = _iSpinner('Consultando LAPS...');
+    fetch('/api/ms/devices/'+_intuneDevId+'/laps', { credentials:'include' })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+        if (j.msReauth) { _intuneAuthErr(); return; }
+        var html = '<div class="in-section-title">Contraseña de administrador local (LAPS)</div>';
+        if (!j.entries || !j.entries.length) {
+            html += '<div style="padding:0 20px 20px;font-size:13px;color:var(--text-muted);">LAPS no configurado o sin contraseña registrada en Azure AD / Intune.</div>';
+        } else {
+            j.entries.forEach(function(e){
+                var srcLabel = e.source==='azure-laps' ? 'Windows LAPS · Azure AD' : 'LAPS · Intune';
+                html += '<div class="in-key-row" style="flex-direction:column;align-items:flex-start;gap:10px;">'
+                    + '<div style="display:flex;justify-content:space-between;width:100%;align-items:center;">'
+                    + '<div><div class="in-label">'+e.account+'</div>'
+                    + '<div style="font-size:10px;color:var(--text-muted);">'+srcLabel
+                    + (e.updatedAt ? ' · Actualizado '+_iDate(e.updatedAt) : '')
+                    + (e.expiresAt ? ' · Expira '+_iDate(e.expiresAt) : '')+'</div></div>'
+                    + '<button class="in-reveal-btn" onclick="_revealLAPS(this,\''+_iEsc(e.password||'')+'\')">'
+                    + '<i class="bi bi-eye me-1"></i>Revelar</button></div>'
+                    + '<div class="in-masked" id="laps-pw-'+Date.now()+'">••••••••••••</div>'
+                    + '</div>';
+            });
+        }
+        var warn = '<div style="padding:8px 20px;font-size:10px;color:var(--text-muted);border-top:1px solid var(--border-soft);">'
+            +'<i class="bi bi-info-circle me-1"></i>Esta consulta queda registrada en el log del servidor.'
+            +'</div>';
+        html += warn;
+        _intuneTabData.laps = null; // no cachear passwords
+        document.getElementById('intune-body').innerHTML = html;
+    })
+    .catch(function(e){ _intuneErr(e.message); });
+}
+
+function _revealLAPS(btn, pw) {
+    var masked = btn.closest('.in-key-row').querySelector('.in-masked');
+    if (masked) {
+        masked.className = 'in-key-val';
+        masked.textContent = pw || '(sin contraseña)';
+    }
+    btn.remove();
+}
+
+function _renderIntuneInfo(d, compliance) {
+    function gb(bytes){ return bytes ? (bytes/1073741824).toFixed(1)+' GB' : '—'; }
+    function mb(bytes){ return bytes ? Math.round(bytes/1048576)+' MB' : '—'; }
+    var compState   = d.complianceState || 'unknown';
+    var syncAgo     = _iSyncAgo(d.lastSyncDateTime);
+    var isWin       = (d.operatingSystem||'').toLowerCase().indexOf('windows') !== -1;
+
+    var html = '<div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
+
+    // Bloque sistema
+    html += '<div class="in-card" style="grid-column:1/-1;">';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:24px;">';
+    html += _iF('Sistema Operativo', (d.operatingSystem||'') + (d.osVersion ? ' · '+d.osVersion : ''));
+    html += _iF('Último check-in',   syncAgo + (d.lastSyncDateTime ? ' <span style="font-size:10px;color:var(--text-muted);">('+_iDate(d.lastSyncDateTime)+')</span>' : ''));
+    html += _iF('Usuario principal', d.userDisplayName || d.emailAddress || '—');
+    html += _iF('UPN',               d.userPrincipalName || '—');
+    html += '</div></div>';
+
+    // Bloque hardware
+    html += '<div class="in-card">';
+    html += '<div class="in-label" style="margin-bottom:10px;">Hardware</div>';
+    html += _iF('Fabricante',  d.manufacturer || '—');
+    html += _iF('Modelo',      d.model || '—');
+    html += _iF('Serie',       d.serialNumber || '—');
+    html += _iF('RAM',         mb(d.physicalMemoryInBytes));
+    html += _iF('Disco libre', gb(d.freeStorageSpaceInBytes) + ' / ' + gb(d.totalStorageSpaceInBytes));
+    if (d.wifiMacAddress)   html += _iF('MAC Wi-Fi',   d.wifiMacAddress);
+    if (d.ethernetMacAddress) html += _iF('MAC Ethernet', d.ethernetMacAddress);
+    html += '</div>';
+
+    // Bloque seguridad
+    html += '<div class="in-card">';
+    html += '<div class="in-label" style="margin-bottom:10px;">Seguridad</div>';
+    html += _iF('Cifrado',    d.isEncrypted ? '<span style="color:#10b981;">✓ Habilitado</span>' : '<span style="color:#f87171;">✗ No cifrado</span>');
+    html += _iF('Amenazas',   d.windowsActiveMalwareCount > 0
+        ? '<span style="color:#f87171;">'+d.windowsActiveMalwareCount+' activas</span>'
+        : '<span style="color:#10b981;">Sin amenazas activas</span>');
+    html += _iF('Tipo unión',  _iJoinType(d.joinType));
+    html += _iF('Autopilot',   d.autopilotEnrolled ? 'Sí' : 'No');
+    html += _iF('Propietario', d.managedDeviceOwnerType === 'company' ? 'Corporativo' : (d.managedDeviceOwnerType || '—'));
+    html += _iF('Inscripción', _iDate(d.enrolledDateTime));
+    html += '</div>';
+
+    // Políticas de cumplimiento
+    if (compliance && compliance.length) {
+        html += '<div style="grid-column:1/-1;">';
+        html += '<div class="in-label" style="padding:0 0 8px;">Políticas de cumplimiento ('+compliance.length+')</div>';
+        html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+        compliance.forEach(function(p){
+            var ok  = p.state === 'compliant';
+            var err = p.state === 'nonCompliant' || p.state === 'error';
+            var col = ok ? '#10b981' : (err ? '#f87171' : '#f59e0b');
+            html += '<div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid '+col+'30;border-radius:8px;padding:10px 14px;">'
+                +'<i class="bi bi-'+(ok?'check-circle-fill':'x-circle-fill')+'" style="color:'+col+';font-size:14px;flex-shrink:0;"></i>'
+                +'<div style="flex:1;min-width:0;">'
+                +'<div style="font-size:12px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_iEsc(p.displayName||p.id)+'</div>'
+                +'<div style="font-size:10px;color:'+col+';">'+_iStateLabel(p.state)+'</div>'
+                +'</div></div>';
+        });
+        html += '</div></div>';
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function _iF(label, val) {
+    return '<div class="in-field"><div class="in-label">'+label+'</div><div class="in-val">'+val+'</div></div>';
+}
+
+function _iComplianceBadge(state) {
+    var cfg = {
+        compliant:      { color:'#10b981', label:'Conforme' },
+        noncompliant:   { color:'#f87171', label:'No conforme' },
+        error:          { color:'#f87171', label:'Error' },
+        inGracePeriod:  { color:'#f59e0b', label:'Periodo de gracia' },
+        unknown:        { color:'#94a3b8', label:'Desconocido' },
+        notApplicable:  { color:'#94a3b8', label:'N/A' },
+    };
+    var c = cfg[state] || cfg.unknown;
+    return '<span style="background:'+c.color+'20;color:'+c.color+';border:1px solid '+c.color+'50;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;">'+c.label+'</span>';
+}
+
+function _iStateLabel(s) {
+    var m = { compliant:'Conforme', nonCompliant:'No conforme', error:'Error', unknown:'Desconocido', notApplicable:'No aplica', inGracePeriod:'Periodo de gracia' };
+    return m[s] || s;
+}
+
+function _iJoinType(t) {
+    var m = { azureADJoined:'Azure AD Joined', azureADRegistered:'Azure AD Registered', hybridAzureADJoined:'Híbrido (HAAD)', unknown:'Desconocido' };
+    return m[t] || t || '—';
+}
+
+function _iDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function _iSyncAgo(iso) {
+    if (!iso) return '—';
+    var mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 60)   return 'hace ' + mins + ' min';
+    if (mins < 1440) return 'hace ' + Math.floor(mins/60) + ' h';
+    return 'hace ' + Math.floor(mins/1440) + ' días';
+}
+
+function _iEsc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _intuneErr(msg) {
+    document.getElementById('intune-body').innerHTML =
+        '<div style="padding:32px;text-align:center;color:#f87171;">'
+        +'<i class="bi bi-exclamation-triangle" style="font-size:28px;display:block;margin-bottom:10px;"></i>'
+        +'<div style="font-size:13px;">'+_iEsc(msg||'Error desconocido')+'</div>'
+        +'</div>';
+}
+
+function _intuneAuthErr() {
+    document.getElementById('intune-body').innerHTML =
+        '<div style="padding:32px;text-align:center;color:#f59e0b;">'
+        +'<i class="bi bi-microsoft" style="font-size:28px;display:block;margin-bottom:10px;"></i>'
+        +'<div style="font-weight:700;margin-bottom:6px;">Sesión Microsoft expirada</div>'
+        +'<div style="font-size:12px;color:var(--text-muted);">Inicia sesión con Microsoft para usar esta función.</div>'
+        +'</div>';
+}
+
+function _intuneNotFound() {
+    document.getElementById('intune-body').innerHTML =
+        '<div style="padding:32px;text-align:center;color:var(--text-muted);">Primero carga la pestaña Info.</div>';
 }
 </script>
 </body>

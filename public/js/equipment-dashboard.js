@@ -260,7 +260,11 @@ function inicializarTablaEquipos() {
             }},
             { data: null, orderable: false, render: (d, type, row) => {
                 const stolen = row.is_stolen == 1 ? `<i class="bi bi-shield-exclamation text-danger me-1" title="Robado"></i>` : '';
-                return `${stolen}<button class="btn btn-sm btn-outline-primary detalles-btn" style="padding:4px 12px;font-size:11px;"><i class="bi bi-info-circle me-1"></i>Detalles</button>`;
+                const serial = (row.serial_number || '').trim();
+                const intuneBtn = serial
+                    ? `<button class="btn btn-sm intune-btn" data-serial="${serial.replace(/"/g,'&quot;')}" data-name="${((row.brand||'')+' '+(row.model||'')).trim().replace(/"/g,'&quot;')}" style="padding:4px 10px;font-size:11px;background:#0078d415;color:#0078d4;border:1px solid #0078d440;" title="Ver en Intune / Azure"><i class="bi bi-microsoft me-1"></i>Intune</button>`
+                    : '';
+                return `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${stolen}<button class="btn btn-sm btn-outline-primary detalles-btn" style="padding:4px 12px;font-size:11px;"><i class="bi bi-info-circle me-1"></i>Detalles</button>${intuneBtn}</div>`;
             }}
         ],
         order: [[0, 'asc']]
@@ -269,6 +273,12 @@ function inicializarTablaEquipos() {
     $('#equiposTable').off('click', '.detalles-btn').on('click', '.detalles-btn', function () {
         const row = equiposTable.row($(this).parents('tr')).data();
         if (row) openDetallesModal(row.device_code);
+    });
+
+    $('#equiposTable').off('click', '.intune-btn').on('click', '.intune-btn', function () {
+        const serial = $(this).data('serial');
+        const name   = $(this).data('name');
+        if (serial && typeof openIntunePanel === 'function') openIntunePanel(serial, name);
     });
 }
 

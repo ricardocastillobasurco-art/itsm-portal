@@ -242,6 +242,20 @@ router.get('/devices', ...adminGuard, async (req, res) => {
     } catch(e) { handleGraphErr(e, res); }
 });
 
+// ── GET /api/ms/devices/by-serial/:serial — buscar dispositivo por nº de serie ─
+router.get('/devices/by-serial/:serial', ...adminGuard, async (req, res) => {
+    try {
+        const uid    = req.user.id;
+        const serial = req.params.serial.trim().replace(/'/g, "''");
+        const fields = 'id,deviceName,serialNumber,azureADDeviceId,complianceState,lastSyncDateTime,osVersion,operatingSystem,manufacturer,model,userDisplayName,userPrincipalName,totalStorageSpaceInBytes,freeStorageSpaceInBytes,isEncrypted,enrolledDateTime,azureADRegistered,physicalMemoryInBytes,managedDeviceOwnerType,joinType,windowsActiveMalwareCount,windowsRemediatedMalwareCount,partnerReportedThreatState,emailAddress,deviceEnrollmentType,autopilotEnrolled,wifiMacAddress,ethernetMacAddress';
+        const data = await callGraph(uid, `/deviceManagement/managedDevices?$filter=serialNumber eq '${serial}'&$select=${fields}&$top=1`);
+        const device = data.value?.[0];
+        if (!device) return res.json({ success: true, found: false });
+        const compliance = await callGraph(uid, `/deviceManagement/managedDevices/${device.id}/deviceCompliancePolicyStates`).catch(() => ({ value: [] }));
+        res.json({ success: true, found: true, device, compliance: compliance.value || [] });
+    } catch(e) { handleGraphErr(e, res); }
+});
+
 // ── GET /api/ms/devices/:id — detalle dispositivo ─────────────────────────────
 router.get('/devices/:id', ...adminGuard, async (req, res) => {
     try {
@@ -418,6 +432,57 @@ router.get('/devices/:id/bitlocker', ...adminGuard, async (req, res) => {
             `/informationProtection/bitlocker/recoveryKeys?$filter=deviceId eq '${azureId}'&$select=id,createdDateTime,deviceId`
         );
         res.json({ success: true, data: keys.value || [], deviceName: dev.deviceName });
+    } catch(e) { handleGraphErr(e, res); }
+});
+
+// ── GET /api/ms/devices/:id/laps — Contraseña LAPS del admin local ────────────
+router.get('/devices/:id/laps', ...adminGuard, async (req, res) => {
+    try {
+        const uid   = req.user.id;
+        const devId = req.params.id;
+        const dev   = await callGraph(uid, `/deviceManagement/managedDevices/${devId}?$select=id,azureADDeviceId,deviceName,localAdministratorPassword,localAdministratorPasswordLastUpdatedDateTime`);
+
+        console.log(`[LAPS-AUDIT] user=${req.user.email||req.user.id} device=${dev.deviceName} ip=${req.ip} at=${new Date().toISOString()}`);
+
+        const result = { deviceName: dev.deviceName, entries: [] };
+
+        // Estrategia 1: LAPS vía Intune (campo directo en managedDevice)
+        if (dev.localAdministratorPassword) {
+            result.entries.push({
+                source:    'intune',
+                account:   'Administrator',
+                password:  dev.localAdministratorPassword,
+                updatedAt: dev.localAdministratorPasswordLastUpdatedDateTime || null,
+            });
+        }
+
+        // Estrategia 2: Windows LAPS con backup en Azure AD (directory/deviceLocalCredentials)
+        if (dev.azureADDeviceId) {
+            try {
+                const laps = await callGraph(uid, `/directory/deviceLocalCredentials/${dev.azureADDeviceId}?$select=id,deviceName,refreshDateTime,credentials`);
+                for (const c of (laps?.credentials || [])) {
+                    result.entries.push({
+                        source:    'azure-laps',
+                        account:   c.accountName || 'Administrator',
+                        password:  c.passwordBase64 ? Buffer.from(c.passwordBase64, 'base64').toString('utf8') : null,
+                        updatedAt: c.backupDateTime || laps.refreshDateTime || null,
+                        expiresAt: c.passwordExpirationDateTime || null,
+                        state:     c.passwordUpdateState || null,
+                    });
+                }
+            } catch(_) {}
+        }
+
+        res.json({ success: true, ...result });
+    } catch(e) { handleGraphErr(e, res); }
+});
+
+// ── GET /api/ms/bitlocker/key/:keyId — Revelar clave BitLocker ────────────────
+router.get('/bitlocker/key/:keyId', ...adminGuard, async (req, res) => {
+    try {
+        const data = await callGraph(req.user.id, `/informationProtection/bitlocker/recoveryKeys/${req.params.keyId}?$select=id,createdDateTime,key`);
+        console.log(`[BITLOCKER-AUDIT] user=${req.user.email||req.user.id} keyId=${req.params.keyId} ip=${req.ip} at=${new Date().toISOString()}`);
+        res.json({ success: true, key: data.key, createdDateTime: data.createdDateTime });
     } catch(e) { handleGraphErr(e, res); }
 });
 
