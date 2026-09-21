@@ -242,6 +242,14 @@ router.get('/devices', ...adminGuard, async (req, res) => {
     } catch(e) { handleGraphErr(e, res); }
 });
 
+// ── GET /api/ms/devices/serials — lista ligera de seriales enrollados en Intune ─
+router.get('/devices/serials', ...adminGuard, async (req, res) => {
+    try {
+        const items = await callGraphPaged(req.user.id, '/deviceManagement/managedDevices?$select=serialNumber&$top=999');
+        res.json({ success: true, serials: items.map(d => d.serialNumber).filter(Boolean) });
+    } catch(e) { handleGraphErr(e, res); }
+});
+
 // ── GET /api/ms/devices/by-serial/:serial — buscar dispositivo por nº de serie ─
 router.get('/devices/by-serial/:serial', ...adminGuard, async (req, res) => {
     try {

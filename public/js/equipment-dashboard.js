@@ -449,37 +449,56 @@ async function openDetallesModal(device_code) {
     }
 }
 
+// ── Cache de seriales Intune ──────────────────────────────────────────────────
+let _intuneSerials     = null; // Set de seriales (lowercase) ya en Intune
+let _intuneSerialsProm = null; // Promise en vuelo
+
+function _getIntuneSerials() {
+    if (_intuneSerials !== null) return Promise.resolve(_intuneSerials);
+    if (_intuneSerialsProm)      return _intuneSerialsProm;
+    _intuneSerialsProm = fetch('/api/ms/devices/serials', { credentials: 'include' })
+        .then(r => r.json())
+        .then(j => {
+            _intuneSerials = new Set((j.serials || []).map(s => s.toLowerCase().trim()));
+            return _intuneSerials;
+        })
+        .catch(() => { _intuneSerials = new Set(); return _intuneSerials; });
+    return _intuneSerialsProm;
+}
+
 // ── Sección Intune dentro del modal Detalles ──────────────────────────────────
 function _appendIntuneSection(body, serial) {
+    _getIntuneSerials().then(serials => {
+        if (!serials.has(serial.toLowerCase().trim())) return; // no está en Intune → no mostrar nada
+        _renderIntuneInline(body, serial);
+    });
+}
+
+function _renderIntuneInline(body, serial) {
     const wrap = document.createElement('div');
     wrap.id = 'intune-inline-section';
     wrap.innerHTML = `<div style="margin-top:12px;border-radius:8px;border:1px solid #0078d430;background:var(--bg-header);padding:12px 14px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#0078d4;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
             <i class="bi bi-microsoft"></i> Intune
-            <span style="font-size:10px;color:var(--text-muted);font-weight:400;margin-left:4px;" id="intune-inline-status">Buscando...</span>
+            <span class="spinner-border spinner-border-sm" style="width:10px;height:10px;border-width:1.5px;" id="intune-inline-spinner"></span>
         </div>
-        <div id="intune-inline-body" style="font-size:12px;color:var(--text-muted);">
-            <span class="spinner-border spinner-border-sm" style="width:12px;height:12px;border-width:1.5px;"></span>
-        </div>
+        <div id="intune-inline-body" style="font-size:12px;color:var(--text-muted);"></div>
     </div>`;
     body.appendChild(wrap);
 
     fetch(`/api/ms/devices/by-serial/${encodeURIComponent(serial)}`, { credentials: 'include' })
     .then(r => r.json())
     .then(j => {
-        const status = document.getElementById('intune-inline-status');
-        const ib     = document.getElementById('intune-inline-body');
+        const spinner = document.getElementById('intune-inline-spinner');
+        const ib      = document.getElementById('intune-inline-body');
         if (!ib) return;
+        if (spinner) spinner.remove();
 
-        if (!j.success || j.msReauth || j.forbidden) {
-            wrap.remove(); return; // sin sesión MS — no mostrar nada
-        }
-        if (!j.found) {
-            wrap.remove(); return; // no está en Intune — no mostrar nada
+        if (!j.success || j.msReauth || j.forbidden || !j.found) {
+            wrap.remove(); return;
         }
 
         const dv = j.device;
-        if (status) status.textContent = '';
 
         const compCfg = {
             compliant:     { color:'#10b981', label:'Conforme' },
