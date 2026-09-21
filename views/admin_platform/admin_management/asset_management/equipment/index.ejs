@@ -5366,9 +5366,6 @@ function _renderIntuneInfo(d, compliance) {
     html += '<div class="in-card">';
     html += '<div class="in-label" style="margin-bottom:10px;">Seguridad</div>';
     html += _iF('Cifrado',    d.isEncrypted ? '<span style="color:#10b981;">✓ Habilitado</span>' : '<span style="color:#f87171;">✗ No cifrado</span>');
-    html += _iF('Amenazas',   d.windowsActiveMalwareCount > 0
-        ? '<span style="color:#f87171;">'+d.windowsActiveMalwareCount+' activas</span>'
-        : '<span style="color:#10b981;">Sin amenazas activas</span>');
     html += _iF('Propietario', d.managedDeviceOwnerType === 'company' ? 'Corporativo' : (d.managedDeviceOwnerType || '—'));
     html += _iF('Inscripción', _iDate(d.enrolledDateTime));
     html += '</div>';

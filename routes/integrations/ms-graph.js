@@ -247,7 +247,7 @@ router.get('/devices/by-serial/:serial', ...adminGuard, async (req, res) => {
     try {
         const uid    = req.user.id;
         const serial = req.params.serial.trim().replace(/'/g, "''");
-        const fields = 'id,deviceName,serialNumber,azureADDeviceId,complianceState,lastSyncDateTime,osVersion,operatingSystem,manufacturer,model,userDisplayName,userPrincipalName,totalStorageSpaceInBytes,freeStorageSpaceInBytes,isEncrypted,enrolledDateTime,azureADRegistered,physicalMemoryInBytes,managedDeviceOwnerType,windowsActiveMalwareCount,windowsRemediatedMalwareCount,partnerReportedThreatState,emailAddress,deviceEnrollmentType,wifiMacAddress,ethernetMacAddress';
+        const fields = 'id,deviceName,serialNumber,azureADDeviceId,complianceState,lastSyncDateTime,osVersion,operatingSystem,manufacturer,model,userDisplayName,userPrincipalName,totalStorageSpaceInBytes,freeStorageSpaceInBytes,isEncrypted,enrolledDateTime,azureADRegistered,physicalMemoryInBytes,managedDeviceOwnerType,emailAddress,deviceEnrollmentType,wifiMacAddress,ethernetMacAddress';
         const data = await callGraph(uid, `/deviceManagement/managedDevices?$filter=serialNumber eq '${serial}'&$select=${fields}&$top=1`);
         const device = data.value?.[0];
         if (!device) return res.json({ success: true, found: false });
