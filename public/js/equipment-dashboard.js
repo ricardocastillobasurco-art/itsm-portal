@@ -260,11 +260,7 @@ function inicializarTablaEquipos() {
             }},
             { data: null, orderable: false, render: (d, type, row) => {
                 const stolen = row.is_stolen == 1 ? `<i class="bi bi-shield-exclamation text-danger me-1" title="Robado"></i>` : '';
-                const serial = (row.serial_number || '').trim();
-                const intuneBtn = serial
-                    ? `<button class="btn btn-sm intune-btn" data-serial="${serial.replace(/"/g,'&quot;')}" data-name="${((row.brand||'')+' '+(row.model||'')).trim().replace(/"/g,'&quot;')}" style="padding:4px 10px;font-size:11px;background:#0078d415;color:#0078d4;border:1px solid #0078d440;" title="Ver en Intune / Azure"><i class="bi bi-microsoft me-1"></i>Intune</button>`
-                    : '';
-                return `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${stolen}<button class="btn btn-sm btn-outline-primary detalles-btn" style="padding:4px 12px;font-size:11px;"><i class="bi bi-info-circle me-1"></i>Detalles</button>${intuneBtn}</div>`;
+                return `<div style="display:flex;gap:4px;align-items:center;">${stolen}<button class="btn btn-sm btn-outline-primary detalles-btn" style="padding:4px 12px;font-size:11px;"><i class="bi bi-info-circle me-1"></i>Detalles</button></div>`;
             }}
         ],
         order: [[0, 'asc']]
@@ -275,11 +271,6 @@ function inicializarTablaEquipos() {
         if (row) openDetallesModal(row.device_code);
     });
 
-    $('#equiposTable').off('click', '.intune-btn').on('click', '.intune-btn', function () {
-        const serial = $(this).data('serial');
-        const name   = $(this).data('name');
-        if (serial && typeof openIntunePanel === 'function') openIntunePanel(serial, name);
-    });
 }
 
 // ── EXPORT CSV ────────────────────────────────────────────────────────────
@@ -448,9 +439,88 @@ async function openDetallesModal(device_code) {
                 } catch (_) {}
             });
         }
+
+        // Sección Intune — carga asíncrona si el equipo tiene número de serie
+        if (d.serial_number && d.serial_number.trim()) {
+            _appendIntuneSection(body, d.serial_number.trim());
+        }
     } catch (e) {
         body.innerHTML = `<div class="alert alert-danger">Error al cargar detalles: ${e.message}</div>`;
     }
+}
+
+// ── Sección Intune dentro del modal Detalles ──────────────────────────────────
+function _appendIntuneSection(body, serial) {
+    const wrap = document.createElement('div');
+    wrap.id = 'intune-inline-section';
+    wrap.innerHTML = `<div style="margin-top:12px;border-radius:8px;border:1px solid #0078d430;background:var(--bg-header);padding:12px 14px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#0078d4;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+            <i class="bi bi-microsoft"></i> Intune
+            <span style="font-size:10px;color:var(--text-muted);font-weight:400;margin-left:4px;" id="intune-inline-status">Buscando...</span>
+        </div>
+        <div id="intune-inline-body" style="font-size:12px;color:var(--text-muted);">
+            <span class="spinner-border spinner-border-sm" style="width:12px;height:12px;border-width:1.5px;"></span>
+        </div>
+    </div>`;
+    body.appendChild(wrap);
+
+    fetch(`/api/ms/devices/by-serial/${encodeURIComponent(serial)}`, { credentials: 'include' })
+    .then(r => r.json())
+    .then(j => {
+        const status = document.getElementById('intune-inline-status');
+        const ib     = document.getElementById('intune-inline-body');
+        if (!ib) return;
+
+        if (!j.success || j.msReauth || j.forbidden) {
+            wrap.remove(); return; // sin sesión MS — no mostrar nada
+        }
+        if (!j.found) {
+            wrap.remove(); return; // no está en Intune — no mostrar nada
+        }
+
+        const dv = j.device;
+        if (status) status.textContent = '';
+
+        const compCfg = {
+            compliant:     { color:'#10b981', label:'Conforme' },
+            noncompliant:  { color:'#f87171', label:'No conforme' },
+            error:         { color:'#f87171', label:'Error' },
+            inGracePeriod: { color:'#f59e0b', label:'Periodo de gracia' },
+            unknown:       { color:'#94a3b8', label:'Desconocido' },
+        };
+        const cc  = compCfg[dv.complianceState] || compCfg.unknown;
+        const enc = dv.isEncrypted
+            ? '<span style="color:#10b981;font-weight:600;">✓ Cifrado</span>'
+            : '<span style="color:#f87171;font-weight:600;">✗ Sin cifrar</span>';
+
+        let syncAgo = '—';
+        if (dv.lastSyncDateTime) {
+            const mins = Math.floor((Date.now() - new Date(dv.lastSyncDateTime)) / 60000);
+            syncAgo = mins < 60 ? `hace ${mins} min` : mins < 1440 ? `hace ${Math.floor(mins/60)} h` : `hace ${Math.floor(mins/1440)} días`;
+        }
+
+        ib.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
+            <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">CUMPLIMIENTO</div>
+            <span style="background:${cc.color}20;color:${cc.color};border:1px solid ${cc.color}50;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700;">${cc.label}</span></div>
+            <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">ÚLTIMO CHECK-IN</div><span style="font-weight:600;">${syncAgo}</span></div>
+            <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">CIFRADO</div>${enc}</div>
+            <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">VERSIÓN OS</div><span style="font-weight:600;">${dv.osVersion || '—'}</span></div>
+            ${dv.userPrincipalName ? `<div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">USUARIO INTUNE</div><span style="font-weight:600;">${dv.userPrincipalName}</span></div>` : ''}
+        </div>
+        ${j.compliance && j.compliance.length ? _intuneComplianceRow(j.compliance) : ''}
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="openIntunePanel('${serial.replace(/'/g,"\\'")}','${(dv.deviceName||serial).replace(/'/g,"\\'")}');return false;" style="background:none;border:none;color:#0078d4;font-size:11px;cursor:pointer;padding:0;"><i class="bi bi-box-arrow-up-right me-1"></i>Ver detalle completo</button>
+        </div>`;
+    })
+    .catch(() => { const s = document.getElementById('intune-inline-section'); if (s) s.remove(); });
+}
+
+function _intuneComplianceRow(policies) {
+    const fail = policies.filter(p => p.state === 'nonCompliant' || p.state === 'error');
+    if (!fail.length) return '';
+    return `<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+        ${fail.map(p => `<div style="font-size:11px;color:#f87171;"><i class="bi bi-x-circle-fill me-1"></i>${p.displayName||p.id}</div>`).join('')}
+    </div>`;
 }
 
 async function crearPrestamo(device_code) {
