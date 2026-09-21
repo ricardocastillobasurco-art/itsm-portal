@@ -5369,8 +5369,6 @@ function _renderIntuneInfo(d, compliance) {
     html += _iF('Amenazas',   d.windowsActiveMalwareCount > 0
         ? '<span style="color:#f87171;">'+d.windowsActiveMalwareCount+' activas</span>'
         : '<span style="color:#10b981;">Sin amenazas activas</span>');
-    html += _iF('Tipo unión',  _iJoinType(d.joinType));
-    html += _iF('Autopilot',   d.autopilotEnrolled ? 'Sí' : 'No');
     html += _iF('Propietario', d.managedDeviceOwnerType === 'company' ? 'Corporativo' : (d.managedDeviceOwnerType || '—'));
     html += _iF('Inscripción', _iDate(d.enrolledDateTime));
     html += '</div>';
