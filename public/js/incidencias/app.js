@@ -4651,6 +4651,7 @@ function renderTicket(issue, opts) {
       : ''}
       <div class="tc-actions">
         <button class="btn-outline-sm" style="font-size:12px;color:var(--jira-blue);border-color:rgba(0,82,204,0.3);" onclick="asignarDirecto('${key}')"><i class="bi bi-person-check-fill"></i> Asignarme</button>
+        ${!isClosed_ && asgn && asgn !== 'Sin asignar' ? `<button class="btn-outline-sm" style="font-size:12px;color:#dc2626;border-color:rgba(220,38,38,0.35);" onclick="desasignarme('${key}',this)"><i class="bi bi-person-dash"></i> Desasignarme</button>` : ''}
         <button class="btn-outline-sm" style="font-size:12px;" onclick="toggleAsigInc('${key}',this)"><i class="bi bi-people"></i> Reasignar</button>
         <button class="btn-outline-sm" style="font-size:12px;" onclick="toggleComentarInc('${key}',this)"><i class="bi bi-chat-dots"></i> Comentar</button>
         ${isPend_ ? `<button class="btn-outline-sm" style="font-size:12px;color:#6366f1;border-color:rgba(99,102,241,.4);" onclick="toggleReanudarInc('${key}',this)"><i class="bi bi-arrow-counterclockwise"></i> Reanudar</button>` : ''}
@@ -4978,6 +4979,27 @@ function asignarDirecto(key) {
         const btn = document.getElementById('nav-misAsig');
         if (btn) btn.click();
     });
+}
+
+async function desasignarme(key, btn) {
+    if (!confirm(`¿Desasignarte de ${key}? El ticket quedará sin asignar en la misma área.`)) return;
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    try {
+        const r = await fetch(`/api/jira/ticket/${key}/unassign`, {
+            method: 'PUT', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const j = await r.json();
+        if (!j.success) throw new Error(j.error || 'Error al desasignar');
+        showToast(`✓ ${key} desasignado`, 'success');
+        reloadCard(key);
+    } catch(e) {
+        showToast('Error: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
 }
 function getJiraEmail() {
     let email = localStorage.getItem('jira_email') || CURRENT_USER_EMAIL;

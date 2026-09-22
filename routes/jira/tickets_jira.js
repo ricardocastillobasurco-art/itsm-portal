@@ -1521,6 +1521,31 @@ router.put('/ticket/:key/assign', authenticateToken, async (req, res) => {
 
 
 
+// ── PUT /ticket/:key/unassign — Desasignar sin cambiar área ──────────────────
+router.put('/ticket/:key/unassign', authenticateToken, async (req, res) => {
+    const { key } = req.params;
+    try {
+        // Quitar asignado en Jira (null = sin asignar)
+        try { await jira('PUT', `/rest/api/3/issue/${key}/assignee`, { accountId: null }); }
+        catch (e) { console.warn(`[unassign] Jira PUT falló: ${e.message}`); }
+        // Limpiar asignado en BD local, status → sin_asignar, área no cambia
+        await dbQuery(
+            `UPDATE jira_tickets
+             SET assigned_to = NULL, assigned_to_name = NULL, jira_assignee = NULL,
+                 jira_account_id = NULL, internal_status = 'sin_asignar', assigned_at = NULL
+             WHERE ticket_key = ?`,
+            [key]
+        );
+        const actor = req.user?.full_name || req.user?.username || 'Admin';
+        dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'desasignacion', ?)`,
+            [key, req.user?.id || 0, actor, `Ticket desasignado por ${actor}`]).catch(() => {});
+        res.json({ success: true });
+    } catch(e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+
 // ============================================================
 
 
