@@ -495,6 +495,28 @@ router.get('/bitlocker/key/:keyId', ...adminGuard, async (req, res) => {
     } catch(e) { handleGraphErr(e, res); }
 });
 
+// ── GET /api/ms/bitlocker/test — Diagnóstico app-only token BitLocker ─────────
+router.get('/bitlocker/test', authenticateToken, requireRole('administrador','superadmin','especialista'), async (req, res) => {
+    try {
+        const { getAppAccessToken } = require('../../src/services/graphClient');
+        const axios = require('axios');
+        const token = await getAppAccessToken();
+        // Intentar listar primeras 2 claves sin filtro
+        const resp = await axios.get('https://graph.microsoft.com/v1.0/informationProtection/bitlocker/recoveryKeys?$top=2&$select=id,createdDateTime,deviceId', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        res.json({ success: true, count: resp.data.value?.length, sample: resp.data.value });
+    } catch(e) {
+        const errData = e.response?.data;
+        res.status(e.response?.status || 500).json({
+            success: false,
+            status: e.response?.status,
+            error: errData?.error?.code,
+            message: errData?.error?.message || e.message
+        });
+    }
+});
+
 // ── GET /api/ms/teams — Teams activos ────────────────────────────────────────
 router.get('/teams', ...adminGuard, async (req, res) => {
     try {
