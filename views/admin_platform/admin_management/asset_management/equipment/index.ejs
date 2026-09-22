@@ -2692,6 +2692,27 @@ function showBitLockerKey(btn) {
     fetch('/api/ms/devices/' + devId + '/bitlocker', { credentials: 'include' })
         .then(function(r){ return r.json(); })
         .then(function(json) {
+            if (json.msReauth) {
+                document.getElementById('blKeyContent').innerHTML =
+                    '<div style="text-align:center;padding:20px;color:#f59e0b;font-size:13px;">'
+                    + '<i class="bi bi-person-lock" style="font-size:28px;display:block;margin-bottom:10px;"></i>'
+                    + '<strong>Sesión Microsoft expirada.</strong><br>Vuelve a iniciar sesión con Microsoft.</div>';
+                return;
+            }
+            if (json.forbidden) {
+                document.getElementById('blKeyContent').innerHTML =
+                    '<div style="text-align:center;padding:20px;color:#ef4444;font-size:13px;">'
+                    + '<i class="bi bi-shield-x" style="font-size:28px;display:block;margin-bottom:10px;"></i>'
+                    + '<strong>Sin permisos.</strong><br>' + (json.error || 'BitLockerKey.Read.All no otorgado.') + '</div>';
+                return;
+            }
+            if (!json.success) {
+                document.getElementById('blKeyContent').innerHTML =
+                    '<div style="text-align:center;padding:20px;color:#ef4444;font-size:13px;">'
+                    + '<i class="bi bi-exclamation-triangle" style="font-size:28px;display:block;margin-bottom:10px;"></i>'
+                    + (json.error || 'Error al consultar Graph API.') + '</div>';
+                return;
+            }
             var keys = json.data || [];
             if (!keys.length) {
                 document.getElementById('blKeyContent').innerHTML =
@@ -5355,6 +5376,14 @@ function _loadIntuneBL() {
     .then(function(r){ return r.json(); })
     .then(function(j){
         if (j.msReauth) { _intuneAuthErr(); return; }
+        if (j.forbidden || !j.success) {
+            var errHtml = '<div style="padding:20px;text-align:center;font-size:13px;color:#ef4444;">'
+                + '<i class="bi bi-shield-x" style="font-size:28px;display:block;margin-bottom:8px;"></i>'
+                + (j.forbidden ? '<strong>Sin permisos.</strong><br>BitLockerKey.Read.All no está otorgado o la sesión expiró.' : (j.error || 'Error al consultar Graph API.'))
+                + '</div>';
+            document.getElementById('intune-body').innerHTML = errHtml;
+            return;
+        }
         var html = '<div class="in-section-title">Claves de recuperación BitLocker</div>';
         if (!j.data || !j.data.length) {
             html += '<div style="padding:0 20px 20px;font-size:13px;color:var(--text-muted);">No se encontraron claves BitLocker para este dispositivo.</div>';
@@ -5380,7 +5409,8 @@ function _revealBL(keyId, btn) {
     fetch('/api/ms/bitlocker/key/'+keyId, { credentials:'include' })
     .then(function(r){ return r.json(); })
     .then(function(j){
-        if (!j.success) { btn.disabled=false; btn.innerHTML='Error'; return; }
+        if (j.msReauth) { btn.disabled=false; btn.textContent='Sesión expirada'; return; }
+        if (!j.success) { btn.disabled=false; btn.textContent = j.forbidden ? 'Sin permisos' : 'Error'; return; }
         var row = btn.parentElement;
         var keyDiv = document.createElement('div');
         keyDiv.className = 'in-key-val';

@@ -127,6 +127,51 @@ async function callGraph(userId, path, { method = 'GET', body, beta = false } = 
   }
 }
 
+// App-only token (client_credentials) — para endpoints que requieren permisos de aplicación
+// como BitLockerKey.Read.All y DeviceLocalCredential.Read.All
+let _appTokenCache = null; // { token, expiresAt }
+async function getAppAccessToken() {
+  if (_appTokenCache && _appTokenCache.expiresAt > Date.now() + 30000) {
+    return _appTokenCache.token;
+  }
+  const body = new URLSearchParams({
+    grant_type:    'client_credentials',
+    client_id:     process.env.MS_CLIENT_ID,
+    client_secret: process.env.MS_CLIENT_SECRET,
+    scope:         'https://graph.microsoft.com/.default',
+  }).toString();
+  const resp = await axios.post(
+    `https://login.microsoftonline.com/${process.env.MS_TENANT_ID}/oauth2/v2.0/token`,
+    body,
+    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+  );
+  _appTokenCache = {
+    token:     resp.data.access_token,
+    expiresAt: Date.now() + (resp.data.expires_in - 60) * 1000,
+  };
+  return _appTokenCache.token;
+}
+
+async function callGraphApp(path, { method = 'GET', body, beta = false } = {}) {
+  const token = await getAppAccessToken();
+  const base  = beta ? GRAPH_BETA : GRAPH_BASE;
+  const url   = path.startsWith('http') ? path : `${base}${path}`;
+  try {
+    const resp = await axios({
+      method,
+      url,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: body || undefined,
+    });
+    return resp.data;
+  } catch (e) {
+    if (e.response?.status === 401) throw new GraphAuthError('App token inválido.');
+    if (e.response?.status === 403) throw new GraphForbiddenError(e.response?.data?.error?.message || 'Sin permisos de aplicación para este recurso.');
+    const msg = e.response?.data?.error?.message || e.message;
+    throw new Error(`Graph API App [${path}]: ${msg}`);
+  }
+}
+
 // Paginar automáticamente respuestas con @odata.nextLink
 async function callGraphPaged(userId, path, { maxPages = 10, beta = false } = {}) {
   const items = [];
@@ -141,4 +186,4 @@ async function callGraphPaged(userId, path, { maxPages = 10, beta = false } = {}
   return items;
 }
 
-module.exports = { callGraph, callGraphPaged, getAccessToken, GraphAuthError, GraphForbiddenError, GRAPH_SCOPES };
+module.exports = { callGraph, callGraphApp, callGraphPaged, getAccessToken, GraphAuthError, GraphForbiddenError, GRAPH_SCOPES };

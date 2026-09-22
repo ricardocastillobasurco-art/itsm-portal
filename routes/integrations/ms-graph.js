@@ -4,7 +4,7 @@ const express             = require('express');
 const router              = express.Router();
 const { authenticateToken, requireRole } = require('../../middleware/auth');
 const requireGraphToken   = require('../../middleware/requireGraphToken');
-const { callGraph, callGraphPaged, GraphAuthError, GraphForbiddenError } = require('../../src/services/graphClient');
+const { callGraph, callGraphApp, callGraphPaged, GraphAuthError, GraphForbiddenError } = require('../../src/services/graphClient');
 const { dbQuery }         = require('../jira/helpers');
 
 // Todos los endpoints requieren auth propia + token Graph
@@ -429,14 +429,15 @@ router.get('/devices/:id/apps-debug', authenticateToken, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── GET /api/ms/devices/:id/bitlocker — Clave BitLocker ──────────────────────
+// ── GET /api/ms/devices/:id/bitlocker — Clave BitLocker (app-only) ───────────
 router.get('/devices/:id/bitlocker', ...adminGuard, async (req, res) => {
     try {
-        // Buscar por azureADDeviceId del dispositivo
+        // azureADDeviceId se obtiene con token delegado (Intune)
         const dev = await callGraph(req.user.id, `/deviceManagement/managedDevices/${req.params.id}?$select=azureADDeviceId,deviceName`);
         const azureId = dev.azureADDeviceId;
         if (!azureId) return res.json({ success: true, data: [], deviceName: dev.deviceName });
-        const keys = await callGraph(req.user.id,
+        // Las claves BitLocker se consultan con token de aplicación (no requiere rol admin del usuario)
+        const keys = await callGraphApp(
             `/informationProtection/bitlocker/recoveryKeys?$filter=deviceId eq '${azureId}'&$select=id,createdDateTime,deviceId`
         );
         res.json({ success: true, data: keys.value || [], deviceName: dev.deviceName });
@@ -485,10 +486,10 @@ router.get('/devices/:id/laps', ...adminGuard, async (req, res) => {
     } catch(e) { handleGraphErr(e, res); }
 });
 
-// ── GET /api/ms/bitlocker/key/:keyId — Revelar clave BitLocker ────────────────
+// ── GET /api/ms/bitlocker/key/:keyId — Revelar clave BitLocker (app-only) ─────
 router.get('/bitlocker/key/:keyId', ...adminGuard, async (req, res) => {
     try {
-        const data = await callGraph(req.user.id, `/informationProtection/bitlocker/recoveryKeys/${req.params.keyId}?$select=id,createdDateTime,key`);
+        const data = await callGraphApp(`/informationProtection/bitlocker/recoveryKeys/${req.params.keyId}?$select=id,createdDateTime,key`);
         console.log(`[BITLOCKER-AUDIT] user=${req.user.email||req.user.id} keyId=${req.params.keyId} ip=${req.ip} at=${new Date().toISOString()}`);
         res.json({ success: true, key: data.key, createdDateTime: data.createdDateTime });
     } catch(e) { handleGraphErr(e, res); }
