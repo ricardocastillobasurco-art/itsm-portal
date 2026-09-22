@@ -4635,6 +4635,7 @@ function renderTicket(issue, opts) {
         <span><span class="meta-lbl">Actualizado</span><b>${upd}</b></span>
         ${_resDate && _resDate !== '—' ? `<span><span class="meta-lbl">Cerrado</span><b style="color:var(--text-main);">${_resDate}${f.resolutiondate?`<span class="meta-time">${new Date(f.resolutiondate).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})}</span>`:''}</b></span>` : ''}
       </div>
+      ${_descText ? `<div class="tc-desc-preview">${incEsc(_descText)}</div>` : ''}
       ${cmtHtml}
       ${isClosed_ && !key.startsWith('TK-') ? (_wpPadre
         ? `<div id="wpbadge-${key}" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:${_wpColor}18;border:1px solid ${_wpColor}40;border-radius:8px;margin-bottom:8px;flex-wrap:wrap;">
@@ -5107,7 +5108,7 @@ async function loadMisAsig() {
         todos:     `project = INC AND assignee = "${email}" ORDER BY updated DESC`,
     };
     const jql = JQL_MAP[_misAsigFilter] || JQL_MAP.activos;
-    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795'];
+    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','description'];
     const chartJql = `project = INC AND assignee = "${email}" AND created >= -7d ORDER BY created ASC`;
 
     try {
@@ -5192,7 +5193,7 @@ async function loadSinAsig() {
         todos:       `${BASE} AND status IN ("Asignado N2",Pendiente) ORDER BY created ${sort}`,
     };
     const jql = JQL_MAP[_sinAsigFilter] || JQL_MAP.sin_asignar;
-    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795'];
+    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','description'];
     const BASE_CHT = 'project = INC AND "Tipo de Componente" = Workplace';
     const chartJql = `${BASE_CHT} AND assignee is EMPTY AND created >= -7d ORDER BY created ASC`;
 
@@ -5290,7 +5291,7 @@ async function loadEnCurso(force) {
     list.innerHTML = '<div class="inc-skeleton"></div><div class="inc-skeleton"></div><div class="inc-skeleton"></div>';
     const jql      = `project = INC AND "Tipo de Componente" = Workplace AND assignee is not EMPTY AND status NOT IN (Cerrado,Closed,Done,Resuelto,Resolved) ORDER BY created ASC`;
     const chartJql = `project = INC AND "Tipo de Componente" = Workplace AND assignee is not EMPTY AND created >= -7d ORDER BY created ASC`;
-    const FIELDS   = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795'];
+    const FIELDS   = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','description'];
     try {
         const [data, chartData] = await Promise.all([
             jira('POST', '/rest/api/3/search/jql', { jql, fields: FIELDS, maxResults: 200 }),
@@ -7394,7 +7395,7 @@ async function ejecutarCierre(key) {
 // ── Reload card individual ────────────────────────────────────────────────────
 async function reloadCard(key) {
     try {
-        const issue = await jira('GET', `/rest/api/3/issue/${key}?fields=summary,status,assignee,reporter,priority,created,updated,comment`);
+        const issue = await jira('GET', `/rest/api/3/issue/${key}?fields=summary,status,assignee,reporter,priority,created,updated,comment,description`);
         const card  = document.getElementById('card-'+key);
         if (card) {
             const tmp = document.createElement('div');
