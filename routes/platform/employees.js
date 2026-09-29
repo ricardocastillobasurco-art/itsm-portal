@@ -7,6 +7,7 @@ const { body, param, query, validationResult } = require('express-validator');
 const { authenticateToken, optionalAuth, logActivity } = require('../../middleware/auth');
 const { checkPermission } = require('../../middleware/permissions');
 const employeeService = require('../../src/services/platform/EmployeeService');
+const { tenantId } = require('../../src/utils/tenantScope');
 
 const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -17,7 +18,7 @@ const validate = (req, res, next) => {
 // ── Vista empleados ───────────────────────────────────────────────────────
 router.get('/employees', authenticateToken, async (req, res) => {
   try {
-    const employees = await employeeService.findAllForView(parseInt(req.user?.tenant_id || 1));
+    const employees = await employeeService.findAllForView(tenantId(req));
     res.render('employees', { title: 'Gestión de Empleados', employees, currentPage: 1, totalPages: 1, search: '' });
   } catch (err) {
     console.error('❌ Error:', err);
@@ -26,29 +27,11 @@ router.get('/employees', authenticateToken, async (req, res) => {
 });
 
 // ── GET /search-emails ────────────────────────────────────────────────────
-router.get('/search-emails', optionalAuth, async (req, res, next) => {
+router.get('/search-emails', authenticateToken, async (req, res, next) => {
   try {
     const { q } = req.query;
     if (!q || q.length < 2) return res.ok([]);
-
-    const tenantId = req.user?.tenant_id;
-    const PRIMARY  = 1;
-
-    // Non-primary tenants: query users table (tenant-isolated)
-    if (tenantId && parseInt(tenantId) !== PRIMARY) {
-      const { executeQuery, equipmentPool } = require('../../config/database');
-      const rows = await executeQuery(equipmentPool,
-        `SELECT email, full_name, '' AS position_name, '' AS cip
-         FROM users
-         WHERE tenant_id = ? AND is_active = 1 AND deleted_at IS NULL
-           AND (full_name LIKE ? OR email LIKE ? OR username LIKE ?)
-         ORDER BY full_name LIMIT 10`,
-        [parseInt(tenantId), `%${q}%`, `%${q}%`, `%${q}%`]
-      );
-      return res.ok(rows);
-    }
-
-    res.ok(await employeeService.searchEmails(q));
+    res.ok(await employeeService.searchEmails(q, 10, tenantId(req)));
   } catch (err) {
     next(err);
   }
@@ -57,18 +40,18 @@ router.get('/search-emails', optionalAuth, async (req, res, next) => {
 // ── GET /bajas ────────────────────────────────────────────────────────────
 router.get('/bajas', authenticateToken, checkPermission('employees', 'read'), async (req, res) => {
   try {
-    res.ok(await employeeService.findInactive(parseInt(req.user?.tenant_id || 1)));
+    res.ok(await employeeService.findInactive(tenantId(req)));
   } catch (err) {
     res.fail('Error al listar empleados de baja');
   }
 });
 
 // ── PUT /toggle-status ────────────────────────────────────────────────────
-router.put('/toggle-status', async (req, res) => {
+router.put('/toggle-status', authenticateToken, checkPermission('employees', 'update'), async (req, res) => {
   try {
     const { cip, is_active } = req.body;
     if (!cip) return res.fail('CIP es requerido', 400, 'VALIDATION_ERROR');
-    const data = await employeeService.toggleStatusByCip(cip, is_active);
+    const data = await employeeService.toggleStatusByCip(cip, is_active, tenantId(req));
     res.ok(data, `Empleado ${data.is_active ? 'activado' : 'dado de baja'} correctamente`);
   } catch (err) {
     res.fail(err.message, err.status || 500);
@@ -76,9 +59,9 @@ router.put('/toggle-status', async (req, res) => {
 });
 
 // ── GET /planilla ─────────────────────────────────────────────────────────
-router.get('/planilla', async (req, res, next) => {
+router.get('/planilla', authenticateToken, async (req, res, next) => {
   try {
-    res.json(await employeeService.count());
+    res.json(await employeeService.count(tenantId(req)));
   } catch (err) {
     next(err);
   }
@@ -92,7 +75,7 @@ router.get('/search',
   validate,
   async (req, res) => {
     try {
-      res.ok(await employeeService.search(req.query.q || '', 50, parseInt(req.user?.tenant_id || 1)));
+      res.ok(await employeeService.search(req.query.q || '', 50, tenantId(req)));
     } catch (err) {
       res.fail('Error al buscar empleados');
     }
@@ -105,8 +88,7 @@ router.get('/', authenticateToken, checkPermission('employees', 'read'), logActi
     const page   = parseInt(req.query.page)  || 1;
     const limit  = parseInt(req.query.limit) || 50;
     const search = req.query.search || '';
-    const tenantId = parseInt(req.user?.tenant_id || 1);
-    const { employees, total } = await employeeService.findAll({ search, page, limit, tenantId });
+    const { employees, total } = await employeeService.findAll({ search, page, limit, tenantId: tenantId(req) });
     res.json({
       success: true,
       data:    employees,
@@ -138,7 +120,7 @@ router.post('/',
   logActivity('CREATE_EMPLOYEE'),
   async (req, res) => {
     try {
-      const data = await employeeService.create(req.body);
+      const data = await employeeService.create(req.body, tenantId(req));
       res.ok(data, 'Empleado creado exitosamente', 201);
     } catch (err) {
       res.fail(err.message, err.status || 500);
@@ -149,7 +131,7 @@ router.post('/',
 // ── PUT /:id — Dar de baja / reactivar ────────────────────────────────────
 router.put('/:id', authenticateToken, checkPermission('employees', 'update'), async (req, res) => {
   try {
-    const data = await employeeService.setActive(req.params.id, req.body.is_active, req.body.deactivated_at);
+    const data = await employeeService.setActive(req.params.id, req.body.is_active, req.body.deactivated_at, tenantId(req));
     res.ok(data, 'Empleado actualizado correctamente');
   } catch (err) {
     res.fail(err.message, err.status || 500);
@@ -165,7 +147,7 @@ router.delete('/:id',
   logActivity('DELETE_EMPLOYEE'),
   async (req, res) => {
     try {
-      await employeeService.deleteById(req.params.id);
+      await employeeService.deleteById(req.params.id, tenantId(req));
       res.ok(null, 'Empleado eliminado exitosamente');
     } catch (err) {
       res.fail(err.message, err.status || 500);

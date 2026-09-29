@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { body, param, query, validationResult } = require('express-validator');
 const { equipmentPool, callStoredProcedure, executeQuery } = require('../../config/database');
+const { tenantId } = require('../../src/utils/tenantScope');
 
 const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -21,8 +22,8 @@ const validate = (req, res, next) => {
 // GET /api/locations - Listar ubicaciones
 router.get('/', async (req, res, next) => {
   try {
-    const query = 'SELECT * FROM locations WHERE is_active = TRUE ORDER BY location_name';
-    const results = await executeQuery(equipmentPool, query);
+    const query = 'SELECT * FROM locations WHERE is_active = TRUE AND tenant_id = ? ORDER BY location_name';
+    const results = await executeQuery(equipmentPool, query, [tenantId(req)]);
     
     res.json({
       success: true,
@@ -50,6 +51,7 @@ router.get('/search', async (req, res, next) => {
     const queryStr = `
       SELECT * FROM locations
       WHERE is_active = TRUE
+        AND tenant_id = ?
         AND (
           location_name COLLATE utf8mb4_unicode_ci LIKE ?
           OR branch_office_id COLLATE utf8mb4_unicode_ci LIKE ?
@@ -60,7 +62,7 @@ router.get('/search', async (req, res, next) => {
     `;
 
     const searchTerm = `%${term}%`;
-    const results = await executeQuery(equipmentPool, queryStr, [searchTerm, searchTerm, searchTerm]);
+    const results = await executeQuery(equipmentPool, queryStr, [tenantId(req), searchTerm, searchTerm, searchTerm]);
 
     console.log('✅ Ubicaciones encontradas:', results.length);
 
@@ -102,13 +104,13 @@ router.put('/update', async (req, res) => {
         }
 
         // Ver estado antes
-        const beforeQuery = 'SELECT * FROM locations WHERE id = ?';
-        const before = await executeQuery(equipmentPool, beforeQuery, [id]);
+        const beforeQuery = 'SELECT * FROM locations WHERE id = ? AND tenant_id = ?';
+        const before = await executeQuery(equipmentPool, beforeQuery, [id, tenantId(req)]);
         console.log('📊 Estado ANTES:', before[0]);
 
         // Actualizar ubicación
         const query = `
-            UPDATE equipment_management.locations
+            UPDATE locations
             SET 
                 branch_office_id = ?,
                 location_name = ?,
@@ -117,7 +119,7 @@ router.put('/update', async (req, res) => {
                 country = ?,
                 address = ?,
                 phone = ?
-            WHERE id = ?
+            WHERE id = ? AND tenant_id = ?
         `;
 
         const result = await executeQuery(
@@ -131,7 +133,8 @@ router.put('/update', async (req, res) => {
                 country || 'Perú',
                 address || null,
                 phone || null,
-                id
+                id,
+                tenantId(req)
             ]
         );
 
@@ -141,8 +144,8 @@ router.put('/update', async (req, res) => {
         });
 
         // Ver estado después
-        const afterQuery = 'SELECT * FROM locations WHERE id = ?';
-        const after = await executeQuery(equipmentPool, afterQuery, [id]);
+        const afterQuery = 'SELECT * FROM locations WHERE id = ? AND tenant_id = ?';
+        const after = await executeQuery(equipmentPool, afterQuery, [id, tenantId(req)]);
         console.log('📊 Estado DESPUÉS:', after[0]);
         console.log('═══════════════════════════════════════════════\n');
 
@@ -175,8 +178,8 @@ router.get('/:id',
   ],
   async (req, res, next) => {
     try {
-      const query = 'SELECT * FROM locations WHERE id = ?';
-      const results = await executeQuery(equipmentPool, query, [req.params.id]);
+      const query = 'SELECT * FROM locations WHERE id = ? AND tenant_id = ?';
+      const results = await executeQuery(equipmentPool, query, [req.params.id, tenantId(req)]);
       
       if (results.length === 0) {
         return res.status(404).json({
@@ -209,8 +212,8 @@ router.post('/',
       const { branch_office_id, location_name, city, state, country, address, phone } = req.body;
 
       const query = `
-        INSERT INTO locations (branch_office_id, location_name, city, state, country, address, phone)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO locations (branch_office_id, location_name, city, state, country, address, phone, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const result = await executeQuery(equipmentPool, query, [
@@ -220,7 +223,8 @@ router.post('/',
         state,
         country || 'Perú',
         address || null,
-        phone || null
+        phone || null,
+        tenantId(req)
       ]);
 
       res.status(201).json({

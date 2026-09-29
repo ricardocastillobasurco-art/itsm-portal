@@ -172,14 +172,14 @@ router.post('/',
     try {
       // Verificar duplicado device_code
       const checkCode = await executeQuery(equipmentPool,
-        'SELECT id FROM equipment WHERE device_code = ? LIMIT 1', [device_code]);
+        'SELECT id FROM equipment WHERE device_code = ? AND tenant_id = ? LIMIT 1', [device_code, tenantId(req)]);
       if (checkCode.length > 0) {
         return res.status(409).json({ success: false, error: `El código "${device_code}" ya existe`, field: 'device_code' });
       }
 
       // Verificar duplicado serial_number
       const checkSerial = await executeQuery(equipmentPool,
-        'SELECT id FROM equipment WHERE serial_number = ? LIMIT 1', [serial_number]);
+        'SELECT id FROM equipment WHERE serial_number = ? AND tenant_id = ? LIMIT 1', [serial_number, tenantId(req)]);
       if (checkSerial.length > 0) {
         return res.status(409).json({ success: false, error: `El serial "${serial_number}" ya existe`, field: 'serial_number' });
       }
@@ -188,13 +188,13 @@ router.post('/',
         INSERT INTO equipment (
           device_code, serial_number, equipment_type, brand, model,
           processor, operating_system, disk_capacity, ram_memory,
-          acquisition_type, obsolescence_years, domain, it_level_1, it_level_2, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          acquisition_type, obsolescence_years, domain, it_level_1, it_level_2, status, tenant_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         device_code, serial_number, equipment_type, brand, model,
         processor || null, operating_system || null, disk_capacity || null, ram_memory || null,
         acquisition_type || 'Propio', obsolescence_years || null, domain || null,
-        it_level_1 || null, it_level_2 || null, status || 'Disponible'
+        it_level_1 || null, it_level_2 || null, status || 'Disponible', tenantId(req)
       ]);
 
       return res.status(201).json({
@@ -231,10 +231,10 @@ router.get('/', authenticateToken, checkPermission('equipment', 'read'), async (
     const estado_operativo = (req.query.estado_operativo  || '').trim() || null;
     const status_filter    = (req.query.status            || '').trim() || null;
 
-    const tenantId = parseInt(req.user?.tenant_id || 1);
+    const tid = tenantId(req);
 
     let whereConditions = ['e.tenant_id = ?'];
-    let queryParams     = [tenantId];
+    let queryParams     = [tid];
 
     if (equipment_type) {
       whereConditions.push('e.equipment_type = ?');
@@ -247,13 +247,13 @@ router.get('/', authenticateToken, checkPermission('equipment', 'read'), async (
           whereConditions.push('e.is_stolen = 1');
           break;
         case 'Dañado':
-          whereConditions.push(`EXISTS (SELECT 1 FROM equipment_faults f WHERE f.equipment_id = e.id AND f.repair_status NOT IN ('Resuelto','Dado de baja'))`);
+          whereConditions.push(`EXISTS (SELECT 1 FROM equipment_faults f WHERE f.tenant_id = e.tenant_id AND f.equipment_id = e.id AND f.repair_status NOT IN ('Resuelto','Dado de baja'))`);
           break;
         case 'Por recuperar':
-          whereConditions.push(`EXISTS (SELECT 1 FROM equipment_recoveries r WHERE r.equipment_id = e.id AND r.status != 'recuperado')`);
+          whereConditions.push(`EXISTS (SELECT 1 FROM equipment_recoveries r WHERE r.tenant_id = e.tenant_id AND r.equipment_id = e.id AND r.status != 'recuperado')`);
           break;
         case 'Prestado':
-          whereConditions.push(`EXISTS (SELECT 1 FROM equipment_loans l WHERE l.equipment_id = e.id AND l.estado = 'activo')`);
+          whereConditions.push(`EXISTS (SELECT 1 FROM equipment_loans l WHERE l.tenant_id = e.tenant_id AND l.equipment_id = e.id AND l.estado = 'activo')`);
           break;
         case 'En Tránsito':
           whereConditions.push('e.status = ?');
@@ -306,30 +306,30 @@ router.get('/', authenticateToken, checkPermission('equipment', 'read'), async (
       : '';
 
     // JOINs SCCM separados y JOIN asignación activa
-    const J1   = `LEFT JOIN sccm_inventory s1 ON s1.hostname    COLLATE utf8mb4_0900_ai_ci = e.device_code`;
-    const J2   = `LEFT JOIN sccm_inventory s2 ON s2.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number AND s1.hostname IS NULL`;
+    const J1   = `LEFT JOIN sccm_inventory s1 ON s1.tenant_id = e.tenant_id AND s1.hostname    COLLATE utf8mb4_0900_ai_ci = e.device_code`;
+    const J2   = `LEFT JOIN sccm_inventory s2 ON s2.tenant_id = e.tenant_id AND s2.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number AND s1.hostname IS NULL`;
     const JASG = `LEFT JOIN (
                     SELECT a.equipment_id, emp.full_name AS assigned_to, emp.cip AS assigned_cip, emp.email AS assigned_email
                     FROM assignments a
                     JOIN employees emp ON emp.id = a.employee_id
-                    WHERE a.status = 'Activo' AND a.tenant_id = ${tenantId}
+                    WHERE a.status = 'Activo' AND a.tenant_id = ${Number(tid)}
                   ) asgn ON asgn.equipment_id = e.id`;
 
     // Total sin filtros (para DataTables recordsTotal) — restringido al tenant
-    const totalAllRes = await executeQuery(equipmentPool, 'SELECT COUNT(*) AS total FROM equipment WHERE tenant_id = ?', [tenantId]);
+    const totalAllRes = await executeQuery(equipmentPool, 'SELECT COUNT(*) AS total FROM equipment WHERE tenant_id = ?', [tid]);
     const totalAll = totalAllRes[0].total;
 
     // Total con filtros
     const countResults = await executeQuery(equipmentPool,
-      `SELECT COUNT(*) as total FROM equipment e ${J1} ${J2} ${whereClause}`, queryParams);
+      `SELECT COUNT(*) as total /* tenant_id: filtrado en whereClause */ FROM equipment e ${J1} ${J2} ${whereClause}`, queryParams);
     const total = countResults[0].total;
 
     // Datos paginados con empleado asignado
     const dataResults = await executeQuery(equipmentPool,
-      `SELECT e.*,
+      `SELECT e.*, /* tenant_id: filtrado en whereClause */
         COALESCE(e.operating_system, s1.sistema_operativo, s2.sistema_operativo) AS operating_system,
         COALESCE(e.domain, s1.dominio, s2.dominio) AS domain,
-        (SELECT id FROM equipment_loans WHERE equipment_id = e.id AND estado = 'activo' LIMIT 1) AS active_loan_id,
+        (SELECT id FROM equipment_loans WHERE equipment_id = e.id AND tenant_id = e.tenant_id AND estado = 'activo' LIMIT 1) AS active_loan_id,
         asgn.assigned_to, asgn.assigned_cip, asgn.assigned_email
        FROM equipment e ${J1} ${J2} ${JASG} ${whereClause} ORDER BY e.device_code ASC LIMIT ? OFFSET ?`,
       [...queryParams, limit, offset]
@@ -470,8 +470,8 @@ router.get('/charts', authenticateToken, async (req, res) => {
                ) AS label,
                COUNT(*) AS cnt
         FROM equipment e
-        LEFT JOIN sccm_inventory s1 ON s1.hostname    COLLATE utf8mb4_0900_ai_ci = e.device_code
-        LEFT JOIN sccm_inventory s2 ON s2.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number AND s1.hostname IS NULL
+        LEFT JOIN sccm_inventory s1 ON s1.tenant_id = e.tenant_id AND s1.hostname    COLLATE utf8mb4_0900_ai_ci = e.device_code
+        LEFT JOIN sccm_inventory s2 ON s2.tenant_id = e.tenant_id AND s2.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number AND s1.hostname IS NULL
         WHERE e.tenant_id = ?
         GROUP BY label ORDER BY cnt DESC LIMIT 20
       `, [tId]),
@@ -506,10 +506,10 @@ router.get('/:id/details', authenticateToken, async (req, res, next) => {
         COALESCE(e.ram_memory,        s1.memoria_ram,       s2.memoria_ram)       AS ram_memory,
         COALESCE(e.disk_capacity,     s1.disco_1_capacidad, s2.disco_1_capacidad) AS disk_capacity
       FROM equipment e
-      LEFT JOIN sccm_inventory s1 ON s1.hostname    COLLATE utf8mb4_0900_ai_ci = e.device_code
-      LEFT JOIN sccm_inventory s2 ON s2.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number AND s1.hostname IS NULL
+      LEFT JOIN sccm_inventory s1 ON s1.tenant_id = e.tenant_id AND s1.hostname    COLLATE utf8mb4_0900_ai_ci = e.device_code
+      LEFT JOIN sccm_inventory s2 ON s2.tenant_id = e.tenant_id AND s2.bios_serial COLLATE utf8mb4_0900_ai_ci = e.serial_number AND s1.hostname IS NULL
       WHERE e.device_code = ? AND e.tenant_id = ? LIMIT 1
-    `, [device_code, parseInt(req.user?.tenant_id || 1)]);
+    `, [device_code, tenantId(req)]);
     if (!rows.length) return res.status(404).json({ success: false, error: 'Equipo no encontrado' });
     const eq = rows[0];
 
@@ -519,26 +519,26 @@ router.get('/:id/details', authenticateToken, async (req, res, next) => {
         FROM assignments a
         JOIN employees e ON a.employee_id = e.id
         LEFT JOIN departments d ON a.department_id = d.id
-        WHERE a.equipment_id = ? AND a.status = 'Activo' LIMIT 1
-      `, [eq.id]),
+        WHERE a.equipment_id = ? AND a.tenant_id = ? AND a.status = 'Activo' LIMIT 1
+      `, [eq.id, eq.tenant_id]),
       executeQuery(equipmentPool, `
         SELECT description, component, repair_status, estimated_cost, created_at
         FROM equipment_faults
-        WHERE equipment_id = ? AND repair_status NOT IN ('Resuelto','Dado de baja')
+        WHERE equipment_id = ? AND tenant_id = ? AND repair_status NOT IN ('Resuelto','Dado de baja')
         ORDER BY created_at DESC LIMIT 1
-      `, [eq.id]),
+      `, [eq.id, eq.tenant_id]),
       executeQuery(equipmentPool, `
         SELECT status, recovery_method, technician_name, scheduled_date, notes
         FROM equipment_recoveries
-        WHERE equipment_id = ? AND status != 'recuperado'
+        WHERE equipment_id = ? AND tenant_id = ? AND status != 'recuperado'
         ORDER BY created_at DESC LIMIT 1
-      `, [eq.id]),
+      `, [eq.id, eq.tenant_id]),
       executeQuery(equipmentPool, `
         SELECT id, prestado_a, prestado_desde, prestado_hasta, notes
         FROM equipment_loans
-        WHERE equipment_id = ? AND estado = 'activo'
+        WHERE equipment_id = ? AND tenant_id = ? AND estado = 'activo'
         ORDER BY created_at DESC LIMIT 1
-      `, [eq.id]),
+      `, [eq.id, eq.tenant_id]),
       executeQuery(equipmentPool, `
         SELECT t.transfer_date, t.notes,
                lo.location_name AS origin_name, lo.city AS origin_city,
@@ -546,8 +546,8 @@ router.get('/:id/details', authenticateToken, async (req, res, next) => {
         FROM equipment_transfers t
         LEFT JOIN locations lo ON t.origin_location_id = lo.id
         JOIN  locations ld ON t.destination_location_id = ld.id
-        WHERE t.equipment_id = ? ORDER BY t.created_at DESC LIMIT 1
-      `, [eq.id]),
+        WHERE t.equipment_id = ? AND t.tenant_id = ? ORDER BY t.created_at DESC LIMIT 1
+      `, [eq.id, eq.tenant_id]),
     ]);
 
     let estado_operativo = eq.status || 'Desconocido';
@@ -576,18 +576,18 @@ router.post('/loans', authenticateToken, async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Campos requeridos: device_code, prestado_a, prestado_hasta' });
 
     const eqRows = await executeQuery(equipmentPool,
-      'SELECT id FROM equipment WHERE device_code = ? LIMIT 1', [device_code]);
+      'SELECT id FROM equipment WHERE device_code = ? AND tenant_id = ? LIMIT 1', [device_code, tenantId(req)]);
     if (!eqRows.length) return res.status(404).json({ success: false, error: 'Equipo no encontrado' });
 
     const existing = await executeQuery(equipmentPool,
-      "SELECT id FROM equipment_loans WHERE equipment_id = ? AND estado = 'activo' LIMIT 1", [eqRows[0].id]);
+      "SELECT id FROM equipment_loans WHERE equipment_id = ? AND tenant_id = ? AND estado = 'activo' LIMIT 1", [eqRows[0].id, tenantId(req)]);
     if (existing.length) return res.status(409).json({ success: false, error: 'El equipo ya tiene un préstamo activo' });
 
     const desde = prestado_desde || new Date().toISOString().slice(0, 10);
     const result = await executeQuery(equipmentPool, `
-      INSERT INTO equipment_loans (equipment_id, prestado_a, prestado_desde, prestado_hasta, notes, created_by)
-      VALUES (?,?,?,?,?,?)
-    `, [eqRows[0].id, prestado_a, desde, prestado_hasta, notes || null, req.user?.username || null]);
+      INSERT INTO equipment_loans (equipment_id, prestado_a, prestado_desde, prestado_hasta, notes, created_by, tenant_id)
+      VALUES (?,?,?,?,?,?,?)
+    `, [eqRows[0].id, prestado_a, desde, prestado_hasta, notes || null, req.user?.username || null, tenantId(req)]);
 
     res.json({ success: true, data: { id: result.insertId }, message: 'Préstamo registrado correctamente' });
   } catch (e) { console.error('❌ POST /loans:', e.message); next(e); }
@@ -597,8 +597,8 @@ router.put('/loans/:id/return', authenticateToken, async (req, res, next) => {
   try {
     const result = await executeQuery(equipmentPool, `
       UPDATE equipment_loans SET estado = 'devuelto', devuelto_at = NOW(), updated_at = NOW()
-      WHERE id = ? AND estado = 'activo'
-    `, [req.params.id]);
+      WHERE id = ? AND tenant_id = ? AND estado = 'activo'
+    `, [req.params.id, tenantId(req)]);
     if (!result.affectedRows)
       return res.status(404).json({ success: false, error: 'Préstamo no encontrado o ya devuelto' });
     res.json({ success: true, message: 'Equipo devuelto — estado actualizado a Disponible' });

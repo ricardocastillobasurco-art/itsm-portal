@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { equipmentPool, executeQuery } = require('../../config/database');
 const { authenticateToken } = require('../../middleware/auth');
+const { tenantId } = require('../../src/utils/tenantScope');
 const { body, param, query, validationResult } = require('express-validator');
 
 // Middleware de validación
@@ -30,31 +31,8 @@ router.get('/search-by-email',
   async (req, res, next) => {
     try {
       const { email } = req.query;
-      const tenantId  = req.user?.tenant_id;
-      const isPrimary = !tenantId || parseInt(tenantId) === 1;
+      const tid = tenantId(req);
 
-      // Non-primary tenants: query user_equipment
-      if (!isPrimary) {
-        const uRows = await executeQuery(equipmentPool,
-          `SELECT id, full_name, email FROM users WHERE LOWER(email) = LOWER(?) AND tenant_id = ? AND is_active = 1 LIMIT 1`,
-          [email, parseInt(tenantId)]
-        );
-        if (!uRows.length) return res.json({ success: true, data: [], message: 'Usuario no encontrado' });
-        const eqRows = await executeQuery(equipmentPool,
-          `SELECT id AS equipment_id, device_code, serial_number, equipment_type, brand, model,
-                  NULL AS processor, NULL AS ram_memory, NULL AS disk_capacity, NULL AS operating_system,
-                  status, NULL AS acquisition_type, NULL AS domain, NULL AS it_level_1, NULL AS it_level_2,
-                  ? AS employee_id, ? AS employee_name, ? AS employee_email, NULL AS employee_cip,
-                  id AS assignment_id, assignment_date, department_name, location_name, NULL AS city
-           FROM user_equipment
-           WHERE user_id = ? AND status = 'Activo' AND return_date IS NULL
-           ORDER BY assignment_date DESC`,
-          [uRows[0].id, uRows[0].full_name, uRows[0].email, uRows[0].id]
-        );
-        return res.json({ success: true, data: eqRows, message: eqRows.length ? '' : 'No se encontraron equipos asignados' });
-      }
-
-      // Primary tenant (Integratel): original flow
       const queryStr = `
         SELECT
           e.id as equipment_id,
@@ -87,11 +65,13 @@ router.get('/search-by-email',
         LEFT JOIN departments d ON a.department_id = d.id
         LEFT JOIN locations l ON a.location_id = l.id
         WHERE emp.email = ?
+          AND emp.tenant_id = ?
+          AND a.tenant_id = ?
           AND a.status = 'Activo'
         ORDER BY a.assignment_date DESC
       `;
 
-      const results = await executeQuery(equipmentPool, queryStr, [email]);
+      const results = await executeQuery(equipmentPool, queryStr, [email, tid, tid]);
 
       if (results.length === 0) {
         return res.json({
@@ -119,11 +99,11 @@ router.get('/search-by-email',
             warranty_end_date,
             status
           FROM equipment_maintenance
-          WHERE equipment_id = ?
+          WHERE equipment_id = ? AND tenant_id = ?
           ORDER BY maintenance_date DESC
         `;
         
-        const maintenanceHistory = await executeQuery(equipmentPool, maintenanceQuery, [equipment.equipment_id]);
+        const maintenanceHistory = await executeQuery(equipmentPool, maintenanceQuery, [equipment.equipment_id, tid]);
         equipment.maintenance_history = maintenanceHistory;
         equipment.total_maintenances = maintenanceHistory.length;
         equipment.last_maintenance = maintenanceHistory[0] || null;
@@ -165,11 +145,11 @@ router.get('/maintenance-history/:equipment_id',
         FROM equipment_maintenance m
         INNER JOIN equipment e ON m.equipment_id = e.id
         LEFT JOIN employees emp ON m.employee_id = emp.id
-        WHERE m.equipment_id = ?
+        WHERE m.equipment_id = ? AND m.tenant_id = ?
         ORDER BY m.maintenance_date DESC
       `;
 
-      const results = await executeQuery(equipmentPool, query, [equipment_id]);
+      const results = await executeQuery(equipmentPool, query, [equipment_id, tenantId(req)]);
 
       res.json({
         success: true,
@@ -238,6 +218,9 @@ router.post('/maintenance',
         maintenance_date
       });
 
+      const [ownEq] = await executeQuery(equipmentPool, 'SELECT id FROM equipment WHERE id = ? AND tenant_id = ?', [equipment_id, tenantId(req)]);
+      if (!ownEq) return res.status(404).json({ success: false, message: 'Equipo no encontrado' });
+
       // Calcular fecha de fin de garantía si se proporciona warranty_months
       let warranty_end_date = null;
       if (warranty_months && warranty_months > 0) {
@@ -263,8 +246,9 @@ router.post('/maintenance',
           warranty_months,
           warranty_end_date,
           status,
-          created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          created_by,
+          tenant_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const result = await executeQuery(equipmentPool, insertQuery, [
@@ -282,7 +266,8 @@ router.post('/maintenance',
         warranty_months || 0,
         warranty_end_date,
         status || 'Completado',
-        req.user?.id || null
+        req.user?.id || null,
+        tenantId(req)
       ]);
 
       res.status(201).json({
@@ -353,7 +338,7 @@ router.put('/maintenance/:id',
           warranty_months = COALESCE(?, warranty_months),
           warranty_end_date = ?,
           status = COALESCE(?, status)
-        WHERE id = ?
+        WHERE id = ? AND tenant_id = ?
       `;
 
       const result = await executeQuery(equipmentPool, updateQuery, [
@@ -369,7 +354,8 @@ router.put('/maintenance/:id',
         warranty_months,
         warranty_end_date,
         status,
-        id
+        id,
+        tenantId(req)
       ]);
 
       if (result.affectedRows === 0) {
@@ -401,8 +387,8 @@ router.delete('/maintenance/:id',
     try {
       const { id } = req.params;
 
-      const deleteQuery = 'DELETE FROM equipment_maintenance WHERE id = ?';
-      const result = await executeQuery(equipmentPool, deleteQuery, [id]);
+      const deleteQuery = 'DELETE FROM equipment_maintenance WHERE id = ? AND tenant_id = ?';
+      const result = await executeQuery(equipmentPool, deleteQuery, [id, tenantId(req)]);
 
       if (result.affectedRows === 0) {
         return res.status(404).json({
@@ -435,7 +421,7 @@ router.get('/stats',
         totalMantenimientos: `
           SELECT COUNT(*) as total
           FROM equipment_maintenance
-          WHERE YEAR(maintenance_date) = YEAR(CURDATE())
+          WHERE YEAR(maintenance_date) = YEAR(CURDATE()) AND tenant_id = ?
         `,
         
         porTipo: `
@@ -445,7 +431,7 @@ router.get('/stats',
             ROUND(AVG(cost), 2) as costo_promedio,
             SUM(cost) as costo_total
           FROM equipment_maintenance
-          WHERE YEAR(maintenance_date) = YEAR(CURDATE())
+          WHERE YEAR(maintenance_date) = YEAR(CURDATE()) AND tenant_id = ?
           GROUP BY maintenance_type
           ORDER BY cantidad DESC
         `,
@@ -466,7 +452,8 @@ router.get('/stats',
           INNER JOIN equipment e ON m.equipment_id = e.id
           LEFT JOIN assignments a ON e.id = a.equipment_id AND a.status = 'Activo'
           LEFT JOIN employees emp ON a.employee_id = emp.id
-          WHERE m.warranty_end_date IS NOT NULL
+          WHERE m.tenant_id = ?
+            AND m.warranty_end_date IS NOT NULL
             AND m.warranty_end_date >= CURDATE()
             AND m.warranty_end_date <= DATE_ADD(CURDATE(), INTERVAL 90 DAY)
           ORDER BY m.warranty_end_date ASC
@@ -480,17 +467,17 @@ router.get('/stats',
             COUNT(*) as cantidad,
             ROUND(SUM(cost), 2) as costo_total
           FROM equipment_maintenance
-          WHERE maintenance_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+          WHERE maintenance_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) AND tenant_id = ?
           GROUP BY DATE_FORMAT(maintenance_date, '%Y-%m'), DATE_FORMAT(maintenance_date, '%b %Y')
           ORDER BY mes ASC
         `
       };
 
       const [totalMantenimientos, porTipo, proximosVencer, costoMensual] = await Promise.all([
-        executeQuery(equipmentPool, queries.totalMantenimientos),
-        executeQuery(equipmentPool, queries.porTipo),
-        executeQuery(equipmentPool, queries.proximosVencer),
-        executeQuery(equipmentPool, queries.costoMensual)
+        executeQuery(equipmentPool, queries.totalMantenimientos, [tenantId(req)]),
+        executeQuery(equipmentPool, queries.porTipo, [tenantId(req)]),
+        executeQuery(equipmentPool, queries.proximosVencer, [tenantId(req)]),
+        executeQuery(equipmentPool, queries.costoMensual, [tenantId(req)])
       ]);
 
       res.json({
@@ -528,12 +515,12 @@ router.get('/top-components',
           ROUND(SUM(cost), 2) as costo_total,
           GROUP_CONCAT(DISTINCT component_brand ORDER BY component_brand SEPARATOR ', ') as marcas_usadas
         FROM equipment_maintenance
-        WHERE maintenance_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+        WHERE maintenance_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) AND tenant_id = ?
         GROUP BY maintenance_type
         ORDER BY total_cambios DESC
       `;
 
-      const results = await executeQuery(equipmentPool, query);
+      const results = await executeQuery(equipmentPool, query, [tenantId(req)]);
 
       res.json({
         success: true,

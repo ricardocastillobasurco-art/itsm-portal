@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { body, param, query, validationResult } = require('express-validator');
 const { equipmentPool, callStoredProcedure, executeQuery } = require('../../config/database');
+const { tenantId } = require('../../src/utils/tenantScope');
 
 const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -21,8 +22,8 @@ const validate = (req, res, next) => {
 // GET /api/departments - Listar departamentos
 router.get('/', async (req, res, next) => {
   try {
-    const queryStr = 'SELECT * FROM departments WHERE is_active = TRUE ORDER BY department_name';
-    const results = await executeQuery(equipmentPool, queryStr);
+    const queryStr = 'SELECT * FROM departments WHERE is_active = TRUE AND tenant_id = ? ORDER BY department_name';
+    const results = await executeQuery(equipmentPool, queryStr, [tenantId(req)]);
     
     res.json({
       success: true,
@@ -51,6 +52,7 @@ router.get('/search', async (req, res, next) => {
     const queryStr = `
       SELECT * FROM departments
       WHERE is_active = TRUE
+        AND tenant_id = ?
         AND (
           department_name COLLATE utf8mb4_unicode_ci LIKE ?
           OR division COLLATE utf8mb4_unicode_ci LIKE ?
@@ -61,7 +63,7 @@ router.get('/search', async (req, res, next) => {
     `;
 
     const searchTerm = `%${term}%`;
-    const results = await executeQuery(equipmentPool, queryStr, [searchTerm, searchTerm, searchTerm]);
+    const results = await executeQuery(equipmentPool, queryStr, [tenantId(req), searchTerm, searchTerm, searchTerm]);
 
     console.log('✅ Departamentos encontrados:', results.length);
 
@@ -141,11 +143,11 @@ router.put('/update', async (req, res) => {
         // 🔍 Verificar que el departamento existe
         console.log('');
         console.log('🔍 Verificando existencia del departamento...');
-        const checkQuery = 'SELECT * FROM departments WHERE id = ?';
+        const checkQuery = 'SELECT * FROM departments WHERE id = ? AND tenant_id = ?';
         console.log('  Query:', checkQuery);
         console.log('  Parámetros:', [id]);
         
-        const before = await executeQuery(equipmentPool, checkQuery, [id]);
+        const before = await executeQuery(equipmentPool, checkQuery, [id, tenantId(req)]);
         console.log('  Resultados:', before.length, 'registro(s)');
         
         if (before.length === 0) {
@@ -178,7 +180,7 @@ router.put('/update', async (req, res) => {
                 desc_ceo_5 = ?,
                 desc_ceo_6 = ?,
                 desc_ceo_7 = ?
-            WHERE id = ?
+            WHERE id = ? AND tenant_id = ?
         `;
         
         const updateParams = [
@@ -193,7 +195,8 @@ router.put('/update', async (req, res) => {
             desc_ceo_5?.trim() || null,
             desc_ceo_6?.trim() || null,
             desc_ceo_7?.trim() || null,
-            id
+            id,
+            tenantId(req)
         ];
         
         console.log('  Query:', updateQuery.replace(/\s+/g, ' ').trim());
@@ -213,7 +216,7 @@ router.put('/update', async (req, res) => {
         // 🔍 Verificar estado después
         console.log('');
         console.log('🔍 Verificando estado después del UPDATE...');
-        const after = await executeQuery(equipmentPool, checkQuery, [id]);
+        const after = await executeQuery(equipmentPool, checkQuery, [id, tenantId(req)]);
         console.log('📊 Estado DESPUÉS de actualizar:');
         console.log(JSON.stringify(after[0], null, 2));
         
@@ -279,8 +282,8 @@ router.get('/:id',
   ],
   async (req, res, next) => {
     try {
-      const queryStr = 'SELECT * FROM departments WHERE id = ?';
-      const results = await executeQuery(equipmentPool, queryStr, [req.params.id]);
+      const queryStr = 'SELECT * FROM departments WHERE id = ? AND tenant_id = ?';
+      const results = await executeQuery(equipmentPool, queryStr, [req.params.id, tenantId(req)]);
       
       if (results.length === 0) {
         return res.status(404).json({
@@ -316,8 +319,8 @@ router.post('/',
       const queryStr = `
         INSERT INTO departments 
         (department_name, division, subactivity, desc_ceo, desc_ceo_1, 
-         desc_ceo_2, desc_ceo_3, desc_ceo_4, desc_ceo_5, desc_ceo_6, desc_ceo_7)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         desc_ceo_2, desc_ceo_3, desc_ceo_4, desc_ceo_5, desc_ceo_6, desc_ceo_7, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const result = await executeQuery(equipmentPool, queryStr, [
@@ -331,7 +334,8 @@ router.post('/',
         desc_ceo_4 || null,
         desc_ceo_5 || null,
         desc_ceo_6 || null,
-        desc_ceo_7 || null
+        desc_ceo_7 || null,
+        tenantId(req)
       ]);
 
       res.status(201).json({

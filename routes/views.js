@@ -6,6 +6,7 @@
 const express    = require('express');
 const router     = express.Router();
 const { equipmentPool, callStoredProcedure, executeQuery } = require('../config/database');
+const { tenantId } = require('../src/utils/tenantScope');
 const {
     authenticateToken,
     requireRole,
@@ -97,6 +98,8 @@ router.get('/autogestion', async (req, res) => {
             }
         }
     } catch(e) {}
+    // El portal es por empresa: sin sesión no hay tenant, se exige iniciar sesión
+    if (!user) return res.redirect('/api/auth/login');
     const { loadTenantConfig } = require('../utils/tenantConfig');
     const tenantCfg = user?.tenant_id ? loadTenantConfig(user.tenant_id) : null;
     const tenantDomain = tenantCfg?.domain || null;
@@ -352,13 +355,13 @@ router.get('/reports',
                         INNER JOIN employees  e  ON a.employee_id  = e.id
                         INNER JOIN equipment  eq ON a.equipment_id = eq.id
                         LEFT  JOIN locations  l  ON a.location_id  = l.id
-                        WHERE a.assignment_date BETWEEN ? AND ?
+                        WHERE a.assignment_date BETWEEN ? AND ? AND a.tenant_id = ?
                         ORDER BY a.assignment_date DESC
-                    `, [startDate, endDate]);
+                    `, [startDate, endDate, tenantId(req)]);
                 } else if (reportType === 'equipment') {
                     results = await executeQuery(equipmentPool,
-                        'SELECT * FROM equipment WHERE created_at BETWEEN ? AND ? ORDER BY created_at DESC',
-                        [startDate, endDate]
+                        'SELECT * FROM equipment WHERE created_at BETWEEN ? AND ? AND tenant_id = ? ORDER BY created_at DESC',
+                        [startDate, endDate, tenantId(req)]
                     );
                 }
             }
@@ -388,7 +391,8 @@ router.get('/admin',
         try {
             const [users, loginStats] = await Promise.all([
                 executeQuery(equipmentPool,
-                    'SELECT id, username, email, full_name, role, is_active, is_verified, created_at, last_login FROM users ORDER BY created_at DESC'
+                    'SELECT id, username, email, full_name, role, is_active, is_verified, created_at, last_login FROM users WHERE COALESCE(tenant_id, 1) = ? ORDER BY created_at DESC',
+                    [tenantId(req)]
                 ),
                 executeQuery(equipmentPool, `
                     SELECT DATE(attempted_at) AS date,
@@ -428,8 +432,8 @@ router.get('/equipment',
         try {
             const { status = '', brand = '', search = '' } = req.query;
 
-            let sql    = 'SELECT * FROM equipment WHERE 1=1';
-            const params = [];
+            let sql    = 'SELECT * FROM equipment WHERE tenant_id = ?';
+            const params = [tenantId(req)];
 
             if (status) { sql += ' AND status = ?';          params.push(status); }
             if (brand)  { sql += ' AND brand LIKE ?';        params.push(`%${brand}%`); }
@@ -441,7 +445,7 @@ router.get('/equipment',
 
             const [equipment, brands] = await Promise.all([
                 executeQuery(equipmentPool, sql, params),
-                executeQuery(equipmentPool, 'SELECT DISTINCT brand FROM equipment ORDER BY brand'),
+                executeQuery(equipmentPool, 'SELECT DISTINCT brand FROM equipment WHERE tenant_id = ? ORDER BY brand', [tenantId(req)]),
             ]);
 
             res.render('admin_platform/admin_management/asset_management/equipment/index', {
@@ -464,17 +468,27 @@ router.get('/equipment/:id',
     async (req, res) => {
         try {
             const equipment = await executeQuery(equipmentPool,
-                'SELECT * FROM equipment WHERE id = ?', [req.params.id]
+                'SELECT * FROM equipment WHERE id = ? AND tenant_id = ?', [req.params.id, tenantId(req)]
             );
             if (!equipment.length) {
                 return res.status(404).render('error', { title: 'Error', error: 'Equipo no encontrado', user: req.user });
             }
-            const history = await callStoredProcedure(equipmentPool, 'sp_get_equipment_history', [req.params.id]);
+            const history = await executeQuery(equipmentPool,
+                `SELECT a.id, a.assignment_date, a.return_date, a.status, a.period,
+                        emp.full_name AS employee_name, emp.cip AS employee_cip,
+                        d.department_name, l.location_name
+                 FROM assignments a
+                 LEFT JOIN employees   emp ON emp.id = a.employee_id
+                 LEFT JOIN departments d   ON d.id   = a.department_id
+                 LEFT JOIN locations   l   ON l.id   = a.location_id
+                 WHERE a.equipment_id = ? AND a.tenant_id = ?
+                 ORDER BY a.assignment_date DESC`,
+                [req.params.id, tenantId(req)]);
             res.render('equipment/view', {
                 title:     'Detalle de Equipo',
                 user:      req.user,
                 equipment: equipment[0],
-                history:   history[0],
+                history,
             });
         } catch (error) {
             console.error('Error cargando equipo:', error);
@@ -510,8 +524,8 @@ const _colaboradoresHandler = async (req, res) => {
         const offset = (page - 1) * limit;
         const search = req.query.search || '';
 
-        let sql    = 'SELECT * FROM employees WHERE is_active = TRUE';
-        const params = [];
+        let sql    = 'SELECT * FROM employees WHERE is_active = TRUE AND tenant_id = ?';
+        const params = [tenantId(req)];
 
         if (search) {
             sql += ' AND (full_name LIKE ? OR email LIKE ? OR cip LIKE ?)';
@@ -522,7 +536,7 @@ const _colaboradoresHandler = async (req, res) => {
 
         const [employees, totalResult] = await Promise.all([
             executeQuery(equipmentPool, sql, params),
-            executeQuery(equipmentPool, 'SELECT COUNT(*) AS total FROM employees WHERE is_active = TRUE'),
+            executeQuery(equipmentPool, 'SELECT COUNT(*) AS total FROM employees WHERE is_active = TRUE AND tenant_id = ?', [tenantId(req)]),
         ]);
 
         res.render('admin_platform/admin_management/platform/colaboradores/index', {
@@ -558,8 +572,8 @@ router.get('/employees/:id',
             const empRows = await executeQuery(equipmentPool,
                 `SELECT id, cip, national_id, full_name, email, position, position_name,
                         category, state, department_id, is_active, created_at, updated_at
-                 FROM employees WHERE id = ? LIMIT 1`,
-                [req.params.id]);
+                 FROM employees WHERE id = ? AND tenant_id = ? LIMIT 1`,
+                [req.params.id, tenantId(req)]);
             if (!empRows || !empRows.length) {
                 return res.status(404).render('error', { title: 'Error', error: 'Empleado no encontrado', user: req.user });
             }
@@ -571,9 +585,9 @@ router.get('/employees/:id',
                  JOIN equipment e ON e.id = a.equipment_id
                  LEFT JOIN departments d ON d.id = a.department_id
                  LEFT JOIN locations   l ON l.id = a.location_id
-                 WHERE a.employee_id = ?
+                 WHERE a.employee_id = ? AND a.tenant_id = ?
                  ORDER BY a.assignment_date DESC`,
-                [req.params.id]);
+                [req.params.id, tenantId(req)]);
             res.render('admin_platform/admin_management/platform/colaboradores/detalle', {
                 title:       'Detalle de Empleado',
                 user:        req.user,

@@ -6,6 +6,7 @@ const express = require('express');
 const router  = express.Router();
 const { equipmentPool, executeQuery } = require('../../config/database');
 const { authenticateToken } = require('../../middleware/auth');
+const { tenantId } = require('../../src/utils/tenantScope');
 
 // ============================================================================
 // GET /api/recoveries — JOIN directo, sin depender de vistas
@@ -15,8 +16,8 @@ router.get('/',
     async (req, res, next) => {
         try {
             const { status, method } = req.query;
-            const params = [];
-            let where = '1=1';
+            const params = [tenantId(req)];
+            let where = 'r.tenant_id = ?';
 
             if (status && status !== 'todos') {
                 where += ' AND r.status = ?';
@@ -28,7 +29,7 @@ router.get('/',
             }
 
             const query = `
-                SELECT
+                SELECT /* tenant_id: filtrado en where */
                     r.id                AS recovery_id,
                     r.status,
                     r.recovery_method,
@@ -87,7 +88,8 @@ router.get('/',
                         AND MONTH(completed_at) = MONTH(NOW())
                         AND YEAR(completed_at)  = YEAR(NOW()))                                 AS recuperados_mes
                 FROM equipment_recoveries
-            `);
+                WHERE tenant_id = ?
+            `, [tenantId(req)]);
 
             res.json({ success: true, data: rows, count: rows.length, kpis });
 
@@ -115,7 +117,8 @@ router.get('/kpis',
                         AND MONTH(completed_at) = MONTH(NOW())
                         AND YEAR(completed_at)  = YEAR(NOW()))                                 AS recuperados_mes
                 FROM equipment_recoveries
-            `);
+                WHERE tenant_id = ?
+            `, [tenantId(req)]);
             res.json({ success: true, data: kpis });
         } catch (error) { next(error); }
     }
@@ -131,10 +134,11 @@ router.post('/',
             const { equipment_id, equipment_code, employee_id, assignment_id,
                     recovery_method, technician_name, scheduled_date, notes } = req.body;
 
+            const tid = tenantId(req);
             let eqId = equipment_id;
             if (!eqId && equipment_code) {
                 const [eq] = await executeQuery(equipmentPool,
-                    'SELECT id FROM equipment WHERE device_code = ? LIMIT 1', [equipment_code]);
+                    'SELECT id FROM equipment WHERE device_code = ? AND tenant_id = ? LIMIT 1', [equipment_code, tid]);
                 if (!eq) return res.status(404).json({ success: false, message: 'Equipo no encontrado' });
                 eqId = eq.id;
             }
@@ -142,23 +146,26 @@ router.post('/',
             if (!eqId || !employee_id) {
                 return res.status(400).json({ success: false, message: 'Se requiere equipo y empleado' });
             }
+            const [ownEq]  = await executeQuery(equipmentPool, 'SELECT id FROM equipment WHERE id = ? AND tenant_id = ?', [eqId, tid]);
+            const [ownEmp] = await executeQuery(equipmentPool, 'SELECT id FROM employees WHERE id = ? AND tenant_id = ?', [employee_id, tid]);
+            if (!ownEq || !ownEmp) return res.status(404).json({ success: false, message: 'Equipo o empleado no encontrado' });
 
             const existing = await executeQuery(equipmentPool,
-                "SELECT id FROM equipment_recoveries WHERE equipment_id = ? AND status != 'recuperado' LIMIT 1",
-                [eqId]);
+                "SELECT id FROM equipment_recoveries WHERE equipment_id = ? AND tenant_id = ? AND status != 'recuperado' LIMIT 1",
+                [eqId, tid]);
             if (existing.length > 0) {
                 return res.status(409).json({ success: false, message: 'Ya existe un recupero activo para este equipo' });
             }
 
             const result = await executeQuery(equipmentPool, `
                 INSERT INTO equipment_recoveries
-                    (assignment_id, equipment_id, employee_id, recovery_method, technician_name, scheduled_date, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (assignment_id, equipment_id, employee_id, recovery_method, technician_name, scheduled_date, notes, tenant_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `, [assignment_id||null, eqId, employee_id, recovery_method||'pendiente',
-                technician_name||null, scheduled_date||null, notes||null]);
+                technician_name||null, scheduled_date||null, notes||null, tid]);
 
             await executeQuery(equipmentPool,
-                'INSERT INTO equipment_recovery_logs (recovery_id, new_status, note) VALUES (?, ?, ?)',
+                'INSERT INTO equipment_recovery_logs /* tenant_id: validado vía recupero padre */ (recovery_id, new_status, note) VALUES (?, ?, ?)',
                 [result.insertId, 'por_recuperar', 'Recupero creado manualmente']);
 
             res.status(201).json({ success: true, message: 'Recupero creado', data: { id: result.insertId } });
@@ -186,7 +193,7 @@ router.put('/:id/status',
             }
 
             const [current] = await executeQuery(equipmentPool,
-                'SELECT status, equipment_id FROM equipment_recoveries WHERE id = ? LIMIT 1', [id]);
+                'SELECT status, equipment_id FROM equipment_recoveries WHERE id = ? AND tenant_id = ? LIMIT 1', [id, tenantId(req)]);
             if (!current) return res.status(404).json({ success: false, message: 'Recupero no encontrado' });
 
             const completedAt = status === 'recuperado' ? new Date() : null;
@@ -200,18 +207,18 @@ router.put('/:id/status',
                     scheduled_date  = COALESCE(?, scheduled_date),
                     completed_at    = COALESCE(?, completed_at),
                     updated_at      = NOW()
-                WHERE id = ?
+                WHERE id = ? AND tenant_id = ?
             `, [status, recovery_method||null, technician_name||null,
-                technician_note||null, scheduled_date||null, completedAt, id]);
+                technician_note||null, scheduled_date||null, completedAt, id, tenantId(req)]);
 
             if (['listo_para_asignar','recuperado'].includes(status)) {
                 await executeQuery(equipmentPool,
-                    "UPDATE equipment SET status = 'Disponible' WHERE id = ?",
-                    [current.equipment_id]);
+                    "UPDATE equipment SET status = 'Disponible' WHERE id = ? AND tenant_id = ?",
+                    [current.equipment_id, tenantId(req)]);
             }
 
             await executeQuery(equipmentPool,
-                'INSERT INTO equipment_recovery_logs (recovery_id, old_status, new_status, note) VALUES (?, ?, ?, ?)',
+                'INSERT INTO equipment_recovery_logs /* tenant_id: validado vía recupero padre */ (recovery_id, old_status, new_status, note) VALUES (?, ?, ?, ?)',
                 [id, current.status, status, technician_note||null]);
 
             res.json({ success: true, message: 'Estado actualizado' });
@@ -230,8 +237,10 @@ router.get('/:id/logs',
     async (req, res, next) => {
         try {
             const logs = await executeQuery(equipmentPool,
-                'SELECT * FROM equipment_recovery_logs WHERE recovery_id = ? ORDER BY created_at ASC',
-                [req.params.id]);
+                `SELECT l.* FROM equipment_recovery_logs l
+                 JOIN equipment_recoveries r ON r.id = l.recovery_id AND r.tenant_id = ?
+                 WHERE l.recovery_id = ? ORDER BY l.created_at ASC`,
+                [tenantId(req), req.params.id]);
             res.json({ success: true, data: logs });
         } catch (error) { next(error); }
     }
@@ -245,7 +254,7 @@ router.delete('/:id',
     async (req, res, next) => {
         try {
             const result = await executeQuery(equipmentPool,
-                'DELETE FROM equipment_recoveries WHERE id = ?', [req.params.id]);
+                'DELETE FROM equipment_recoveries WHERE id = ? AND tenant_id = ?', [req.params.id, tenantId(req)]);
             if (result.affectedRows === 0) {
                 return res.status(404).json({ success: false, message: 'Recupero no encontrado' });
             }
