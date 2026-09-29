@@ -59,6 +59,14 @@ describe('GraphService.fromTenant()', () => {
     const g = GraphService.fromTenant({ settings: null });
     expect(g.clientId).toBe('env-client-id');
   });
+
+  it('never gives env credentials to a non-default tenant', () => {
+    setEnv(FULL_ENV);
+    const g = GraphService.fromTenant({ id: 5, settings: { graph: { mailbox: 'x@otro.com' } } });
+    expect(g.clientId).toBeUndefined();
+    expect(g.clientSecret).toBeUndefined();
+    expect(g.isConfigured()).toBe(false);
+  });
 });
 
 describe('GraphService.isConfigured()', () => {

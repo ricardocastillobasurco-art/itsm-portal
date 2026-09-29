@@ -75,31 +75,35 @@ const loginLimiter = rateLimit({
 // REGISTRO DE RUTAS
 // ============================================================================
 
+// Routers cuyos endpoints no validan sesión por sí mismos: se protegen al montarlos
+const { authenticateToken, requireRole } = require('../middleware/auth');
+const requireAdmin = [authenticateToken, requireRole('administrador')];
+
 // Platform
 router.use('/auth',           loginLimiter, authRoutes);
 router.use('/permissions',    permissionsRoutes);
 router.use('/employees',      employeesRoutes);
 router.use('/business-rules', businessRulesRouter);
 router.use('/licenses',       licensesRouter);
-router.use('/tenant-graph',   tenantGraphRouter);
+router.use('/tenant-graph',   requireAdmin, tenantGraphRouter);
 router.use('/data-center',    dataCenterRouter);
 
 // Asset Management
 router.use('/equipment',      equipmentRoutes);
-router.use('/locations',      locationsRoutes);
-router.use('/departments',    departmentsRoutes);
+router.use('/locations',      authenticateToken, locationsRoutes);
+router.use('/departments',    authenticateToken, departmentsRoutes);
 router.use('/assignments',    assignmentsRoutes);
 router.use('/recoveries',     recoveriesRouter);
 router.use('/almacen',        almacenRouter);
 router.use('/warranty',       warrantyRouter);
-router.use('/soporte',        soporteRouter);
+router.use('/soporte',        authenticateToken, soporteRouter);
 router.use('/cmdb',           cmdbRouter);
 
 // Service Management
 router.use('/itsm',           itsmRouter);
 router.use('/changes',        changesRouter);
 router.use('/problems',       problemsRouter);
-router.use('/print-queue',    printQueueRouter);
+router.use('/print-queue',    authenticateToken, printQueueRouter);
 
 // Service Operations
 router.use('/service-requests', serviceRequestsRouter);
@@ -113,9 +117,9 @@ router.use('/notifications',  notificationsRouter);
 router.use('/chatbot',        chatbotRouter);
 
 // Analytics
-router.use('/dashboard',      dashboardRoutes);
+router.use('/dashboard',      authenticateToken, dashboardRoutes);
 router.use('/dashboard',      dashboardStatsRouter);
-router.use('/dashboard',      dashboardGraphsRouter);
+router.use('/dashboard',      authenticateToken, dashboardGraphsRouter);
 router.use('/indicators',     indicatorsRouter);
 router.use('/csi',            csiRouter);
 router.use('/reports',        reportsRouter);
@@ -126,8 +130,8 @@ router.use('/report-lists',   reportListsRouter);
 // Integrations
 router.use('/integraciones',  integracionesRouter);
 router.use('/jira',           jiraRoutes);
-router.use('/outlook-sync',   outlookSyncRouter);
-router.use('/ad',             adRouter);
+router.use('/outlook-sync',   authenticateToken, outlookSyncRouter);
+router.use('/ad',             authenticateToken, adRouter);
 router.use('/herramientas',   herramientasRouter);
 router.use('/ms',             msGraphRouter);
 router.use('/rmm',            rmmRouter);

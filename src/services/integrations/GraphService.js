@@ -16,11 +16,14 @@ class GraphService {
 
     static fromTenant(tenant) {
         const g = tenant?.settings?.graph || {};
+        // Las credenciales globales (.env) pertenecen al tenant por defecto: otros
+        // tenants deben configurar las suyas, nunca heredarlas.
+        const env = (tenant?.id ?? 1) === 1 ? process.env : {};
         return new GraphService({
-            clientId:     g.clientId     || process.env.MS_CLIENT_ID1,
-            tenantId:     g.tenantId     || process.env.MS_TENANT_ID1,
-            clientSecret: g.clientSecret || process.env.MS_CLIENT_SECRET1,
-            mailbox:      g.mailbox      || process.env.MAIL_SENDER,
+            clientId:     g.clientId     || env.MS_CLIENT_ID1,
+            tenantId:     g.tenantId     || env.MS_TENANT_ID1,
+            clientSecret: g.clientSecret || env.MS_CLIENT_SECRET1,
+            mailbox:      g.mailbox      || env.MAIL_SENDER,
         });
     }
 

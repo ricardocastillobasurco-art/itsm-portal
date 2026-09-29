@@ -7,6 +7,17 @@ const requireGraphToken   = require('../../middleware/requireGraphToken');
 const { callGraph, callGraphApp, callGraphPaged, GraphAuthError, GraphForbiddenError } = require('../../src/services/graphClient');
 const { dbQuery }         = require('../jira/helpers');
 
+// La app Azure (MS_CLIENT_ID/MS_TENANT_ID) pertenece al tenant por defecto: las
+// llamadas app-only (BitLocker, LAPS, Intune) leerían su directorio. Hasta que
+// graphClient use credenciales por tenant, el módulo queda restringido al tenant 1.
+const { tenantId } = require('../../src/utils/tenantScope');
+const LEGACY_TENANT_ID = 1;
+router.use(authenticateToken, (req, res, next) => {
+    if (tenantId(req) === LEGACY_TENANT_ID) return next();
+    return res.status(403).json({ success: false, forbidden: true,
+        error: 'La integración con Microsoft 365 no está configurada para esta empresa' });
+});
+
 // Todos los endpoints requieren auth propia + token Graph
 const guard = [authenticateToken, requireGraphToken];
 const adminGuard = [authenticateToken, requireRole('administrador','superadmin','especialista'), requireGraphToken];
