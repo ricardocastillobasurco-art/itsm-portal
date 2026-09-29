@@ -9,7 +9,9 @@ const FAQ_SEED = require('../../src/data/faq-seed');
 // ── Jira helpers (server-side) ────────────────────────────────────────────────
 const axios    = require('axios');
 const FormData = require('form-data');
-const { jira, dbQuery, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID, resolveJiraAccountId } = require('../jira/helpers');
+const { jira, dbQuery, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID, resolveJiraAccountId, jiraAllowedForCurrentTenant } = require('../jira/helpers');
+const { tenantId } = require('../../src/utils/tenantScope');
+const { agentsRoom, nextLocalTicketKey } = require('../../src/utils/tenantTickets');
 const SD_REQ_CHATBOT = process.env.JIRA_REQ_SD_ID || '1156';
 const RT_REQ_CHATBOT = process.env.JIRA_REQ_RT_ID || '1595';
 // Chatbot incident creation uses its own SD/RT (simpler than the form which requires many custom fields).
@@ -62,7 +64,8 @@ async function _ensureFaqTables() {
   if (_faqTablesReady) return;
   await dbQuery(`CREATE TABLE IF NOT EXISTS faq_intents (
     id           INT AUTO_INCREMENT PRIMARY KEY,
-    intent_key   VARCHAR(80) NOT NULL UNIQUE,
+    tenant_id    INT NOT NULL DEFAULT 1,
+    intent_key   VARCHAR(80) NOT NULL,
     category     VARCHAR(50),
     title        VARCHAR(120) NOT NULL,
     response_text TEXT,
@@ -71,7 +74,8 @@ async function _ensureFaqTables() {
     active       TINYINT(1) DEFAULT 1,
     sort_order   INT DEFAULT 0,
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_faq_intents_tenant_key (tenant_id, intent_key)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`).catch(() => {});
   await dbQuery(`CREATE TABLE IF NOT EXISTS faq_triggers (
     id        INT AUTO_INCREMENT PRIMARY KEY,
@@ -95,7 +99,7 @@ async function _ensureFaqTables() {
     INDEX idx_syn_t (term), INDEX idx_syn_s (synonym)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`).catch(() => {});
 
-  const [{ synCt }] = await dbQuery('SELECT COUNT(*) AS synCt FROM faq_synonyms').catch(() => [{ synCt: 1 }]);
+  const [{ synCt }] = await dbQuery('SELECT COUNT(*) AS synCt /* tenant_id: vocabulario compartido */ FROM faq_synonyms').catch(() => [{ synCt: 1 }]);
   if (!parseInt(synCt)) {
     const SYN_INIT = [
       ['contrasena','password'],['contrasena','clave'],['contrasena','pass'],
@@ -112,35 +116,10 @@ async function _ensureFaqTables() {
       ['vpn','remoto'],['actualizacion','update'],['actualizacion','parche'],
     ];
     const sv = SYN_INIT.map(() => '(?,?)').join(',');
-    await dbQuery(`INSERT INTO faq_synonyms (term,synonym) VALUES ${sv}`, SYN_INIT.flat()).catch(() => {});
+    await dbQuery(`INSERT INTO faq_synonyms /* tenant_id: vocabulario compartido */ (term,synonym) VALUES ${sv}`, SYN_INIT.flat()).catch(() => {});
   }
   _synMap = null; // forzar recarga en próximo _loadSynonyms
 
-  // Seed si está vacío
-  const [{ total }] = await dbQuery('SELECT COUNT(*) AS total FROM faq_intents');
-  if (parseInt(total) === 0) {
-    for (const item of FAQ_SEED) {
-      const r = await dbQuery(
-        `INSERT IGNORE INTO faq_intents (intent_key, category, title, response_text, response_type, escalate_auto, active, sort_order)
-         VALUES (?,?,?,?,?,?,1,?)`,
-        [item.key, item.category, item.title, item.response || null, item.type, item.escalate ? 1 : 0, item.sort || 0]
-      );
-      const intentId = r.insertId;
-      if (!intentId) continue;
-      if (item.triggers?.length) {
-        const vals = item.triggers.map(() => '(?,?,1.0)').join(',');
-        const params = item.triggers.flatMap(phrase => [intentId, phrase]);
-        await dbQuery(`INSERT INTO faq_triggers (intent_id, phrase, weight) VALUES ${vals}`, params).catch(() => {});
-      }
-      if (item.followups?.length) {
-        for (let i = 0; i < item.followups.length; i++) {
-          const f = item.followups[i];
-          await dbQuery('INSERT INTO faq_followups (intent_id, label, next_intent_key, sort_order) VALUES (?,?,?,?)',
-            [intentId, f.label, f.next_key || null, i]).catch(() => {});
-        }
-      }
-    }
-  }
   await dbQuery(`CREATE TABLE IF NOT EXISTS chatbot_analytics (
     id           INT AUTO_INCREMENT PRIMARY KEY,
     user_email   VARCHAR(255),
@@ -152,17 +131,18 @@ async function _ensureFaqTables() {
     INDEX idx_ca_email (user_email)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`).catch(() => {});
   // Reemplazar triggers de directorio que se reducen a 1 sola palabra (falsos positivos)
+  // — corrección de datos para todos los tenants
   const _badDir = ['numero de','telefono de','correo de','extension de','email de','interno de','anexo de','celular de'];
   for (const _t of _badDir) {
     await dbQuery(
-      `DELETE ft FROM faq_triggers ft
+      `DELETE ft FROM faq_triggers ft /* tenant_id: corrección aplicada a todos los tenants */
        JOIN faq_intents fi ON fi.id = ft.intent_id
        WHERE fi.intent_key = 'directorio_personas' AND ft.phrase = ?`, [_t]
     ).catch(() => {});
   }
-  const _dirRow = await dbQuery(`SELECT id FROM faq_intents WHERE intent_key='directorio_personas' LIMIT 1`).catch(() => []);
-  if (_dirRow[0]?.id) {
-    const _dirId  = _dirRow[0].id;
+  const _dirRows = await dbQuery(`SELECT id, tenant_id FROM faq_intents WHERE intent_key='directorio_personas'`).catch(() => []);
+  for (const _dirRow of _dirRows) {
+    const _dirId  = _dirRow.id;
     const _goodDir = [
       'buscar contacto empleado','datos contacto persona','directorio empresa',
       'informacion contacto persona','comunicarme con persona',
@@ -172,13 +152,46 @@ async function _ensureFaqTables() {
     ];
     for (const _t of _goodDir) {
       await dbQuery(
-        `INSERT IGNORE INTO faq_triggers (intent_id, phrase, weight) VALUES (?,?,1.0)`,
-        [_dirId, _t]
+        `INSERT IGNORE INTO faq_triggers (intent_id, phrase, weight, tenant_id) VALUES (?,?,1.0,?)`,
+        [_dirId, _t, _dirRow.tenant_id || 1]
       ).catch(() => {});
     }
   }
 
   _faqTablesReady = true;
+}
+
+// Cada tenant tiene su propio set de intents (copia de la plantilla FAQ_SEED la
+// primera vez que lo usa) para poder personalizar respuestas sin afectar a otros.
+const _faqSeededTenants = new Set();
+async function _ensureTenantFaq(tid) {
+  await _ensureFaqTables();
+  if (_faqSeededTenants.has(tid)) return;
+  const [{ total }] = await dbQuery('SELECT COUNT(*) AS total FROM faq_intents WHERE tenant_id = ?', [tid]);
+  if (parseInt(total) === 0) {
+    for (const item of FAQ_SEED) {
+      const r = await dbQuery(
+        `INSERT IGNORE INTO faq_intents (tenant_id, intent_key, category, title, response_text, response_type, escalate_auto, active, sort_order)
+         VALUES (?,?,?,?,?,?,?,1,?)`,
+        [tid, item.key, item.category, item.title, item.response || null, item.type, item.escalate ? 1 : 0, item.sort || 0]
+      );
+      const intentId = r.insertId;
+      if (!intentId) continue;
+      if (item.triggers?.length) {
+        const vals = item.triggers.map(() => '(?,?,1.0,?)').join(',');
+        const params = item.triggers.flatMap(phrase => [intentId, phrase, tid]);
+        await dbQuery(`INSERT INTO faq_triggers (intent_id, phrase, weight, tenant_id) VALUES ${vals}`, params).catch(() => {});
+      }
+      if (item.followups?.length) {
+        for (let i = 0; i < item.followups.length; i++) {
+          const f = item.followups[i];
+          await dbQuery('INSERT INTO faq_followups /* tenant_id: validado vía intent padre */ (intent_id, label, next_intent_key, sort_order) VALUES (?,?,?,?)',
+            [intentId, f.label, f.next_key || null, i]).catch(() => {});
+        }
+      }
+    }
+  }
+  _faqSeededTenants.add(tid);
 }
 
 function _normText(str) {
@@ -192,7 +205,7 @@ async function _loadSynonyms() {
   if (_synMap) return;
   _synMap = new Map();
   try {
-    const rows = await dbQuery('SELECT term, synonym FROM faq_synonyms');
+    const rows = await dbQuery('SELECT term, synonym /* tenant_id: vocabulario compartido */ FROM faq_synonyms');
     for (const r of rows) {
       const t = _normText(r.term), s = _normText(r.synonym);
       _synMap.set(s, t); // synonym → canonical
@@ -233,9 +246,9 @@ function _scorePhrase(msgWords, msgBigrams, trigNorm) {
   return score;
 }
 
-async function _faqMatch(message) {
+async function _faqMatch(message, tid) {
   try {
-    await _ensureFaqTables();
+    await _ensureTenantFaq(tid);
     await _loadSynonyms();
 
     const msgNorm    = _normText(message);
@@ -251,8 +264,8 @@ async function _faqMatch(message) {
              t.phrase, t.weight
       FROM faq_intents i
       JOIN faq_triggers t ON t.intent_id = i.id
-      WHERE i.active = 1
-    `);
+      WHERE i.active = 1 AND i.tenant_id = ?
+    `, [tid]);
 
     // Fuzzy: para mensajes cortos (≤ 3 tokens) añadir palabras del vocabulario de triggers
     // que disten un carácter (captura typos: "conraseña" → "contrasena")
@@ -290,7 +303,7 @@ async function _faqMatch(message) {
     }
 
     const followups = await dbQuery(
-      'SELECT label, next_intent_key FROM faq_followups WHERE intent_id=? ORDER BY sort_order',
+      'SELECT label, next_intent_key /* tenant_id: intent ya filtrado */ FROM faq_followups WHERE intent_id=? ORDER BY sort_order',
       [winner.id]
     );
     return { ...winner, followups: followups || [] };
@@ -324,7 +337,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL   = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 
-const PLATFORM_SYSTEM_PROMPT = `Eres ARIA, asistente virtual del Sistema de Gestión IT de Integratel. Orientas a los empleados sobre el uso de la plataforma y respondes consultas técnicas de TI.
+const PLATFORM_SYSTEM_PROMPT = `Eres ARIA, asistente virtual del Sistema de Gestión IT de {COMPANY_NAME}. Orientas a los empleados sobre el uso de la plataforma y respondes consultas técnicas de TI.
 
 ## Plataforma de Autogestión IT — Guía de uso
 
@@ -384,13 +397,13 @@ const PLATFORM_SYSTEM_PROMPT = `Eres ARIA, asistente virtual del Sistema de Gest
 - No inventes funcionalidades que no están descritas arriba
 - Máximo 3-4 párrafos por respuesta`;
 
-router.post('/message', optionalAuth, async (req, res) => {
+router.post('/message', authenticateToken, async (req, res) => {
   try {
     const { message, history = [] } = req.body;
     if (!message?.trim()) return res.json({ success: false, reply: 'Mensaje vacío.' });
 
     // ── 1. FAQ match (antes de llamar a Groq) ────────────────────────────────
-    const faqMatch = await _faqMatch(message).catch(() => null);
+    const faqMatch = await _faqMatch(message, tenantId(req)).catch(() => null);
 
     if (faqMatch) {
       // Desambiguación: dos intents muy cercanos — preguntar al usuario cuál quiso decir
@@ -430,9 +443,9 @@ router.post('/message', optionalAuth, async (req, res) => {
         if (userEmail) {
           tickets = await dbQuery(
             `SELECT ticket_key, summary, internal_status, priority, created_at, assigned_to_name, jira_url
-             FROM jira_tickets WHERE reporter=? AND deleted_at IS NULL
+             FROM jira_tickets WHERE reporter=? AND COALESCE(tenant_id, 1)=? AND deleted_at IS NULL
              ORDER BY created_at DESC LIMIT 8`,
-            [userEmail]
+            [userEmail, tenantId(req)]
           ).catch(() => []);
           if (tickets?.length) {
             const statusIcon = { abierto:'🔵', en_proceso:'🟡', resuelto:'✅', cerrado:'⬛', pendiente:'🟠' };
@@ -454,8 +467,8 @@ router.post('/message', optionalAuth, async (req, res) => {
         if (name) {
           const people = await dbQuery(
             `SELECT full_name, email, phone, department, job_title
-             FROM employees WHERE full_name LIKE ? AND active=1 LIMIT 3`,
-            [`%${name}%`]
+             FROM employees WHERE full_name LIKE ? AND is_active=1 AND tenant_id=? LIMIT 3`,
+            [`%${name}%`, tenantId(req)]
           ).catch(() => []);
           if (people?.length) {
             const list = people.map(p =>
@@ -483,7 +496,7 @@ router.post('/message', optionalAuth, async (req, res) => {
     // ── 2. KB directo (sin IA) ────────────────────────────────────────────────
     const KB_THRESHOLD = parseFloat(process.env.KB_DIRECT_THRESHOLD) || 0.4;
     let kbArticles = [];
-    try { kbArticles = (await KnowledgeService.search(message, 5, null)) || []; } catch (_) {}
+    try { kbArticles = (await KnowledgeService.search(message, 5, req.user?.id, tenantId(req))) || []; } catch (_) {}
 
     if (kbArticles.length) {
       const qTokens = _words(_normText(message)).map(_canon);
@@ -518,8 +531,8 @@ router.post('/message', optionalAuth, async (req, res) => {
     }
 
     // Analytics: log queries que no resuelven FAQ ni KB
-    dbQuery('INSERT INTO chatbot_analytics (user_email, message, resolved_by) VALUES (?,?,?)',
-      [req.user?.email || null, message.substring(0, 500), GROQ_API_KEY ? 'groq' : 'none']).catch(() => {});
+    dbQuery('INSERT INTO chatbot_analytics (user_email, message, resolved_by, tenant_id) VALUES (?,?,?,?)',
+      [req.user?.email || null, message.substring(0, 500), GROQ_API_KEY ? 'groq' : 'none', tenantId(req)]).catch(() => {});
 
     // ── 3. Sin match en KB → Groq ─────────────────────────────────────────────
     if (!GROQ_API_KEY) {
@@ -533,7 +546,8 @@ router.post('/message', optionalAuth, async (req, res) => {
       ).join('\n');
     }
 
-    const systemPrompt = PLATFORM_SYSTEM_PROMPT.replace('{KB_CONTEXT}', kbContext);
+    const [_tenantRow] = await dbQuery('SELECT name FROM tenants WHERE id = ? LIMIT 1', [tenantId(req)]).catch(() => []);
+    const systemPrompt = PLATFORM_SYSTEM_PROMPT.replace('{KB_CONTEXT}', kbContext).replace('{COMPANY_NAME}', _tenantRow?.name || 'tu empresa');
     const nodeFetch = (...a) => import('node-fetch').then(m => m.default(...a));
     const groqRes = await nodeFetch(GROQ_URL, {
       method:  'POST',
@@ -565,7 +579,7 @@ router.post('/message', optionalAuth, async (req, res) => {
 });
 
 // ── POST /api/chatbot/analyze-image — OCR + contexto ─────────────────────────
-router.post('/analyze-image', optionalAuth, _imgUpload.single('image'), async (req, res) => {
+router.post('/analyze-image', authenticateToken, _imgUpload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, error: 'No se recibió imagen' });
   const { path: filePath, filename } = req.file;
 
@@ -586,16 +600,16 @@ router.post('/analyze-image', optionalAuth, _imgUpload.single('image'), async (r
     const qTokens = _words(_normText(text)).filter(w => w.length > 4).slice(0, 4);
 
     const [kbArticles, faqResult, similarTickets] = await Promise.all([
-      KnowledgeService.search(text, 3, null).catch(() => []),
-      _faqMatch(text).catch(() => null),
+      KnowledgeService.search(text, 3, req.user?.id, tenantId(req)).catch(() => []),
+      _faqMatch(text, tenantId(req)).catch(() => null),
       (async () => {
         if (!qTokens.length) return [];
         const orClauses = qTokens.map(() => 'summary LIKE ?').join(' OR ');
         return dbQuery(
           `SELECT ticket_key, summary, internal_status FROM jira_tickets
-           WHERE (${orClauses}) AND internal_status NOT IN ('cerrado','resuelto')
+           WHERE (${orClauses}) AND COALESCE(tenant_id, 1) = ? AND internal_status NOT IN ('cerrado','resuelto')
            ORDER BY created_at DESC LIMIT 3`,
-          qTokens.map(kw => `%${kw}%`)
+          [...qTokens.map(kw => `%${kw}%`), tenantId(req)]
         ).catch(() => []);
       })(),
     ]);
@@ -622,7 +636,7 @@ router.post('/analyze-image', optionalAuth, _imgUpload.single('image'), async (r
 });
 
 // ── GET /api/chatbot/image/:token — preview seguro ───────────────────────────
-router.get('/image/:token', optionalAuth, (req, res) => {
+router.get('/image/:token', authenticateToken, (req, res) => {
   const token = req.params.token.replace(/[^a-zA-Z0-9._-]/g, '');
   if (!token || token.length < 8) return res.status(400).end();
   const fp = path.join(_chatbotUploadDir, token);
@@ -638,7 +652,7 @@ router.post('/incident', authenticateToken, async (req, res) => {
 
     const userEmail = req.user?.email || req.user?.username || '';
     const reporter  = req.user?.full_name || req.user?.username || userEmail || 'Usuario';
-    const tenantId  = req.user?.tenant_id || null;
+    const tid       = tenantId(req);
     const SLA_H     = { P1: 4, P2: 8, P3: 24, P4: 72 };
     const slaHours  = SLA_H[priority] || 24;
 
@@ -650,8 +664,8 @@ router.post('/incident', authenticateToken, async (req, res) => {
         FROM employees emp
         JOIN assignments a ON emp.id = a.employee_id
         JOIN equipment e   ON a.equipment_id = e.id
-        WHERE emp.email = ? LIMIT 2
-      `, [userEmail]);
+        WHERE emp.email = ? AND emp.tenant_id = ? AND a.tenant_id = ? LIMIT 2
+      `, [userEmail, tid, tid]);
       if (_assets.length) {
         _cmdbLine = '\n\nActivo(s): ' + _assets.map(a =>
           `${a.equipment_type || ''} ${a.brand || ''} ${a.model || ''}${a.device_code ? ' ('+a.device_code+')' : ''} — OS: ${a.operating_system || '—'}`
@@ -660,8 +674,8 @@ router.post('/incident', authenticateToken, async (req, res) => {
     } catch(_) {}
 
     // ── 1. Crear en Jira Service Desk (si token configurado o feature habilitado) ───
-    const _ffJira = await FeatureFlagService.isEnabled(tenantId, 'jira').catch(() => false);
-    const jiraEnabled = !!JIRA_TOKEN || _ffJira;
+    // El Jira del .env es del tenant original; los demás crean tickets locales
+    const jiraEnabled = !!JIRA_TOKEN && jiraAllowedForCurrentTenant();
     let jiraKey = null;
     let jiraUrl = null;
     if (jiraEnabled) try {
@@ -749,19 +763,8 @@ router.post('/incident', authenticateToken, async (req, res) => {
     }
 
     // ── 2. Clave: INC-XXXX (Jira real) o INC-XXXX (local sin Jira) ─────────
-    let key = jiraKey;
-    if (!key) {
-      try {
-        const rows = await dbQuery(
-          `SELECT MAX(CAST(SUBSTRING(ticket_key, 5) AS UNSIGNED)) AS maxn FROM jira_tickets WHERE ticket_key LIKE 'INC-%'${tenantId ? ' AND tenant_id = ?' : ''}`,
-          tenantId ? [tenantId] : []
-        );
-        const nextNum = (rows[0]?.maxn || 0) + 1;
-        key = `INC-${String(nextNum).padStart(4, '0')}`;
-      } catch (_) {
-        key = `INC-${Date.now().toString().slice(-4)}`;
-      }
-    }
+    // Clave local única en toda la plataforma (ticket_key es único global)
+    let key = jiraKey || await nextLocalTicketKey('INC');
 
     const _initStatus = outOfHours ? 'pendiente' : 'abierto';
 
@@ -772,25 +775,25 @@ router.post('/incident', authenticateToken, async (req, res) => {
        VALUES (?, ?, ?, 'Abierto', ?, ?, ?, '-',
           DATE_ADD(NOW(), INTERVAL ? HOUR), ?, ?, NOW())
        ON DUPLICATE KEY UPDATE summary=VALUES(summary)`,
-      [key, summary.trim(), summary.trim(), _initStatus, priority, userEmail || reporter, slaHours, tenantId, jiraUrl]
+      [key, summary.trim(), summary.trim(), _initStatus, priority, userEmail || reporter, slaHours, tid, jiraUrl]
     ).catch(e => console.warn('[chatbot/incident] DB sync error:', e.message));
 
     await dbQuery(
-      `INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle)
+      `INSERT INTO ticket_history /* tenant_id: ticket recién creado por este tenant */ (ticket_id, user_id, user_name, evento, detalle)
        VALUES (?,?,?,'creacion',?)`,
       [key, req.user?.id || 0, reporter, `Ticket ${key} creado desde ARIA Chatbot`]
     ).catch(() => {});
 
     if (outOfHours) {
       await dbQuery(
-        `INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle)
+        `INSERT INTO ticket_history /* tenant_id: ticket recién creado por este tenant */ (ticket_id, user_id, user_name, evento, detalle)
          VALUES (?,0,'ARIA','comentario',?)`,
         [key, 'Incidencia generada fuera del horario de atención (Lun–Vie 8:00–18:00). Se encuentra en estado Pendiente y será atendida en el próximo turno laboral.']
       ).catch(() => {});
     }
 
     const io = req.app.get('io');
-    if (io) io.to('jira:agents').emit('ticket:created', {
+    if (io) io.to(agentsRoom(tid)).emit('ticket:created', {
       key, summary: summary.trim(), priority, reporter: userEmail
     });
 
@@ -809,11 +812,11 @@ router.post('/requirement', authenticateToken, async (req, res) => {
 
     const userEmail = req.user?.email || req.user?.username || '';
     const reporter  = req.user?.full_name || req.user?.username || userEmail || 'Usuario';
-    const tenantId  = req.user?.tenant_id || null;
+    const tid       = tenantId(req);
     const desc      = `Requerimiento vía ARIA Chatbot\n\nUsuario: ${reporter} (${userEmail})\n\nDetalle: ${summary.trim()}`;
 
     let jiraKey = null, jiraUrl = null;
-    try {
+    if (jiraAllowedForCurrentTenant() && JIRA_TOKEN) try {
       const payload = {
         serviceDeskId: SD_REQ_CHATBOT, requestTypeId: RT_REQ_CHATBOT,
         requestFieldValues: { summary: summary.trim(), description: _adf(desc) },
@@ -836,16 +839,7 @@ router.post('/requirement', authenticateToken, async (req, res) => {
       }
     }
 
-    let key = jiraKey;
-    if (!key) {
-      try {
-        const rows = await dbQuery(
-          `SELECT COUNT(*) AS cnt FROM jira_tickets WHERE ticket_key LIKE 'REQ-%'${tenantId ? ' AND tenant_id=?' : ''}`,
-          tenantId ? [tenantId] : []
-        );
-        key = `REQ-${String((rows[0]?.cnt || 0) + 1).padStart(4, '0')}`;
-      } catch (_) { key = `REQ-${Date.now().toString().slice(-4)}`; }
-    }
+    let key = jiraKey || await nextLocalTicketKey('REQ');
 
     await dbQuery(
       `INSERT INTO jira_tickets
@@ -853,16 +847,16 @@ router.post('/requirement', authenticateToken, async (req, res) => {
           sla_deadline, tenant_id, jira_url, created_at)
        VALUES (?,?,?,'Abierto','abierto',?,?,'-',DATE_ADD(NOW(),INTERVAL 72 HOUR),?,?,NOW())
        ON DUPLICATE KEY UPDATE summary=VALUES(summary)`,
-      [key, summary.trim(), desc, priority, userEmail || reporter, tenantId, jiraUrl]
+      [key, summary.trim(), desc, priority, userEmail || reporter, tid, jiraUrl]
     ).catch(e => console.warn('[chatbot/requirement] DB:', e.message));
 
     await dbQuery(
-      `INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?,?,?,'creacion',?)`,
+      `INSERT INTO ticket_history /* tenant_id: ticket recién creado por este tenant */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?,?,?,'creacion',?)`,
       [key, req.user?.id || 0, reporter, `Requerimiento ${key} creado desde ARIA Chatbot`]
     ).catch(() => {});
 
     const io = req.app.get('io');
-    if (io) io.to('jira:agents').emit('ticket:created', {
+    if (io) io.to(agentsRoom(tid)).emit('ticket:created', {
       key, summary: summary.trim(), priority, reporter: userEmail, type: 'requirement'
     });
 
@@ -878,15 +872,14 @@ router.get('/tickets', authenticateToken, async (req, res) => {
   try {
     const q        = (req.query.q || '').trim();
     const reporter = req.user?.email || req.user?.username;
-    const tenantId = req.user?.tenant_id || null;
     if (!reporter) return res.json({ success: false, error: 'Sin usuario autenticado', tickets: [] });
 
     const isEmailQ = q && /^[\w.+%-]+@[\w.-]+\.[a-z]{2,}$/i.test(q);
     const isKeyQ   = q && /^(TK-|IT-|INC-)\d+/i.test(q);
 
     let sql    = `SELECT ticket_key, summary, internal_status, priority, created_at, assigned_to_name, reporter, jira_url
-                  FROM jira_tickets WHERE deleted_at IS NULL`;
-    const params = [];
+                  FROM jira_tickets WHERE deleted_at IS NULL AND COALESCE(tenant_id, 1) = ?`;
+    const params = [tenantId(req)];
 
     if (isEmailQ) {
       // búsqueda por correo del reportero (sin restricción al usuario actual)
@@ -906,7 +899,6 @@ router.get('/tickets', authenticateToken, async (req, res) => {
       params.push(reporter);
     }
 
-    if (tenantId) { sql += ' AND tenant_id = ?'; params.push(tenantId); }
     sql += ' ORDER BY created_at DESC LIMIT 10';
     const tickets = await dbQuery(sql, params);
     res.json({ success: true, tickets: tickets || [] });
@@ -923,8 +915,8 @@ router.get('/ticket/:key', authenticateToken, async (req, res) => {
     const reporter = req.user?.email || req.user?.username;
     const rows     = await dbQuery(
       `SELECT ticket_key, summary, internal_status, priority, created_at, assigned_to_name, jira_url
-       FROM jira_tickets WHERE ticket_key = ? AND reporter = ? AND deleted_at IS NULL`,
-      [key, reporter]
+       FROM jira_tickets WHERE ticket_key = ? AND reporter = ? AND COALESCE(tenant_id, 1) = ? AND deleted_at IS NULL`,
+      [key, reporter, tenantId(req)]
     );
     if (!rows.length) return res.json({ success: false });
     res.json({ success: true, ticket: rows[0] });
@@ -934,19 +926,19 @@ router.get('/ticket/:key', authenticateToken, async (req, res) => {
 });
 
 // ── GET /api/chatbot/suggest?q= — Autocompletado FAQ ─────────────────────────
-router.get('/suggest', optionalAuth, async (req, res) => {
+router.get('/suggest', authenticateToken, async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
     if (q.length < 3) return res.json({ suggestions: [] });
-    await _ensureFaqTables();
+    await _ensureTenantFaq(tenantId(req));
     await _loadSynonyms();
     const qWords = new Set(_words(_normText(q)).map(_canon));
     if (!qWords.size) return res.json({ suggestions: [] });
     const rows = await dbQuery(`
       SELECT DISTINCT i.intent_key, i.title, t.phrase
       FROM faq_intents i JOIN faq_triggers t ON t.intent_id = i.id
-      WHERE i.active = 1
-    `);
+      WHERE i.active = 1 AND i.tenant_id = ?
+    `, [tenantId(req)]);
     const best = {};
     for (const row of rows) {
       const tw = _words(_normText(row.phrase)).map(_canon);
@@ -969,9 +961,9 @@ router.get('/notifications', authenticateToken, async (req, res) => {
     const rows     = await dbQuery(`
       SELECT ticket_key, summary, internal_status, assigned_to_name, updated_at
       FROM jira_tickets
-      WHERE reporter = ? AND updated_at > ? AND deleted_at IS NULL
+      WHERE reporter = ? AND COALESCE(tenant_id, 1) = ? AND updated_at > ? AND deleted_at IS NULL
       ORDER BY updated_at DESC LIMIT 5
-    `, [reporter, since]);
+    `, [reporter, tenantId(req), since]);
     const lbl = { abierto:'Abierto', asignado:'Asignado', en_progreso:'En progreso', resuelto:'Resuelto', cerrado:'Cerrado', pendiente:'Pendiente' };
     res.json({
       success: true,
@@ -1012,11 +1004,13 @@ router.get('/my-assets', authenticateToken, async (req, res) => {
       JOIN assignments a  ON emp.id = a.employee_id  AND a.deleted_at IS NULL
       JOIN equipment   e  ON a.equipment_id = e.id   AND e.deleted_at IS NULL
       WHERE emp.email = ?
+        AND emp.tenant_id = ?
+        AND a.tenant_id = ?
         AND emp.deleted_at IS NULL
         AND a.status = 'Activo'
       ORDER BY a.assignment_date DESC
       LIMIT 5
-    `, [email]);
+    `, [email, tenantId(req), tenantId(req)]);
     res.json({ success: true, assets: rows || [] });
   } catch(e) { res.json({ success: true, assets: [] }); }
 });
@@ -1027,8 +1021,10 @@ router.post('/csat', authenticateToken, async (req, res) => {
     const { ticketKey, rating } = req.body;
     if (!ticketKey || !rating) return res.status(400).json({ success: false });
     const r = Math.min(5, Math.max(1, parseInt(rating) || 1));
+    const own = await dbQuery('SELECT 1 FROM jira_tickets WHERE ticket_key = ? AND COALESCE(tenant_id, 1) = ? LIMIT 1', [ticketKey, tenantId(req)]);
+    if (!own.length) return res.status(404).json({ success: false });
     await dbQuery(
-      `INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle)
+      `INSERT INTO ticket_history /* tenant_id: ticket validado arriba */ (ticket_id, user_id, user_name, evento, detalle)
        VALUES (?, ?, ?, 'csat', ?)`,
       [ticketKey, req.user?.id || 0, req.user?.full_name || req.user?.email || 'Usuario', `CSAT: ${r}/5 ⭐`]
     ).catch(() => {});
@@ -1079,20 +1075,20 @@ router.post('/consult', authenticateToken, async (req, res) => {
     const token     = require('crypto').randomBytes(20).toString('hex');
     const userName  = bodyName  || req.user?.full_name || req.user?.username || req.user?.email;
     const userEmail = bodyEmail || req.user?.email || req.user?.username;
-    const tenantId  = req.user?.tenant_id || null;
+    const tid       = tenantId(req);
     await dbQuery(
       `INSERT INTO chat_consultations (session_token, user_email, user_name, tenant_id, topic, status) VALUES (?,?,?,?,?,'waiting')`,
-      [token, userEmail, userName, tenantId, topic.trim()]);
+      [token, userEmail, userName, tid, topic.trim()]);
     // Obtener el ID insertado (Sequelize RAW no expone insertId directamente)
     const idRows    = await dbQuery(`SELECT LAST_INSERT_ID() AS id`);
     const consultId = Number(idRows?.[0]?.id || idRows?.[0]?.['LAST_INSERT_ID()'] || 0);
     if (!consultId) throw new Error('No se obtuvo ID de la consulta creada');
     await dbQuery(
-      `INSERT INTO chat_consultation_messages (consultation_id, sender_role, sender_name, message) VALUES (?,?,?,?)`,
-      [consultId, 'system', 'ARIA', 'Consulta iniciada. Un especialista se conectará en breve.']);
+      `INSERT INTO chat_consultation_messages (consultation_id, sender_role, sender_name, message, tenant_id) VALUES (?,?,?,?,?)`,
+      [consultId, 'system', 'ARIA', 'Consulta iniciada. Un especialista se conectará en breve.', tid]);
     const io = req.app.get('io');
-    if (io) io.to('jira:agents').emit('consult:new', {
-      id: consultId, token, userName, userEmail, topic: topic.trim(), tenantId, createdAt: new Date().toISOString()
+    if (io) io.to(agentsRoom(tid)).emit('consult:new', {
+      id: consultId, token, userName, userEmail, topic: topic.trim(), tenantId: tid, createdAt: new Date().toISOString()
     });
     res.json({ success: true, id: consultId, token });
   } catch (e) {
@@ -1106,7 +1102,7 @@ router.get('/consult/:id/messages', authenticateToken, async (req, res) => {
     await _ensureCCTables();
     const since = parseInt(req.query.since) || 0;
     const rows = await dbQuery(
-      `SELECT id, status, specialist_name, ticket_key, user_name, user_email FROM chat_consultations WHERE id=? LIMIT 1`, [req.params.id]);
+      `SELECT id, status, specialist_name, ticket_key, user_name, user_email FROM chat_consultations WHERE id=? AND tenant_id=? LIMIT 1`, [req.params.id, tenantId(req)]);
     if (!rows?.length) return res.status(404).json({ success: false });
     // Permitir acceso al dueño de la consulta o a especialistas/admins
     const userRole  = req.user?.role || 'usuario';
@@ -1115,7 +1111,7 @@ router.get('/consult/:id/messages', authenticateToken, async (req, res) => {
     if (!isSpec && rows[0].user_email !== userEmail) return res.status(403).json({ success: false });
     const messages = await dbQuery(
       `SELECT id, sender_role, sender_name, message, created_at FROM chat_consultation_messages
-       WHERE consultation_id=? AND id>? ORDER BY id ASC LIMIT 30`, [req.params.id, since]);
+       WHERE consultation_id=? AND tenant_id=? AND id>? ORDER BY id ASC LIMIT 30`, [req.params.id, tenantId(req), since]);
     res.json({ success: true, session: rows[0], messages: messages || [] });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -1126,12 +1122,16 @@ router.post('/consult/:id/message', authenticateToken, async (req, res) => {
     const { message, role = 'user' } = req.body;
     if (!message?.trim()) return res.status(400).json({ success: false });
     const senderName = req.user?.full_name || req.user?.username || req.user?.email;
+    const [cons] = await dbQuery('SELECT user_email FROM chat_consultations WHERE id=? AND tenant_id=? LIMIT 1', [req.params.id, tenantId(req)]);
+    if (!cons) return res.status(404).json({ success: false });
+    const isSpec = ['administrador','especialista','agente','tecnico','superadmin'].includes(req.user?.role);
+    if (!isSpec && cons.user_email !== (req.user?.email || req.user?.username)) return res.status(403).json({ success: false });
     const result = await dbQuery(
-      `INSERT INTO chat_consultation_messages (consultation_id, sender_role, sender_name, message) VALUES (?,?,?,?)`,
-      [req.params.id, role, senderName, message.trim()]);
+      `INSERT INTO chat_consultation_messages (consultation_id, sender_role, sender_name, message, tenant_id) VALUES (?,?,?,?,?)`,
+      [req.params.id, isSpec ? role : 'user', senderName, message.trim(), tenantId(req)]);
     const msgId = result?.insertId || 0;
     const io = req.app.get('io');
-    if (io) io.to('jira:agents').emit('consult:message', {
+    if (io) io.to(agentsRoom(tenantId(req))).emit('consult:message', {
       consultId: parseInt(req.params.id), role, senderName, message: message.trim(), msgId, ts: new Date().toISOString()
     });
     res.json({ success: true, id: msgId });
@@ -1144,14 +1144,16 @@ router.post('/consult/:id/take', authenticateToken, async (req, res) => {
     const specName  = req.user?.full_name || req.user?.username;
     const specEmail = req.user?.email;
     const specId    = req.user?.id;
-    await dbQuery(
+    if (!['administrador','especialista','agente','tecnico','superadmin'].includes(req.user?.role)) return res.status(403).json({ success: false });
+    const taken = await dbQuery(
       `UPDATE chat_consultations SET status='active', specialist_id=?, specialist_name=?, specialist_email=?, updated_at=NOW()
-       WHERE id=? AND status='waiting'`, [specId, specName, specEmail, req.params.id]);
+       WHERE id=? AND tenant_id=? AND status='waiting'`, [specId, specName, specEmail, req.params.id, tenantId(req)]);
+    if (!taken.affectedRows) return res.status(404).json({ success: false });
     await dbQuery(
-      `INSERT INTO chat_consultation_messages (consultation_id, sender_role, sender_name, message) VALUES (?,?,?,?)`,
-      [req.params.id, 'system', 'Sistema', `${specName} se unió a la consulta.`]);
+      `INSERT INTO chat_consultation_messages (consultation_id, sender_role, sender_name, message, tenant_id) VALUES (?,?,?,?,?)`,
+      [req.params.id, 'system', 'Sistema', `${specName} se unió a la consulta.`, tenantId(req)]);
     const io = req.app.get('io');
-    if (io) io.to('jira:agents').emit('consult:taken', { consultId: parseInt(req.params.id), specialistName: specName });
+    if (io) io.to(agentsRoom(tenantId(req))).emit('consult:taken', { consultId: parseInt(req.params.id), specialistName: specName });
     res.json({ success: true, specName });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -1168,20 +1170,18 @@ router.get('/consults/admin-history', authenticateToken, async (req, res) => {
     const offset  = (page - 1) * limit;
     const search  = req.query.q ? `%${req.query.q}%` : null;
     const status  = req.query.status || null;
-    const tenantId = req.user?.tenant_id || null;
-
-    let where = tenantId ? 'WHERE (tenant_id=? OR tenant_id IS NULL)' : 'WHERE 1=1';
-    const params = tenantId ? [tenantId] : [];
+    let where = 'WHERE COALESCE(tenant_id, 1)=?';
+    const params = [tenantId(req)];
     if (status)  { where += ' AND status=?'; params.push(status); }
     if (search)  { where += ' AND (user_email LIKE ? OR user_name LIKE ? OR topic LIKE ?)'; params.push(search, search, search); }
 
     const rows = await dbQuery(
-      `SELECT id, user_email, user_name, topic, status, specialist_name, ticket_key, satisfaction_rating, created_at, updated_at
+      `SELECT id, user_email, user_name, topic, status, specialist_name, ticket_key, satisfaction_rating, created_at, updated_at /* tenant_id: en where */
        FROM chat_consultations ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
     const [{ total }] = await dbQuery(
-      `SELECT COUNT(*) AS total FROM chat_consultations ${where}`, params
+      `SELECT COUNT(*) AS total /* tenant_id: en where */ FROM chat_consultations ${where}`, params
     );
     res.json({ success: true, data: rows, meta: { total, page, limit, pages: Math.ceil(total / limit) } });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
@@ -1212,13 +1212,13 @@ router.get('/consults/history', authenticateToken, async (req, res) => {
     const rows = await dbQuery(
       `SELECT id, topic, status, specialist_name, ticket_key, satisfaction_rating, created_at, updated_at
        FROM chat_consultations
-       WHERE user_email=?
+       WHERE user_email=? AND COALESCE(tenant_id, 1)=?
        ORDER BY created_at DESC
        LIMIT ? OFFSET ?`,
-      [email, limit, offset]
+      [email, tenantId(req), limit, offset]
     );
     const [{ total }] = await dbQuery(
-      `SELECT COUNT(*) AS total FROM chat_consultations WHERE user_email=?`, [email]
+      `SELECT COUNT(*) AS total FROM chat_consultations WHERE user_email=? AND COALESCE(tenant_id, 1)=?`, [email, tenantId(req)]
     );
     res.json({ success: true, data: rows, meta: { total, page, limit, pages: Math.ceil(total / limit) } });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
@@ -1227,26 +1227,18 @@ router.get('/consults/history', authenticateToken, async (req, res) => {
 router.get('/consults/active', authenticateToken, async (req, res) => {
   try {
     await _ensureCCTables();
-    const tenantId = req.user?.tenant_id || null;
     const specId   = req.user?.id;
-    const waiting  = tenantId
-      ? await dbQuery(
+    const waiting  = await dbQuery(
           `SELECT id, user_email, user_name, topic, created_at FROM chat_consultations
-           WHERE status='waiting' AND (tenant_id=? OR tenant_id IS NULL)
+           WHERE status='waiting' AND COALESCE(tenant_id, 1)=?
              AND created_at >= DATE_SUB(NOW(), INTERVAL 2 HOUR)
            ORDER BY created_at DESC LIMIT 10`,
-          [tenantId]
-        )
-      : await dbQuery(
-          `SELECT id, user_email, user_name, topic, created_at FROM chat_consultations
-           WHERE status='waiting'
-             AND created_at >= DATE_SUB(NOW(), INTERVAL 2 HOUR)
-           ORDER BY created_at DESC LIMIT 10`
+          [tenantId(req)]
         );
     const activeRows = specId ? await dbQuery(
       `SELECT id, user_email, user_name, topic FROM chat_consultations
-       WHERE status='active' AND specialist_id=? ORDER BY updated_at DESC LIMIT 1`,
-      [specId]
+       WHERE status='active' AND specialist_id=? AND COALESCE(tenant_id, 1)=? ORDER BY updated_at DESC LIMIT 1`,
+      [specId, tenantId(req)]
     ) : [];
     res.json({ success: true, waiting: waiting || [], active: activeRows?.[0] || null });
   } catch (e) { res.status(500).json({ success: false }); }
@@ -1256,14 +1248,15 @@ router.post('/consult/:id/resolve', authenticateToken, async (req, res) => {
   try {
     await _ensureCCTables();
     const { createTicket = false, assigneeEmail: bodyAssignee = '' } = req.body;
-    const rows = await dbQuery(`SELECT * FROM chat_consultations WHERE id=? LIMIT 1`, [req.params.id]);
+    if (!['administrador','especialista','agente','tecnico','superadmin'].includes(req.user?.role)) return res.status(403).json({ success: false });
+    const rows = await dbQuery(`SELECT * FROM chat_consultations WHERE id=? AND COALESCE(tenant_id, 1)=? LIMIT 1`, [req.params.id, tenantId(req)]);
     if (!rows?.length) return res.status(404).json({ success: false });
     const session = rows[0];
     let ticketKey    = null;
     let jiraUrl      = null;
     let jiraErrMsg   = null;
     let assigneeName = null;
-    if (createTicket) {
+    if (createTicket && jiraAllowedForCurrentTenant() && JIRA_TOKEN) {
       const specName  = req.user?.full_name || req.user?.username;
       const specEmail = bodyAssignee || req.user?.email;
       const reporter  = session.user_email;
@@ -1341,36 +1334,36 @@ router.post('/consult/:id/resolve', authenticateToken, async (req, res) => {
         } catch (_) {}
 
         // ── 3. Sync BD local (completo, igual que portal) ──
-        const dbTech = await dbQuery(`SELECT id, full_name FROM users WHERE email=? AND deleted_at IS NULL LIMIT 1`, [specEmail]).catch(() => []);
+        const dbTech = await dbQuery(`SELECT id, full_name FROM users WHERE email=? AND COALESCE(tenant_id, 1)=? AND deleted_at IS NULL LIMIT 1`, [specEmail, tenantId(req)]).catch(() => []);
         const dbAgent = dbTech[0] || null;
         await dbQuery(
           `INSERT INTO jira_tickets
              (ticket_key, summary, description, status, internal_status, priority, reporter, phone,
               component, assigned_to, assigned_to_name, assigned_at, first_response_at,
-              sla_deadline, jira_url, created_at)
-           VALUES (?,?,?,'Abierto','asignado','P3',?,?,?,?,?,NOW(),NOW(),DATE_ADD(NOW(),INTERVAL 24 HOUR),?,NOW())
+              sla_deadline, jira_url, created_at, tenant_id)
+           VALUES (?,?,?,'Abierto','asignado','P3',?,?,?,?,?,NOW(),NOW(),DATE_ADD(NOW(),INTERVAL 24 HOUR),?,NOW(),?)
            ON DUPLICATE KEY UPDATE summary=VALUES(summary), reporter=VALUES(reporter),
              assigned_to=VALUES(assigned_to), assigned_to_name=VALUES(assigned_to_name)`,
           [ticketKey, summary, session.topic, reporter, session.phone || '-',
            'General', dbAgent?.id || null, dbAgent?.full_name || specName || specEmail,
-           jiraUrl]
+           jiraUrl, tenantId(req)]
         ).catch(e => console.error('[chatbot/resolve] DB insert error:', e.message));
 
         const io2 = req.app.get('io');
-        if (io2) io2.to('jira:agents').emit('ticket:created', {
+        if (io2) io2.to(agentsRoom(tenantId(req))).emit('ticket:created', {
           key: ticketKey, summary: summary.slice(0, 80), priority: 'P3', reporter, fromChatbot: true
         });
       }
     }
     await dbQuery(
-      `UPDATE chat_consultations SET status=?, ticket_key=?, updated_at=NOW() WHERE id=?`,
-      [createTicket ? 'converted' : 'resolved', ticketKey, req.params.id]);
+      `UPDATE chat_consultations SET status=?, ticket_key=?, updated_at=NOW() WHERE id=? AND COALESCE(tenant_id, 1)=?`,
+      [createTicket ? 'converted' : 'resolved', ticketKey, req.params.id, tenantId(req)]);
     await dbQuery(
-      `INSERT INTO chat_consultation_messages (consultation_id, sender_role, sender_name, message) VALUES (?,?,?,?)`,
+      `INSERT INTO chat_consultation_messages (consultation_id, sender_role, sender_name, message, tenant_id) VALUES (?,?,?,?,?)`,
       [req.params.id, 'system', 'Sistema',
-       ticketKey ? `Consulta resuelta. Ticket ${ticketKey} creado y asignado a ${assigneeName || 'especialista'}.` : 'Consulta cerrada. ¡Gracias por contactarnos!']);
+       ticketKey ? `Consulta resuelta. Ticket ${ticketKey} creado y asignado a ${assigneeName || 'especialista'}.` : 'Consulta cerrada. ¡Gracias por contactarnos!', tenantId(req)]);
     const io = req.app.get('io');
-    if (io) io.to('jira:agents').emit('consult:resolved', { consultId: parseInt(req.params.id), ticketKey });
+    if (io) io.to(agentsRoom(tenantId(req))).emit('consult:resolved', { consultId: parseInt(req.params.id), ticketKey });
     res.json({ success: true, ticketKey, jiraUrl,
       summary: ticketKey ? `Consulta en línea — ${session.user_email}` : null,
       reporter: session.user_email,
@@ -1384,22 +1377,22 @@ router.post('/consult/:id/rate', authenticateToken, async (req, res) => {
     await _ensureCCTables();
     const { rating } = req.body;
     if (!rating || rating < 1 || rating > 5) return res.status(400).json({ success: false });
-    await dbQuery(`UPDATE chat_consultations SET satisfaction_rating=?, updated_at=NOW() WHERE id=?`, [rating, req.params.id]);
+    await dbQuery(`UPDATE chat_consultations SET satisfaction_rating=?, updated_at=NOW() WHERE id=? AND COALESCE(tenant_id, 1)=? AND user_email=?`, [rating, req.params.id, tenantId(req), req.user?.email || req.user?.username]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ── GET /api/chatbot/faq/followups/:key — sugerencias para el frontend ────────
-router.get('/faq/followups/:key', async (req, res) => {
+router.get('/faq/followups/:key', authenticateToken, async (req, res) => {
   try {
-    await _ensureFaqTables();
+    await _ensureTenantFaq(tenantId(req));
     const rows = await dbQuery(
       `SELECT f.label, f.next_intent_key
        FROM faq_followups f
        JOIN faq_intents i ON i.id = f.intent_id
-       WHERE i.intent_key = ? AND i.active = 1
+       WHERE i.intent_key = ? AND i.tenant_id = ? AND i.active = 1
        ORDER BY f.sort_order`,
-      [req.params.key]
+      [req.params.key, tenantId(req)]
     );
     res.json({ success: true, followups: rows || [] });
   } catch (e) { res.status(500).json({ success: false, followups: [] }); }
@@ -1408,14 +1401,16 @@ router.get('/faq/followups/:key', async (req, res) => {
 // ── GET /api/chatbot/faq — lista de intents para admin panel ─────────────────
 router.get('/faq', authenticateToken, async (req, res) => {
   try {
-    await _ensureFaqTables();
+    await _ensureTenantFaq(tenantId(req));
     const role = req.user?.role || '';
     if (!['administrador','superadmin'].includes(role)) return res.status(403).json({ success: false });
     const intents = await dbQuery(
       `SELECT i.id, i.intent_key, i.category, i.title, i.response_type, i.escalate_auto, i.active, i.sort_order,
               COUNT(t.id) AS trigger_count
        FROM faq_intents i LEFT JOIN faq_triggers t ON t.intent_id = i.id
-       GROUP BY i.id ORDER BY i.sort_order, i.category`
+       WHERE i.tenant_id = ?
+       GROUP BY i.id ORDER BY i.sort_order, i.category`,
+      [tenantId(req)]
     );
     res.json({ success: true, intents: intents || [] });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
@@ -1429,10 +1424,10 @@ router.patch('/faq/:id', authenticateToken, async (req, res) => {
     if (!['administrador','superadmin'].includes(role)) return res.status(403).json({ success: false });
     const { response_text, active } = req.body;
     if (response_text !== undefined) {
-      await dbQuery('UPDATE faq_intents SET response_text=?, updated_at=NOW() WHERE id=?', [response_text, req.params.id]);
+      await dbQuery('UPDATE faq_intents SET response_text=?, updated_at=NOW() WHERE id=? AND tenant_id=?', [response_text, req.params.id, tenantId(req)]);
     }
     if (active !== undefined) {
-      await dbQuery('UPDATE faq_intents SET active=?, updated_at=NOW() WHERE id=?', [active ? 1 : 0, req.params.id]);
+      await dbQuery('UPDATE faq_intents SET active=?, updated_at=NOW() WHERE id=? AND tenant_id=?', [active ? 1 : 0, req.params.id, tenantId(req)]);
     }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }

@@ -22,24 +22,45 @@ const JIRA_TOKEN = process.env.JIRA_API_TOKEN;
 const SD_ID      = '23';
 const RT_ID      = '213';
 
+// ── Guarda de aislamiento ──────────────────────────────────
+// La instancia Jira del .env (JIRA_HOST) pertenece al tenant original. Ninguna
+// petición de otro tenant puede llamarla, sea vía jira(), jiraForTenant() o axios
+// directo: el interceptor rechaza la llamada antes de salir. Sin contexto de
+// petición (cron/sync del tenant original) se permite.
+const { currentTenantId } = require('../../src/utils/tenantContext');
+const JIRA_OWNER_TENANT_ID = 1;
+function jiraAllowedForCurrentTenant() {
+    const tid = currentTenantId();
+    return tid === null || tid === JIRA_OWNER_TENANT_ID;
+}
+if (!axios.__jiraTenantGuard) {
+    axios.__jiraTenantGuard = true;
+    axios.interceptors.request.use(cfg => {
+        const url = `${cfg.baseURL || ''}${cfg.url || ''}`;
+        if (JIRA_HOST && url.startsWith(JIRA_HOST) && !jiraAllowedForCurrentTenant()) {
+            return Promise.reject(Object.assign(new Error('Jira no está configurado para esta empresa'), { code: 'JIRA_TENANT_BLOCKED' }));
+        }
+        return cfg;
+    });
+}
+
 const auth = { username: JIRA_EMAIL, password: JIRA_TOKEN };
 const _jiraAuthHeader = () =>
     `Basic ${Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64')}`;
 
-/** Devuelve credenciales Jira efectivas para un tenant (o .env si tenantId=null) */
+/** Credenciales Jira de un tenant. El tenant original usa las del .env; los
+ *  demás solo las suyas (IntegrationConfig). Sin configuración → null. */
 async function getJiraConfig(tenantId) {
-    if (!tenantId) return { host: JIRA_HOST, email: JIRA_EMAIL, token: JIRA_TOKEN };
+    if (!tenantId || Number(tenantId) === JIRA_OWNER_TENANT_ID) return { host: JIRA_HOST, email: JIRA_EMAIL, token: JIRA_TOKEN };
     const cfg = await IntegrationConfig.get(tenantId, 'jira').catch(() => ({}));
-    return {
-        host:  cfg.base_url   || JIRA_HOST,
-        email: cfg.username   || JIRA_EMAIL,
-        token: cfg.api_token  || JIRA_TOKEN,
-    };
+    if (!cfg?.base_url || !cfg?.username || !cfg?.api_token) return null;
+    return { host: cfg.base_url, email: cfg.username, token: cfg.api_token };
 }
 
 /** Helper de llamada Jira con soporte multi-tenant */
 async function jiraForTenant(tenantId, method, path, data = null) {
     const cfg  = await getJiraConfig(tenantId);
+    if (!cfg) throw Object.assign(new Error('Jira no está configurado para esta empresa'), { code: 'JIRA_NOT_CONFIGURED' });
     const head = `Basic ${Buffer.from(`${cfg.email}:${cfg.token}`).toString('base64')}`;
     const res  = await axios({
         method, url: `${cfg.host}${path}`,
@@ -387,9 +408,33 @@ function extractAdfText(body) {
     } catch(e) { return ''; }
 }
 
+// ── Propiedad de tickets ───────────────────────────────────
+// router.param('key', ticketTenantGuard()): la clave debe pertenecer al tenant
+// del usuario (tickets con tenant_id NULL son del tenant original). Una clave que
+// solo existe en Jira (sin sincronizar) solo la ve el tenant dueño de ese Jira.
+// router.param corre antes que los middlewares de la ruta: autentica si hace falta.
+const { tenantId: _reqTenantId } = require('../../src/utils/tenantScope');
+const TICKET_TABLES = [['jira_tickets', 'ticket_key'], ['jira_requirements', 'req_key']];
+function ticketTenantGuard(tables = TICKET_TABLES) {
+    return (req, res, next, key) => {
+        const check = async () => {
+            try {
+                const tid = _reqTenantId(req);
+                for (const [table, col] of tables) {
+                    const rows = await dbQuery(`SELECT COALESCE(tenant_id, 1) AS tid FROM ${table} WHERE ${col} = ? LIMIT 1`, [key]);
+                    if (rows.length) return Number(rows[0].tid) === tid ? next() : res.status(404).json({ success: false, error: 'Ticket no encontrado' });
+                }
+                return tid === JIRA_OWNER_TENANT_ID ? next() : res.status(404).json({ success: false, error: 'Ticket no encontrado' });
+            } catch (e) { next(e); }
+        };
+        if (req.user) return check();
+        authenticateToken(req, res, check);
+    };
+}
+
 module.exports = {
     JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID,
-    getJiraConfig, jiraForTenant,
+    getJiraConfig, jiraForTenant, jiraAllowedForCurrentTenant, ticketTenantGuard, JIRA_OWNER_TENANT_ID,
     jira, dbQuery, sendEmail, getAutomationConfig, assignEmailHtml,
     upload, mapJiraStatus, mapPriority, extractAdfText,
     IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS,

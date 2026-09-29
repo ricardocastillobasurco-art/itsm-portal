@@ -224,15 +224,33 @@ startJobs();
 const { startAlertJob } = require('./src/jobs/alertJob');
 startAlertJob(io);
 
-// Socket.io
+// Socket.io — conexión autenticada con la cookie de sesión. Las salas son por
+// usuario y por tenant: un cliente solo recibe eventos de su propia empresa.
+const { agentsRoom, tvRoom } = require('./src/utils/tenantTickets');
+const SOCKET_STAFF_ROLES = ['admin', 'administrador', 'especialista', 'agente', 'tecnico', 'supervisor', 'operador', 'superadmin'];
+io.use(async (socket, next) => {
+    try {
+        const cookies = socket.handshake.headers.cookie || '';
+        const fromCookie = (name) => { const m = cookies.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`)); return m ? decodeURIComponent(m[1]) : null; };
+        const token = fromCookie('accessToken') || fromCookie('token') || socket.handshake.auth?.token;
+        if (!token) return next(new Error('unauthorized'));
+        const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET || 'fallback_jwt_secret_dev_only');
+        const { executeQuery, equipmentPool } = require('./config/database');
+        const [u] = await executeQuery(equipmentPool, 'SELECT id, role, tenant_id FROM users WHERE id = ? AND is_active = 1 LIMIT 1', [decoded.id]);
+        if (!u) return next(new Error('unauthorized'));
+        socket.data.user = { id: u.id, role: u.role, tenantId: u.tenant_id || 1 };
+        next();
+    } catch (_) { next(new Error('unauthorized')); }
+});
 io.on('connection', (socket) => {
-    socket.on('join', (userId) => {
-        if (userId) socket.join(`user:${userId}`);
-    });
-    // Room para todos los agentes ITSM y para el dashboard TV
+    const { id: userId, role, tenantId } = socket.data.user;
+    // Solo la sala del propio usuario (se ignora el id que envíe el cliente)
+    socket.on('join', () => socket.join(`user:${userId}`));
+    // Sala de agentes ITSM y dashboard TV del tenant (solo personal de TI)
     socket.on('joinAgents', () => {
-        socket.join('jira:agents');
-        socket.join('tv:dashboard');
+        if (!SOCKET_STAFF_ROLES.includes(role)) return;
+        socket.join(agentsRoom(tenantId));
+        socket.join(tvRoom(tenantId));
     });
     socket.on('disconnect', () => {});
 });

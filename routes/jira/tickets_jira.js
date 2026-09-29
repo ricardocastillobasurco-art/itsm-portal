@@ -1,9 +1,14 @@
 const express = require('express');
 const router = express.Router();
+// Toda ruta con :key opera solo sobre tickets del tenant del usuario
+router.param('key', require('./helpers').ticketTenantGuard());
 const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID, loadAgentCache, resolveJiraAccountId } = require('./helpers');
 const axios = require('axios');
 const FormData = require('form-data');
+const { tenantId } = require('../../src/utils/tenantScope');
+const { agentsRoom, tvRoom } = require('../../src/utils/tenantTickets');
+const { JIRA_OWNER_TENANT_ID } = require('./helpers');
 
 const auth = { username: JIRA_EMAIL, password: JIRA_TOKEN };
 
@@ -134,12 +139,12 @@ router.post('/ticket/bulk', authenticateToken, async (req, res) => {
                         await jira('PUT', `/rest/api/3/issue/${issueKey}/assignee`, { accountId: agent.accountId });
                         assignedName = agent.displayName || assigneeEmail;
                         await dbQuery(
-                            `UPDATE jira_tickets SET jira_account_id=? WHERE jira_assignee=? AND (jira_account_id IS NULL OR jira_account_id='')`,
-                            [agent.accountId, assigneeEmail]
+                            `UPDATE jira_tickets SET jira_account_id=? WHERE jira_assignee=? AND COALESCE(tenant_id, 1)=? AND (jira_account_id IS NULL OR jira_account_id='')`,
+                            [agent.accountId, assigneeEmail, tenantId(req)]
                         ).catch(() => {});
                     }
                 } catch (_) {}
-                const dbTech = await dbQuery(`SELECT id, full_name FROM users WHERE email=? LIMIT 1`, [assigneeEmail]);
+                const dbTech = await dbQuery(`SELECT id, full_name FROM users WHERE email=? AND COALESCE(tenant_id, 1)=? LIMIT 1`, [assigneeEmail, tenantId(req)]);
                 assignedDbUser = dbTech[0] || null;
             }
 
@@ -153,11 +158,11 @@ router.post('/ticket/bulk', authenticateToken, async (req, res) => {
                     (ticket_key, summary, reporter, status, internal_status, priority,
                      urgency, urgency_level, impact, component, app_item, tipologia,
                      phone, description, impact_label, jira_url, sla_deadline,
-                     assigned_to, assigned_to_name, jira_assignee, assigned_at, first_response_at)
+                     assigned_to, assigned_to_name, jira_assignee, assigned_at, first_response_at, tenant_id)
                  VALUES (?, ?, ?, 'Abierto', ?, 'P3',
                      ?, 2, ?, ?, ?, ?,
                      '-', ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR),
-                     ?, ?, ?${assignedAt})`,
+                     ?, ?, ?${assignedAt}, ${Number(tenantId(req))})`,
                 [
                     issueKey, summary, reporter, internalStatus,
                     URGENCY_LABELS[urgency] || urgency,
@@ -186,7 +191,7 @@ router.post('/ticket/bulk', authenticateToken, async (req, res) => {
 
 // ============================================================
 
-router.post('/ticket', optionalAuth, async (req, res) => {
+router.post('/ticket', authenticateToken, async (req, res) => {
     const start = Date.now();
     try {
 
@@ -258,7 +263,8 @@ router.post('/ticket', optionalAuth, async (req, res) => {
 
         // Buscar usuario por defecto (rabasurco@stefanini.com)
         const defaultAssigneeRows = await dbQuery(
-            `SELECT id, full_name FROM users WHERE email='rabasurco@stefanini.com' AND deleted_at IS NULL LIMIT 1`
+            `SELECT id, full_name FROM users WHERE email='rabasurco@stefanini.com' AND COALESCE(tenant_id, 1)=? AND deleted_at IS NULL LIMIT 1`,
+            [tenantId(req)]
         );
         const defAssignee = defaultAssigneeRows[0] || null;
         const initStatus = defAssignee ? 'asignado' : 'abierto';
@@ -268,10 +274,10 @@ router.post('/ticket', optionalAuth, async (req, res) => {
                 (ticket_key, summary, reporter, device_code, status, internal_status, priority,
                  urgency, urgency_level, impact, component, app_item, tipologia,
                  phone, description, impact_label, jira_url, sla_deadline,
-                 assigned_to, assigned_to_name, assigned_at, first_response_at)
+                 assigned_to, assigned_to_name, assigned_at, first_response_at, tenant_id)
              VALUES (?, ?, ?, ?, 'Abierto', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                      DATE_ADD(NOW(), INTERVAL ? HOUR),
-                     ?, ?, ${defAssignee ? 'NOW(), NOW()' : 'NULL, NULL'})`,
+                     ?, ?, ${defAssignee ? 'NOW(), NOW()' : 'NULL, NULL'}, ${Number(tenantId(req))})`,
             [
                 issueKey, summary, reporter, device_code || null, initStatus,
                 priority,
@@ -291,7 +297,7 @@ router.post('/ticket', optionalAuth, async (req, res) => {
         );
 
         // Registrar en historial
-        dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle)
+        dbQuery(`INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle)
                  VALUES (?, 0, ?, 'creacion', ?)`,
             [issueKey, reporter, `Incidencia creada por ${reporter}. Prioridad: ${priority}. Resumen: ${summary}`]
         ).catch(() => { });
@@ -301,8 +307,8 @@ router.post('/ticket', optionalAuth, async (req, res) => {
             const io = req.app.get('io');
             if (io) {
                 const payload = { key: issueKey, summary, priority, reporter, status: initStatus };
-                io.to('jira:agents').emit('ticket:created', payload);
-                io.to('tv:dashboard').emit('ticket:event', { action: 'created', key: issueKey, priority });
+                io.to(agentsRoom(tenantId(req))).emit('ticket:created', payload);
+                io.to(tvRoom(tenantId(req))).emit('ticket:event', { action: 'created', key: issueKey, priority });
             }
         } catch (_) {}
 
@@ -546,8 +552,8 @@ router.get('/ticket/:key/wp-categories', authenticateToken, async (req, res) => 
         // 3.5. Buscar cualquier ticket INC en BD cuyas transiciones tengan customfield_15147 con hijos
         try {
             const anyRows = await dbQuery(
-                `SELECT ticket_key FROM jira_tickets WHERE ticket_key != ? AND ticket_key LIKE 'INC-%' ORDER BY created_at DESC LIMIT 10`,
-                [key]
+                `SELECT ticket_key FROM jira_tickets WHERE ticket_key != ? AND COALESCE(tenant_id, 1) = ? AND ticket_key LIKE 'INC-%' ORDER BY created_at DESC LIMIT 10`,
+                [key, tenantId(req)]
             );
             for (const row of (anyRows || [])) {
                 const oTransR = await fetch(
@@ -626,7 +632,7 @@ router.put('/ticket/:key/wp-category', authenticateToken, async (req, res) => {
 
         // Guardar siempre en BD local como fuente de verdad (Jira puede rechazar si el campo no está en pantalla de edición)
         const saveLocal = () => dbQuery(
-            `UPDATE jira_tickets SET wp_resultado_padre=?, wp_resultado_hijo=? WHERE ticket_key=?`,
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */ SET wp_resultado_padre=?, wp_resultado_hijo=? WHERE ticket_key=?`,
             [resultado_padre, resultado_hijo || null, key]
         ).catch(() => {});
 
@@ -939,21 +945,21 @@ router.post('/ticket/:key/close', authenticateToken, async (req, res) => {
     const closedBy = req.user?.full_name || req.user?.username || 'Sistema';
     // Actualización local — no bloqueante: si la tabla no existe o el ticket no está en caché, no falla el cierre
     dbQuery(
-        `UPDATE jira_tickets
+        `UPDATE jira_tickets /* tenant_id: clave validada por router.param */
          SET status = 'Resuelto', internal_status = 'cerrado', closed_at = NOW(),
              closed_by = ?, close_comment = ?, tipo_atencion = ?, resolved_at = IFNULL(resolved_at, NOW())
          WHERE ticket_key = ?`,
         [req.user?.username || 'sistema', comment.trim(), tipo_atencion, key]
     ).catch(() => {});
-    dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'cierre', ?)`,
+    dbQuery(`INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'cierre', ?)`,
         [key, req.user?.id || 0, closedBy, `Ticket cerrado por ${closedBy}. Tipo: ${tipo_atencion}. ${comment.trim()}`]).catch(() => {});
 
     // Notificar en tiempo real
     try {
         const io = req.app.get('io');
         if (io) {
-            io.to('jira:agents').emit('ticket:closed', { key, by: closedBy });
-            io.to('tv:dashboard').emit('ticket:event', { action: 'closed', key });
+            io.to(agentsRoom(tenantId(req))).emit('ticket:closed', { key, by: closedBy });
+            io.to(tvRoom(tenantId(req))).emit('ticket:event', { action: 'closed', key });
         }
     } catch (_) {}
 
@@ -962,12 +968,12 @@ router.post('/ticket/:key/close', authenticateToken, async (req, res) => {
         try {
             const cfg = await getAutomationConfig();
             if (cfg.satisfaction_enabled !== '1') return;
-            const tRow = await dbQuery(`SELECT reporter FROM jira_tickets WHERE ticket_key=? LIMIT 1`, [key]);
+            const tRow = await dbQuery(`SELECT reporter FROM jira_tickets /* tenant_id: clave validada por router.param */ WHERE ticket_key=? LIMIT 1`, [key]);
             const reporterEmail = tRow[0]?.reporter;
             if (!reporterEmail || !reporterEmail.includes('@')) return;
             const crypto = require('crypto');
             const token = crypto.randomBytes(24).toString('hex');
-            await dbQuery(`INSERT INTO itsm_surveys (ticket_key, token, reporter_email) VALUES (?,?,?)`, [key, token, reporterEmail]);
+            await dbQuery(`INSERT INTO itsm_surveys (ticket_key, token, reporter_email, tenant_id) VALUES (?,?,?,?)`, [key, token, reporterEmail, tenantId(req)]);
             const surveyUrl = `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/jira/survey-page/${token}`;
             const html = `
             <div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(9,30,66,.12);">
@@ -1058,12 +1064,12 @@ router.post('/ticket/:key/reanudar', authenticateToken, async (req, res) => {
 
     try {
         await dbQuery(
-            `UPDATE jira_tickets SET status = 'Asignado', internal_status = 'asignado' WHERE ticket_key = ?`,
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */ SET status = 'Asignado', internal_status = 'asignado' WHERE ticket_key = ?`,
             [key]
         );
         const userName = req.user?.full_name || req.user?.username || 'Sistema';
         dbQuery(
-            `INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'reanudar', ?)`,
+            `INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'reanudar', ?)`,
             [key, req.user?.id || 0, userName, `Ticket reanudado desde Pendiente. ${comment.trim()}`]
         ).catch(() => {});
     } catch (_) {}
@@ -1135,12 +1141,12 @@ router.post('/ticket/:key/pending', authenticateToken, async (req, res) => {
 
     try {
         await dbQuery(
-            `UPDATE jira_tickets SET status = 'Pendiente', internal_status = 'pendiente' WHERE ticket_key = ?`,
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */ SET status = 'Pendiente', internal_status = 'pendiente' WHERE ticket_key = ?`,
             [key]
         );
         const userName = req.user?.full_name || req.user?.username || 'Sistema';
         dbQuery(
-            `INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'pendiente', ?)`,
+            `INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'pendiente', ?)`,
             [key, req.user?.id || 0, userName, `Ticket puesto en Pendiente. ${comment.trim()}`]
         ).catch(() => {});
     } catch (_) {}
@@ -1257,7 +1263,7 @@ router.get('/ticket/:key/derivar-options', authenticateToken, async (req, res) =
         components = CMDB_COMPONENTS_FALLBACK;
     }
 
-    const rows = await dbQuery(`SELECT component FROM jira_tickets WHERE ticket_key = ? LIMIT 1`, [key]);
+    const rows = await dbQuery(`SELECT component FROM jira_tickets /* tenant_id: clave validada por router.param */ WHERE ticket_key = ? LIMIT 1`, [key]);
     const currentComponent = rows[0]?.component || null;
     res.json({ success: true, components, currentComponent, _debug: dbg });
 });
@@ -1314,11 +1320,11 @@ router.put('/ticket/:key/derivar', authenticateToken, async (req, res) => {
     try {
         const actor = req.user?.full_name || req.user?.username || 'Sistema';
         await dbQuery(
-            `UPDATE jira_tickets SET component = ?, internal_status = 'derivado', assigned_to = NULL, assigned_to_name = NULL WHERE ticket_key = ?`,
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */ SET component = ?, internal_status = 'derivado', assigned_to = NULL, assigned_to_name = NULL WHERE ticket_key = ?`,
             [componentName || componentId, key]
         );
         dbQuery(
-            `INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'derivacion', ?)`,
+            `INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'derivacion', ?)`,
             [key, req.user?.id || 0, actor,
              `Ticket derivado al grupo "${componentName || componentId}"${comment ? '. ' + comment.trim() : ''}. Por: ${actor}`]
         ).catch(() => {});
@@ -1326,8 +1332,8 @@ router.put('/ticket/:key/derivar', authenticateToken, async (req, res) => {
         try {
             const io = req.app.get('io');
             if (io) {
-                io.to('jira:agents').emit('ticket:derived', { key, componentName, by: actor });
-                io.to('tv:dashboard').emit('ticket:event', { action: 'derived', key });
+                io.to(agentsRoom(tenantId(req))).emit('ticket:derived', { key, componentName, by: actor });
+                io.to(tvRoom(tenantId(req))).emit('ticket:event', { action: 'derived', key });
             }
         } catch (_) {}
     } catch (dbErr) {
@@ -1397,7 +1403,7 @@ router.post('/ticket/:key/transition', authenticateToken, async (req, res) => {
         try {
             const userName = req.user?.full_name || req.user?.username || 'Sistema';
             dbQuery(
-                `INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'transicion', ?)`,
+                `INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'transicion', ?)`,
                 [key, req.user?.id || 0, userName, `Transición aplicada: ${transitionName || transitionId}`]
             ).catch(() => {});
         } catch (_) {}
@@ -1415,7 +1421,7 @@ router.get('/survey-page/:token', async (req, res) => {
     if (rating >= 1 && rating <= 5) {
         // Auto-submit desde email
         try {
-            await dbQuery(`UPDATE itsm_surveys SET rating=?, responded_at=NOW() WHERE token=? AND rating IS NULL`, [rating, token]);
+            await dbQuery(`UPDATE itsm_surveys /* tenant_id: el token aleatorio identifica la encuesta */ SET rating=?, responded_at=NOW() WHERE token=? AND rating IS NULL`, [rating, token]);
         } catch (e) { }
     }
     const emojis = ['', '😞', '😐', '🙂', '😊', '🤩'];
@@ -1530,14 +1536,14 @@ router.put('/ticket/:key/unassign', authenticateToken, async (req, res) => {
         catch (e) { console.warn(`[unassign] Jira PUT falló: ${e.message}`); }
         // Limpiar asignado en BD local, status → sin_asignar, área no cambia
         await dbQuery(
-            `UPDATE jira_tickets
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */
              SET assigned_to = NULL, assigned_to_name = NULL, jira_assignee = NULL,
                  jira_account_id = NULL, internal_status = 'sin_asignar', assigned_at = NULL
              WHERE ticket_key = ?`,
             [key]
         );
         const actor = req.user?.full_name || req.user?.username || 'Admin';
-        dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'desasignacion', ?)`,
+        dbQuery(`INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'desasignacion', ?)`,
             [key, req.user?.id || 0, actor, `Ticket desasignado por ${actor}`]).catch(() => {});
         res.json({ success: true });
     } catch(e) {
@@ -1555,8 +1561,8 @@ router.put('/ticket/:key/assign-tech', authenticateToken, async (req, res) => {
     if (!techId && !email) return res.status(400).json({ success: false, message: 'techId o email requerido' });
     try {
         const techs = email
-            ? await dbQuery(`SELECT id, full_name, username, email FROM users WHERE email=? LIMIT 1`, [email])
-            : await dbQuery(`SELECT id, full_name, username, email FROM users WHERE id=? LIMIT 1`, [techId]);
+            ? await dbQuery(`SELECT id, full_name, username, email FROM users WHERE email=? AND COALESCE(tenant_id, 1)=? LIMIT 1`, [email, tenantId(req)])
+            : await dbQuery(`SELECT id, full_name, username, email FROM users WHERE id=? AND COALESCE(tenant_id, 1)=? LIMIT 1`, [techId, tenantId(req)]);
         const tech = techs[0] || { id: null, full_name: email, username: email, email };
         const lookupEmail = tech.email || email || '';
 
@@ -1575,8 +1581,8 @@ router.put('/ticket/:key/assign-tech', authenticateToken, async (req, res) => {
             try {
                 const row = await dbQuery(
                     `SELECT jira_account_id, COALESCE(assigned_to_name, jira_assignee) AS name
-                     FROM jira_tickets WHERE jira_assignee=? AND jira_account_id IS NOT NULL AND jira_account_id!='' LIMIT 1`,
-                    [lookupEmail]
+                     FROM jira_tickets WHERE jira_assignee=? AND COALESCE(tenant_id, 1)=? AND jira_account_id IS NOT NULL AND jira_account_id!='' LIMIT 1`,
+                    [lookupEmail, tenantId(req)]
                 );
                 if (row[0]?.jira_account_id) { resolvedAccountId = row[0].jira_account_id; resolvedName = row[0].name; }
             } catch (_) {}
@@ -1586,9 +1592,9 @@ router.put('/ticket/:key/assign-tech', authenticateToken, async (req, res) => {
         if (!resolvedAccountId) {
             try {
                 const rows = await dbQuery(
-                    `SELECT ticket_key FROM jira_tickets WHERE jira_assignee=? AND ticket_key IS NOT NULL
+                    `SELECT ticket_key FROM jira_tickets WHERE jira_assignee=? AND COALESCE(tenant_id, 1)=? AND ticket_key IS NOT NULL
                      AND internal_status NOT IN ('cerrado','resuelto') ORDER BY created_at DESC LIMIT 3`,
-                    [lookupEmail]
+                    [lookupEmail, tenantId(req)]
                 );
                 for (const row of rows) {
                     try {
@@ -1606,8 +1612,8 @@ router.put('/ticket/:key/assign-tech', authenticateToken, async (req, res) => {
                 await jira('PUT', `/rest/api/3/issue/${key}/assignee`, { accountId: resolvedAccountId });
                 jiraAssigned = true;
                 await dbQuery(
-                    `UPDATE jira_tickets SET jira_account_id=? WHERE jira_assignee=? AND (jira_account_id IS NULL OR jira_account_id='')`,
-                    [resolvedAccountId, lookupEmail]
+                    `UPDATE jira_tickets SET jira_account_id=? WHERE jira_assignee=? AND COALESCE(tenant_id, 1)=? AND (jira_account_id IS NULL OR jira_account_id='')`,
+                    [resolvedAccountId, lookupEmail, tenantId(req)]
                 ).catch(() => {});
             } catch (e) {
                 console.warn(`[assign] Jira PUT falló: ${e.message}`);
@@ -1616,7 +1622,7 @@ router.put('/ticket/:key/assign-tech', authenticateToken, async (req, res) => {
         const techName = resolvedName || tech.full_name || tech.username || email;
         // Actualizar BD siempre (independiente de si Jira funcionó)
         await dbQuery(
-            `UPDATE jira_tickets
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */
              SET assigned_to = ?, assigned_to_name = ?, jira_assignee = ?,
                  ${resolvedAccountId ? 'jira_account_id = ?,' : ''}
                  assigned_at = NOW(), internal_status = 'asignado',
@@ -1627,15 +1633,15 @@ router.put('/ticket/:key/assign-tech', authenticateToken, async (req, res) => {
                 : [tech.id, techName, lookupEmail, key]
         );
         const actor = req.user?.full_name || req.user?.username || 'Admin';
-        dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'asignacion', ?)`,
+        dbQuery(`INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'asignacion', ?)`,
             [key, req.user?.id || 0, actor, `Ticket asignado a ${techName} por ${actor}`]).catch(() => {});
 
         // Notificar en tiempo real
         try {
             const io = req.app.get('io');
             if (io) {
-                io.to('jira:agents').emit('ticket:assigned', { key, techName, by: actor });
-                io.to('tv:dashboard').emit('ticket:event', { action: 'assigned', key });
+                io.to(agentsRoom(tenantId(req))).emit('ticket:assigned', { key, techName, by: actor });
+                io.to(tvRoom(tenantId(req))).emit('ticket:event', { action: 'assigned', key });
             }
         } catch (_) {}
 
@@ -1681,8 +1687,8 @@ router.all('/rest/*', authenticateToken, async (req, res) => {
             if (keys.length) {
                 try {
                     const rows = await dbQuery(
-                        `SELECT ticket_key, reporter FROM jira_tickets WHERE ticket_key IN (${keys.map(() => '?').join(',')})`,
-                        keys
+                        `SELECT ticket_key, reporter FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ? AND ticket_key IN (${keys.map(() => '?').join(',')})`,
+                        [tenantId(req), ...keys]
                     );
                     const rMap = Object.fromEntries(rows.map(row => [row.ticket_key, row.reporter]));
                     data.issues.forEach(issue => {
@@ -1713,7 +1719,7 @@ router.post('/sync-tickets', authenticateToken, async (req, res) => {
             return res.json({ success: true, upserted: 0, message: 'Sin tickets para sincronizar' });
         }
 
-        const defRows = await dbQuery(`SELECT id, full_name FROM users WHERE email=? AND deleted_at IS NULL LIMIT 1`, [JIRA_EMAIL]);
+        const defRows = await dbQuery(`SELECT id, full_name FROM users WHERE email=? AND COALESCE(tenant_id, 1)=? AND deleted_at IS NULL LIMIT 1`, [JIRA_EMAIL, JIRA_OWNER_TENANT_ID]);
         const defUser = defRows[0] || null;
         const slaHours = { P1: 1, P2: 4, P3: 8, P4: 24 };
         let upserted = 0;
@@ -1732,11 +1738,11 @@ router.post('/sync-tickets', authenticateToken, async (req, res) => {
                 `INSERT INTO jira_tickets
                     (ticket_key, summary, reporter, status, internal_status, priority,
                      jira_url, sla_deadline, assigned_to, assigned_to_name, assigned_at,
-                     first_response_at, created_at)
+                     first_response_at, created_at, tenant_id)
                  VALUES (?, ?, ?, ?, ?, ?, ?,
                          DATE_ADD(?, INTERVAL ? HOUR),
                          ?, ?, ${defUser ? 'NOW()' : 'NULL'},
-                         ${defUser ? 'NOW()' : 'NULL'}, ?)
+                         ${defUser ? 'NOW()' : 'NULL'}, ?, ${JIRA_OWNER_TENANT_ID})
                  ON DUPLICATE KEY UPDATE
                      summary         = VALUES(summary),
                      status          = VALUES(status),

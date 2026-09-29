@@ -1,6 +1,8 @@
 
 const express = require('express');
 const router = express.Router();
+// Toda ruta con :key opera solo sobre tickets del tenant del usuario
+router.param('key', require('./helpers').ticketTenantGuard());
 const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { tenantWhere } = require('../../utils/tenantFilter');
 const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID } = require('./helpers');
@@ -26,7 +28,7 @@ router.get('/test-auth', authenticateToken, async (_req, res) => {
 
 // ============================================================
 
-router.get('/my-tickets', optionalAuth, async (req, res) => {
+router.get('/my-tickets', authenticateToken, async (req, res) => {
     try {
         const email = (req.query.reporter || '').trim();
         const days = parseInt(req.query.days || '0');

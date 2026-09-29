@@ -1,26 +1,22 @@
 'use strict';
 
-/**
- * Devuelve el tenant_id del usuario autenticado.
- * Si el usuario no tiene tenant (superadmin), devuelve null → sin filtro.
- */
+// Filtros SQL por tenant para consultas escritas a mano. Siempre filtran: el
+// tenant sale de la sesión (src/utils/tenantScope). Filas con tenant_id NULL
+// (datos legacy, tickets sincronizados desde Jira) pertenecen al tenant 1.
+
+const { tenantId } = require('../src/utils/tenantScope');
+
 function getTenantId(req) {
-  return req.user?.tenant_id || req.tenant?.id || null;
+  return tenantId(req);
 }
 
 /**
- * Devuelve un fragmento SQL seguro para filtrar por tenant.
- * Uso: `WHERE active = 1 ${tenantWhere(req, 'jt')}` → `AND jt.tenant_id = 2`
- *
- * @param {object} req   - Express request con req.user.tenant_id
- * @param {string} alias - Alias de tabla (opcional), ej: 'jt'
- * @returns {string}     - ' AND alias.tenant_id = N' o '' si superadmin
+ * Fragmento SQL para filtrar por tenant.
+ * Uso: `WHERE active = 1 ${tenantWhere(req, 'jt')}` → ` AND COALESCE(jt.tenant_id, 1) = 2`
  */
 function tenantWhere(req, alias = '') {
-  const tid = getTenantId(req);
-  if (!tid) return '';
   const col = alias ? `${alias}.tenant_id` : 'tenant_id';
-  return ` AND ${col} = ${parseInt(tid)}`;
+  return ` AND COALESCE(${col}, 1) = ${Number(tenantId(req))}`;
 }
 
 /**
@@ -28,10 +24,8 @@ function tenantWhere(req, alias = '') {
  * Uso: const [tw, tp] = tenantParam(req); query(`WHERE x=? ${tw}`, [..., ...tp])
  */
 function tenantParam(req, alias = '') {
-  const tid = getTenantId(req);
-  if (!tid) return ['', []];
   const col = alias ? `${alias}.tenant_id` : 'tenant_id';
-  return [` AND ${col} = ?`, [parseInt(tid)]];
+  return [` AND COALESCE(${col}, 1) = ?`, [tenantId(req)]];
 }
 
 module.exports = { getTenantId, tenantWhere, tenantParam };

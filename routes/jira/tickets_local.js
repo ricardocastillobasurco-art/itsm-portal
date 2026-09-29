@@ -1,11 +1,15 @@
 
 const express = require('express');
 const router = express.Router();
+// Toda ruta con :key opera solo sobre tickets del tenant del usuario
+router.param('key', require('./helpers').ticketTenantGuard());
 const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { tenantWhere, tenantParam } = require('../../utils/tenantFilter');
 const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, jiraForTenant, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID } = require('./helpers');
 const axios = require('axios');
 const FormData = require('form-data');
+const { tenantId } = require('../../src/utils/tenantScope');
+const { nextLocalTicketKey } = require('../../src/utils/tenantTickets');
 
 
 router.get('/', authenticateToken, (req, res) => {
@@ -34,7 +38,7 @@ router.get('/tickets', authenticateToken, async (req, res) => {
         where += tenantWhere(req, 'jt');
 
         const tickets = await dbQuery(
-            `SELECT jt.*, u.full_name AS tech_name
+            `SELECT jt.*, u.full_name AS tech_name /* tenant_id: tenantWhere */
              FROM jira_tickets jt
              LEFT JOIN users u ON u.id = jt.assigned_to AND jt.assigned_to IS NOT NULL AND u.deleted_at IS NULL
              WHERE ${where}
@@ -85,7 +89,7 @@ router.get('/ticket/:key/jira-detail', authenticateToken, async (req, res) => {
     if (isLocal) {
         // Ticket local: devolver descripción desde BD
         try {
-            const rows = await dbQuery(`SELECT description FROM jira_tickets WHERE ticket_key=? LIMIT 1`, [key]);
+            const rows = await dbQuery(`SELECT description FROM jira_tickets /* tenant_id: clave validada por router.param */ WHERE ticket_key=? LIMIT 1`, [key]);
             return res.json({ success: true, description: rows[0]?.description || null, attachments: [] });
         } catch (e) {
             return res.json({ success: true, description: null, attachments: [] });
@@ -93,8 +97,7 @@ router.get('/ticket/:key/jira-detail', authenticateToken, async (req, res) => {
     }
     // Ticket Jira: consultar API directamente
     try {
-        const tenantId = req.user?.tenant_id || null;
-        const data = await jiraForTenant(tenantId, 'get',
+        const data = await jiraForTenant(tenantId(req), 'get',
             `/rest/api/3/issue/${key}?fields=description,attachment,summary`);
         const fields = data.fields || {};
 
@@ -125,7 +128,7 @@ router.get('/ticket/:key/jira-detail', authenticateToken, async (req, res) => {
 router.get('/ticket/:key', authenticateToken, async (req, res) => {
     try {
         const rows = await dbQuery(
-            `SELECT * FROM jira_tickets WHERE ticket_key = ?`,
+            `SELECT * FROM jira_tickets /* tenant_id: clave validada por router.param */ WHERE ticket_key = ?`,
             [req.params.key]
         );
         if (!rows.length) {
@@ -147,19 +150,19 @@ router.put('/ticket/:key/take', authenticateToken, async (req, res) => {
     const userId   = req.user?.id;
     const userName = req.user?.full_name || req.user?.username || 'Técnico';
     try {
-        const rows = await dbQuery(`SELECT internal_status FROM jira_tickets WHERE ticket_key = ?`, [key]);
+        const rows = await dbQuery(`SELECT internal_status FROM jira_tickets /* tenant_id: clave validada por router.param */ WHERE ticket_key = ?`, [key]);
         if (!rows.length) return res.status(404).json({ success: false, message: 'Ticket no encontrado' });
         if (rows[0].internal_status !== 'abierto')
             return res.status(400).json({ success: false, message: 'Solo se pueden tomar tickets en estado Abierto' });
 
         await dbQuery(
-            `UPDATE jira_tickets
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */
              SET assigned_to = ?, assigned_to_name = ?, assigned_at = NOW(),
                  internal_status = 'asignado', first_response_at = IFNULL(first_response_at, NOW())
              WHERE ticket_key = ?`,
             [userId, userName, key]
         );
-        dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'asignacion', ?)`,
+        dbQuery(`INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'asignacion', ?)`,
             [key, userId, userName, `Ticket tomado por ${userName}`]).catch(()=>{});
         // Notificación de asignación la gestiona Jira directamente
         res.json({ success: true, message: `Ticket ${key} asignado a ${userName}` });
@@ -187,11 +190,11 @@ router.put('/ticket/:key/internal-status', authenticateToken, async (req, res) =
             ? [status, note, key]
             : [status, key];
         await dbQuery(
-            `UPDATE jira_tickets SET internal_status = ?${extra} WHERE ticket_key = ?`,
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */ SET internal_status = ?${extra} WHERE ticket_key = ?`,
             params
         );
         const actor2 = req.user?.full_name || req.user?.username || 'Sistema';
-        dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'cambio_estado', ?)`,
+        dbQuery(`INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?, ?, ?, 'cambio_estado', ?)`,
             [key, req.user?.id||0, actor2, `Estado cambiado a "${status}" por ${actor2}${note ? '. Nota: '+note : ''}`]).catch(()=>{});
         res.json({ success: true, message: `Estado actualizado a ${status}` });
     } catch (e) {
@@ -211,14 +214,14 @@ router.post('/ticket/:key/comment', authenticateToken, async (req, res) => {
         const userName = req.user?.full_name || req.user?.username || 'Sistema';
         const esInterno = tipo === 'interno';
         await dbQuery(
-            `INSERT INTO ticket_comments (ticket_id, user_id, contenido, tipo, created_at)
+            `INSERT INTO ticket_comments /* tenant_id: clave validada por router.param */ (ticket_id, user_id, contenido, tipo, created_at)
              VALUES (?, ?, ?, ?, NOW())`,
             [req.params.key, req.user?.id||0, comment.trim(), tipo]
         );
         // Registrar first_response_at si aún no está seteado (solo comentarios públicos del técnico)
         if (!esInterno && req.user?.id) {
             await dbQuery(
-                `UPDATE jira_tickets SET first_response_at = IFNULL(first_response_at, NOW())
+                `UPDATE jira_tickets /* tenant_id: clave validada por router.param */ SET first_response_at = IFNULL(first_response_at, NOW())
                  WHERE ticket_key = ?`,
                 [req.params.key]
             );
@@ -235,7 +238,7 @@ router.get('/ticket/:key/comments', authenticateToken, async (req, res) => {
         // Los comentarios internos solo los ven usuarios autenticados con role != 'reporter'
         const showInternal = req.user?.role !== 'reporter';
         const rows = await dbQuery(
-            `SELECT tc.*, u.full_name AS author_name, u.username
+            `SELECT tc.*, u.full_name AS author_name, u.username /* tenant_id: clave validada por router.param */
              FROM ticket_comments tc
              LEFT JOIN users u ON u.id = tc.user_id
              WHERE tc.ticket_id = ? ${showInternal ? '' : "AND tc.tipo != 'interno'"}
@@ -256,11 +259,11 @@ router.get('/ticket/:key/comments', authenticateToken, async (req, res) => {
 router.get('/ticket/:key/history', authenticateToken, async (req, res) => {
     try {
         const [ticket, history, comments] = await Promise.all([
-            dbQuery(`SELECT jt.*, u.full_name AS tech_name
+            dbQuery(`SELECT jt.*, u.full_name AS tech_name /* tenant_id: clave validada por router.param */
                      FROM jira_tickets jt LEFT JOIN users u ON u.id = jt.assigned_to
                      WHERE jt.ticket_key = ? LIMIT 1`, [req.params.key]),
-            dbQuery(`SELECT * FROM ticket_history WHERE ticket_id = ? ORDER BY created_at ASC`, [req.params.key]),
-            dbQuery(`SELECT tc.*, u.full_name AS author_name
+            dbQuery(`SELECT * FROM ticket_history /* tenant_id: clave validada por router.param */ WHERE ticket_id = ? ORDER BY created_at ASC`, [req.params.key]),
+            dbQuery(`SELECT tc.*, u.full_name AS author_name /* tenant_id: clave validada por router.param */
                      FROM ticket_comments tc LEFT JOIN users u ON u.id = tc.user_id
                      WHERE tc.ticket_id = ? ORDER BY tc.created_at ASC`, [req.params.key])
         ]);
@@ -268,7 +271,7 @@ router.get('/ticket/:key/history', authenticateToken, async (req, res) => {
         // Si no está en jira_tickets, buscar en jira_requirements
         if (!ticket.length) {
             const reqRows = await dbQuery(
-                `SELECT req_key AS ticket_key, summary, reporter, priority, status,
+                `SELECT req_key AS ticket_key, summary, reporter, priority, status, /* tenant_id: clave validada por router.param */
                         tipo AS component, created_at, jira_url
                  FROM jira_requirements WHERE req_key = ? LIMIT 1`,
                 [req.params.key]
@@ -382,7 +385,7 @@ router.put('/ticket/:key/recategorize', authenticateToken, async (req, res) => {
     const { component, component_id, app, app_id, tipologia, tipologia_id, priority } = req.body;
     try {
         await dbQuery(
-            `UPDATE jira_tickets SET
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */ SET
                 component=COALESCE(?,component), component_id=COALESCE(?,component_id),
                 app_item=COALESCE(?,app_item), app_id=COALESCE(?,app_id),
                 tipologia=COALESCE(?,tipologia), tipologia_id=COALESCE(?,tipologia_id),
@@ -393,7 +396,7 @@ router.put('/ticket/:key/recategorize', authenticateToken, async (req, res) => {
         // Log como comentario de sistema
         const user = req.user?.full_name || req.user?.username || 'Sistema';
         await dbQuery(
-            `INSERT INTO ticket_comments (ticket_id, user_id, contenido, tipo, created_at)
+            `INSERT INTO ticket_comments /* tenant_id: clave validada por router.param */ (ticket_id, user_id, contenido, tipo, created_at)
              VALUES (?, ?, ?, 'cambio_estado', NOW())`,
             [req.params.key, req.user?.id||0, `Recategorizado por ${user}: ${tipologia||''}${priority?' | Prioridad: '+priority:''}`]
         );
@@ -411,7 +414,7 @@ router.put('/ticket/:key/recategorize', authenticateToken, async (req, res) => {
 router.post('/ticket/:key/send-email', authenticateToken, async (req, res) => {
     const { message } = req.body;
     try {
-        const rows = await dbQuery(`SELECT * FROM jira_tickets WHERE ticket_key=?`, [req.params.key]);
+        const rows = await dbQuery(`SELECT * FROM jira_tickets /* tenant_id: clave validada por router.param */ WHERE ticket_key=?`, [req.params.key]);
         if (!rows.length) return res.status(404).json({ success: false, message: 'Ticket no encontrado' });
         const t = rows[0];
         const techName = req.user?.full_name || req.user?.username || 'Soporte TI';
@@ -456,23 +459,23 @@ router.post('/ticket/:key/reopen', authenticateToken, async (req, res) => {
     const { key } = req.params;
     const { motivo = 'Reabierto por el usuario' } = req.body;
     try {
-        const rows = await dbQuery(`SELECT internal_status, reporter FROM jira_tickets WHERE ticket_key=? LIMIT 1`, [key]);
+        const rows = await dbQuery(`SELECT internal_status, reporter FROM jira_tickets /* tenant_id: clave validada por router.param */ WHERE ticket_key=? LIMIT 1`, [key]);
         if (!rows.length) return res.status(404).json({ success: false, message: 'Ticket no encontrado' });
         if (!['cerrado','resuelto'].includes(rows[0].internal_status))
             return res.status(400).json({ success: false, message: 'Solo se pueden reabrir tickets cerrados o resueltos' });
         const actor = req.user?.full_name || req.user?.username || 'Sistema';
         // Recalcular SLA desde ahora
-        const tRow = await dbQuery(`SELECT priority FROM jira_tickets WHERE ticket_key=? LIMIT 1`, [key]);
+        const tRow = await dbQuery(`SELECT priority FROM jira_tickets /* tenant_id: clave validada por router.param */ WHERE ticket_key=? LIMIT 1`, [key]);
         const slaHours = { P1:1, P2:4, P3:8, P4:24 };
         const newSla = new Date(Date.now() + (slaHours[tRow[0]?.priority] || 8) * 3600000);
         await dbQuery(
-            `UPDATE jira_tickets SET internal_status='abierto', assigned_to=NULL, assigned_to_name=NULL,
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */ SET internal_status='abierto', assigned_to=NULL, assigned_to_name=NULL,
              assigned_at=NULL, resolved_at=NULL, closed_at=NULL, sla_deadline=?,
              escalation_notified_at=NULL
              WHERE ticket_key=?`,
             [newSla, key]
         );
-        dbQuery(`INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?,?,?,'reapertura',?)`,
+        dbQuery(`INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?,?,?,'reapertura',?)`,
             [key, req.user?.id||0, actor, `Ticket reabierto por ${actor}. Motivo: ${motivo}`]).catch(()=>{});
         res.json({ success: true, message: `Ticket ${key} reabierto. Nuevo SLA asignado.` });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
@@ -490,26 +493,17 @@ router.post('/ticket/create-local', authenticateToken, async (req, res) => {
     const reporter = req.user?.full_name || req.user?.nombre || req.user?.username || 'Usuario local';
 
     try {
-        // Calcular siguiente número TK
-        const rows = await dbQuery(
-            `SELECT ticket_key FROM jira_tickets WHERE ticket_key LIKE 'TK-%' ORDER BY id DESC LIMIT 1`
-        );
-        let nextNum = 1;
-        if (rows.length) {
-            const m = rows[0].ticket_key.match(/TK-(\d+)/);
-            if (m) nextNum = parseInt(m[1], 10) + 1;
-        }
-        const ticketKey = `TK-${String(nextNum).padStart(3, '0')}`;
+        // Clave única en toda la plataforma (secuencia atómica)
+        const ticketKey = await nextLocalTicketKey('TK');
 
-        const tenantId = req.user?.tenant_id || null;
         await dbQuery(
             `INSERT INTO jira_tickets
                 (ticket_key, summary, reporter, status, internal_status, priority, description, sla_deadline, tenant_id)
              VALUES (?, ?, ?, 'Abierto', 'abierto', ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR), ?)`,
-            [ticketKey, summary.trim(), reporter, priority, description.trim(), slaH, tenantId]
+            [ticketKey, summary.trim(), reporter, priority, description.trim(), slaH, tenantId(req)]
         );
         await dbQuery(
-            `INSERT INTO ticket_history (ticket_id, user_id, user_name, evento, detalle) VALUES (?,?,?,'creacion',?)`,
+            `INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?,?,?,'creacion',?)`,
             [ticketKey, req.user?.id || 0, reporter, `Ticket ${ticketKey} creado por ${reporter}`]
         ).catch(() => {});
 

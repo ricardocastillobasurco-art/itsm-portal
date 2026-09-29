@@ -74,7 +74,7 @@ const can  = requirePolicy;
 })();
 
 // ── eLearning endpoints ───────────────────────────────────────────────────────
-router.get('/learning', optionalAuth, async (req, res, next) => {
+router.get('/learning', authenticateToken, async (req, res, next) => {
   try {
     const { category, status, mine } = req.query;
     const isAdmin = ['administrador', 'especialista', 'agente', 'tecnico'].includes(req.user?.role);
@@ -98,7 +98,7 @@ router.get('/learning', optionalAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.get('/learning/:id/content', optionalAuth, async (req, res, next) => {
+router.get('/learning/:id/content', authenticateToken, async (req, res, next) => {
   try {
     const [[row]] = await sequelize.query(
       'SELECT content_type, content_data, status, admin_response, created_by FROM kb_learning_resources WHERE id = ? AND deleted_at IS NULL',
@@ -125,7 +125,7 @@ router.patch('/learning/:id/response', auth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post('/learning', optionalAuth, async (req, res, next) => {
+router.post('/learning', authenticateToken, async (req, res, next) => {
   try {
     const { title, category = 'general', author, duration, description, content_type = 'url', content_data, file_name } = req.body;
     if (!title?.trim()) return res.status(400).json({ success: false, error: 'El título es requerido' });
@@ -149,14 +149,14 @@ router.patch('/learning/:id/status', auth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post('/learning/:id/view', optionalAuth, async (req, res, next) => {
+router.post('/learning/:id/view', authenticateToken, async (req, res, next) => {
   try {
     await sequelize.query('UPDATE kb_learning_resources SET views = views + 1 WHERE id = ?', { replacements: [req.params.id] });
     res.json({ success: true });
   } catch (e) { next(e); }
 });
 
-router.delete('/learning/:id', optionalAuth, async (req, res, next) => {
+router.delete('/learning/:id', authenticateToken, async (req, res, next) => {
   try {
     await sequelize.query('UPDATE kb_learning_resources SET deleted_at = NOW() WHERE id = ?', { replacements: [req.params.id] });
     res.json({ success: true });
@@ -165,13 +165,13 @@ router.delete('/learning/:id', optionalAuth, async (req, res, next) => {
 
 // ── Rutas específicas antes del /:id genérico ─────────────────────────────────
 // Lectura pública (optionalAuth): cualquier empleado del portal puede leer
-router.get('/categories',                             optionalAuth,                      ctrl.categories);
-router.get('/search',                                 optionalAuth,                      ctrl.search);
-router.get('/popular',                                optionalAuth,                      ctrl.popular);
-router.get('/suggest',                                optionalAuth,                      ctrl.suggest);
+router.get('/categories',                             authenticateToken,                      ctrl.categories);
+router.get('/search',                                 authenticateToken,                      ctrl.search);
+router.get('/popular',                                authenticateToken,                      ctrl.popular);
+router.get('/suggest',                                authenticateToken,                      ctrl.suggest);
 router.get('/no-results',                             auth, can('knowledge', 'read'),    ctrl.noResults);
-router.get('/procedures',                             optionalAuth,                      ctrl.getProcedures);
-router.get('/procedures/:id',                         optionalAuth,                      ctrl.getProcedureById);
+router.get('/procedures',                             authenticateToken,                      ctrl.getProcedures);
+router.get('/procedures/:id',                         authenticateToken,                      ctrl.getProcedureById);
 router.post('/procedures/draft',                      auth, async (req, res, next) => {
   try {
     const { title, description, procedure_category, content_type, content_data, file_name } = req.body;
@@ -188,18 +188,18 @@ router.post('/procedures/draft',                      auth, async (req, res, nex
 router.post('/procedures',                            auth, can('knowledge', 'create'),  ctrl.createProcedure);
 router.delete('/procedures/:id',                      auth, can('knowledge', 'delete'),  ctrl.deactivateProcedure);
 router.get('/procedure-requests',                     auth, can('knowledge', 'read'),    ctrl.getProcedureRequests);
-router.post('/procedure-requests',                    optionalAuth,                      ctrl.createProcedureRequest);
+router.post('/procedure-requests',                    authenticateToken,                      ctrl.createProcedureRequest);
 router.patch('/procedure-requests/:id/status',        auth, can('knowledge', 'update'),  ctrl.updateProcedureRequestStatus);
 
 // ── CRUD artículos ────────────────────────────────────────────────────────────
-router.get('/',              optionalAuth,                      ctrl.list);
-router.get('/:id',           optionalAuth,                      ctrl.getOne);
+router.get('/',              authenticateToken,                      ctrl.list);
+router.get('/:id',           authenticateToken,                      ctrl.getOne);
 // Admin-direct: bypasses casbin (role already verified by requireRole)
 router.post('/admin-create', auth, requireRole('administrador', 'especialista', 'agente'), ctrl.create);
 router.post('/',             auth, can('knowledge', 'create'),  ctrl.create);
 router.patch('/:id',         auth, can('knowledge', 'update'),  ctrl.update);
 router.delete('/:id',        auth, can('knowledge', 'delete'),  ctrl.remove);
-router.post('/:id/helpful',  optionalAuth,                      ctrl.vote);
+router.post('/:id/helpful',  authenticateToken,                      ctrl.vote);
 router.post('/:id/link-ticket', auth, can('knowledge', 'update'), ctrl.linkTicket);
 
 module.exports = router;

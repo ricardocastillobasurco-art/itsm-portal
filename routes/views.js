@@ -680,7 +680,7 @@ router.get('/itsm/requerimientos/gestion', authenticateToken, requireVerified,
 );
 
 // GET /incidencias
-router.get('/incidencias', optionalAuth, async (req, res) => {
+router.get('/incidencias', authenticateToken, async (req, res) => {
     // tenant_id: from JWT, or from ?tenant= param (superadmin visiting a tenant portal)
     const tenantId = req.user?.tenant_id || (req.query.tenant ? parseInt(req.query.tenant) : null);
     // Jira habilitado por defecto; solo se deshabilita si el flag está explícitamente en false

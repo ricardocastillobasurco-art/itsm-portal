@@ -407,7 +407,7 @@ router.post('/survey-general/:id/send-email', authenticateToken, async (req, res
 });
 
 // ── POST /api/portal/recommendation — recomendación/sugerencia ────────────────
-router.post('/recommendation', optionalAuth, async (req, res) => {
+router.post('/recommendation', authenticateToken, async (req, res) => {
     try {
         const { text, category } = req.body;
         if (!text) return res.status(400).json({ success: false, error: 'text requerido' });
@@ -1502,7 +1502,7 @@ function _communityTenant(req) {
 }
 
 // GET /api/portal/communities?email=&tenant=
-router.get('/communities', optionalAuth, async (req, res) => {
+router.get('/communities', authenticateToken, async (req, res) => {
     const { email = '' } = req.query;
     const tid = _communityTenant(req);
     try {
@@ -1518,7 +1518,7 @@ router.get('/communities', optionalAuth, async (req, res) => {
 });
 
 // POST /api/portal/communities
-router.post('/communities', optionalAuth, async (req, res) => {
+router.post('/communities', authenticateToken, async (req, res) => {
     const { nombre, descripcion, email, name } = req.body;
     if (!nombre || !email) return res.status(400).json({ success: false, error: 'nombre y email requeridos' });
     const tid = _communityTenant(req);

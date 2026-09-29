@@ -11,13 +11,14 @@ const router  = express.Router();
 const { authenticateToken } = require('../../middleware/auth');
 const { dbQuery }           = require('./helpers');
 const { tenantWhere }       = require('../../utils/tenantFilter');
+const { tenantId }          = require('../../src/utils/tenantScope');
+const { agentsRoom, nextLocalTicketKey } = require('../../src/utils/tenantTickets');
 
-// LOCAL(req, alias?) devuelve el fragmento WHERE para tickets locales + tenant
+// LOCAL(req, alias?) devuelve el fragmento WHERE para tickets locales del tenant.
+// Siempre filtra (tenant_id NULL = tenant 1, datos legacy).
 function LOCAL(req, alias) {
     const p   = alias ? `${alias}.` : '';
-    const tid = req.user?.tenant_id;
-    const tenantClause = tid ? ` AND ${p}tenant_id = ${parseInt(tid)}` : '';
-    return `${p}ticket_key LIKE 'TK-%'${tenantClause}`;
+    return `${p}ticket_key LIKE 'TK-%' AND COALESCE(${p}tenant_id, 1) = ${Number(tenantId(req))}`;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ router.get('/local/mis-asig', authenticateToken, async (req, res) => {
             SELECT jt.*, u.full_name AS tech_name
             FROM jira_tickets jt
             LEFT JOIN users u ON u.id = jt.assigned_to
-            WHERE ${LOCAL(req, 'jt')}
+            WHERE /* tenant_id: LOCAL() */ ${LOCAL(req, 'jt')}
               AND jt.assigned_to = ?
               AND jt.internal_status ${statusFilter}
             ORDER BY jt.created_at DESC, jt.sla_deadline ASC
@@ -94,7 +95,7 @@ router.get('/local/mis-asig', authenticateToken, async (req, res) => {
         const all = await dbQuery(`
             SELECT internal_status, sla_deadline, resolved_at
             FROM jira_tickets
-            WHERE ${LOCAL(req)} AND assigned_to = ?
+            WHERE /* tenant_id: LOCAL() */ ${LOCAL(req)} AND assigned_to = ?
         `, [userId]);
 
         const now = Date.now();
@@ -134,7 +135,7 @@ router.get('/local/sin-asig', authenticateToken, async (req, res) => {
             SELECT jt.*, u.full_name AS tech_name
             FROM jira_tickets jt
             LEFT JOIN users u ON u.id = jt.assigned_to
-            WHERE ${LOCAL(req, 'jt')} AND ${where}
+            WHERE /* tenant_id: LOCAL() */ ${LOCAL(req, 'jt')} AND ${where}
             ORDER BY jt.sla_deadline ASC, jt.created_at ${sort}
             LIMIT 200
         `);
@@ -164,7 +165,7 @@ router.get('/local/en-curso', authenticateToken, async (req, res) => {
             SELECT jt.*, u.full_name AS tech_name
             FROM jira_tickets jt
             LEFT JOIN users u ON u.id = jt.assigned_to
-            WHERE ${LOCAL(req, 'jt')}
+            WHERE /* tenant_id: LOCAL() */ ${LOCAL(req, 'jt')}
               AND jt.internal_status NOT IN ('resuelto','cerrado')
             ORDER BY jt.sla_deadline ASC, jt.created_at DESC
             LIMIT 500
@@ -174,7 +175,7 @@ router.get('/local/en-curso', authenticateToken, async (req, res) => {
             SELECT DISTINCT u.id, u.full_name AS name, u.email
             FROM jira_tickets jt
             JOIN users u ON u.id = jt.assigned_to
-            WHERE ${LOCAL(req, 'jt')} AND jt.assigned_to IS NOT NULL
+            WHERE /* tenant_id: LOCAL() */ ${LOCAL(req, 'jt')} AND jt.assigned_to IS NOT NULL
               AND jt.internal_status NOT IN ('resuelto','cerrado')
             ORDER BY u.full_name
         `);
@@ -189,7 +190,7 @@ router.get('/local/kanban', authenticateToken, async (req, res) => {
             SELECT jt.*, u.full_name AS tech_name
             FROM jira_tickets jt
             LEFT JOIN users u ON u.id = jt.assigned_to
-            WHERE ${LOCAL(req, 'jt')} AND jt.internal_status NOT IN ('cerrado')
+            WHERE /* tenant_id: LOCAL() */ ${LOCAL(req, 'jt')} AND jt.internal_status NOT IN ('cerrado')
             ORDER BY jt.sla_deadline ASC, jt.created_at DESC
             LIMIT 500
         `);
@@ -215,7 +216,7 @@ router.get('/local/sla-panel', authenticateToken, async (req, res) => {
                     SUM(resolved_at IS NULL AND NOW() > sla_deadline)            AS breach_abiertos,
                     COUNT(*) AS total
                 FROM jira_tickets
-                WHERE ${LOCAL(req)} AND sla_deadline IS NOT NULL
+                WHERE /* tenant_id: LOCAL() */ ${LOCAL(req)} AND sla_deadline IS NOT NULL
             `),
             dbQuery(`
                 SELECT jt.*, u.full_name AS tech_name,
@@ -224,7 +225,7 @@ router.get('/local/sla-panel', authenticateToken, async (req, res) => {
                     TIMESTAMPDIFF(MINUTE, NOW(), jt.sla_deadline) AS rem_min
                 FROM jira_tickets jt
                 LEFT JOIN users u ON u.id = jt.assigned_to
-                WHERE ${LOCAL(req, 'jt')}
+                WHERE /* tenant_id: LOCAL() */ ${LOCAL(req, 'jt')}
                   AND jt.sla_deadline IS NOT NULL
                   AND jt.internal_status NOT IN ('resuelto','cerrado')
                 ORDER BY jt.sla_deadline ASC
@@ -259,7 +260,7 @@ router.get('/local/heatmap', authenticateToken, async (req, res) => {
                     DAYOFWEEK(created_at)  AS dow,
                     COUNT(*)               AS total
                 FROM jira_tickets
-                WHERE ${LOCAL(req)} AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+                WHERE /* tenant_id: LOCAL() */ ${LOCAL(req)} AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
                 GROUP BY HOUR(created_at), DAYOFWEEK(created_at)
             `),
             // KPIs generales
@@ -269,19 +270,19 @@ router.get('/local/heatmap', authenticateToken, async (req, res) => {
                     SUM(internal_status NOT IN ('resuelto','cerrado'))      AS activos,
                     ROUND(AVG(TIMESTAMPDIFF(MINUTE,created_at,resolved_at))/60,1) AS mttr_h,
                     MAX(DATE(created_at))                                   AS ultimo_dia
-                FROM jira_tickets WHERE ${LOCAL(req)}
+                FROM jira_tickets WHERE /* tenant_id: LOCAL() */ ${LOCAL(req)}
             `),
             // Por día de semana
             dbQuery(`
                 SELECT DAYOFWEEK(created_at) AS dow, COUNT(*) AS total
                 FROM jira_tickets
-                WHERE ${LOCAL(req)} AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+                WHERE /* tenant_id: LOCAL() */ ${LOCAL(req)} AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
                 GROUP BY dow ORDER BY dow
             `),
             // Top categorías
             dbQuery(`
                 SELECT COALESCE(tipologia,component,'Sin categoría') AS cat, COUNT(*) AS total
-                FROM jira_tickets WHERE ${LOCAL(req)}
+                FROM jira_tickets WHERE /* tenant_id: LOCAL() */ ${LOCAL(req)}
                 GROUP BY cat ORDER BY total DESC LIMIT 6
             `),
         ]);
@@ -315,7 +316,7 @@ router.get('/local/historico', authenticateToken, async (req, res) => {
             SELECT jt.*, u.full_name AS tech_name
             FROM jira_tickets jt
             LEFT JOIN users u ON u.id = jt.assigned_to
-            WHERE ${LOCAL(req, 'jt')}
+            WHERE /* tenant_id: LOCAL() */ ${LOCAL(req, 'jt')}
         `;
         const params = [];
         if (email)     { sql += ' AND jt.reporter LIKE ?';                              params.push(`%${email}%`); }
@@ -342,7 +343,7 @@ router.get('/local/categorias', authenticateToken, async (req, res) => {
                 SUM(internal_status IN ('resuelto','cerrado')) AS cerrados,
                 ROUND(AVG(TIMESTAMPDIFF(MINUTE,created_at,resolved_at))/60,1) AS mttr_h
             FROM jira_tickets
-            WHERE ${LOCAL(req)}
+            WHERE /* tenant_id: LOCAL() */ ${LOCAL(req)}
             GROUP BY tipologia, component
             ORDER BY total DESC LIMIT 30
         `);
@@ -357,19 +358,14 @@ router.post('/local/ticket', authenticateToken, async (req, res) => {
     if (!summary?.trim())  return res.status(400).json({ success: false, message: 'Asunto requerido' });
 
     try {
-        // Generar siguiente clave TK-%
-        const [row] = await dbQuery(
-            `SELECT MAX(CAST(SUBSTRING(ticket_key, 4) AS UNSIGNED)) AS max_num
-               FROM jira_tickets WHERE ticket_key LIKE 'TK-%'`
-        );
-        const nextNum = (row?.max_num || 0) + 1;
-        const newKey  = `TK-${String(nextNum).padStart(4, '0')}`;
+        // Clave única en toda la plataforma (secuencia atómica)
+        const newKey  = await nextLocalTicketKey('TK');
 
         // SLA según prioridad
         const slaHours = { P1: 4, P2: 8, P3: 24, P4: 72 }[priority] || 24;
         const slaDeadline = new Date(Date.now() + slaHours * 3600000);
 
-        const tenantId = req.user?.tenant_id || null;
+        const tid = tenantId(req);
         await dbQuery(
             `INSERT INTO jira_tickets
                 (ticket_key, summary, description, status, internal_status,
@@ -380,19 +376,19 @@ router.post('/local/ticket', authenticateToken, async (req, res) => {
              priority,
              reporter.trim(), phone?.trim() || '-',
              category_name?.trim() || 'General',
-             slaDeadline, tenantId]
+             slaDeadline, tid]
         );
 
         // Comentario de sistema
         await dbQuery(
-            `INSERT INTO ticket_comments (ticket_id, user_id, contenido, tipo, created_at)
+            `INSERT INTO ticket_comments /* tenant_id: ticket recién creado por este tenant */ (ticket_id, user_id, contenido, tipo, created_at)
              VALUES (?, 0, ?, 'sistema', NOW())`,
             [newKey, `Ticket registrado por ${reporter.trim()} vía portal local.`]
         ).catch(() => {});
 
         // Notificar por socket
         const io = req.app.get('io');
-        if (io) io.to('jira:agents').emit('ticket:created', { key: newKey, summary: summary.trim(), priority });
+        if (io) io.to(agentsRoom(tid)).emit('ticket:created', { key: newKey, summary: summary.trim(), priority });
 
         res.json({ success: true, data: { key: newKey, url: null } });
     } catch(e) {

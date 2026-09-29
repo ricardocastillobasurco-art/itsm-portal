@@ -3,6 +3,7 @@
 const jwt            = require('jsonwebtoken');
 const { equipmentPool, executeQuery } = require('../config/database');
 const tenantRepo     = require('../src/repositories/platform/TenantRepository');
+const { setTenantContext } = require('../src/utils/tenantContext');
 
 // Secrets (deben coincidir con los de auth.js)
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_jwt_secret_dev_only';
@@ -99,6 +100,8 @@ const authenticateToken = async (req, res, next) => {
                 } catch (_) {
                     // No bloquear autenticación si falla la lookup de tenant
                 }
+                // Contexto de tenant para capas sin acceso a req (guardas de integraciones)
+                setTenantContext({ tenantId: req.tenant?.id ?? 1, userId: req.user.id });
 
                 // Actualizar sesión si existe
                 if (req.session) {
@@ -338,6 +341,11 @@ const optionalAuth = async (req, res, next) => {
                         employee_cip: userResult[0].employee_cip,
                         tenant_id: userResult[0].tenant_id || null
                     };
+                    // Mismo tenant que authenticateToken: el del usuario, no el adivinado por host
+                    const tid = userResult[0].tenant_id;
+                    req.tenant = tid ? (await tenantRepo.findById(tid) || tenantRepo.default()) : tenantRepo.default();
+                    if (res.locals) res.locals.tenant = req.tenant;
+                    setTenantContext({ tenantId: req.tenant?.id ?? 1, userId: req.user.id });
                 }
             } catch (error) {
                 console.error('Error en optionalAuth:', error);
