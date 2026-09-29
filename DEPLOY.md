@@ -206,3 +206,5 @@ Portal Azure → App Service → **Propiedades → Direcciones IP de salida**
 
 Agregar todas esas IPs al firewall de tu servidor MySQL.
 Alternativa más simple: permitir `0.0.0.0/0` en MySQL con SSL requerido (`require_secure_transport=ON`).
+
+<!-- Verificación de despliegue automático GitHub → Railway (2026-09-29) -->
