@@ -18,22 +18,33 @@ const {
     executeQuery: execQuery,
     equipmentPool
 } = require('../../config/database');
+const { tenantId } = require('../../src/utils/tenantScope');
+
+// Stored procedures y cmdbPool (activos/planilla) son datos legacy del tenant por
+// defecto y no filtran por tenant: solo se exponen al tenant 1.
+const LEGACY_TENANT_ID = 1;
+const isLegacyTenant   = (req) => tenantId(req) === LEGACY_TENANT_ID;
+
+// Filtro para active_assignments_view (la vista no expone tenant_id)
+const VIEW_TENANT = 'id IN (SELECT id FROM assignments WHERE tenant_id = ?)';
 
 // ============================================================================
 // /fast-all — ULTRA RÁPIDO
 // ANTES: 1 query con 6 subqueries escalares → lento en tablas grandes
 // AHORA: 1 query con COUNT + GROUP en un solo scan usando CASE
-// Caché en memoria de 5 min
+// Caché en memoria de 5 min, por tenant
 // ============================================================================
-let fastCache = { data: null, timestamp: null };
+const fastCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
 
 dashboardRouter.get('/fast-all', async (req, res, next) => {
     try {
         const now = Date.now();
+        const tid = tenantId(req);
+        const cached = fastCache.get(tid);
 
-        if (fastCache.data && (now - fastCache.timestamp < CACHE_TTL)) {
-            return res.json({ success: true, ...fastCache.data, cached: true });
+        if (cached && (now - cached.timestamp < CACHE_TTL)) {
+            return res.json({ success: true, ...cached.data, cached: true });
         }
 
         // ✅ UNA sola query — MySQL resuelve todo en un pass
@@ -46,7 +57,8 @@ dashboardRouter.get('/fast-all', async (req, res, next) => {
                 SUM(status = 'Disponible' AND equipment_type = 'Desktop')         AS almacen_desktops,
                 SUM(status = 'Disponible' AND equipment_type = 'Monitor')         AS almacen_monitores
             FROM equipment
-        `);
+            WHERE tenant_id = ?
+        `, [tid]);
 
         // Histórico últimos 6 meses — agrupación simple
         const historico = await execQuery(equipmentPool, `
@@ -56,9 +68,10 @@ dashboardRouter.get('/fast-all', async (req, res, next) => {
                 COUNT(*)                              AS total
             FROM assignments
             WHERE assignment_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+              AND tenant_id = ?
             GROUP BY DATE_FORMAT(assignment_date, '%Y-%m')
             ORDER BY mes ASC
-        `);
+        `, [tid]);
 
         const total               = stats.total_equipos || 0;
         const porcentajeAsignados = total > 0
@@ -81,7 +94,7 @@ dashboardRouter.get('/fast-all', async (req, res, next) => {
             timestamp: new Date().toISOString()
         };
 
-        fastCache = { data: responseData, timestamp: now };
+        fastCache.set(tid, { data: responseData, timestamp: now });
 
         res.json({ success: true, ...responseData, cached: false });
 
@@ -105,7 +118,8 @@ dashboardRouter.get('/stats-completo', async (req, res, next) => {
                 SUM(DATE_ADD(created_at, INTERVAL 12 MONTH) > CURDATE()
                     AND status != 'Dado de Baja')                                             AS equiposGarantia
             FROM equipment
-        `);
+            WHERE tenant_id = ?
+        `, [tenantId(req)]);
 
         const total                  = row.totalEquipos || 0;
         const porcentajeAsignados    = total > 0 ? ((row.equiposAsignados   / total) * 100).toFixed(1) : 0;
@@ -138,9 +152,10 @@ dashboardRouter.get('/propios-arrendados', async (req, res, next) => {
                 COALESCE(acquisition_type, 'Sin Definir') AS acquisition_type,
                 COUNT(*) AS cantidad
             FROM equipment
+            WHERE tenant_id = ?
             GROUP BY COALESCE(acquisition_type, 'Sin Definir')
             ORDER BY cantidad DESC
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -175,13 +190,14 @@ dashboardRouter.get('/historico-asignaciones', async (req, res, next) => {
             INNER JOIN equipment e ON a.equipment_id = e.id
             WHERE a.assignment_date >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
               AND a.assignment_date <= CURDATE()
+              AND a.tenant_id = ?
             GROUP BY
                 DATE_FORMAT(a.assignment_date, '%Y-%m'),
                 DATE_FORMAT(a.assignment_date, '%b %Y'),
                 YEAR(a.assignment_date),
                 MONTH(a.assignment_date)
             ORDER BY anio ASC, mes_num ASC
-        `, [periodoMeses]);
+        `, [periodoMeses, tenantId(req)]);
 
         const total           = results.reduce((s, r) => s + r.total_asignaciones, 0);
         const promedioMensual = results.length ? Math.round(total / results.length) : 0;
@@ -219,9 +235,10 @@ dashboardRouter.get('/equipos-por-tipo', async (req, res, next) => {
                 SUM(status = 'Disponible')                         AS disponibles,
                 ROUND(SUM(status = 'Asignado') * 100.0 / COUNT(*), 2) AS porcentaje_asignados
             FROM equipment
+            WHERE tenant_id = ?
             GROUP BY equipment_type
             ORDER BY total DESC
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -244,10 +261,10 @@ dashboardRouter.get('/equipos-por-ubicacion', async (req, res, next) => {
             FROM assignments a
             INNER JOIN equipment e ON a.equipment_id = e.id
             LEFT  JOIN locations l ON a.location_id  = l.id
-            WHERE a.status = 'Activo' AND a.return_date IS NULL
+            WHERE a.status = 'Activo' AND a.return_date IS NULL AND a.tenant_id = ?
             GROUP BY COALESCE(l.location_name,'Sin Ubicación'), COALESCE(l.city,'-')
             ORDER BY total_equipos DESC
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -266,9 +283,10 @@ dashboardRouter.get('/equipos-garantia', async (req, res, next) => {
             FROM equipment
             WHERE DATE_ADD(created_at, INTERVAL 12 MONTH) > CURDATE()
               AND status NOT IN ('Dado de Baja')
+              AND tenant_id = ?
             ORDER BY warranty_end ASC
             LIMIT 50
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -281,8 +299,8 @@ dashboardRouter.get('/asignaciones-largas', async (req, res, next) => {
     try {
         const { startDate, endDate } = req.query;
 
-        let where = 'WHERE a.status = \'Activo\' AND a.return_date IS NULL';
-        const params = [];
+        let where = 'WHERE a.status = \'Activo\' AND a.return_date IS NULL AND a.tenant_id = ?';
+        const params = [tenantId(req)];
 
         if (startDate && endDate) {
             where += ' AND a.assignment_date BETWEEN ? AND ?';
@@ -332,10 +350,10 @@ dashboardRouter.get('/antiguedad-promedio', async (req, res, next) => {
                 equipment_type,
                 ROUND(AVG(TIMESTAMPDIFF(MONTH, created_at, CURDATE())) / 12, 2) AS antiguedad_promedio
             FROM equipment
-            WHERE status != 'Dado de Baja'
+            WHERE status != 'Dado de Baja' AND tenant_id = ?
             GROUP BY equipment_type
             ORDER BY antiguedad_promedio DESC
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -355,10 +373,10 @@ dashboardRouter.get('/tiempo-asignacion-promedio', async (req, res, next) => {
                 MIN(TIMESTAMPDIFF(DAY, a.assignment_date, CURDATE()))                AS asignacion_mas_corta
             FROM assignments a
             INNER JOIN equipment e ON a.equipment_id = e.id
-            WHERE a.status = 'Activo' AND a.return_date IS NULL
+            WHERE a.status = 'Activo' AND a.return_date IS NULL AND a.tenant_id = ?
             GROUP BY e.equipment_type
             ORDER BY dias_promedio DESC
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -371,7 +389,8 @@ dashboardRouter.get('/top-modelos-asignados', async (req, res, next) => {
         const { tipo } = req.query;
         const limite   = Math.min(parseInt(req.query.limite) || 20, 50);
 
-        const params = [];
+        const tid    = tenantId(req);
+        const params = [tid, tid];
         let tipoWhere = '';
         if (tipo) {
             tipoWhere = 'AND e.equipment_type = ?';
@@ -388,11 +407,11 @@ dashboardRouter.get('/top-modelos-asignados', async (req, res, next) => {
                 ROUND(COUNT(DISTINCT a.equipment_id) * 100.0 /
                     NULLIF((SELECT COUNT(DISTINCT equipment_id)
                             FROM assignments
-                            WHERE status='Activo' AND return_date IS NULL), 0), 2) AS porcentaje_total,
+                            WHERE status='Activo' AND return_date IS NULL AND tenant_id = ?), 0), 2) AS porcentaje_total,
                 ROUND(AVG(TIMESTAMPDIFF(MONTH, e.created_at, CURDATE())) / 12, 1) AS antiguedad_promedio_anos
             FROM equipment e
             INNER JOIN assignments a ON e.id = a.equipment_id
-            WHERE a.status = 'Activo' AND a.return_date IS NULL
+            WHERE a.status = 'Activo' AND a.return_date IS NULL AND a.tenant_id = ?
             ${tipoWhere}
             GROUP BY e.brand, e.model, e.equipment_type
             ORDER BY cantidad_asignada DESC
@@ -416,6 +435,9 @@ dashboardRouter.get('/top-modelos-asignados', async (req, res, next) => {
 // ============================================================================
 dashboardRouter.get('/stats', async (req, res, next) => {
     try {
+        if (!isLegacyTenant(req)) {
+            return res.json({ success: true, data: { employees: {}, equipment: {}, activeAssignments: {}, topLocations: [] } });
+        }
         const results = await callSP(equipmentPool, 'sp_dashboard_statistics', []);
         res.json({
             success: true,
@@ -434,9 +456,16 @@ dashboardRouter.get('/stats', async (req, res, next) => {
 // ============================================================================
 dashboardRouter.get('/stats-only', async (req, res, next) => {
     try {
-        const [stats] = await execQuery(equipmentPool,
-            'SELECT * FROM dashboard_stats_cache WHERE id = 1'
-        );
+        // dashboard_stats_cache (fila id=1) es global: se calcula en vivo por tenant
+        const tid = tenantId(req);
+        const [stats] = await execQuery(equipmentPool, `
+            SELECT
+                (SELECT COUNT(*) FROM employees   WHERE tenant_id = ?) AS total_employees,
+                (SELECT COUNT(*) FROM equipment   WHERE tenant_id = ?) AS total_equipment,
+                (SELECT COUNT(*) FROM assignments WHERE tenant_id = ? AND status = 'Activo' AND return_date IS NULL) AS total_assignments,
+                (SELECT COUNT(*) FROM departments WHERE tenant_id = ?) AS total_departments,
+                (SELECT COUNT(*) FROM locations   WHERE tenant_id = ?) AS total_locations
+        `, [tid, tid, tid, tid, tid]);
         res.json({
             success: true,
             stats: {
@@ -456,6 +485,7 @@ dashboardRouter.get('/stats-only', async (req, res, next) => {
 
 dashboardRouter.get('/equipment-by-brand', async (req, res, next) => {
     try {
+        if (!isLegacyTenant(req)) return res.json({ success: true, data: [] });
         const results = await callSP(pool, 'sp_report_equipment_by_brand', []);
         res.json({ success: true, data: results[0] });
     } catch (error) { next(error); }
@@ -463,6 +493,7 @@ dashboardRouter.get('/equipment-by-brand', async (req, res, next) => {
 
 dashboardRouter.get('/employees-without-equipment', async (req, res, next) => {
     try {
+        if (!isLegacyTenant(req)) return res.json({ success: true, data: [], count: 0 });
         const results = await callSP(pool, 'sp_report_employees_without_equipment', []);
         res.json({ success: true, data: results[0], count: results[0].length });
     } catch (error) { next(error); }
@@ -470,6 +501,9 @@ dashboardRouter.get('/employees-without-equipment', async (req, res, next) => {
 
 dashboardRouter.get('/activos-cmdb-stats', async (req, res, next) => {
     try {
+        if (!isLegacyTenant(req)) {
+            return res.json({ success: true, data: { total: 0, byStatus: [], topManufacturers: [], topLocations: [] } });
+        }
         const [total, byStatus, byManufacturer, byLocation] = await Promise.all([
             execQuery(cmdbPool, 'SELECT COUNT(*) as total FROM activos'),
             execQuery(cmdbPool, 'SELECT Estado, COUNT(*) as count FROM activos GROUP BY Estado'),
@@ -482,6 +516,9 @@ dashboardRouter.get('/activos-cmdb-stats', async (req, res, next) => {
 
 dashboardRouter.get('/planilla-stats', async (req, res, next) => {
     try {
+        if (!isLegacyTenant(req)) {
+            return res.json({ success: true, data: { totalEmployees: 0, byOrganization: [], byWorkLocation: [] } });
+        }
         const [total, byOrg, byLocation] = await Promise.all([
             execQuery(cmdbPool, 'SELECT COUNT(*) as total FROM planilla'),
             execQuery(cmdbPool, 'SELECT Nombre_unidad_org, COUNT(*) as count FROM planilla WHERE Nombre_unidad_org IS NOT NULL GROUP BY Nombre_unidad_org ORDER BY count DESC LIMIT 10'),
@@ -501,13 +538,14 @@ dashboardRouter.get('/equipos-sin-asignar', async (req, res, next) => {
                 IF(DATE_ADD(e.created_at, INTERVAL 12 MONTH) > CURDATE(), 'En Garantía', 'Fuera de Garantía') AS estado_garantia
             FROM equipment e
             WHERE e.status = 'Disponible'
+              AND e.tenant_id = ?
               AND e.id NOT IN (
                   SELECT equipment_id FROM assignments
                   WHERE status = 'Activo' AND return_date IS NULL
               )
             ORDER BY dias_sin_uso DESC
             LIMIT 100
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results, count: results.length });
     } catch (error) { next(error); }
 });
@@ -526,8 +564,9 @@ dashboardRouter.get('/alertas-garantia', async (req, res, next) => {
             LEFT JOIN locations  l   ON a.location_id = l.id
             WHERE DATE_ADD(e.created_at, INTERVAL 12 MONTH) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
               AND e.status != 'Dado de Baja'
+              AND e.tenant_id = ?
             ORDER BY warranty_end ASC
-        `);
+        `, [tenantId(req)]);
         res.json({
             success: true, data: results, count: results.length,
             message: results.length > 0
@@ -539,22 +578,23 @@ dashboardRouter.get('/alertas-garantia', async (req, res, next) => {
 
 dashboardRouter.get('/resumen-ejecutivo', async (req, res, next) => {
     try {
+        const tid = tenantId(req);
         const results = await execQuery(equipmentPool, `
-            SELECT 'Total Equipos' AS metrica, COUNT(*) AS valor, NULL AS detalle FROM equipment
+            SELECT 'Total Equipos' AS metrica, COUNT(*) AS valor, NULL AS detalle FROM equipment WHERE tenant_id = ?
             UNION ALL
             SELECT 'Equipos Asignados',
                    SUM(status='Asignado'),
                    CONCAT(ROUND(SUM(status='Asignado')*100.0/COUNT(*),1),'%')
-            FROM equipment
+            FROM equipment WHERE tenant_id = ?
             UNION ALL
             SELECT 'Equipos Disponibles',
                    SUM(status='Disponible'),
                    CONCAT(ROUND(SUM(status='Disponible')*100.0/COUNT(*),1),'%')
-            FROM equipment
+            FROM equipment WHERE tenant_id = ?
             UNION ALL
             SELECT 'Asignaciones Activas', COUNT(*), NULL
-            FROM assignments WHERE status='Activo' AND return_date IS NULL
-        `);
+            FROM assignments WHERE status='Activo' AND return_date IS NULL AND tenant_id = ?
+        `, [tid, tid, tid, tid]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -572,14 +612,14 @@ dashboardRouter.get('/top-modelos-por-tipo/:tipo', async (req, res, next) => {
                             FROM assignments a2
                             INNER JOIN equipment e2 ON a2.equipment_id=e2.id
                             WHERE a2.status='Activo' AND a2.return_date IS NULL
-                              AND e2.equipment_type=?),0),2) AS porcentaje_del_tipo
+                              AND e2.equipment_type=? AND a2.tenant_id=?),0),2) AS porcentaje_del_tipo
             FROM equipment e
             INNER JOIN assignments a ON e.id=a.equipment_id
-            WHERE a.status='Activo' AND a.return_date IS NULL AND e.equipment_type=?
+            WHERE a.status='Activo' AND a.return_date IS NULL AND e.equipment_type=? AND a.tenant_id=?
             GROUP BY e.brand, e.model
             ORDER BY cantidad DESC
             LIMIT ?
-        `, [tipo, tipo, limite]);
+        `, [tipo, tenantId(req), tipo, tenantId(req), limite]);
         res.json({ success: true, tipo_equipo: tipo, data: results, count: results.length });
     } catch (error) { next(error); }
 });
@@ -598,12 +638,12 @@ dashboardRouter.get('/departamentos-stats', async (req, res, next) => {
             FROM assignments a
             INNER JOIN equipment  e ON a.equipment_id  = e.id
             LEFT  JOIN departments d ON a.department_id = d.id
-            WHERE a.status='Activo' AND a.return_date IS NULL
+            WHERE a.status='Activo' AND a.return_date IS NULL AND a.tenant_id = ?
             GROUP BY COALESCE(d.department_name,'Sin Departamento'), COALESCE(d.division,'-')
             HAVING total_equipos > 0
             ORDER BY total_equipos DESC
             LIMIT 20
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -611,8 +651,9 @@ dashboardRouter.get('/departamentos-stats', async (req, res, next) => {
 dashboardRouter.get('/historial-asignaciones/:equipment_id', async (req, res, next) => {
     try {
         const { equipment_id } = req.params;
+        const tid = tenantId(req);
         const [equipment, history] = await Promise.all([
-            execQuery(equipmentPool, 'SELECT * FROM equipment WHERE id=?', [equipment_id]),
+            execQuery(equipmentPool, 'SELECT * FROM equipment WHERE id=? AND tenant_id=?', [equipment_id, tid]),
             execQuery(equipmentPool, `
                 SELECT a.id, a.assignment_date, a.return_date, a.status, a.notes,
                     TIMESTAMPDIFF(DAY,a.assignment_date,COALESCE(a.return_date,CURDATE())) AS dias_asignado,
@@ -622,9 +663,9 @@ dashboardRouter.get('/historial-asignaciones/:equipment_id', async (req, res, ne
                 INNER JOIN employees emp ON a.employee_id=emp.id
                 LEFT  JOIN departments d ON a.department_id=d.id
                 LEFT  JOIN locations   l ON a.location_id=l.id
-                WHERE a.equipment_id=?
+                WHERE a.equipment_id=? AND a.tenant_id=?
                 ORDER BY a.assignment_date DESC
-            `, [equipment_id])
+            `, [equipment_id, tid])
         ]);
         res.json({
             success: true,
@@ -649,12 +690,12 @@ dashboardRouter.get('/top-empleados-equipos', async (req, res, next) => {
             INNER JOIN equipment   e ON a.equipment_id=e.id
             LEFT  JOIN departments d ON a.department_id=d.id
             LEFT  JOIN locations   l ON a.location_id=l.id
-            WHERE a.status='Activo' AND a.return_date IS NULL
+            WHERE a.status='Activo' AND a.return_date IS NULL AND a.tenant_id = ?
             GROUP BY emp.id, emp.full_name, emp.cip, emp.email, emp.position_name, d.department_name, l.location_name
             HAVING total_equipos > 1
             ORDER BY total_equipos DESC
             LIMIT 20
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -662,6 +703,7 @@ dashboardRouter.get('/top-empleados-equipos', async (req, res, next) => {
 dashboardRouter.get('/metricas-tiempo-real', async (req, res, next) => {
     try {
         // ✅ Un solo scan
+        const tid = tenantId(req);
         const [row] = await execQuery(equipmentPool, `
             SELECT
                 SUM(status != 'Dado de Baja')                                AS totalEquipos,
@@ -672,9 +714,10 @@ dashboardRouter.get('/metricas-tiempo-real', async (req, res, next) => {
                 SUM(TIMESTAMPDIFF(YEAR, created_at, CURDATE()) >= COALESCE(obsolescence_years,5)
                     AND status != 'Dado de Baja')                            AS obsoletos
             FROM equipment
-        `);
-        const [asigHoy]    = await execQuery(equipmentPool, `SELECT COUNT(*) AS v FROM assignments WHERE DATE(assignment_date)=CURDATE() AND status='Activo'`);
-        const [devHoy]     = await execQuery(equipmentPool, `SELECT COUNT(*) AS v FROM assignments WHERE DATE(return_date)=CURDATE()`);
+            WHERE tenant_id = ?
+        `, [tid]);
+        const [asigHoy]    = await execQuery(equipmentPool, `SELECT COUNT(*) AS v FROM assignments WHERE DATE(assignment_date)=CURDATE() AND status='Activo' AND tenant_id=?`, [tid]);
+        const [devHoy]     = await execQuery(equipmentPool, `SELECT COUNT(*) AS v FROM assignments WHERE DATE(return_date)=CURDATE() AND tenant_id=?`, [tid]);
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
@@ -700,10 +743,10 @@ dashboardRouter.get('/valor-inventario', async (req, res, next) => {
                 SUM(status='Disponible')                             AS disponibles,
                 ROUND(AVG(TIMESTAMPDIFF(YEAR,created_at,CURDATE())),1) AS antiguedad_promedio
             FROM equipment
-            WHERE status != 'Dado de Baja'
+            WHERE status != 'Dado de Baja' AND tenant_id = ?
             GROUP BY equipment_type, acquisition_type
             ORDER BY equipment_type, cantidad DESC
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: results });
     } catch (error) { next(error); }
 });
@@ -713,10 +756,13 @@ dashboardRouter.get('/advanced-search', async (req, res, next) => {
         const { term } = req.query;
         if (!term) return res.status(400).json({ success: false, error: 'Parámetro requerido' });
         const t = `%${term}%`;
+        const tid = tenantId(req);
         const [employees, equipment, activos] = await Promise.all([
-            execQuery(pool,     `SELECT id, full_name as name, email, 'employee' as type FROM employees WHERE full_name LIKE ? OR email LIKE ? LIMIT 10`, [t,t]),
-            execQuery(pool,     `SELECT id, device_code as name, brand, model, 'equipment' as type FROM equipment WHERE device_code LIKE ? OR brand LIKE ? OR model LIKE ? LIMIT 10`, [t,t,t]),
-            execQuery(cmdbPool, `SELECT id, \`﻿Nombre_del_CI\` as name, Estado as status, 'activo_cmdb' as type FROM activos WHERE \`﻿Nombre_del_CI\` LIKE ? LIMIT 10`, [t])
+            execQuery(pool,     `SELECT id, full_name as name, email, 'employee' as type FROM employees WHERE (full_name LIKE ? OR email LIKE ?) AND tenant_id = ? LIMIT 10`, [t,t,tid]),
+            execQuery(pool,     `SELECT id, device_code as name, brand, model, 'equipment' as type FROM equipment WHERE (device_code LIKE ? OR brand LIKE ? OR model LIKE ?) AND tenant_id = ? LIMIT 10`, [t,t,t,tid]),
+            isLegacyTenant(req)
+                ? execQuery(cmdbPool, `SELECT id, \`﻿Nombre_del_CI\` as name, Estado as status, 'activo_cmdb' as type FROM activos WHERE \`﻿Nombre_del_CI\` LIKE ? LIMIT 10`, [t])
+                : []
         ]);
         res.json({ success: true, data: { employees, equipment, activos_cmdb: activos }, totalResults: employees.length+equipment.length+activos.length });
     } catch (error) { next(error); }
@@ -727,17 +773,18 @@ dashboardRouter.get('/search', async (req, res, next) => {
         const { term, table } = req.query;
         if (!term || term.length < 2) return res.status(400).json({ success: false, error: 'Mín. 2 caracteres' });
         const t = `%${term}%`;
+        const tid = tenantId(req);
         const results = {};
         if (!table || table === 'employees')
-            results.employees = await execQuery(pool, `SELECT * FROM employees WHERE full_name LIKE ? OR email LIKE ? OR cip LIKE ? OR national_id LIKE ? ORDER BY full_name LIMIT 500`, [t,t,t,t]);
+            results.employees = await execQuery(pool, `SELECT * FROM employees WHERE (full_name LIKE ? OR email LIKE ? OR cip LIKE ? OR national_id LIKE ?) AND tenant_id = ? ORDER BY full_name LIMIT 500`, [t,t,t,t,tid]);
         if (!table || table === 'equipment')
-            results.equipment = await execQuery(pool, `SELECT * FROM equipment WHERE device_code LIKE ? OR serial_number LIKE ? OR brand LIKE ? OR model LIKE ? ORDER BY device_code LIMIT 500`, [t,t,t,t]);
+            results.equipment = await execQuery(pool, `SELECT * FROM equipment WHERE (device_code LIKE ? OR serial_number LIKE ? OR brand LIKE ? OR model LIKE ?) AND tenant_id = ? ORDER BY device_code LIMIT 500`, [t,t,t,t,tid]);
         if (!table || table === 'assignments')
-            results.assignments = await execQuery(pool, `SELECT * FROM active_assignments_view WHERE employee_name LIKE ? OR equipment_code LIKE ? OR employee_cip LIKE ? ORDER BY assignment_date DESC LIMIT 500`, [t,t,t]);
+            results.assignments = await execQuery(pool, `SELECT * FROM active_assignments_view WHERE (employee_name LIKE ? OR equipment_code LIKE ? OR employee_cip LIKE ?) AND ${VIEW_TENANT} ORDER BY assignment_date DESC LIMIT 500`, [t,t,t,tid]);
         if (!table || table === 'departments')
-            results.departments = await execQuery(pool, `SELECT * FROM departments WHERE (department_name LIKE ? OR division LIKE ?) AND is_active=TRUE ORDER BY department_name LIMIT 500`, [t,t]);
+            results.departments = await execQuery(pool, `SELECT * FROM departments WHERE (department_name LIKE ? OR division LIKE ?) AND is_active=TRUE AND tenant_id = ? ORDER BY department_name LIMIT 500`, [t,t,tid]);
         if (!table || table === 'locations')
-            results.locations = await execQuery(pool, `SELECT * FROM locations WHERE (location_name LIKE ? OR city LIKE ? OR state LIKE ?) AND is_active=TRUE ORDER BY location_name LIMIT 500`, [t,t,t]);
+            results.locations = await execQuery(pool, `SELECT * FROM locations WHERE (location_name LIKE ? OR city LIKE ? OR state LIKE ?) AND is_active=TRUE AND tenant_id = ? ORDER BY location_name LIMIT 500`, [t,t,t,tid]);
         const totalResults = Object.values(results).reduce((s,a) => s+a.length, 0);
         res.json({ success: true, data: results, searchTerm: term, totalResults });
     } catch (error) { next(error); }
@@ -746,15 +793,15 @@ dashboardRouter.get('/search', async (req, res, next) => {
 dashboardRouter.get('/export/:table', async (req, res, next) => {
     try {
         const map = {
-            employees:   { q: 'SELECT * FROM employees ORDER BY full_name',                      f: 'empleados' },
-            equipment:   { q: 'SELECT * FROM equipment ORDER BY device_code',                    f: 'equipos' },
-            assignments: { q: 'SELECT * FROM active_assignments_view ORDER BY assignment_date DESC', f: 'asignaciones' },
-            departments: { q: 'SELECT * FROM departments WHERE is_active=TRUE ORDER BY department_name', f: 'departamentos' },
-            locations:   { q: 'SELECT * FROM locations WHERE is_active=TRUE ORDER BY location_name',     f: 'ubicaciones' }
+            employees:   { q: 'SELECT * FROM employees WHERE tenant_id = ? ORDER BY full_name',                      f: 'empleados' },
+            equipment:   { q: 'SELECT * FROM equipment WHERE tenant_id = ? ORDER BY device_code',                    f: 'equipos' },
+            assignments: { q: `SELECT * FROM active_assignments_view WHERE ${VIEW_TENANT} ORDER BY assignment_date DESC`, f: 'asignaciones' },
+            departments: { q: 'SELECT * FROM departments WHERE is_active=TRUE AND tenant_id = ? ORDER BY department_name', f: 'departamentos' },
+            locations:   { q: 'SELECT * FROM locations WHERE is_active=TRUE AND tenant_id = ? ORDER BY location_name',     f: 'ubicaciones' }
         };
         const entry = map[req.params.table];
         if (!entry) return res.status(400).json({ success: false, error: 'Tabla inválida' });
-        const data = await execQuery(pool, entry.q);
+        const data = await execQuery(pool, entry.q, [tenantId(req)]);
         res.json({ success: true, data, count: data.length, filename: `${entry.f}_${new Date().toISOString().split('T')[0]}` });
     } catch (error) { next(error); }
 });
@@ -762,10 +809,11 @@ dashboardRouter.get('/export/:table', async (req, res, next) => {
 dashboardRouter.post('/comparar-periodos', async (req, res, next) => {
     try {
         const { startDate1, endDate1, startDate2, endDate2 } = req.body;
-        const q = `SELECT COUNT(DISTINCT a.equipment_id) AS equipos_asignados, COUNT(DISTINCT a.employee_id) AS empleados, AVG(TIMESTAMPDIFF(DAY,a.assignment_date,COALESCE(a.return_date,CURDATE()))) AS dias_promedio FROM assignments a WHERE a.assignment_date BETWEEN ? AND ?`;
+        const q = `SELECT COUNT(DISTINCT a.equipment_id) AS equipos_asignados, COUNT(DISTINCT a.employee_id) AS empleados, AVG(TIMESTAMPDIFF(DAY,a.assignment_date,COALESCE(a.return_date,CURDATE()))) AS dias_promedio FROM assignments a WHERE a.assignment_date BETWEEN ? AND ? AND a.tenant_id = ?`;
+        const tid = tenantId(req);
         const [p1, p2] = await Promise.all([
-            execQuery(equipmentPool, q, [startDate1, endDate1]),
-            execQuery(equipmentPool, q, [startDate2, endDate2])
+            execQuery(equipmentPool, q, [startDate1, endDate1, tid]),
+            execQuery(equipmentPool, q, [startDate2, endDate2, tid])
         ]);
         res.json({
             success: true,
@@ -783,18 +831,19 @@ dashboardRouter.post('/comparar-periodos', async (req, res, next) => {
 dashboardRouter.get('/unified', async (req, res, next) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const tid = tenantId(req);
         const [employees, equipment, assignments, departments, locations, counts] = await Promise.all([
-            execQuery(equipmentPool, `SELECT * FROM employees ORDER BY full_name LIMIT ${limit}`),
-            execQuery(equipmentPool, `SELECT * FROM equipment ORDER BY device_code LIMIT ${limit}`),
-            execQuery(equipmentPool, `SELECT * FROM active_assignments_view ORDER BY assignment_date DESC LIMIT ${limit}`),
-            execQuery(equipmentPool, 'SELECT * FROM departments WHERE is_active=TRUE ORDER BY department_name'),
-            execQuery(equipmentPool, 'SELECT * FROM locations WHERE is_active=TRUE ORDER BY location_name'),
+            execQuery(equipmentPool, `SELECT * FROM employees WHERE tenant_id = ? ORDER BY full_name LIMIT ${limit}`, [tid]),
+            execQuery(equipmentPool, `SELECT * FROM equipment WHERE tenant_id = ? ORDER BY device_code LIMIT ${limit}`, [tid]),
+            execQuery(equipmentPool, `SELECT * FROM active_assignments_view WHERE ${VIEW_TENANT} ORDER BY assignment_date DESC LIMIT ${limit}`, [tid]),
+            execQuery(equipmentPool, 'SELECT * FROM departments WHERE is_active=TRUE AND tenant_id = ? ORDER BY department_name', [tid]),
+            execQuery(equipmentPool, 'SELECT * FROM locations WHERE is_active=TRUE AND tenant_id = ? ORDER BY location_name', [tid]),
             execQuery(equipmentPool, `
                 SELECT
-                    (SELECT COUNT(*) FROM employees)              AS emp,
-                    (SELECT COUNT(*) FROM equipment)              AS equip,
-                    (SELECT COUNT(*) FROM active_assignments_view) AS asign
-            `)
+                    (SELECT COUNT(*) FROM employees WHERE tenant_id = ?)                        AS emp,
+                    (SELECT COUNT(*) FROM equipment WHERE tenant_id = ?)                        AS equip,
+                    (SELECT COUNT(*) FROM active_assignments_view WHERE ${VIEW_TENANT})         AS asign
+            `, [tid, tid, tid])
         ]);
         res.json({
             success: true,
