@@ -1,0 +1,12 @@
+<%
+const body = `
+<div class="header">
+  <h1>🔐 Código de verificación</h1>
+  <p>Usa este código para crear tu contraseña en el Portal TI</p>
+</div>
+<div class="body">
+  <div class="field"><div class="field-label">Tu código</div><div class="field-val" style="font-family:monospace;font-size:26px;letter-spacing:6px;">${code}</div></div>
+  <p style="margin:16px 0 8px;font-size:13px;color:#64748b;">El código vence en ${minutes} minutos. Si no solicitaste este acceso, ignora este correo.</p>
+</div>`;
+%>
+<%- include('_base', { body }) %>

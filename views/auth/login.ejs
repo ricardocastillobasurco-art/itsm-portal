@@ -413,7 +413,13 @@
                     <button onclick="goBack()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;">Cambiar</button>
                 </div>
                 <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.18);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-muted);">
-                    <i class="bi bi-info-circle" style="color:var(--primary);"></i> Primer acceso detectado. Crea tu contraseña para continuar.
+                    <i class="bi bi-info-circle" style="color:var(--primary);"></i> Primer acceso detectado. Te enviamos un código a tu correo; ingrésalo y crea tu contraseña.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Código de verificación</label>
+                    <input type="text" class="form-control" id="codeCreate" inputmode="numeric" maxlength="6"
+                        placeholder="6 dígitos" autocomplete="one-time-code" oninput="validatePwCreate()">
+                    <a href="#" onclick="sendSetupCode();return false;" style="font-size:12px;">Reenviar código</a>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Crear contraseña</label>
@@ -557,7 +563,8 @@
                     document.getElementById('empNameCreate').textContent  = _currentName;
                     document.getElementById('empEmailCreate').textContent = _currentEmail;
                     document.getElementById('step2create').style.display  = 'block';
-                    setTimeout(function(){ document.getElementById('passwordCreate').focus(); }, 100);
+                    sendSetupCode();
+                    setTimeout(function(){ document.getElementById('codeCreate').focus(); }, 100);
                 }
             } catch(e) {
                 clearTimeout(timer);
@@ -576,7 +583,7 @@
                 'rl-num': /[0-9]/.test(p),
                 'rl-sym': /[^A-Za-z0-9]/.test(p)
             };
-            var allOk = true;
+            var allOk = /^\d{6}$/.test(document.getElementById('codeCreate').value.trim());
             Object.keys(rules).forEach(function(id){
                 var el = document.getElementById(id);
                 var ok = rules[id];
@@ -626,15 +633,28 @@
             }
         }
 
+        async function sendSetupCode() {
+            try {
+                var r = await fetch('/api/auth/employee-setup/code', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ email: _currentEmail })
+                });
+                var d = await r.json();
+                showAlert(d.success ? 'Te enviamos un código de verificación a ' + _currentEmail : (d.error || 'No se pudo enviar el código'),
+                          d.success ? 'success' : 'danger');
+            } catch(e) { showAlert('Error de conexión al enviar el código'); }
+        }
+
         async function doCreate() {
             var pw = document.getElementById('passwordCreate').value;
+            var code = document.getElementById('codeCreate').value.trim();
             setBusy('createBtnText','createBtnSpin','createBtn', true);
             var ctrl = new AbortController();
             var timer = setTimeout(function(){ ctrl.abort(); }, 12000);
             try {
                 var r = await fetch('/api/auth/employee-setup', {
                     method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({ email: _currentEmail, password: pw }),
+                    body: JSON.stringify({ email: _currentEmail, password: pw, code: code }),
                     signal: ctrl.signal
                 });
                 clearTimeout(timer);

@@ -5,7 +5,31 @@ const { equipmentPool, executeQuery } = require('../../config/database');
 const { User } = require('../../src/models');
 const { enqueueEmail } = require('../../src/queues/index');
 const router = express.Router();
-const { authenticateToken: requireAuth } = require('../../middleware/auth');
+const crypto = require('crypto');
+const { authenticateToken: requireAuth, requireRole } = require('../../middleware/auth');
+const { tenantId: reqTenantId } = require('../../src/utils/tenantScope');
+
+// Gestión de usuarios: solo administradores, y siempre dentro de su propio tenant.
+// Usuarios con tenant_id NULL son del tenant 1 (instalación original).
+const requireAdmin     = [requireAuth, requireRole('administrador')];
+const ASSIGNABLE_ROLES = ['usuario', 'visor', 'tecnico', 'agente', 'especialista', 'administrador'];
+const USER_IN_TENANT   = 'COALESCE(tenant_id, 1) = ?';
+
+// Resuelve el tenant de un correo por su dominio (tenants.domain)
+async function tenantForEmail(email) {
+    const domain = (email.split('@')[1] || '').toLowerCase();
+    if (!domain) return null;
+    const [t] = await executeQuery(equipmentPool,
+        'SELECT id FROM tenants WHERE LOWER(domain) = ? AND is_active = 1 LIMIT 1', [domain]).catch(() => []);
+    if (t) return t.id;
+    // Compatibilidad: instalaciones donde el tenant 1 aún no tiene dominio registrado
+    return domain.includes('integratel') ? 1 : null;
+}
+
+// Código de verificación por correo para el primer acceso (evita que alguien
+// cree la cuenta de otra persona conociendo solo su correo)
+const CODE_TTL_MIN = 15, CODE_MAX_ATTEMPTS = 5;
+const hashCode = (email, code) => crypto.createHash('sha256').update(`${email}:${code}`).digest('hex');
 
 // ── MSAL — auth code flow para SSO Microsoft ─────────────────────────────────
 const { _encrypt } = (() => { try { return require('../../src/services/msTokenCache'); } catch(_) { return { _encrypt: null }; } })();
@@ -60,6 +84,15 @@ function pwValid(p) {
                 expires_at DATETIME NOT NULL,
                 created_at DATETIME DEFAULT NOW(),
                 INDEX idx_user (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        await executeQuery(equipmentPool, `
+            CREATE TABLE IF NOT EXISTS auth_email_codes (
+                email      VARCHAR(255) NOT NULL PRIMARY KEY,
+                code_hash  CHAR(64)     NOT NULL,
+                attempts   INT          NOT NULL DEFAULT 0,
+                expires_at DATETIME     NOT NULL,
+                created_at DATETIME     DEFAULT NOW()
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
     } catch(e) { console.error('auth tables migration:', e.message); }
@@ -326,10 +359,12 @@ router.get('/perfil', authenticateToken, async (req, res) => {
 // ============================================================================
 // GET /api/auth/users — Listar todos los usuarios del sistema
 // ============================================================================
-router.get('/users', requireAuth, async (req, res) => {
+router.get('/users', requireAdmin, async (req, res) => {
     try {
         const rows = await executeQuery(equipmentPool,
-            `SELECT id, username, full_name, email, role, is_active, created_at FROM users ORDER BY full_name ASC`
+            `SELECT id, username, full_name, email, role, is_active, created_at FROM users
+             WHERE ${USER_IN_TENANT} AND role <> 'superadmin' ORDER BY full_name ASC`,
+            [reqTenantId(req)]
         );
         res.json({ success: true, data: rows });
     } catch(err) {
@@ -340,20 +375,23 @@ router.get('/users', requireAuth, async (req, res) => {
 // ============================================================================
 // POST /api/auth/register — Crear nuevo usuario (solo admin)
 // ============================================================================
-router.post('/register', requireAuth, async (req, res) => {
+router.post('/register', requireAdmin, async (req, res) => {
     try {
         const { full_name, username, email, role = 'usuario', password } = req.body;
         if (!full_name || !email || !password)
             return res.status(400).json({ success: false, error: 'Faltan campos obligatorios' });
+        if (!ASSIGNABLE_ROLES.includes(role))
+            return res.status(400).json({ success: false, error: 'Rol no válido' });
 
         const bcrypt = require('bcryptjs');
         const hash   = await bcrypt.hash(password, 10);
         const uname  = username || email.split('@')[0];
 
+        // El usuario nace en el tenant del administrador que lo crea
         const result = await executeQuery(equipmentPool,
-            `INSERT INTO users (full_name, username, email, role, password_hash, is_active, is_verified, created_at)
-             VALUES (?, ?, ?, ?, ?, 1, 1, NOW())`,
-            [full_name, uname, email.toLowerCase(), role, hash]
+            `INSERT INTO users (full_name, username, email, role, password_hash, is_active, is_verified, created_at, tenant_id)
+             VALUES (?, ?, ?, ?, ?, 1, 1, NOW(), ?)`,
+            [full_name, uname, email.toLowerCase(), role, hash, reqTenantId(req)]
         );
         res.status(201).json({ success: true, userId: result.insertId, message: 'Usuario creado' });
     } catch(err) {
@@ -366,17 +404,18 @@ router.post('/register', requireAuth, async (req, res) => {
 // ============================================================================
 // PATCH /api/auth/users/:id/role — Cambiar rol de un usuario
 // ============================================================================
-router.patch('/users/:id/role', requireAuth, async (req, res) => {
+router.patch('/users/:id/role', requireAdmin, async (req, res) => {
     try {
         const { role } = req.body;
-        const validRoles = ['usuario', 'visor', 'tecnico', 'agente', 'especialista', 'administrador'];
-        if (!validRoles.includes(role))
+        if (!ASSIGNABLE_ROLES.includes(role))
             return res.status(400).json({ success: false, error: 'Rol no válido' });
 
-        await executeQuery(equipmentPool,
-            `UPDATE users SET role = ? WHERE id = ?`,
-            [role, req.params.id]
+        // Solo usuarios del mismo tenant; nunca se toca a un superadmin
+        const result = await executeQuery(equipmentPool,
+            `UPDATE users SET role = ? WHERE id = ? AND ${USER_IN_TENANT} AND role <> 'superadmin'`,
+            [role, req.params.id, reqTenantId(req)]
         );
+        if (!result.affectedRows) return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
         res.json({ success: true, message: 'Rol actualizado' });
     } catch(err) {
         res.status(500).json({ success: false, error: err.message });
@@ -431,42 +470,79 @@ router.post('/check-employee', async (req, res) => {
     }
 });
 
-// ── POST /api/auth/employee-setup — crear / actualizar contraseña de empleado ─
+// ── POST /api/auth/employee-setup/code — enviar código de verificación ────────
+// Primer acceso: el empleado demuestra que controla su correo antes de crear
+// la contraseña. Respuesta genérica para no revelar qué correos existen.
+router.post('/employee-setup/code', async (req, res) => {
+    const cleanEmail = (req.body?.email || '').trim().toLowerCase();
+    if (!cleanEmail) return res.status(400).json({ success: false, error: 'email requerido' });
+    const generic = { success: true, message: 'Si el correo está registrado, recibirás un código de verificación' };
+    try {
+        const emp = await executeQuery(equipmentPool,
+            `SELECT id FROM employees WHERE LOWER(email)=? AND is_active=1 LIMIT 1`, [cleanEmail]);
+        const usr = await User.findOne({ where: { email: cleanEmail } });
+        if (!emp.length || usr) return res.json(generic);
+
+        const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+        await executeQuery(equipmentPool,
+            `REPLACE INTO auth_email_codes (email, code_hash, attempts, expires_at)
+             VALUES (?, ?, 0, DATE_ADD(NOW(), INTERVAL ? MINUTE))`,
+            [cleanEmail, hashCode(cleanEmail, code), CODE_TTL_MIN]);
+        await enqueueEmail({ to: cleanEmail, subject: '🔐 Código de verificación — Portal TI',
+            template: 'codigo-verificacion', vars: { code, minutes: CODE_TTL_MIN } });
+        res.json(generic);
+    } catch (err) {
+        console.error('employee-setup/code error:', err.message);
+        res.status(500).json({ success: false, error: 'No se pudo enviar el código' });
+    }
+});
+
+// ── POST /api/auth/employee-setup — crear contraseña (primer acceso) ─────────
 router.post('/employee-setup', async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ success: false, error: 'email y password requeridos' });
+    const { email, password, code } = req.body;
+    if (!email || !password || !code) return res.status(400).json({ success: false, error: 'email, código y contraseña requeridos' });
     if (!pwValid(password)) return res.status(400).json({
         success: false,
         error: 'La contraseña debe tener mínimo 6 caracteres, una mayúscula, un número y un símbolo'
     });
     try {
+        const cleanEmail = email.trim().toLowerCase();
         const emp = await executeQuery(equipmentPool,
-            `SELECT id, full_name, email FROM employees WHERE LOWER(email)=LOWER(?) AND is_active=1 LIMIT 1`,
-            [email.trim()]
+            `SELECT id, full_name, email, tenant_id FROM employees WHERE LOWER(email)=? AND is_active=1 LIMIT 1`,
+            [cleanEmail]
         );
         if (!emp.length) return res.status(403).json({ success: false, error: 'Correo no autorizado' });
 
-        const cleanEmail = email.trim().toLowerCase();
+        // Solo primer acceso: una cuenta existente se recupera con su administrador
+        if (await User.findOne({ where: { email: cleanEmail } }))
+            return res.status(409).json({ success: false, error: 'Ya tienes una cuenta. Ingresa con tu contraseña o pide a tu administrador que la restablezca' });
+
+        const [pending] = await executeQuery(equipmentPool,
+            `SELECT code_hash, attempts, expires_at > NOW() AS vigente FROM auth_email_codes WHERE email = ?`, [cleanEmail]);
+        if (!pending || !pending.vigente || pending.attempts >= CODE_MAX_ATTEMPTS)
+            return res.status(400).json({ success: false, error: 'El código expiró. Solicita uno nuevo' });
+        if (pending.code_hash !== hashCode(cleanEmail, String(code).trim())) {
+            await executeQuery(equipmentPool, 'UPDATE auth_email_codes SET attempts = attempts + 1 WHERE email = ?', [cleanEmail]);
+            return res.status(400).json({ success: false, error: 'Código incorrecto' });
+        }
+        await executeQuery(equipmentPool, 'DELETE FROM auth_email_codes WHERE email = ?', [cleanEmail]);
+
         const fullName   = emp[0].full_name || cleanEmail;
         const username   = cleanEmail.split('@')[0];
 
-        let userData = await User.findOne({ where: { email: cleanEmail } });
-        if (userData) {
-            userData.password = password;
-            await userData.save();
-        } else {
-            userData = await User.create({
-                username:   username,
-                nombre:     fullName,
-                email:      cleanEmail,
-                password:   password,
-                rol:        'usuario',
-                activo:     true,
-                isVerified: true,
-            });
-        }
+        // El usuario hereda el tenant del empleado
+        const userData = await User.create({
+            username:   username,
+            nombre:     fullName,
+            email:      cleanEmail,
+            password:   password,
+            rol:        'usuario',
+            activo:     true,
+            isVerified: true,
+            tenantId:   emp[0].tenant_id || 1,
+        });
 
-        enqueueEmail({ to: cleanEmail, subject: '🔐 Tus credenciales de acceso — Portal TI', template: 'bienvenida-acceso', vars: { email: cleanEmail, password: password } }).catch(() => {});
+        enqueueEmail({ to: cleanEmail, subject: '🔐 Tu acceso al Portal TI está listo', template: 'bienvenida-acceso', vars: { email: cleanEmail } }).catch(() => {});
 
         const accessToken  = generateAccessToken(userData);
         const refreshToken = generateRefreshToken(userData);
@@ -522,14 +598,21 @@ router.get('/microsoft/callback', async (req, res) => {
         const msEmail = (result.account?.username || result.account?.name || '').toLowerCase();
         if (!msEmail) return res.redirect('/login?error=email_no_obtenido');
 
-        // Validar dominio corporativo
-        if (!msEmail.includes('integratel')) return res.redirect('/login?error=dominio_no_autorizado');
+        // El dominio del correo define el tenant (tenants.domain). Sin tenant
+        // registrado para ese dominio no se permite el acceso.
+        const emailTenantId = await tenantForEmail(msEmail);
+        if (!emailTenantId) return res.redirect('/login?error=dominio_no_autorizado');
 
         // ── Buscar usuario por email (SQL directo, id ASC para evitar duplicados) ──
         let userRows = await executeQuery(equipmentPool,
-            `SELECT id, username, email, role, is_active FROM users WHERE LOWER(email)=? ORDER BY id ASC LIMIT 1`,
+            `SELECT id, username, email, role, is_active, tenant_id FROM users WHERE LOWER(email)=? ORDER BY id ASC LIMIT 1`,
             [msEmail]
         );
+        // Un usuario existente de otro tenant no puede entrar con un correo de este dominio
+        if (userRows.length && userRows[0].role !== 'superadmin'
+            && (userRows[0].tenant_id || 1) !== emailTenantId) {
+            return res.redirect('/login?error=cuenta_de_otra_empresa');
+        }
 
         // Emails pre-autorizados como superadmin
         const SUPERADMIN_EMAILS = [
@@ -546,20 +629,19 @@ router.get('/microsoft/callback', async (req, res) => {
         // Si no existe, crear con el rol correcto desde el inicio
         if (!userRows || !userRows.length) {
             const emp = await executeQuery(equipmentPool,
-                `SELECT full_name FROM employees WHERE LOWER(email)=? AND is_active=1 LIMIT 1`, [msEmail]
+                `SELECT full_name FROM employees WHERE LOWER(email)=? AND is_active=1 AND tenant_id=? LIMIT 1`, [msEmail, emailTenantId]
             ).catch(() => []);
             const fullName = emp[0]?.full_name || result.account?.name || msEmail.split('@')[0];
             const username = msEmail.split('@')[0];
-            const crypto   = require('crypto');
             const { v4: uuidv4 } = require('uuid');
             const roleInicial = SUPERADMIN_EMAILS.includes(msEmail) ? 'superadmin' : ADMIN_EMAILS.includes(msEmail) ? 'admin' : 'usuario';
             await executeQuery(equipmentPool,
-                `INSERT INTO users (id, username, full_name, email, password_hash, role, is_active, is_verified, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, 1, 1, NOW(), NOW())`,
-                [uuidv4(), username, fullName, msEmail, crypto.randomBytes(32).toString('hex'), roleInicial]
+                `INSERT INTO users (id, username, full_name, email, password_hash, role, is_active, is_verified, created_at, updated_at, tenant_id)
+                 VALUES (?, ?, ?, ?, ?, ?, 1, 1, NOW(), NOW(), ?)`,
+                [uuidv4(), username, fullName, msEmail, crypto.randomBytes(32).toString('hex'), roleInicial, emailTenantId]
             );
             userRows = await executeQuery(equipmentPool,
-                `SELECT id, username, email, role, is_active FROM users WHERE LOWER(email)=? LIMIT 1`,
+                `SELECT id, username, email, role, is_active, tenant_id FROM users WHERE LOWER(email)=? LIMIT 1`,
                 [msEmail]
             );
         }
