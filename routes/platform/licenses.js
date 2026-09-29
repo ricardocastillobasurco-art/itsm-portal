@@ -1,14 +1,22 @@
 // ============================================================================
 // routes/licenses.js — Portal de Licenciamiento M365
 // DB-backed cache + Background sync + Cost analytics + Recommendations
+// Multi-tenant: credenciales Azure, grupos, sync y datos separados por tenant.
 // ============================================================================
 
 const express = require('express');
 const router  = express.Router();
 const axios   = require('axios');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
-const { authenticateToken } = require('../../middleware/auth');
+const { authenticateToken, requireRole } = require('../../middleware/auth');
 const { equipmentPool, executeQuery } = require('../../config/database');
+const { tenantId } = require('../../src/utils/tenantScope');
+
+const LEGACY_TENANT_ID = 1;
+
+// Todo el módulo es para el personal de TI (no usuarios finales)
+router.use(authenticateToken, requireRole('administrador', 'especialista', 'agente', 'tecnico', 'visor'));
+const adminOnly = requireRole('administrador');
 
 // ── DB helper ─────────────────────────────────────────────────────────────────
 // Sequelize QueryTypes.RAW rechaza undefined — convertir a null
@@ -31,22 +39,48 @@ function parseLicGroups(val) {
     return [];
 }
 
-// ── MSAL ─────────────────────────────────────────────────────────────────────
-const msalEnabled = !!(process.env.MS_CLIENT_ID && process.env.MS_TENANT_ID && process.env.MS_CLIENT_SECRET);
-const msalClient = msalEnabled ? new ConfidentialClientApplication({
-    auth: {
-        clientId:     process.env.MS_CLIENT_ID,
-        authority:    `https://login.microsoftonline.com/${process.env.MS_TENANT_ID}`,
-        clientSecret: process.env.MS_CLIENT_SECRET,
+// ── Credenciales Azure por tenant ─────────────────────────────────────────────
+// Tenant 1: variables MS_* del .env (comportamiento original).
+// Otros tenants: tenant.settings.graph { clientId, tenantId, clientSecret }.
+function graphCredentials(tenant) {
+    const tid = tenant?.id ?? LEGACY_TENANT_ID;
+    if (tid === LEGACY_TENANT_ID) {
+        const { MS_CLIENT_ID, MS_TENANT_ID, MS_CLIENT_SECRET } = process.env;
+        return MS_CLIENT_ID && MS_TENANT_ID && MS_CLIENT_SECRET
+            ? { clientId: MS_CLIENT_ID, tenantId: MS_TENANT_ID, clientSecret: MS_CLIENT_SECRET }
+            : null;
     }
-}) : null;
-let _tokenCache = { token: null, exp: 0 };
-async function getToken() {
-    if (!msalClient) throw new Error('MSAL no configurado — requiere MS_CLIENT_ID, MS_TENANT_ID y MS_CLIENT_SECRET');
-    if (_tokenCache.token && Date.now() < _tokenCache.exp - 60000) return _tokenCache.token;
-    const r = await msalClient.acquireTokenByClientCredential({ scopes: ['https://graph.microsoft.com/.default'] });
-    _tokenCache = { token: r.accessToken, exp: r.expiresOn?.getTime() || (Date.now() + 3600000) };
-    return _tokenCache.token;
+    const g = tenant?.settings?.graph || {};
+    return g.clientId && g.tenantId && g.clientSecret
+        ? { clientId: g.clientId, tenantId: g.tenantId, clientSecret: g.clientSecret }
+        : null;
+}
+
+const _tokens = new Map(); // tid → { key, client, token, exp }
+async function getToken(tenant) {
+    const creds = graphCredentials(tenant);
+    if (!creds) throw new Error('Microsoft 365 no configurado para esta empresa — registra clientId, tenantId y clientSecret de tu app Azure');
+    const tid = tenant?.id ?? LEGACY_TENANT_ID;
+    const key = `${creds.clientId}|${creds.tenantId}`;
+    let entry = _tokens.get(tid);
+    if (!entry || entry.key !== key) {
+        entry = {
+            key, token: null, exp: 0,
+            client: new ConfidentialClientApplication({
+                auth: {
+                    clientId:     creds.clientId,
+                    authority:    `https://login.microsoftonline.com/${creds.tenantId}`,
+                    clientSecret: creds.clientSecret,
+                }
+            }),
+        };
+        _tokens.set(tid, entry);
+    }
+    if (entry.token && Date.now() < entry.exp - 60000) return entry.token;
+    const r = await entry.client.acquireTokenByClientCredential({ scopes: ['https://graph.microsoft.com/.default'] });
+    entry.token = r.accessToken;
+    entry.exp   = r.expiresOn?.getTime() || (Date.now() + 3600000);
+    return entry.token;
 }
 
 // ── Graph fetch (axios) ───────────────────────────────────────────────────────
@@ -61,7 +95,7 @@ async function graph(path, token, raw = false) {
 
 // ── CSV parser (Graph reports) ────────────────────────────────────────────────
 function parseCsv(text) {
-    const clean = (text || '').replace(/^\uFEFF/, '');
+    const clean = (text || '').replace(/^﻿/, '');
     const lines = clean.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length < 2) return [];
     const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
@@ -91,7 +125,7 @@ const GROUP_TO_SKU = {
     'M365 EOP1':          'EOP_ENTERPRISE_PREMIUM_P1',
 };
 
-// ── Grupos monitoreados ───────────────────────────────────────────────────────
+// ── Grupos monitoreados del tenant por defecto ────────────────────────────────
 const LICENSE_GROUPS = [
     { name: 'ITG_Licencias_M365_E1',                 label: 'M365 E1',            color: '#3b82f6', icon: 'bi-microsoft' },
     { name: 'ITG_Licencias_M365_E3',                 label: 'M365 E3',            color: '#0052CC', icon: 'bi-microsoft' },
@@ -105,22 +139,67 @@ const LICENSE_GROUPS = [
     { name: 'ITG_Licencias_M365_EOP1',               label: 'M365 EOP1',          color: '#5c2d91', icon: 'bi-shield-fill' },
 ];
 
-// ── Sync state (in-memory) ───────────────────────────────────────────────────
-const _sync = { running: false, progress: 0, message: '', error: null, lastRun: null, usersCount: 0 };
+// Otros tenants configuran sus grupos en tenant.settings.licenseGroups:
+//   [{ name: 'Grupo_AD_E3', label: 'M365 E3', sku: 'ENTERPRISEPACK' }, ...]
+function licenseGroupsFor(tenant) {
+    const custom = tenant?.settings?.licenseGroups;
+    if (Array.isArray(custom) && custom.length) return custom;
+    return (tenant?.id ?? LEGACY_TENANT_ID) === LEGACY_TENANT_ID ? LICENSE_GROUPS : [];
+}
+function groupToSkuFor(tenant) {
+    const map = { ...GROUP_TO_SKU };
+    for (const g of licenseGroupsFor(tenant)) if (g.sku) map[g.label] = g.sku;
+    return map;
+}
+
+const DEFAULT_COSTS = [
+    ['STANDARDPACK',             'M365 E1',            10.00],
+    ['ENTERPRISEPACK',           'M365 E3',            36.00],
+    ['SPE_E5',                   'M365 E5',            57.00],
+    ['POWER_BI_PRO',             'Power BI Pro',       10.00],
+    ['PBI_PREMIUM_PER_USER',     'Power BI Premium',   20.00],
+    ['VISIOONLINE_PLAN2',        'Visio P2',           28.00],
+    ['PROJECTPREMIUM',           'Project P3',         55.00],
+    ['POWERAPPS_PER_USER',       'Power Apps Premium', 20.00],
+    ['FLOW_PER_USER',            'Power Automate',     15.00],
+    ['EOP_ENTERPRISE_PREMIUM_P1','M365 EOP1',           1.00],
+];
+// INSERT IGNORE = no sobrescribe costos editados por el usuario
+async function ensureDefaultCosts(tid) {
+    for (const [sku, label, cost] of DEFAULT_COSTS) {
+        await dbQuery(`INSERT IGNORE INTO m365_license_costs (tenant_id, sku_name, label, cost_per_user) VALUES (?,?,?,?)`, [tid, sku, label, cost]);
+    }
+}
+async function costMapFor(tid) {
+    const rows = await dbQuery(`SELECT sku_name, cost_per_user FROM m365_license_costs WHERE tenant_id=?`, [tid]);
+    return Object.fromEntries(rows.map(c => [c.sku_name, parseFloat(c.cost_per_user) || 0]));
+}
+
+// ── Sync state (in-memory, por tenant) ───────────────────────────────────────
+const _syncs = new Map();
+function syncState(tid) {
+    if (!_syncs.has(tid)) _syncs.set(tid, { running: false, progress: 0, message: '', error: null, lastRun: null, usersCount: 0 });
+    return _syncs.get(tid);
+}
 
 // ── DB Migration (startup) ────────────────────────────────────────────────────
+// Instalaciones existentes reciben tenant_id y claves compuestas vía migraciones
+// 20260929000001 / 20260929000002.
 (async () => {
     try {
         await dbQuery(`CREATE TABLE IF NOT EXISTS m365_license_costs (
-            sku_name    VARCHAR(200) NOT NULL PRIMARY KEY,
+            tenant_id   INT NOT NULL DEFAULT 1,
+            sku_name    VARCHAR(200) NOT NULL,
             label       VARCHAR(200),
             cost_per_user DECIMAL(10,2) DEFAULT 0.00,
             currency    VARCHAR(10)  DEFAULT 'USD',
-            updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (tenant_id, sku_name)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
 
         await dbQuery(`CREATE TABLE IF NOT EXISTS m365_license_snapshots (
             id           INT PRIMARY KEY AUTO_INCREMENT,
+            tenant_id    INT NULL DEFAULT 1,
             snapshot_date DATE NOT NULL,
             sku_name     VARCHAR(200),
             sku_id       VARCHAR(100),
@@ -132,11 +211,13 @@ const _sync = { running: false, progress: 0, message: '', error: null, lastRun: 
             cost_monthly  DECIMAL(12,2) DEFAULT 0,
             created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_date (snapshot_date),
-            INDEX idx_sku (sku_name)
+            INDEX idx_sku (sku_name),
+            INDEX idx_m365_license_snapshots_tenant_id (tenant_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
 
         await dbQuery(`CREATE TABLE IF NOT EXISTS m365_user_licenses (
             id              INT PRIMARY KEY AUTO_INCREMENT,
+            tenant_id       INT NOT NULL DEFAULT 1,
             graph_id        VARCHAR(100),
             upn             VARCHAR(255) NOT NULL,
             display_name    VARCHAR(255),
@@ -152,36 +233,22 @@ const _sync = { running: false, progress: 0, message: '', error: null, lastRun: 
             activo_90d      TINYINT(1) DEFAULT 0,
             activity_status VARCHAR(30),
             synced_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY uk_upn (upn),
+            UNIQUE KEY uk_tenant_upn (tenant_id, upn),
             INDEX idx_dept   (department),
             INDEX idx_status (activity_status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
 
         await dbQuery(`CREATE TABLE IF NOT EXISTS m365_sync_log (
             id          INT PRIMARY KEY AUTO_INCREMENT,
+            tenant_id   INT NULL DEFAULT 1,
             started_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
             finished_at DATETIME,
             status      VARCHAR(20) DEFAULT 'running',
             users_synced INT DEFAULT 0,
-            error_message TEXT
+            error_message TEXT,
+            INDEX idx_m365_sync_log_tenant_id (tenant_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
 
-        // Seed default costs (INSERT IGNORE = no overwrite user edits)
-        const defaultCosts = [
-            ['STANDARDPACK',            'M365 E1',            10.00],
-            ['ENTERPRISEPACK',          'M365 E3',            36.00],
-            ['SPE_E5',                  'M365 E5',            57.00],
-            ['POWER_BI_PRO',            'Power BI Pro',       10.00],
-            ['PBI_PREMIUM_PER_USER',    'Power BI Premium',   20.00],
-            ['VISIOONLINE_PLAN2',       'Visio P2',           28.00],
-            ['PROJECTPREMIUM',          'Project P3',         55.00],
-            ['POWERAPPS_PER_USER',      'Power Apps Premium', 20.00],
-            ['FLOW_PER_USER',           'Power Automate',     15.00],
-            ['EOP_ENTERPRISE_PREMIUM_P1','M365 EOP1',          1.00],
-        ];
-        for (const [sku, label, cost] of defaultCosts) {
-            await dbQuery(`INSERT IGNORE INTO m365_license_costs (sku_name, label, cost_per_user) VALUES (?,?,?)`, [sku, label, cost]);
-        }
         // Add direccion column if not exists (ALTER is safe to fail on dup)
         try {
             await dbQuery(`ALTER TABLE m365_user_licenses ADD COLUMN direccion VARCHAR(255) DEFAULT NULL`);
@@ -193,18 +260,21 @@ const _sync = { running: false, progress: 0, message: '', error: null, lastRun: 
 })();
 
 // ── Background sync job ───────────────────────────────────────────────────────
-async function runSync() {
+async function runSync(tenant) {
+    const tid   = tenant?.id ?? LEGACY_TENANT_ID;
+    const _sync = syncState(tid);
     if (_sync.running) return;
     Object.assign(_sync, { running: true, progress: 2, message: 'Iniciando...', error: null });
 
     let logId = null;
     try {
-        const log = await dbQuery(`INSERT INTO m365_sync_log (started_at, status) VALUES (NOW(),'running')`);
+        const log = await dbQuery(`INSERT INTO m365_sync_log (tenant_id, started_at, status) VALUES (?, NOW(),'running')`, [tid]);
         logId = log.insertId;
+        await ensureDefaultCosts(tid);
 
         // 1. Token
         _sync.message = 'Obteniendo token Azure...'; _sync.progress = 5;
-        const token = await getToken();
+        const token = await getToken(tenant);
 
         // 2. Activity reports (30/60/90d)
         _sync.message = 'Descargando reportes de actividad M365...'; _sync.progress = 10;
@@ -236,11 +306,12 @@ async function runSync() {
         // 3. Group members
         _sync.message = 'Obteniendo miembros de grupos...'; _sync.progress = 42;
         const userMap = new Map(); // upn → userData
+        const groups  = licenseGroupsFor(tenant);
 
-        for (let i = 0; i < LICENSE_GROUPS.length; i++) {
-            const grp = LICENSE_GROUPS[i];
-            _sync.progress = 42 + Math.round((i / LICENSE_GROUPS.length) * 30);
-            _sync.message = `Grupo ${i + 1}/${LICENSE_GROUPS.length}: ${grp.label}`;
+        for (let i = 0; i < groups.length; i++) {
+            const grp = groups[i];
+            _sync.progress = 42 + Math.round((i / groups.length) * 30);
+            _sync.message = `Grupo ${i + 1}/${groups.length}: ${grp.label}`;
             try {
                 const search = await graph(`/groups?$filter=displayName eq '${encodeURIComponent(grp.name)}'&$select=id`, token);
                 const group = search.value?.[0];
@@ -296,9 +367,9 @@ async function runSync() {
 
             await dbQuery(`
                 INSERT INTO m365_user_licenses
-                    (graph_id,upn,display_name,email,department,job_title,account_enabled,direccion,
+                    (tenant_id,graph_id,upn,display_name,email,department,job_title,account_enabled,direccion,
                      license_groups,last_activity_date,days_inactive,activo_30d,activo_60d,activo_90d,activity_status,synced_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())
                 ON DUPLICATE KEY UPDATE
                     display_name=VALUES(display_name), email=VALUES(email),
                     department=VALUES(department), job_title=VALUES(job_title),
@@ -309,7 +380,7 @@ async function runSync() {
                     activo_90d=VALUES(activo_90d), activity_status=VALUES(activity_status),
                     synced_at=NOW()
             `, [
-                u.graph_id, u.upn, u.display_name, u.email,
+                tid, u.graph_id, u.upn, u.display_name, u.email,
                 u.department, u.job_title, u.account_enabled, u.direccion,
                 JSON.stringify(u.groups),
                 lastAct ? lastAct.split('T')[0] : null,
@@ -322,20 +393,19 @@ async function runSync() {
         _sync.message = 'Creando snapshot de SKUs...'; _sync.progress = 90;
         const today = hoy.toISOString().split('T')[0];
         const skuData = await graph('/subscribedSkus', token);
-        const costs = await dbQuery(`SELECT sku_name, cost_per_user FROM m365_license_costs`);
-        const costMap = Object.fromEntries(costs.map(c => [c.sku_name, parseFloat(c.cost_per_user) || 0]));
+        const costMap = await costMapFor(tid);
 
-        await dbQuery(`DELETE FROM m365_license_snapshots WHERE snapshot_date = ?`, [today]);
+        await dbQuery(`DELETE FROM m365_license_snapshots WHERE tenant_id=? AND snapshot_date = ?`, [tid, today]);
         for (const sku of (skuData.value || [])) {
             const cost = costMap[sku.skuPartNumber] || 0;
             const consumed = sku.consumedUnits || 0;
             // Ensure new SKUs get added to cost config
-            await dbQuery(`INSERT IGNORE INTO m365_license_costs (sku_name, label, cost_per_user) VALUES (?,?,0)`, [sku.skuPartNumber, sku.skuPartNumber]);
+            await dbQuery(`INSERT IGNORE INTO m365_license_costs (tenant_id, sku_name, label, cost_per_user) VALUES (?,?,?,0)`, [tid, sku.skuPartNumber, sku.skuPartNumber]);
             await dbQuery(`
                 INSERT INTO m365_license_snapshots
-                    (snapshot_date,sku_name,sku_id,label,total,consumed,available,cost_per_user,cost_monthly)
-                VALUES (?,?,?,?,?,?,?,?,?)
-            `, [today, sku.skuPartNumber, sku.skuId, sku.skuPartNumber,
+                    (tenant_id,snapshot_date,sku_name,sku_id,label,total,consumed,available,cost_per_user,cost_monthly)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
+            `, [tid, today, sku.skuPartNumber, sku.skuId, sku.skuPartNumber,
                 sku.prepaidUnits?.enabled || 0, consumed,
                 (sku.prepaidUnits?.enabled || 0) - consumed,
                 cost, +(cost * consumed).toFixed(2)]);
@@ -347,7 +417,7 @@ async function runSync() {
     } catch (e) {
         if (logId) await dbQuery(`UPDATE m365_sync_log SET finished_at=NOW(),status='failed',error_message=? WHERE id=?`, [e.message, logId]).catch(() => {});
         Object.assign(_sync, { running: false, progress: 0, message: e.message, error: e.message });
-        console.error('[licenses] Sync error:', e.message);
+        console.error(`[licenses] Sync error (tenant ${tid}):`, e.message);
     }
 }
 
@@ -398,60 +468,67 @@ async function fetchSiteDisplayNames(token) {
 async function fetchOneSiteDisplayName(token, siteUrl) {
     try {
         const u       = new URL(siteUrl);
-        const host    = u.hostname;                        // integratelcorp.sharepoint.com
+        const host    = u.hostname;                        // contoso.sharepoint.com
         const sitePath = u.pathname.replace(/\/$/, '');   // /sites/Peru
         const resp    = await graph(`/sites/${host}:${sitePath}?$select=displayName,createdDateTime`, token);
         return { displayName: resp.displayName || null, createdAt: resp.createdDateTime || null };
     } catch { return null; }
 }
 
-// ── In-memory cache for SharePoint (Graph-direct) ────────────────────────────
-const _spCache = { data: null, ts: 0 };
+// ── In-memory cache for SharePoint (Graph-direct), por tenant ────────────────
+const _spCache = new Map(); // tid → { data, ts }
 
 // ============================================================
 // POST /api/licenses/sync — Iniciar sync en background
 // ============================================================
-router.post('/sync', authenticateToken, (req, res) => {
+router.post('/sync', (req, res) => {
+    const _sync = syncState(tenantId(req));
     if (_sync.running) return res.json({ success: false, message: 'Sync ya en progreso', ..._sync });
+    if (!graphCredentials(req.tenant)) {
+        return res.status(400).json({ success: false, message: 'Microsoft 365 no configurado para esta empresa' });
+    }
     res.json({ success: true, message: 'Sync iniciado en background' });
-    setImmediate(runSync);
+    const tenant = req.tenant;
+    setImmediate(() => runSync(tenant));
 });
 
 // GET /api/licenses/sync-status
-router.get('/sync-status', authenticateToken, async (req, res) => {
-    const lastLog = await dbQuery(`SELECT * FROM m365_sync_log ORDER BY id DESC LIMIT 1`).catch(() => []);
-    res.json({ success: true, sync: _sync, lastLog: lastLog[0] || null });
+router.get('/sync-status', async (req, res) => {
+    const tid = tenantId(req);
+    const lastLog = await dbQuery(`SELECT * FROM m365_sync_log WHERE tenant_id=? ORDER BY id DESC LIMIT 1`, [tid]).catch(() => []);
+    res.json({ success: true, sync: syncState(tid), lastLog: lastLog[0] || null });
 });
 
 // ============================================================
 // GET /api/licenses/overview — Costos desde DB snapshot
 // ============================================================
-router.get('/overview', authenticateToken, async (req, res) => {
+router.get('/overview', async (req, res) => {
     try {
+        const tid = tenantId(req);
+        const groupToSku = groupToSkuFor(req.tenant);
         const snaps = await dbQuery(`
             SELECT s.sku_name, s.label, s.total, s.consumed, s.available,
                    c.cost_per_user, (s.consumed * COALESCE(c.cost_per_user,0)) AS cost_monthly
             FROM m365_license_snapshots s
-            LEFT JOIN m365_license_costs c ON c.sku_name = s.sku_name
-            WHERE s.snapshot_date = (SELECT MAX(snapshot_date) FROM m365_license_snapshots)
-        `);
+            LEFT JOIN m365_license_costs c ON c.sku_name = s.sku_name AND c.tenant_id = s.tenant_id
+            WHERE s.tenant_id = ?
+              AND s.snapshot_date = (SELECT MAX(snapshot_date) FROM m365_license_snapshots WHERE tenant_id = ?)
+        `, [tid, tid]);
 
-        const costMap = Object.fromEntries(
-            (await dbQuery(`SELECT sku_name, cost_per_user FROM m365_license_costs`)).map(c => [c.sku_name, parseFloat(c.cost_per_user) || 0])
-        );
+        const costMap = await costMapFor(tid);
 
         // Count inactive users from DB
-        const [inactive] = await dbQuery(`SELECT COUNT(*) AS cnt FROM m365_user_licenses WHERE activity_status IN ('SIN USO','INACTIVO') AND account_enabled=1`);
-        const [total] = await dbQuery(`SELECT COUNT(*) AS cnt FROM m365_user_licenses WHERE account_enabled=1`);
-        const lastSync = await dbQuery(`SELECT MAX(synced_at) AS t FROM m365_user_licenses`);
+        const [inactive] = await dbQuery(`SELECT COUNT(*) AS cnt FROM m365_user_licenses WHERE tenant_id=? AND activity_status IN ('SIN USO','INACTIVO') AND account_enabled=1`, [tid]);
+        const [total] = await dbQuery(`SELECT COUNT(*) AS cnt FROM m365_user_licenses WHERE tenant_id=? AND account_enabled=1`, [tid]);
+        const lastSync = await dbQuery(`SELECT MAX(synced_at) AS t FROM m365_user_licenses WHERE tenant_id=?`, [tid]);
 
         // Calculate savings potential: inactive users cost per group
-        const inactiveUsers = await dbQuery(`SELECT license_groups FROM m365_user_licenses WHERE activity_status IN ('SIN USO','INACTIVO') AND account_enabled=1`);
+        const inactiveUsers = await dbQuery(`SELECT license_groups FROM m365_user_licenses WHERE tenant_id=? AND activity_status IN ('SIN USO','INACTIVO') AND account_enabled=1`, [tid]);
         let savingsPotential = 0;
         for (const u of inactiveUsers) {
             const groups = parseLicGroups(u.license_groups);
             for (const grp of groups) {
-                const sku = GROUP_TO_SKU[grp];
+                const sku = groupToSku[grp];
                 savingsPotential += sku ? (costMap[sku] || 0) : 0;
             }
         }
@@ -470,6 +547,7 @@ router.get('/overview', authenticateToken, async (req, res) => {
                 inactiveUsers: inactive?.cnt || 0,
                 totalUsers: total?.cnt || 0, activeCount, costPerActive,
                 lastSync: lastSync[0]?.t || null,
+                configured: !!graphCredentials(req.tenant),
             }
         });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
@@ -478,11 +556,11 @@ router.get('/overview', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/users — Lista usuarios con filtros
 // ============================================================
-router.get('/users', authenticateToken, async (req, res) => {
+router.get('/users', async (req, res) => {
     try {
         const { dept, dir, group, status, q, inactive, page = 1, limit = 60 } = req.query;
-        const conditions = ['1=1'];
-        const params = [];
+        const conditions = ['tenant_id = ?'];
+        const params = [tenantId(req)];
 
         if (dept)   { conditions.push('department = ?'); params.push(dept); }
         if (dir) {
@@ -525,11 +603,11 @@ router.get('/users', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/departments — Análisis por área
 // ============================================================
-router.get('/departments', authenticateToken, async (req, res) => {
+router.get('/departments', async (req, res) => {
     try {
-        const costMap = Object.fromEntries(
-            (await dbQuery(`SELECT sku_name, cost_per_user FROM m365_license_costs`)).map(c => [c.sku_name, parseFloat(c.cost_per_user) || 0])
-        );
+        const tid = tenantId(req);
+        const costMap = await costMapFor(tid);
+        const groupToSku = groupToSkuFor(req.tenant);
 
         const depts = await dbQuery(`
             SELECT COALESCE(department,'Sin departamento') AS dept,
@@ -540,17 +618,18 @@ router.get('/departments', authenticateToken, async (req, res) => {
                    SUM(CASE WHEN activity_status='SIN USO'  THEN 1 ELSE 0 END) AS sin_uso,
                    COUNT(CASE WHEN account_enabled=1 THEN 1 END) AS habilitados
             FROM m365_user_licenses
+            WHERE tenant_id = ?
             GROUP BY dept ORDER BY total DESC
-        `);
+        `, [tid]);
 
         // Add cost per dept (rough: sum costs from groups for each user in dept)
-        const usersByDept = await dbQuery(`SELECT department, license_groups FROM m365_user_licenses WHERE account_enabled=1`);
+        const usersByDept = await dbQuery(`SELECT department, license_groups FROM m365_user_licenses WHERE tenant_id=? AND account_enabled=1`, [tid]);
         const deptCostMap = {};
         for (const u of usersByDept) {
             const dept = u.department || 'Sin departamento';
             const groups = parseLicGroups(u.license_groups);
             let cost = 0;
-            for (const grp of groups) { cost += costMap[GROUP_TO_SKU[grp]] || 0; }
+            for (const grp of groups) { cost += costMap[groupToSku[grp]] || 0; }
             deptCostMap[dept] = (deptCostMap[dept] || 0) + cost;
         }
 
@@ -569,11 +648,11 @@ router.get('/departments', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/direcciones — Análisis por Dirección
 // ============================================================
-router.get('/direcciones', authenticateToken, async (req, res) => {
+router.get('/direcciones', async (req, res) => {
     try {
-        const costMap = Object.fromEntries(
-            (await dbQuery(`SELECT sku_name, cost_per_user FROM m365_license_costs`)).map(c => [c.sku_name, parseFloat(c.cost_per_user) || 0])
-        );
+        const tid = tenantId(req);
+        const costMap = await costMapFor(tid);
+        const groupToSku = groupToSkuFor(req.tenant);
         const rows = await dbQuery(`
             SELECT COALESCE(NULLIF(TRIM(direccion),''),'Sin dirección') AS dir,
                    COUNT(*) AS total,
@@ -582,15 +661,15 @@ router.get('/direcciones', authenticateToken, async (req, res) => {
                    SUM(CASE WHEN activity_status='INACTIVO' THEN 1 ELSE 0 END) AS inactivos,
                    SUM(CASE WHEN activity_status='SIN USO'  THEN 1 ELSE 0 END) AS sin_uso,
                    COUNT(DISTINCT COALESCE(NULLIF(TRIM(department),''),'Sin área')) AS areas_count
-            FROM m365_user_licenses WHERE account_enabled=1
+            FROM m365_user_licenses WHERE tenant_id=? AND account_enabled=1
             GROUP BY dir ORDER BY total DESC
-        `);
-        const usersByDir = await dbQuery(`SELECT COALESCE(NULLIF(TRIM(direccion),''),'Sin dirección') AS dir, license_groups FROM m365_user_licenses WHERE account_enabled=1`);
+        `, [tid]);
+        const usersByDir = await dbQuery(`SELECT COALESCE(NULLIF(TRIM(direccion),''),'Sin dirección') AS dir, license_groups FROM m365_user_licenses WHERE tenant_id=? AND account_enabled=1`, [tid]);
         const dirCostMap = {};
         for (const u of usersByDir) {
             const groups = parseLicGroups(u.license_groups);
             let cost = 0;
-            for (const grp of groups) cost += costMap[GROUP_TO_SKU[grp]] || 0;
+            for (const grp of groups) cost += costMap[groupToSku[grp]] || 0;
             dirCostMap[u.dir] = (dirCostMap[u.dir] || 0) + cost;
         }
         const result = rows.map(d => ({
@@ -608,15 +687,15 @@ router.get('/direcciones', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/direccion-areas?dir=xxx — Áreas dentro de Dirección
 // ============================================================
-router.get('/direccion-areas', authenticateToken, async (req, res) => {
+router.get('/direccion-areas', async (req, res) => {
     try {
         const { dir } = req.query;
-        const costMap = Object.fromEntries(
-            (await dbQuery(`SELECT sku_name, cost_per_user FROM m365_license_costs`)).map(c => [c.sku_name, parseFloat(c.cost_per_user) || 0])
-        );
+        const tid = tenantId(req);
+        const costMap = await costMapFor(tid);
+        const groupToSku = groupToSkuFor(req.tenant);
         const isSin = !dir || dir === 'Sin dirección';
         const dirCond = isSin ? `(direccion IS NULL OR TRIM(direccion)='')` : `TRIM(direccion)=?`;
-        const dirParam = isSin ? [] : [dir];
+        const dirParam = isSin ? [tid] : [tid, dir];
 
         const rows = await dbQuery(`
             SELECT COALESCE(NULLIF(TRIM(department),''),'Sin área') AS area,
@@ -625,15 +704,15 @@ router.get('/direccion-areas', authenticateToken, async (req, res) => {
                    SUM(CASE WHEN activity_status='BAJO USO' THEN 1 ELSE 0 END) AS bajo_uso,
                    SUM(CASE WHEN activity_status='INACTIVO' THEN 1 ELSE 0 END) AS inactivos,
                    SUM(CASE WHEN activity_status='SIN USO'  THEN 1 ELSE 0 END) AS sin_uso
-            FROM m365_user_licenses WHERE account_enabled=1 AND ${dirCond}
+            FROM m365_user_licenses WHERE tenant_id=? AND account_enabled=1 AND ${dirCond}
             GROUP BY area ORDER BY total DESC
         `, dirParam);
-        const usersByArea = await dbQuery(`SELECT COALESCE(NULLIF(TRIM(department),''),'Sin área') AS area, license_groups FROM m365_user_licenses WHERE account_enabled=1 AND ${dirCond}`, dirParam);
+        const usersByArea = await dbQuery(`SELECT COALESCE(NULLIF(TRIM(department),''),'Sin área') AS area, license_groups FROM m365_user_licenses WHERE tenant_id=? AND account_enabled=1 AND ${dirCond}`, dirParam);
         const areaCostMap = {};
         for (const u of usersByArea) {
             const groups = parseLicGroups(u.license_groups);
             let cost = 0;
-            for (const grp of groups) cost += costMap[GROUP_TO_SKU[grp]] || 0;
+            for (const grp of groups) cost += costMap[groupToSku[grp]] || 0;
             areaCostMap[u.area] = (areaCostMap[u.area] || 0) + cost;
         }
         const result = rows.map(d => ({
@@ -649,18 +728,18 @@ router.get('/direccion-areas', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/recommendations — Recomendaciones automáticas
 // ============================================================
-router.get('/recommendations', authenticateToken, async (req, res) => {
+router.get('/recommendations', async (req, res) => {
     try {
-        const costMap = Object.fromEntries(
-            (await dbQuery(`SELECT sku_name, cost_per_user FROM m365_license_costs`)).map(c => [c.sku_name, parseFloat(c.cost_per_user) || 0])
-        );
+        const tid = tenantId(req);
+        const costMap = await costMapFor(tid);
+        const groupToSku = groupToSkuFor(req.tenant);
 
         const inactiveUsers = await dbQuery(`
             SELECT upn, display_name, email, department, license_groups, days_inactive, activity_status, last_activity_date
             FROM m365_user_licenses
-            WHERE activity_status IN ('SIN USO','INACTIVO') AND account_enabled=1
+            WHERE tenant_id=? AND activity_status IN ('SIN USO','INACTIVO') AND account_enabled=1
             ORDER BY days_inactive DESC
-        `);
+        `, [tid]);
 
         // Group by license group
         const byGroup = {};
@@ -678,7 +757,7 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
         for (const [grp, users] of Object.entries(byGroup)) {
             const sinUso = users.filter(u => u.activity_status === 'SIN USO');
             if (!sinUso.length) continue;
-            const sku = GROUP_TO_SKU[grp];
+            const sku = groupToSku[grp];
             const costUnit = costMap[sku] || 0;
             const savings = +(sinUso.length * costUnit).toFixed(2);
             recommendations.push({
@@ -712,11 +791,11 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
                 SELECT COALESCE(department,'Sin departamento') AS dept,
                        COUNT(*) AS total,
                        SUM(CASE WHEN activity_status='ACTIVO' THEN 1 ELSE 0 END) AS activos
-                FROM m365_user_licenses WHERE account_enabled=1
+                FROM m365_user_licenses WHERE tenant_id=? AND account_enabled=1
                 GROUP BY COALESCE(department,'Sin departamento')
             ) t WHERE total >= 3 AND activos / total < 0.30
             ORDER BY activos / total ASC LIMIT 5
-        `);
+        `, [tid]);
         for (const d of deptRows) {
             const pct = Math.round(parseInt(d.activos) / parseInt(d.total) * 100);
             recommendations.push({
@@ -738,29 +817,32 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/history — Tendencia histórica (últimos 30 snapshots)
 // ============================================================
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', async (req, res) => {
     try {
+        const tid = tenantId(req);
         const rows = await dbQuery(`
             SELECT snapshot_date, SUM(consumed) AS consumed, SUM(total) AS total,
                    SUM(cost_monthly) AS cost_monthly
             FROM m365_license_snapshots
+            WHERE tenant_id = ?
             GROUP BY snapshot_date ORDER BY snapshot_date DESC LIMIT 30
-        `);
+        `, [tid]);
         rows.reverse();
 
         // Per-SKU history for top 5 by consumed
         const topSkus = await dbQuery(`
             SELECT sku_name, label, SUM(consumed) AS total_consumed
             FROM m365_license_snapshots
-            WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM m365_license_snapshots)
+            WHERE tenant_id = ?
+              AND snapshot_date = (SELECT MAX(snapshot_date) FROM m365_license_snapshots WHERE tenant_id = ?)
             GROUP BY sku_name, label ORDER BY total_consumed DESC LIMIT 5
-        `);
+        `, [tid, tid]);
 
         const perSku = {};
         for (const sku of topSkus) {
             const skuRows = await dbQuery(`
                 SELECT snapshot_date, consumed FROM m365_license_snapshots
-                WHERE sku_name=? ORDER BY snapshot_date ASC`, [sku.sku_name]
+                WHERE tenant_id=? AND sku_name=? ORDER BY snapshot_date ASC`, [tid, sku.sku_name]
             );
             perSku[sku.label || sku.sku_name] = Object.fromEntries(skuRows.map(r => [r.snapshot_date?.toISOString?.()?.split('T')[0] || r.snapshot_date, r.consumed]));
         }
@@ -783,19 +865,21 @@ router.get('/history', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/cost-config — Configuración de costos
 // ============================================================
-router.get('/cost-config', authenticateToken, async (req, res) => {
+router.get('/cost-config', async (req, res) => {
     try {
-        const rows = await dbQuery(`SELECT sku_name, label, cost_per_user, currency FROM m365_license_costs ORDER BY label`);
+        const tid = tenantId(req);
+        await ensureDefaultCosts(tid);
+        const rows = await dbQuery(`SELECT sku_name, label, cost_per_user, currency FROM m365_license_costs WHERE tenant_id=? ORDER BY label`, [tid]);
         res.json({ success: true, data: rows });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
 // PUT /api/licenses/cost-config — Actualizar costo de un SKU
-router.put('/cost-config', authenticateToken, async (req, res) => {
+router.put('/cost-config', adminOnly, async (req, res) => {
     try {
         const { sku_name, cost_per_user } = req.body;
         if (!sku_name || cost_per_user === undefined) return res.status(400).json({ success: false, message: 'sku_name y cost_per_user requeridos' });
-        await dbQuery(`UPDATE m365_license_costs SET cost_per_user=? WHERE sku_name=?`, [parseFloat(cost_per_user), sku_name]);
+        await dbQuery(`UPDATE m365_license_costs SET cost_per_user=? WHERE tenant_id=? AND sku_name=?`, [parseFloat(cost_per_user), tenantId(req), sku_name]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -803,9 +887,9 @@ router.put('/cost-config', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/departments-list — Lista única de departamentos
 // ============================================================
-router.get('/departments-list', authenticateToken, async (req, res) => {
+router.get('/departments-list', async (req, res) => {
     try {
-        const rows = await dbQuery(`SELECT DISTINCT COALESCE(department,'Sin departamento') AS dept FROM m365_user_licenses ORDER BY dept`);
+        const rows = await dbQuery(`SELECT DISTINCT COALESCE(department,'Sin departamento') AS dept FROM m365_user_licenses WHERE tenant_id=? ORDER BY dept`, [tenantId(req)]);
         res.json({ success: true, data: rows.map(r => r.dept) });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -813,12 +897,14 @@ router.get('/departments-list', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/sharepoint — Uso de SharePoint (Graph directo + caché 1h)
 // ============================================================
-router.get('/sharepoint', authenticateToken, async (req, res) => {
+router.get('/sharepoint', async (req, res) => {
     try {
+        const tid = tenantId(req);
         const now = Date.now();
-        if (_spCache.data && (now - _spCache.ts) < 3600000) return res.json({ success: true, data: _spCache.data });
+        const cached = _spCache.get(tid);
+        if (cached && (now - cached.ts) < 3600000) return res.json({ success: true, data: cached.data });
 
-        const token = await getToken();
+        const token = await getToken(req.tenant);
         let sites = [];
         let sitesPermissionOk = false;
         let permissionError   = null;
@@ -909,7 +995,7 @@ router.get('/sharepoint', authenticateToken, async (req, res) => {
             permissionError,
             updatedAt: new Date().toISOString()
         };
-        _spCache.data = data; _spCache.ts = now;
+        _spCache.set(tid, { data, ts: now });
         res.json({ success: true, data });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -917,17 +1003,17 @@ router.get('/sharepoint', authenticateToken, async (req, res) => {
 // ============================================================
 // GET /api/licenses/export — CSV completo de usuarios
 // ============================================================
-router.get('/export', authenticateToken, async (req, res) => {
+router.get('/export', async (req, res) => {
     try {
+        const tid = tenantId(req);
         const rows = await dbQuery(`
             SELECT display_name,email,upn,department,job_title,
                    license_groups,last_activity_date,days_inactive,
                    activo_30d,activo_60d,activo_90d,activity_status,account_enabled,synced_at
-            FROM m365_user_licenses ORDER BY activity_status, days_inactive DESC`
+            FROM m365_user_licenses WHERE tenant_id=? ORDER BY activity_status, days_inactive DESC`, [tid]
         );
-        const costMap = Object.fromEntries(
-            (await dbQuery(`SELECT sku_name, cost_per_user FROM m365_license_costs`)).map(c => [c.sku_name, parseFloat(c.cost_per_user) || 0])
-        );
+        const costMap = await costMapFor(tid);
+        const groupToSku = groupToSkuFor(req.tenant);
 
         const headers = ['Nombre','Email','UPN','Departamento','Cargo','Licencias','Ultima Actividad','Dias Inactivo','Activo 30d','Activo 60d','Activo 90d','Estado','Cuenta Activa','Costo Mensual USD'];
         const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -935,7 +1021,7 @@ router.get('/export', authenticateToken, async (req, res) => {
 
         for (const r of rows) {
             const groups = parseLicGroups(r.license_groups);
-            const cost = groups.reduce((s, grp) => s + (costMap[GROUP_TO_SKU[grp]] || 0), 0);
+            const cost = groups.reduce((s, grp) => s + (costMap[groupToSku[grp]] || 0), 0);
             lines.push([
                 r.display_name, r.email, r.upn, r.department, r.job_title,
                 groups.join(' | '), r.last_activity_date || '', r.days_inactive ?? '',
@@ -947,15 +1033,15 @@ router.get('/export', authenticateToken, async (req, res) => {
         const date = new Date().toISOString().split('T')[0];
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="licencias_m365_${date}.csv"`);
-        res.send('\uFEFF' + lines.join('\n')); // BOM for Excel
+        res.send('﻿' + lines.join('\n')); // BOM for Excel
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
 // ============================================================
 // DELETE /api/licenses/cache — Limpiar caché SharePoint
 // ============================================================
-router.delete('/cache', authenticateToken, (req, res) => {
-    _spCache.data = null; _spCache.ts = 0;
+router.delete('/cache', (req, res) => {
+    _spCache.delete(tenantId(req));
     res.json({ success: true, message: 'Caché de SharePoint limpiado' });
 });
 
