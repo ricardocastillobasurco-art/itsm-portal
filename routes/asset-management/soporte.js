@@ -551,7 +551,8 @@ router.post('/reset-password', async (req, res) => {
 $ErrorActionPreference='Stop'
 $useModule=$false
 try{Import-Module ActiveDirectory -ErrorAction Stop;$useModule=$true}catch{}
-$newPwd = ConvertTo-SecureString '${pwdEscaped}' -AsPlainText -Force
+$plainPwd = '${pwdEscaped}'
+$newPwd = ConvertTo-SecureString $plainPwd -AsPlainText -Force
 if($useModule){
     Set-ADAccountPassword -Identity '${account}' -NewPassword $newPwd -Reset
     Set-ADUser           -Identity '${account}' -ChangePasswordAtLogon $true
@@ -562,7 +563,7 @@ if($useModule){
     $r=$s.FindOne()
     if(-not $r){throw "Cuenta no encontrada"}
     $u=$r.GetDirectoryEntry()
-    $u.psbase.Invoke("SetPassword","${pwdEscaped}")
+    $u.psbase.Invoke("SetPassword",$plainPwd)
     $u.psbase.InvokeSet("pwdLastSet",@(0))
     $u.SetInfo()
 }

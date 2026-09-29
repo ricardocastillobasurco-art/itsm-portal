@@ -10,6 +10,7 @@ const { body, validationResult } = require('express-validator');
 const { equipmentPool, executeQuery } = require('../../config/database');
 const checkPermission = require('../../middleware/checkPermission');
 const { authenticateToken } = require('../../middleware/auth');
+const { tenantId } = require('../../src/utils/tenantScope');
 
 const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -25,31 +26,32 @@ const validate = (req, res, next) => {
 
 router.get('/desktop', async (req, res, next) => {
   try {
-    const query = 'SELECT COUNT(*) AS total_equipos FROM equipment WHERE equipment_type = "Desktop"';
-    const results = await executeQuery(equipmentPool, query);
+    const query = 'SELECT COUNT(*) AS total_equipos FROM equipment WHERE equipment_type = "Desktop" AND tenant_id = ?';
+    const results = await executeQuery(equipmentPool, query, [tenantId(req)]);
     res.json(results[0].total_equipos);
   } catch (error) { next(error); }
 });
 
 router.get('/laptop', async (req, res, next) => {
   try {
-    const query = 'SELECT COUNT(*) AS total_equipos FROM equipment WHERE equipment_type = "laptop"';
-    const results = await executeQuery(equipmentPool, query);
+    const query = 'SELECT COUNT(*) AS total_equipos FROM equipment WHERE equipment_type = "laptop" AND tenant_id = ?';
+    const results = await executeQuery(equipmentPool, query, [tenantId(req)]);
     res.json(results[0].total_equipos);
   } catch (error) { next(error); }
 });
 
 router.get('/ultra', async (req, res, next) => {
   try {
-    const query = "SELECT COUNT(*) AS total_ultra FROM equipment WHERE processor LIKE '%ultra%'";
-    const results = await executeQuery(equipmentPool, query);
+    const query = "SELECT COUNT(*) AS total_ultra FROM equipment WHERE processor LIKE '%ultra%' AND tenant_id = ?";
+    const results = await executeQuery(equipmentPool, query, [tenantId(req)]);
     res.json(results[0].total_ultra);
   } catch (error) { next(error); }
 });
 
 router.get('/available', async (req, res, next) => {
   try {
-    const results = await executeQuery(equipmentPool, 'SELECT * FROM equipment_availability');
+    const results = await executeQuery(equipmentPool,
+      'SELECT * FROM equipment_availability WHERE id IN (SELECT id FROM equipment WHERE tenant_id = ?)', [tenantId(req)]);
     res.json({ success: true, data: results, count: results.length });
   } catch (error) { next(error); }
 });
@@ -65,11 +67,12 @@ const queryStr = `
          processor, operating_system, disk_capacity, ram_memory, status
   FROM equipment
   WHERE status = 'Disponible'
+    AND tenant_id = ?
     AND (device_code LIKE ? OR serial_number LIKE ? OR model LIKE ? OR brand LIKE ?)
   ORDER BY device_code LIMIT 20
 `;
 const searchTerm = `%${term}%`;
-const results = await executeQuery(equipmentPool, queryStr, [searchTerm, searchTerm, searchTerm, searchTerm]);
+const results = await executeQuery(equipmentPool, queryStr, [tenantId(req), searchTerm, searchTerm, searchTerm, searchTerm]);
     res.json({ success: true, data: results, count: results.length });
   } catch (error) { next(error); }
 });
@@ -101,6 +104,8 @@ router.get('/status-options', async (req, res) => {
 
 router.get('/status/:status', async (req, res, next) => {
   try {
+    // Stored procedure legacy sin tenant_id: solo el tenant por defecto
+    if (tenantId(req) !== 1) return res.json({ success: true, data: [], count: 0 });
     const results = await callStoredProcedure(equipmentPool, 'sp_get_equipment_by_status', [req.params.status]);
     res.json({ success: true, data: results[0], count: results[0].length });
   } catch (error) { next(error); }
@@ -128,10 +133,10 @@ router.put('/update', async (req, res) => {
       UPDATE equipment SET
         serial_number = ?, equipment_type = ?, brand = ?, model = ?,
         ram_memory = ?, disk_capacity = ?, status = ?${stolenClause}
-      WHERE device_code = ?
+      WHERE device_code = ? AND tenant_id = ?
     `;
     const result = await executeQuery(equipmentPool, query,
-      [serial_number, equipment_type, brand, model, ram_memory, disk_capacity, status, ...stolenParam, device_code]
+      [serial_number, equipment_type, brand, model, ram_memory, disk_capacity, status, ...stolenParam, device_code, tenantId(req)]
     );
 
     if (result.affectedRows > 0) {
@@ -607,7 +612,7 @@ router.put('/loans/:id/return', authenticateToken, async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const results = await executeQuery(equipmentPool,
-      'SELECT * FROM equipment WHERE device_code = ?', [req.params.id]);
+      'SELECT * FROM equipment WHERE device_code = ? AND tenant_id = ?', [req.params.id, tenantId(req)]);
     if (!results.length) return res.status(404).json({ success: false, error: 'Equipo no encontrado' });
     res.json({ success: true, data: results[0] });
   } catch (error) { next(error); }
