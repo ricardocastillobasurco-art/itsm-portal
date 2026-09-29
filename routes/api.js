@@ -77,33 +77,44 @@ const loginLimiter = rateLimit({
 
 // Routers cuyos endpoints no validan sesión por sí mismos: se protegen al montarlos
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const requireModule = require('../middleware/requireModule');
+const { tenantId }  = require('../src/utils/tenantScope');
+const { OWNER_TENANT_ID } = require('../src/config/plans');
+
 const requireAdmin = [authenticateToken, requireRole('administrador')];
+const requireStaff = [authenticateToken, requireRole('administrador', 'especialista', 'agente', 'tecnico')];
+
+// Integraciones atadas al servidor/credenciales del tenant original (Active
+// Directory del dominio, buzón de impresión, SCCM) y aún sin aislamiento por
+// tenant: solo el tenant original las usa.
+const ownerTenantOnly = (req, res, next) => tenantId(req) === OWNER_TENANT_ID ? next()
+    : res.status(403).json({ success: false, error: 'Integración no disponible para esta empresa' });
 
 // Platform
 router.use('/auth',           loginLimiter, authRoutes);
 router.use('/permissions',    permissionsRoutes);
 router.use('/employees',      employeesRoutes);
 router.use('/business-rules', businessRulesRouter);
-router.use('/licenses',       licensesRouter);
+router.use('/licenses',       requireModule('licencias_m365'), licensesRouter);
 router.use('/tenant-graph',   requireAdmin, tenantGraphRouter);
 router.use('/data-center',    dataCenterRouter);
 
 // Asset Management
-router.use('/equipment',      equipmentRoutes);
+router.use('/equipment',      authenticateToken, requireModule('activos'), equipmentRoutes);
 router.use('/locations',      authenticateToken, locationsRoutes);
 router.use('/departments',    authenticateToken, departmentsRoutes);
-router.use('/assignments',    assignmentsRoutes);
-router.use('/recoveries',     recoveriesRouter);
-router.use('/almacen',        almacenRouter);
-router.use('/warranty',       warrantyRouter);
-router.use('/soporte',        authenticateToken, soporteRouter);
-router.use('/cmdb',           cmdbRouter);
+router.use('/assignments',    requireModule('activos'), assignmentsRoutes);
+router.use('/recoveries',     requireModule('activos'), recoveriesRouter);
+router.use('/almacen',        requireModule('activos'), almacenRouter);
+router.use('/warranty',       requireModule('activos'), warrantyRouter);
+router.use('/soporte',        requireStaff, ownerTenantOnly, soporteRouter);
+router.use('/cmdb',           requireModule('activos'), cmdbRouter);
 
 // Service Management
 router.use('/itsm',           itsmRouter);
-router.use('/changes',        changesRouter);
-router.use('/problems',       problemsRouter);
-router.use('/print-queue',    authenticateToken, printQueueRouter);
+router.use('/changes',        requireModule('itsm_avanzado'), changesRouter);
+router.use('/problems',       requireModule('itsm_avanzado'), problemsRouter);
+router.use('/print-queue',    authenticateToken, requireModule('impresion'), ownerTenantOnly, printQueueRouter);
 
 // Service Operations
 router.use('/service-requests', serviceRequestsRouter);
@@ -120,21 +131,21 @@ router.use('/chatbot',        chatbotRouter);
 router.use('/dashboard',      authenticateToken, dashboardRoutes);
 router.use('/dashboard',      dashboardStatsRouter);
 router.use('/dashboard',      authenticateToken, dashboardGraphsRouter);
-router.use('/indicators',     indicatorsRouter);
-router.use('/csi',            csiRouter);
-router.use('/reports',        reportsRouter);
-router.use('/mailer',         reportsRouter);
-router.use('/reports-itsm',   reportsItsmRouter);
-router.use('/report-lists',   reportListsRouter);
+router.use('/indicators',     requireModule('reportes'), indicatorsRouter);
+router.use('/csi',            requireModule('itsm_avanzado'), csiRouter);
+router.use('/reports',        requireModule('reportes'), reportsRouter);
+router.use('/mailer',         requireModule('reportes'), reportsRouter);
+router.use('/reports-itsm',   requireModule('reportes'), reportsItsmRouter);
+router.use('/report-lists',   requireModule('reportes'), reportListsRouter);
 
 // Integrations
 router.use('/integraciones',  integracionesRouter);
 router.use('/jira',           jiraRoutes);
-router.use('/outlook-sync',   authenticateToken, outlookSyncRouter);
-router.use('/ad',             authenticateToken, adRouter);
+router.use('/outlook-sync',   authenticateToken, requireModule('microsoft'), ownerTenantOnly, outlookSyncRouter);
+router.use('/ad',             requireStaff, requireModule('microsoft'), ownerTenantOnly, adRouter);
 router.use('/herramientas',   herramientasRouter);
-router.use('/ms',             msGraphRouter);
-router.use('/rmm',            rmmRouter);
+router.use('/ms',             requireModule('microsoft'), msGraphRouter);
+router.use('/rmm',            requireModule('rmm'), rmmRouter);
 
 // ============================================================================
 // ITIL v4 MODULE REGISTRY

@@ -398,6 +398,8 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
   const _first       = (_parts[0]||'Admin');
   const _role        = user ? (user.role || 'admin') : 'admin';
   const _tenantId    = parseInt(user?.tenant_id || 1);
+  // Módulos del plan del tenant (middleware/tenantFeatures.js); sin helper se muestra todo
+  const _mod         = (k) => (locals.hasModule ? locals.hasModule(k) : true);
   // Usa config del tenant (inyectada por middleware/tenantLocals.js) — sin hardcodes
   const _cfg         = tenantCfg || {};
   const _jiraEnabled = _cfg.features?.jira   ?? false;
@@ -453,13 +455,18 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
         <div class="sb-sub-menu" id="subItsm">
           <a class="sb-sub-item" href="/itsm/incidencias/gestion"><i class="bi bi-exclamation-triangle-fill sb-sub-icon" style="color:#dc2626;"></i>Incidencias</a>
           <a class="sb-sub-item" href="/itsm/requerimientos/gestion"><i class="bi bi-clipboard2-check-fill sb-sub-icon" style="color:#7c3aed;"></i>Requerimientos</a>
+          <% if (_mod('itsm_avanzado')) { %>
           <a class="sb-sub-item" href="/cambios"><i class="bi bi-arrow-repeat sb-sub-icon" style="color:#0891b2;"></i>Cambios</a>
+          <% } %>
+          <% if (_mod('itsm_avanzado')) { %>
           <a class="sb-sub-item" href="/problemas"><i class="bi bi-bug-fill sb-sub-icon" style="color:#d97706;"></i>Problemas</a>
+          <% } %>
           <a class="sb-sub-item" href="/catalogo"><i class="bi bi-grid-3x3-gap-fill sb-sub-icon" style="color:#6366f1;"></i>Catálogo</a>
         </div>
       </div>
 
       <!-- ACTIVOS -->
+      <% if (_mod('activos')) { %>
       <div class="sb-section">
         <span class="sb-section-label">Activos</span>
         <button class="sb-item" onclick="sbToggle('subActivos', this)">
@@ -471,10 +478,15 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
           <a class="sb-sub-item" href="/equipment"><i class="bi bi-pc-display-horizontal sb-sub-icon" style="color:#d97706;"></i>CMDB</a>
           <a class="sb-sub-item" href="/warranty"><i class="bi bi-shield-check sb-sub-icon" style="color:#059669;"></i>Garantías</a>
           <a class="sb-sub-item" href="/incidencias?tab=devoluciones"><i class="bi bi-box-arrow-in-left sb-sub-icon" style="color:#0891b2;"></i>Devoluciones</a>
+          <% if (_mod('microsoft')) { %>
           <a class="sb-sub-item" href="/sccm"><i class="bi bi-windows sb-sub-icon" style="color:#0078d4;"></i>SCCM</a>
+          <% } %>
+          <% if (_mod('microsoft')) { %>
           <a class="sb-sub-item" href="/soporte"><i class="bi bi-tools sb-sub-icon" style="color:#059669;"></i>Soporte técnico</a>
+          <% } %>
         </div>
       </div>
+      <% } %>
 
       <!-- CONTENIDO -->
       <div class="sb-section">
@@ -502,7 +514,9 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
         </button>
         <div class="sb-sub-menu" id="subUsuarios">
           <a class="sb-sub-item" href="/colaboradores"><i class="bi bi-person-badge-fill sb-sub-icon" style="color:#0891b2;"></i>Colaboradores</a>
+          <% if (_mod('licencias_m365')) { %>
           <a class="sb-sub-item" href="/licencias"><i class="bi bi-key-fill sb-sub-icon" style="color:#ca8a04;"></i>Licencias</a>
+          <% } %>
           <button class="sb-sub-item" onclick="openModal('modalDirectorio')"><i class="bi bi-card-list sb-sub-icon" style="color:#6366f1;"></i>Directorio / Editar</button>
         </div>
       </div>
@@ -516,9 +530,15 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
           <i class="bi bi-chevron-down sb-expand-icon"></i>
         </button>
         <div class="sb-sub-menu" id="subReportes">
+          <% if (_mod('reportes')) { %>
           <a class="sb-sub-item" href="/indicators"><i class="bi bi-bar-chart-line-fill sb-sub-icon" style="color:#059669;"></i>Indicadores KPI</a>
+          <% } %>
+          <% if (_mod('reportes')) { %>
           <a class="sb-sub-item" href="/analytics"><i class="bi bi-bar-chart-fill sb-sub-icon" style="color:#059669;"></i>Reportes</a>
+          <% } %>
+          <% if (_mod('itsm_avanzado')) { %>
           <a class="sb-sub-item" href="/csi"><i class="bi bi-arrow-up-circle-fill sb-sub-icon" style="color:#0891b2;"></i>CSI</a>
+          <% } %>
           <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=portal"><i class="bi bi-people-fill sb-sub-icon" style="color:#7c3aed;"></i>Estadísticas Portal</a>
           <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=encuesta"><i class="bi bi-star-fill sb-sub-icon" style="color:#db2777;"></i>Calidad / CSAT</a>
         </div>
@@ -545,7 +565,9 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
           <a class="sb-sub-item" href="/itsm/incidencias/gestion?tab=especialistas">
             <i class="bi bi-people-fill sb-sub-icon" style="color:#059669;"></i>Especialistas
           </a>
+          <% if (_mod('rmm')) { %>
           <a class="sb-sub-item" href="/equipment?tab=cfg">
+          <% } %>
             <i class="bi bi-sliders sb-sub-icon" style="color:#8b5cf6;"></i>Configuración RMM
           </a>
         </div>
@@ -570,6 +592,7 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
       </div>
 
       <!-- MICROSOFT 365 -->
+      <% if (_mod('microsoft')) { %>
       <div class="sb-section">
         <span class="sb-section-label">Microsoft 365</span>
         <a class="sb-item" href="/microsoft">
@@ -587,6 +610,7 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
           <button class="sb-sub-item" onclick="openModal('modalDeploy')"><i class="bi bi-rocket-takeoff-fill sb-sub-icon" style="color:#dc2626;"></i>Despliegues Intune</button>
         </div>
       </div>
+      <% } %>
 
       <!-- DATOS Y PLATAFORMA -->
       <div class="sb-section">

@@ -2,6 +2,7 @@
 
 const FeatureFlagService = require('../src/services/FeatureFlagService');
 const logger             = require('../utils/logger');
+const { hasModule }      = require('../src/config/plans');
 
 // Features habilitados por defecto cuando no hay registro en BD
 const DEFAULTS = {
@@ -18,6 +19,9 @@ const DEFAULTS = {
 };
 
 module.exports = async function tenantFeatures(req, res, next) {
+  // Evaluación diferida: authenticateToken reemplaza req.tenant por el del
+  // usuario después de este middleware, y las vistas se renderizan al final.
+  res.locals.hasModule    = (moduleKey) => hasModule(req.tenant, moduleKey);
   res.locals.features     = { ...DEFAULTS };
   res.locals.featuresJson = JSON.stringify({ ...DEFAULTS });
   try {
