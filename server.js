@@ -224,6 +224,10 @@ startJobs();
 const { startAlertJob } = require('./src/jobs/alertJob');
 startAlertJob(io);
 
+// Correo a ticket: buzones de soporte de cada tenant
+const { startEmailToTicketJob } = require('./src/jobs/emailToTicketJob');
+startEmailToTicketJob(io);
+
 // Socket.io — conexión autenticada con la cookie de sesión. Las salas son por
 // usuario y por tenant: un cliente solo recibe eventos de su propia empresa.
 const { agentsRoom, tvRoom } = require('./src/utils/tenantTickets');

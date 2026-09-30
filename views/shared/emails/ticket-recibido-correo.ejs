@@ -1,0 +1,17 @@
+<%
+// El asunto viene de un correo externo: se escapa antes de insertarlo en el HTML
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const body = `
+<div class="header">
+  <h1>📨 Recibimos tu solicitud</h1>
+  <p>Registramos tu correo como un ticket de soporte</p>
+</div>
+<div class="body">
+  <div class="field"><div class="field-label">Número de ticket</div><div class="field-val" style="font-family:monospace;font-size:18px;">${esc(key)}</div></div>
+  <div class="field"><div class="field-label">Asunto</div><div class="field-val">${esc(subject)}</div></div>
+  <div class="field"><div class="field-label">Prioridad</div><div class="field-val"><span class="badge badge-${esc(priority)}">${esc(priority)}</span></div></div>
+  <div class="field"><div class="field-label">Tiempo objetivo de solución</div><div class="field-val">${esc(hours)} horas</div></div>
+  <p style="margin:16px 0 8px;font-size:13px;color:#64748b;">Para agregar información, responde a este correo sin cambiar el asunto: tu respuesta se sumará al ticket ${esc(key)}.</p>
+</div>`;
+%>
+<%- include('_base', { body }) %>

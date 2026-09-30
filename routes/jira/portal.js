@@ -462,7 +462,7 @@ router.post('/my-tickets/:key/comment', authenticateToken, async (req, res) => {
     } catch(e) { /* guardar igual en local aunque Jira falle */ }
 
     await dbQuery(
-        `INSERT INTO ticket_comments /* tenant_id: ticket_key validado por router.param */ (ticket_id, user_id, contenido, tipo, created_at) VALUES (?,0,?,'portal_user',NOW())`,
+        `INSERT INTO ticket_comments /* tenant_id: ticket_key validado por router.param */ (ticket_id, user_id, contenido, tipo, created_at) VALUES (?,0,?,'comentario',NOW())`,
         [key, comment]
     );
 

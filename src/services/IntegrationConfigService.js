@@ -45,6 +45,17 @@ const ENV_DEFAULTS = {
         smtp_user:     () => process.env.SMTP_USER     || '',
         smtp_pass:     () => process.env.SMTP_PASS     || '',
     },
+    // Correo a ticket: sin valores globales, cada tenant configura su buzón
+    email_to_ticket: {
+        provider:         () => '',
+        mailbox:          () => '',
+        imap_host:        () => '',
+        imap_port:        () => '',
+        imap_user:        () => '',
+        imap_pass:        () => '',
+        allowed_domains:  () => '',
+        default_priority: () => '',
+    },
     api_externa: {
         base_url:       () => '',
         api_key:        () => process.env.GROQ_API_KEY || '',
@@ -84,6 +95,10 @@ const INTEGRATION_MODULES = {
         { name: 'Notificaciones por Email',   icon: 'bi-envelope-fill',     color: '#d97706' },
         { name: 'Portal de Autogestión',      icon: 'bi-person-fill',       color: '#2563eb' },
         { name: 'Alertas de Tickets',         icon: 'bi-chat-dots-fill',    color: '#059669' },
+    ],
+    email_to_ticket: [
+        { name: 'Incidencias desde correo', icon: 'bi-envelope-paper-fill', color: '#0891b2' },
+        { name: 'Respuestas como comentarios', icon: 'bi-reply-fill', color: '#7c3aed' },
     ],
     api_externa: [
         { name: 'Chatbot IA',                 icon: 'bi-robot',             color: '#7c3aed' },
@@ -156,7 +171,7 @@ const IntegrationConfigService = {
 
             const hasTenantCfg = Object.keys(tenantCfg).some(k => tenantCfg[k]);
             const ownEnv = envAllowed(tenantId, key, 'base_url');
-            const effectiveUri = tenantCfg.base_url || tenantCfg.smtp_host || tenantCfg.tenant_id
+            const effectiveUri = tenantCfg.base_url || tenantCfg.smtp_host || tenantCfg.tenant_id || tenantCfg.mailbox || tenantCfg.imap_user
                               || (ownEnv ? (envDefaultFns.base_url?.() || envDefaultFns.smtp_host?.() || envDefaultFns.tenant_id?.()) : '')
                               || '';
             const anyConfigured = Object.values(config).some(v => v);
@@ -176,7 +191,7 @@ const IntegrationConfigService = {
     },
 };
 
-const SENSITIVE_FIELDS = ['api_token','client_secret','api_key','webhook_secret','smtp_pass'];
+const SENSITIVE_FIELDS = ['api_token','client_secret','api_key','webhook_secret','smtp_pass','imap_pass'];
 
 function _maskUri(uri) {
     if (!uri) return null;

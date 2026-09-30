@@ -1450,6 +1450,7 @@ const FEATURE_CATALOG = [
   { key:'encuestas',          label:'Encuestas CSAT',     icon:'bi-star-fill',          color:'#d97706', desc:'Encuestas de satisfacción al cerrar tickets' },
   { key:'kb_publico',         label:'KB Público',         icon:'bi-book-fill',          color:'#7c3aed', desc:'Base de conocimiento accesible sin iniciar sesión' },
   { key:'reportes_avanzados', label:'Reportes Avanzados', icon:'bi-graph-up-arrow',     color:'#2563eb', desc:'Dashboard BI y exportación de reportes personalizados' },
+  { key:'email_to_ticket',    label:'Correo a ticket',    icon:'bi-envelope-paper-fill', color:'#0891b2', desc:'Los correos al buzón de soporte crean incidencias; las respuestas se agregan como comentarios' },
   { key:'api_externa',        label:'API / Webhooks',     icon:'bi-plug-fill',          color:'#dc2626', desc:'Integración con sistemas externos via API' },
 ];
 
@@ -1478,6 +1479,16 @@ const INTEGRATION_SCHEMAS = {
     {key:'client_id',    label:'Client ID (App)',   type:'text',     placeholder:'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',     required:true},
     {key:'client_secret',label:'Client Secret',     type:'password', placeholder:'••••••••',                                required:true, sensitive:true},
     {key:'shared_mailbox',label:'Buzón compartido', type:'email',    placeholder:'it@empresa.com',                          required:false},
+  ]},
+  email_to_ticket: { label:'Correo a ticket',       fields:[
+    {key:'provider',        label:'Proveedor (graph = Microsoft 365, imap = Gmail u otro)', type:'text', placeholder:'graph', required:true},
+    {key:'mailbox',         label:'Buzón de soporte',   type:'email',    placeholder:'soporte@empresa.com',                     required:false},
+    {key:'imap_host',       label:'Servidor IMAP',      type:'text',     placeholder:'imap.gmail.com (solo IMAP)',               required:false},
+    {key:'imap_port',       label:'Puerto IMAP',        type:'text',     placeholder:'993',                                      required:false},
+    {key:'imap_user',       label:'Usuario IMAP',       type:'email',    placeholder:'soporte@empresa.com (solo IMAP)',          required:false},
+    {key:'imap_pass',       label:'Contraseña IMAP',    type:'password', placeholder:'Contraseña de aplicación',                 required:false, sensitive:true},
+    {key:'allowed_domains', label:'Dominios permitidos',type:'text',     placeholder:'vacío = dominio de la empresa · * = cualquiera', required:false},
+    {key:'default_priority',label:'Prioridad por defecto', type:'text',  placeholder:'P3',                                       required:false},
   ]},
   api_externa:     { label:'API Externa / Webhook', fields:[
     {key:'base_url',     label:'URL base de la API', type:'url',     placeholder:'https://api.sistema.com/v1',              required:true},
@@ -1748,7 +1759,43 @@ function selectConex(key) {
           <i class="bi bi-lightning-charge-fill"></i> Probar conexión
         </button>
       </div>
+      ${key === 'email_to_ticket' ? `<div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="e2tRun(this)" style="flex:1;padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;"><i class="bi bi-arrow-repeat"></i> Procesar buzón ahora</button>
+        <button onclick="e2tLog()" style="flex:1;padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;"><i class="bi bi-list-ul"></i> Ver últimos correos</button>
+      </div>
+      <div id="e2tLogBox" style="margin-top:10px;"></div>` : ''}
     </div>`;
+}
+
+/* ── Correo a ticket: procesar ahora y registro ─────────────────────────── */
+async function e2tRun(btn) {
+  const orig = btn.innerHTML; btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation:spin .7s linear infinite;display:inline-block;"></i> Procesando...';
+  try {
+    const r = await fetch(`/api/admin/tenants/${_conexTenantId}/email-to-ticket/run`, { method: 'POST', credentials: 'include' });
+    const j = await r.json();
+    toast(j.message || (r.ok ? 'Listo' : 'Error'), r.ok ? 'ok' : 'err');
+    if (r.ok) e2tLog();
+  } catch (e) { toast(e.message, 'err'); }
+  btn.disabled = false; btn.innerHTML = orig;
+}
+
+async function e2tLog() {
+  const box = document.getElementById('e2tLogBox');
+  if (!box) return;
+  box.innerHTML = '<div style="color:var(--muted);font-size:12px;">Cargando...</div>';
+  try {
+    const r = await fetch(`/api/admin/tenants/${_conexTenantId}/email-to-ticket/log`, { credentials: 'include' });
+    const rows = (await r.json()).data || [];
+    const LBL = { created: ['Ticket creado', '#059669'], comment: ['Respuesta agregada', '#7c3aed'], ignored: ['Ignorado', '#d97706'], error: ['Error', '#dc2626'] };
+    box.innerHTML = rows.length ? `<div style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;">${rows.map(x => {
+      const [txt, col] = LBL[x.action] || [x.action, 'var(--muted)'];
+      return `<div style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:12px;">
+        <span style="font-weight:700;color:${col};">${txt}</span>${x.ticket_key ? ' · <b>' + escHtml(x.ticket_key) + '</b>' : ''}${x.reason ? ' · ' + escHtml(x.reason) : ''}
+        <div style="color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(x.from_email || '')} — ${escHtml(x.subject || '')}</div>
+        <div style="color:var(--muted2);font-size:10px;">${new Date(x.created_at).toLocaleString('es-PE')}</div></div>`;
+    }).join('')}</div>` : '<div style="color:var(--muted);font-size:12px;">Aún no se procesaron correos.</div>';
+  } catch (e) { box.innerHTML = '<div style="color:var(--danger);font-size:12px;">No se pudo cargar el registro</div>'; }
 }
 
 /* ── renderConexGrid (legacy — ya no se usa directamente) ────────────────── */
@@ -1921,6 +1968,15 @@ async function testConexConfig(key, btn) {
   const f = FEATURE_CATALOG.find(f => f.key === key);
   const orig = btn?.innerHTML;
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation:spin .7s linear infinite;display:inline-block;"></i>'; }
+  if (key === 'email_to_ticket') {
+    try {
+      const r = await fetch(`/api/admin/tenants/${_conexTenantId}/email-to-ticket/test`, { method: 'POST', credentials: 'include' });
+      const j = await r.json();
+      toast(j.message || (r.ok ? 'Conexión correcta' : 'Error de conexión'), r.ok ? 'ok' : 'err');
+    } catch (e) { toast(e.message, 'err'); }
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+    return;
+  }
   toast(`Probando conexión con ${f?.label || key}...`, 'ok');
   await new Promise(r => setTimeout(r, 1200));
   if (btn) { btn.disabled = false; btn.innerHTML = orig; }

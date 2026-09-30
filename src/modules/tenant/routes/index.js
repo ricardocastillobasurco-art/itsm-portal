@@ -508,6 +508,35 @@ router.get('/:tenantId/integrations', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ── Correo a ticket ───────────────────────────────────────────────────────────
+
+// POST /api/admin/tenants/:tenantId/email-to-ticket/test — conecta al buzón y cuenta no leídos
+router.post('/:tenantId/email-to-ticket/test', async (req, res) => {
+  try {
+    const r = await require('../../../services/emailToTicket').testTenant(parseInt(req.params.tenantId));
+    res.ok(r, `Conexión correcta: ${r.unread ?? '?'} correo(s) sin leer en ${r.mailbox}`);
+  } catch (e) { res.fail(e.message, 400); }
+});
+
+// POST /api/admin/tenants/:tenantId/email-to-ticket/run — procesa el buzón ahora
+router.post('/:tenantId/email-to-ticket/run', async (req, res) => {
+  try {
+    const r = await require('../../../services/emailToTicket').runTenant(parseInt(req.params.tenantId), { io: req.app.get('io') });
+    res.ok(r, `Procesados ${r.leidos} correo(s): ${r.created || 0} ticket(s) nuevo(s), ${r.comment || 0} respuesta(s), ${r.ignored || 0} ignorado(s)`);
+  } catch (e) { res.fail(e.message, 400); }
+});
+
+// GET /api/admin/tenants/:tenantId/email-to-ticket/log — últimos correos procesados
+router.get('/:tenantId/email-to-ticket/log', async (req, res, next) => {
+  try {
+    const { executeQuery, equipmentPool } = require('../../../../config/database');
+    const rows = await executeQuery(equipmentPool,
+      `SELECT created_at, from_email, subject, action, ticket_key, reason FROM email_ticket_log
+       WHERE tenant_id = ? ORDER BY id DESC LIMIT 50`, [parseInt(req.params.tenantId)]);
+    res.ok(rows);
+  } catch (e) { next(e); }
+});
+
 // ── Feature Flags ─────────────────────────────────────────────────────────────
 
 // GET /api/admin/tenants/:tenantId/features
