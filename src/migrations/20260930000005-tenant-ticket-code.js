@@ -26,7 +26,7 @@ module.exports = {
     if (!tables.has('ticket_key_sequences')) {
       await q(`CREATE TABLE ticket_key_sequences (
                  prefix     VARCHAR(20) NOT NULL PRIMARY KEY,
-                 last_value INT UNSIGNED NOT NULL DEFAULT 0
+                 \`last_value\` INT UNSIGNED NOT NULL DEFAULT 0
                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
     } else {
       await q('ALTER TABLE ticket_key_sequences MODIFY prefix VARCHAR(20) NOT NULL');

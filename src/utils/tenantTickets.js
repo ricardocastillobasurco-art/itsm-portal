@@ -30,7 +30,7 @@ function _ensureTable() {
         _tableReady = executeQuery(equipmentPool, `
             CREATE TABLE IF NOT EXISTS ticket_key_sequences (
                 prefix     VARCHAR(20) NOT NULL PRIMARY KEY,
-                last_value INT UNSIGNED NOT NULL DEFAULT 0
+                \`last_value\` INT UNSIGNED NOT NULL DEFAULT 0
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`).catch(e => { _tableReady = null; throw e; });
     }
     return _tableReady;
@@ -46,7 +46,7 @@ async function nextLocalTicketKey(prefix) {
         // (en incidencias y requerimientos; TK-0001 no se confunde con TK-ACME-0001)
         const exact = `^${prefix}-[0-9]+$`;
         await executeQuery(equipmentPool,
-            `INSERT IGNORE INTO ticket_key_sequences (prefix, last_value)
+            `INSERT IGNORE INTO ticket_key_sequences (prefix, \`last_value\`)
              SELECT ?, GREATEST(
                (SELECT COALESCE(MAX(CAST(SUBSTRING(ticket_key, ?) AS UNSIGNED)), 0) FROM jira_tickets /* tenant_id: secuencia de claves */ WHERE ticket_key REGEXP ?),
                (SELECT COALESCE(MAX(CAST(SUBSTRING(req_key, ?) AS UNSIGNED)), 0) FROM jira_requirements /* tenant_id: secuencia de claves */ WHERE req_key REGEXP ?))`,
@@ -54,7 +54,7 @@ async function nextLocalTicketKey(prefix) {
         _initialized.add(prefix);
     }
     const r = await executeQuery(equipmentPool,
-        'UPDATE ticket_key_sequences SET last_value = LAST_INSERT_ID(last_value + 1) WHERE prefix = ?', [prefix]);
+        'UPDATE ticket_key_sequences SET `last_value` = LAST_INSERT_ID(`last_value` + 1) WHERE prefix = ?', [prefix]);
     return `${prefix}-${String(r.insertId).padStart(4, '0')}`;
 }
 
