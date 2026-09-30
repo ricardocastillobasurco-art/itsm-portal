@@ -4,18 +4,28 @@
 const express = require('express');
 const router  = express.Router();
 const { equipmentPool, executeQuery } = require('../../config/database');
-const { authenticateToken } = require('../../middleware/auth');
-const { tenantWhere } = require('../../utils/tenantFilter');
+const { authenticateToken, requireRole } = require('../../middleware/auth');
+const { tenantId } = require('../../src/utils/tenantScope');
+
+const requireStaff = requireRole('administrador', 'especialista', 'agente', 'tecnico');
 
 // Helper: resuelve tenant_id desde auth token o query param ?tenant_id=
-function resolveTenantId(req) {
-    return req.user?.tenant_id || (req.query.tenant_id ? parseInt(req.query.tenant_id) : null);
-}
 function tenantSQL(req, alias = '') {
-    const tid = resolveTenantId(req);
-    if (!tid) return '';
     const col = alias ? `${alias}.tenant_id` : 'tenant_id';
-    return ` AND ${col} = ${parseInt(tid)}`;
+    return ` AND ${col} = ${Number(tenantId(req))}`;
+}
+
+// FAQ base para cada empresa nueva (se copia la primera vez que la consulta)
+let FAQ_SEED = [];
+const _seeded = new Set();
+async function ensureTenantFaq(tid) {
+    if (_seeded.has(tid)) return;
+    const [{ n }] = await executeQuery(equipmentPool, 'SELECT COUNT(*) AS n FROM faq_items WHERE tenant_id = ?', [tid]);
+    if (n === 0) {
+        for (const [category, question, answer, order_num] of FAQ_SEED)
+            await executeQuery(equipmentPool, 'INSERT INTO faq_items (tenant_id, category, question, answer, order_num) VALUES (?,?,?,?,?)', [tid, category, question, answer, order_num]);
+    }
+    _seeded.add(tid);
 }
 
 // Auto-migración tabla + datos iniciales
@@ -51,9 +61,8 @@ function tenantSQL(req, alias = '') {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `).catch(()=>{});
 
-        const existing = await executeQuery(equipmentPool, `SELECT COUNT(*) AS n FROM faq_items`);
-        if (existing[0].n === 0) {
-            const seed = [
+        {
+            const seed = FAQ_SEED = [
                 // Incidencias
                 ['Incidencias', '¿Qué es una incidencia y cuándo debo reportarla?',
                  'Una incidencia es cualquier interrupción no planificada o degradación de un servicio TI. Debes reportarla cuando:\n- Tu equipo no enciende o se reinicia solo\n- No puedes acceder a internet, correo o aplicaciones corporativas\n- Un sistema está lento o muestra errores inesperados\n\nRepórtala lo antes posible desde el portal → "Generar Incidencia".', 1],
@@ -96,13 +105,6 @@ function tenantSQL(req, alias = '') {
                 ['General', '¿Qué información debo incluir al reportar un problema?',
                  'Para una atención más rápida incluye:\n\n✅ Descripción clara del problema\n✅ Desde cuándo ocurre\n✅ Número de activo del equipo (etiqueta en el equipo)\n✅ Captura de pantalla del error (si aplica)\n✅ Qué pasos intentaste antes de reportar\n✅ Tu número de teléfono de contacto\n\nCuanta más información brindes, más rápido podemos ayudarte.', 3],
             ];
-            for (const [category, question, answer, order_num] of seed) {
-                await executeQuery(equipmentPool,
-                    `INSERT INTO faq_items (category, question, answer, order_num) VALUES (?,?,?,?)`,
-                    [category, question, answer, order_num]
-                );
-            }
-            console.log('✅ FAQ items iniciales creados');
         }
     } catch(e) { console.error('⚠️ faq_items migration:', e.message); }
 })();
@@ -112,6 +114,7 @@ router.get('/', authenticateToken, async (req, res) => {
     try {
         const { category, q, admin } = req.query;
         const isAdmin = admin === '1';
+        await ensureTenantFaq(tenantId(req));
         let sql = `SELECT id, category, question, answer, order_num, views, visible FROM faq_items WHERE active = 1${tenantSQL(req)}`;
         const params = [];
         if (!isAdmin) { sql += ` AND visible = 1`; }
@@ -133,20 +136,20 @@ router.get('/categories', authenticateToken, async (req, res) => {
 });
 
 // POST /api/faq/:id/view — incrementar contador
-router.post('/:id/view', async (req, res) => {
+router.post('/:id/view', authenticateToken, async (req, res) => {
     try {
-        await executeQuery(equipmentPool, `UPDATE faq_items SET views = views + 1 WHERE id = ?`, [req.params.id]);
+        await executeQuery(equipmentPool, `UPDATE faq_items SET views = views + 1 WHERE id = ? AND tenant_id = ?`, [req.params.id, tenantId(req)]);
         res.json({ success: true });
     } catch(err) { res.json({ success: true }); }
 });
 
 // POST /api/faq — crear item (admin)
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, requireStaff, async (req, res) => {
     try {
         const { category, question, answer, order_num = 0 } = req.body;
         if (!category || !question || !answer)
             return res.status(400).json({ success: false, error: 'category, question y answer requeridos' });
-        const tid = resolveTenantId(req) || 1;
+        const tid = tenantId(req);
         const r = await executeQuery(equipmentPool,
             `INSERT INTO faq_items (tenant_id, category, question, answer, order_num, created_by) VALUES (?,?,?,?,?,?)`,
             [tid, category, question, answer, order_num, req.user.id]);
@@ -155,57 +158,57 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/faq/:id — editar (admin)
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, requireStaff, async (req, res) => {
     try {
         const { category, question, answer, order_num, active, visible } = req.body;
         await executeQuery(equipmentPool,
             `UPDATE faq_items SET category=COALESCE(?,category), question=COALESCE(?,question),
              answer=COALESCE(?,answer), order_num=COALESCE(?,order_num),
              active=COALESCE(?,active), visible=COALESCE(?,visible)
-             WHERE id = ?`,
-            [category||null, question||null, answer||null, order_num??null, active??null, visible??null, req.params.id]);
+             WHERE id = ? AND tenant_id = ?`,
+            [category||null, question||null, answer||null, order_num??null, active??null, visible??null, req.params.id, tenantId(req)]);
         res.json({ success: true });
     } catch(err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 // DELETE /api/faq/:id — desactivar (admin)
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, requireStaff, async (req, res) => {
     try {
-        await executeQuery(equipmentPool, `UPDATE faq_items SET active = 0 WHERE id = ?`, [req.params.id]);
+        await executeQuery(equipmentPool, `UPDATE faq_items SET active = 0 WHERE id = ? AND tenant_id = ?`, [req.params.id, tenantId(req)]);
         res.json({ success: true });
     } catch(err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 // ── FAQ Requests ────────────────────────────────────────────────────────────
 // GET /api/faq/requests — listar (admin)
-router.get('/requests', authenticateToken, async (req, res) => {
+router.get('/requests', authenticateToken, requireStaff, async (req, res) => {
     try {
         const rows = await executeQuery(equipmentPool,
-            `SELECT * FROM faq_requests ORDER BY created_at DESC LIMIT 200`);
+            `SELECT * FROM faq_requests WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 200`, [tenantId(req)]);
         res.json({ success: true, data: rows });
     } catch(err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 // POST /api/faq/requests — usuario envía pregunta sin respuesta
-router.post('/requests', async (req, res) => {
+router.post('/requests', authenticateToken, async (req, res) => {
     try {
         const { question, description, user_name, user_email } = req.body;
         if (!question?.trim()) return res.status(400).json({ success: false, error: 'La pregunta es requerida' });
         const r = await executeQuery(equipmentPool,
-            `INSERT INTO faq_requests (user_id, user_name, user_email, question, description) VALUES (?,?,?,?,?)`,
-            [req.user?.id||null, user_name||req.user?.full_name||'', user_email||req.user?.email||'', question.trim(), description||'']);
+            `INSERT INTO faq_requests (tenant_id, user_id, user_name, user_email, question, description) VALUES (?,?,?,?,?,?)`,
+            [tenantId(req), req.user?.id||null, user_name||req.user?.full_name||'', user_email||req.user?.email||'', question.trim(), description||'']);
         res.json({ success: true, id: r.insertId });
     } catch(err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 // PATCH /api/faq/requests/:id/status — actualizar estado (admin)
-router.patch('/requests/:id/status', authenticateToken, async (req, res) => {
+router.patch('/requests/:id/status', authenticateToken, requireStaff, async (req, res) => {
     try {
         const { status } = req.body;
         const resolved = status === 'resuelto' ? 'NOW()' : 'NULL';
         await executeQuery(equipmentPool,
-            `UPDATE faq_requests SET status = ?, resolved_at = ${resolved} WHERE id = ?`,
-            [status, req.params.id]);
+            `UPDATE faq_requests SET status = ?, resolved_at = ${resolved} WHERE id = ? AND tenant_id = ?`,
+            [status, req.params.id, tenantId(req)]);
         res.json({ success: true });
     } catch(err) { res.status(500).json({ success: false, error: err.message }); }
 });

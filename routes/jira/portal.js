@@ -7,6 +7,16 @@ const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { tenantWhere } = require('../../utils/tenantFilter');
 const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID } = require('./helpers');
 const axios = require('axios');
+
+// El reporter sale de la sesión: un usuario final solo ve/opera sus propios tickets.
+// El personal de TI puede consultar por otro reporter (el ticket igual se valida por tenant en router.param).
+const STAFF = ['superadmin', 'administrador', 'especialista', 'agente', 'tecnico'];
+function reporterOf(req, requested) {
+    const own = (req.user?.email || '').trim().toLowerCase();
+    const asked = (requested || '').trim();
+    if (asked && STAFF.includes(req.user?.role)) return asked;
+    return own;
+}
 const FormData = require('form-data');
 
 
@@ -30,7 +40,7 @@ router.get('/test-auth', authenticateToken, async (_req, res) => {
 
 router.get('/my-tickets', authenticateToken, async (req, res) => {
     try {
-        const email = (req.query.reporter || '').trim();
+        const email = reporterOf(req, req.query.reporter);
         const days = parseInt(req.query.days || '0');
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
             return res.status(400).json({ success: false, error: 'reporter requerido' });
@@ -58,10 +68,11 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
         // En modo local sí aplicar filtro de días para limitar resultados locales
         const applyDaysInDb = !tenantJiraEnabled && days > 0;
 
-        // En modo Jira: el email del reporter ya es el filtro suficiente.
-        // No aplicar tenant_id porque tickets del portal anónimo tienen tenant_id = NULL.
-        // En modo local: sí aplicar tenant filter para aislar datos por empresa.
-        const dbTenantFilter = tenantJiraEnabled ? '' : tenantWhere(req, 'jt');
+        // Siempre aislado por empresa (tenant_id NULL = tenant 1, ver tenantWhere)
+        const dbTenantFilter = tenantWhere(req, 'jt');
+        const reqTenantFilter = tenantWhere(req);
+        // Fallback legacy (reporter = nombre completo): solo nombre exacto del propio usuario
+        const legacyName = (email === (req.user?.email || '').toLowerCase() && req.user?.full_name) ? req.user.full_name.trim().toLowerCase() : null;
 
         // Consultar BD local primero (fuente confiable)
         let dbQuery_ = `SELECT jt.ticket_key, jt.summary, jt.status, jt.priority,
@@ -80,14 +91,13 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
 
         // Fallback: buscar por nombre (tickets legacy donde reporter = full_name)
         if (!dbRows.length) {
-            const firstName = email.split('@')[0].split('.')[0].split('_')[0];
-            if (firstName.length >= 3) {
+            if (legacyName) {
                 let fbSql = `SELECT jt.ticket_key, jt.summary, jt.status, jt.priority,
                              jt.component, jt.tipologia, jt.created_at, jt.jira_url,
                              (SELECT tc.contenido FROM ticket_comments tc WHERE tc.ticket_id = jt.ticket_key ORDER BY tc.created_at DESC LIMIT 1) AS last_comment,
                              (SELECT tc.created_at FROM ticket_comments tc WHERE tc.ticket_id = jt.ticket_key ORDER BY tc.created_at DESC LIMIT 1) AS last_comment_at
-                             FROM jira_tickets jt WHERE LOWER(jt.reporter) LIKE ?${ticketKeyFilter}${dbTenantFilter}`;
-                const fbParams = [`%${firstName.toLowerCase()}%`];
+                             FROM jira_tickets jt WHERE LOWER(jt.reporter) = ?${ticketKeyFilter}${dbTenantFilter}`;
+                const fbParams = [legacyName];
                 if (applyDaysInDb) { fbSql += ` AND jt.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`; fbParams.push(days); }
                 fbSql += ` ORDER BY jt.created_at DESC LIMIT 100`;
                 dbRows = await dbQuery(fbSql, fbParams).catch(() => []);
@@ -96,16 +106,15 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
 
         // Consultar también jira_requirements
         let reqQuery = `SELECT req_key, summary, status, priority, tipo, created_at, jira_url
-                        FROM jira_requirements WHERE reporter = ?${reqKeyFilter}`;
+                        FROM jira_requirements WHERE reporter = ?${reqKeyFilter}${reqTenantFilter}`;
         const reqParams = [email];
         if (applyDaysInDb) { reqQuery += ` AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`; reqParams.push(days); }
         reqQuery += ` ORDER BY created_at DESC LIMIT 100`;
         let reqRows = await dbQuery(reqQuery, reqParams).catch(() => []);
         if (!reqRows.length) {
-            const firstName = email.split('@')[0].split('.')[0].split('_')[0];
-            if (firstName.length >= 3) {
-                let fbReq = `SELECT req_key, summary, status, priority, tipo, created_at, jira_url FROM jira_requirements WHERE LOWER(reporter) LIKE ?${reqKeyFilter}`;
-                const fbReqP = [`%${firstName.toLowerCase()}%`];
+            if (legacyName) {
+                let fbReq = `SELECT req_key, summary, status, priority, tipo, created_at, jira_url FROM jira_requirements WHERE LOWER(reporter) = ?${reqKeyFilter}${reqTenantFilter}`;
+                const fbReqP = [legacyName];
                 if (applyDaysInDb) { fbReq += ` AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`; fbReqP.push(days); }
                 fbReq += ` ORDER BY created_at DESC LIMIT 100`;
                 reqRows = await dbQuery(fbReq, fbReqP).catch(() => []);
@@ -143,7 +152,7 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
                         if (st) {
                             freshStatus[key] = { status: st };
                             await dbQuery(
-                                'UPDATE jira_tickets SET status = ? WHERE ticket_key = ?',
+                                'UPDATE jira_tickets /* tenant_id: ticket_key validado por router.param */ SET status = ? WHERE ticket_key = ?',
                                 [st, key]
                             ).catch(() => {});
                         }
@@ -175,7 +184,7 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
 
                 // 1. JQL por email — sin restricción de proyecto ni de días
                 try {
-                    const jql = `reporter = "${email}" ORDER BY created DESC`;
+                    const jql = `reporter = "${email.replace(/["\\]/g, '')}" ORDER BY created DESC`;
                     const jiraData = await jira('GET',
                         `/rest/api/3/search?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,priority,comment,created,components`
                     );
@@ -265,16 +274,16 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
 
 // ============================================================
 
-router.get('/my-tickets/:key', async (req, res) => {
+router.get('/my-tickets/:key', authenticateToken, async (req, res) => {
     try {
-        const email = (req.query.reporter || '').trim();
+        const email = reporterOf(req, req.query.reporter);
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
             return res.status(400).json({ success: false, error: 'reporter requerido' });
         const key = req.params.key;
 
         // Verificar ownership + obtener datos locales (SLA, prioridad)
         const localRows = await dbQuery(
-            `SELECT * FROM jira_tickets WHERE ticket_key=? AND reporter=? LIMIT 1`, [key, email]
+            `SELECT * FROM jira_tickets /* tenant_id: ticket_key validado por router.param */ WHERE ticket_key=? AND reporter=? LIMIT 1`, [key, email]
         );
         if (!localRows.length) return res.status(404).json({ success: false, error: 'Ticket no encontrado' });
         const loc = localRows[0];
@@ -282,7 +291,7 @@ router.get('/my-tickets/:key', async (req, res) => {
         // Consultar Jira: detalle + comentarios
         const [jiraDetail, history] = await Promise.all([
             jira('GET', `/rest/api/3/issue/${key}?fields=status,comment`),
-            dbQuery(`SELECT * FROM ticket_history WHERE ticket_id=? ORDER BY created_at ASC`, [key]),
+            dbQuery(`SELECT * FROM ticket_history /* tenant_id: ticket_key validado por router.param */ WHERE ticket_id=? ORDER BY created_at ASC`, [key]),
         ]);
 
         const jiraStatus = jiraDetail.fields?.status?.name || loc.status || 'Abierto';
@@ -351,9 +360,9 @@ router.get('/my-tickets/:key', async (req, res) => {
 
 // ============================================================
 
-router.post('/my-tickets/:key/close', async (req, res) => {
+router.post('/my-tickets/:key/close', authenticateToken, async (req, res) => {
     const key      = req.params.key;
-    const reporter = (req.body.reporter || '').trim();
+    const reporter = reporterOf(req, req.body.reporter);
     const comment  = (req.body.comment  || '').trim();
 
     if (!reporter || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reporter))
@@ -362,7 +371,7 @@ router.post('/my-tickets/:key/close', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Comentario obligatorio para cerrar' });
 
     // Verificar que el ticket pertenece a este reporter
-    const rows = await dbQuery(`SELECT ticket_key FROM jira_tickets WHERE ticket_key=? AND reporter=? LIMIT 1`, [key, reporter]);
+    const rows = await dbQuery(`SELECT ticket_key FROM jira_tickets /* tenant_id: ticket_key validado por router.param */ WHERE ticket_key=? AND reporter=? LIMIT 1`, [key, reporter]);
     if (!rows.length) return res.status(403).json({ success: false, error: 'No tienes permiso para cerrar este ticket' });
 
     let jiraClosed = false, jiraError = null;
@@ -412,7 +421,7 @@ router.post('/my-tickets/:key/close', async (req, res) => {
 
     // Actualizar local
     dbQuery(
-        `UPDATE jira_tickets SET status='Resuelto', internal_status='cerrado', closed_at=NOW(),
+        `UPDATE jira_tickets /* tenant_id: ticket_key validado por router.param */ SET status='Resuelto', internal_status='cerrado', closed_at=NOW(),
          closed_by=?, close_comment=?, resolved_at=IFNULL(resolved_at,NOW()) WHERE ticket_key=?`,
         [reporter, comment, key]
     ).catch(() => {});
@@ -427,9 +436,9 @@ router.post('/my-tickets/:key/close', async (req, res) => {
 
 // ============================================================
 
-router.post('/my-tickets/:key/comment', async (req, res) => {
+router.post('/my-tickets/:key/comment', authenticateToken, async (req, res) => {
     const key      = req.params.key;
-    const reporter = (req.body.reporter || '').trim();
+    const reporter = reporterOf(req, req.body.reporter);
     const comment  = (req.body.comment  || '').trim();
 
     if (!reporter || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reporter))
@@ -438,7 +447,7 @@ router.post('/my-tickets/:key/comment', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Comentario vacío' });
 
     const rows = await dbQuery(
-        `SELECT ticket_key FROM jira_tickets WHERE ticket_key=? AND reporter=? LIMIT 1`,
+        `SELECT ticket_key FROM jira_tickets /* tenant_id: ticket_key validado por router.param */ WHERE ticket_key=? AND reporter=? LIMIT 1`,
         [key, reporter]
     );
     if (!rows.length)
@@ -453,7 +462,7 @@ router.post('/my-tickets/:key/comment', async (req, res) => {
     } catch(e) { /* guardar igual en local aunque Jira falle */ }
 
     await dbQuery(
-        `INSERT INTO ticket_comments (ticket_id, user_id, contenido, tipo, created_at) VALUES (?,0,?,'portal_user',NOW())`,
+        `INSERT INTO ticket_comments /* tenant_id: ticket_key validado por router.param */ (ticket_id, user_id, contenido, tipo, created_at) VALUES (?,0,?,'portal_user',NOW())`,
         [key, comment]
     );
 

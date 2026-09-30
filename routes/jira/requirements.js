@@ -6,6 +6,8 @@ router.param('key', require('./helpers').ticketTenantGuard());
 const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID } = require('./helpers');
 const axios = require('axios');
+const { tenantId } = require('../../src/utils/tenantScope');
+const TW = 'COALESCE(tenant_id, 1) = ?';
 const FormData = require('form-data');
 
 
@@ -89,13 +91,14 @@ async function findAssetsPerson(email) {
 })();
 
 // GET /api/jira/requirements
-router.get('/requirements', authenticateToken, async (_req, res) => {
+router.get('/requirements', authenticateToken, async (req, res) => {
     try {
         const rows = await dbQuery(`
             SELECT jr.*, u.full_name AS tech_name
             FROM jira_requirements jr
             LEFT JOIN users u ON u.id = jr.assigned_to
-            ORDER BY jr.created_at DESC LIMIT 500`);
+            WHERE COALESCE(jr.tenant_id, 1) = ?
+            ORDER BY jr.created_at DESC LIMIT 500`, [tenantId(req)]);
         res.json({ success: true, data: rows.map(r => ({
             key:              r.req_key,
             summary:          r.summary,
@@ -230,9 +233,9 @@ router.post('/requirement', authenticateToken, async (req, res) => {
         const slaDeadline = new Date(Date.now() + (slaHours[priority] || 24) * 3600000);
 
         await dbQuery(`
-            INSERT INTO jira_requirements (req_key, summary, description, reporter, tipo, priority, status, internal_status, phone, jira_url, sla_deadline)
-            VALUES (?, ?, ?, ?, ?, ?, 'Abierto', 'abierto', ?, ?, ?)`,
-            [reqKey, summary, description, reporter, tipo || null, priority, phone || null, `${JIRA_HOST}/browse/${reqKey}`, slaDeadline]);
+            INSERT INTO jira_requirements (req_key, summary, description, reporter, tipo, priority, status, internal_status, phone, jira_url, sla_deadline, tenant_id)
+            VALUES (?, ?, ?, ?, ?, ?, 'Abierto', 'abierto', ?, ?, ?, ?)`,
+            [reqKey, summary, description, reporter, tipo || null, priority, phone || null, `${JIRA_HOST}/browse/${reqKey}`, slaDeadline, tenantId(req)]);
 
         // Confirmation email (non-blocking)
         const displayName = reporter.split('@')[0];
@@ -281,7 +284,7 @@ router.patch('/requirement/:key', authenticateToken, async (req, res) => {
         if (resolution_note) { sets.push('resolution_note = ?'); vals.push(resolution_note); }
         if (!sets.length)    return res.status(400).json({ success: false, message: 'Nada que actualizar' });
         vals.push(key);
-        await dbQuery(`UPDATE jira_requirements SET ${sets.join(', ')} WHERE req_key = ?`, vals);
+        await dbQuery(`UPDATE jira_requirements /* tenant_id: req_key validado por router.param */ SET ${sets.join(', ')} WHERE req_key = ?`, vals);
         res.json({ success: true, message: `Requerimiento ${key} actualizado` });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -298,7 +301,7 @@ router.post('/requirement/:key/close', authenticateToken, async (req, res) => {
     } catch(e) { console.error('⚠️ Jira close req:', e.response?.data || e.message); }
     try {
         const closedBy = req.user?.full_name || req.user?.username || 'Sistema';
-        await dbQuery(`UPDATE jira_requirements SET internal_status='cerrado', status='Resuelto', closed_at=NOW(), closed_by=?, close_comment=?, resolved_at=IFNULL(resolved_at,NOW()) WHERE req_key=?`,
+        await dbQuery(`UPDATE jira_requirements /* tenant_id: req_key validado por router.param */ SET internal_status='cerrado', status='Resuelto', closed_at=NOW(), closed_by=?, close_comment=?, resolved_at=IFNULL(resolved_at,NOW()) WHERE req_key=?`,
             [closedBy, comment.trim(), key]);
     } catch(e) { return res.status(500).json({ success: false, message: e.message }); }
     res.json({ success: true, jiraClosed, data: { key, url: `${JIRA_HOST}/browse/${key}` } });
@@ -309,7 +312,7 @@ router.put('/requirement/:key/take', authenticateToken, async (req, res) => {
     const { key } = req.params;
     const userId = req.user?.id, userName = req.user?.full_name || req.user?.username || 'Técnico';
     try {
-        await dbQuery(`UPDATE jira_requirements SET assigned_to=?, assigned_to_name=?, assigned_at=NOW(), internal_status='asignado', first_response_at=IFNULL(first_response_at,NOW()) WHERE req_key=?`, [userId, userName, key]);
+        await dbQuery(`UPDATE jira_requirements /* tenant_id: req_key validado por router.param */ SET assigned_to=?, assigned_to_name=?, assigned_at=NOW(), internal_status='asignado', first_response_at=IFNULL(first_response_at,NOW()) WHERE req_key=?`, [userId, userName, key]);
         res.json({ success: true, message: `${key} tomado por ${userName}` });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -328,7 +331,7 @@ router.get('/requirements/sync', authenticateToken, async (_req, res) => {
                 const reporter = item.reporter?.emailAddress || item.reporter?.displayName || '—';
                 const status  = item.currentStatus?.status || 'Abierto';
                 const created = item.createdDate?.iso8601 ? new Date(item.createdDate.iso8601) : new Date();
-                await dbQuery(`INSERT INTO jira_requirements (req_key, summary, reporter, status, jira_url, created_at) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE summary=VALUES(summary), status=VALUES(status), reporter=VALUES(reporter)`,
+                await dbQuery(`INSERT INTO jira_requirements /* tenant_id: sync del Jira propio (tenant 1, NULL=1); otros tenants bloqueados por la guarda Jira */ (req_key, summary, reporter, status, jira_url, created_at) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE summary=VALUES(summary), status=VALUES(status), reporter=VALUES(reporter)`,
                     [reqKey, summary, reporter, status, `${JIRA_HOST}/browse/${reqKey}`, created]);
                 synced++;
             } catch(e) { errors++; }
@@ -338,14 +341,15 @@ router.get('/requirements/sync', authenticateToken, async (_req, res) => {
 });
 
 // GET /api/jira/req-stats
-router.get('/req-stats', authenticateToken, async (_req, res) => {
+router.get('/req-stats', authenticateToken, async (req, res) => {
     try {
+        const t = [tenantId(req)];
         const [total, open, closed, byTipo, byTech] = await Promise.all([
-            dbQuery(`SELECT COUNT(*) AS n FROM jira_requirements`),
-            dbQuery(`SELECT COUNT(*) AS n FROM jira_requirements WHERE internal_status NOT IN ('resuelto','cerrado')`),
-            dbQuery(`SELECT COUNT(*) AS n FROM jira_requirements WHERE internal_status IN ('resuelto','cerrado')`),
-            dbQuery(`SELECT IFNULL(tipo,'Sin tipo') AS tipo, COUNT(*) AS n FROM jira_requirements GROUP BY tipo ORDER BY n DESC LIMIT 8`),
-            dbQuery(`SELECT IFNULL(assigned_to_name,'Sin asignar') AS tech, COUNT(*) AS n FROM jira_requirements GROUP BY assigned_to ORDER BY n DESC LIMIT 8`),
+            dbQuery(`SELECT COUNT(*) AS n FROM jira_requirements WHERE ${TW}`, t),
+            dbQuery(`SELECT COUNT(*) AS n FROM jira_requirements WHERE ${TW} AND internal_status NOT IN ('resuelto','cerrado')`, t),
+            dbQuery(`SELECT COUNT(*) AS n FROM jira_requirements WHERE ${TW} AND internal_status IN ('resuelto','cerrado')`, t),
+            dbQuery(`SELECT IFNULL(tipo,'Sin tipo') AS tipo, COUNT(*) AS n FROM jira_requirements WHERE ${TW} GROUP BY tipo ORDER BY n DESC LIMIT 8`, t),
+            dbQuery(`SELECT IFNULL(assigned_to_name,'Sin asignar') AS tech, COUNT(*) AS n FROM jira_requirements WHERE ${TW} GROUP BY assigned_to ORDER BY n DESC LIMIT 8`, t),
         ]);
         res.json({ success: true, data: { total: total[0].n, open: open[0].n, closed: closed[0].n, byTipo, byTech } });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
