@@ -155,6 +155,9 @@ class TenantLifecycleService {
       [tenantId, tenantId, tenantId, tenantId]
     ).catch(() => {});
 
+    // Numeración propia de tickets: TK-<CÓDIGO>-0001
+    await require('../utils/tenantTickets').assignTicketCode(tenantId, cleanSlug).catch(() => {});
+
     await this._audit(tenantId, 'tenant.created', actorId, { name: name.trim(), slug: cleanSlug, plan, domain: cleanDomain });
     logger.info('Nuevo tenant creado', { tenantId, slug: cleanSlug, name: name.trim(), actorId });
     return this._findOrFail(tenantId);
@@ -165,7 +168,7 @@ class TenantLifecycleService {
   async listWithStats() {
     const { executeQuery, equipmentPool } = require('../../config/database');
     return executeQuery(equipmentPool,
-      `SELECT t.id, t.slug, t.name, t.plan, t.is_active, t.created_at,
+      `SELECT t.id, t.slug, t.name, t.plan, t.is_active, t.created_at, t.ticket_code,
               NULL AS suspended_at,
               IFNULL(JSON_UNQUOTE(JSON_EXTRACT(t.settings, '$.domain')), '') AS domain,
               IFNULL(JSON_UNQUOTE(JSON_EXTRACT(t.settings, '$.contactEmail')), '') AS contact_email,
@@ -254,7 +257,7 @@ class TenantLifecycleService {
     const { executeQuery, equipmentPool } = require('../../config/database');
     const where = includeInactive ? '' : 'WHERE is_active = 1';
     return executeQuery(equipmentPool,
-      `SELECT id, slug, name, plan, is_active, NULL AS suspended_at, created_at FROM tenants ${where} ORDER BY name ASC`,
+      `SELECT id, slug, name, plan, is_active, NULL AS suspended_at, created_at, ticket_code FROM tenants ${where} ORDER BY name ASC`,
       []
     );
   }

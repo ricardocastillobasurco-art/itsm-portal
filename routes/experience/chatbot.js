@@ -896,7 +896,7 @@ router.get('/tickets', authenticateToken, async (req, res) => {
     if (!reporter) return res.json({ success: false, error: 'Sin usuario autenticado', tickets: [] });
 
     const isEmailQ = q && /^[\w.+%-]+@[\w.-]+\.[a-z]{2,}$/i.test(q);
-    const isKeyQ   = q && /^(TK-|IT-|INC-)\d+/i.test(q);
+    const isKeyQ   = q && /^(TK-|RQ-|IT-|INC-)([A-Z0-9]{2,8}-)?\d+/i.test(q);
 
     let sql    = `SELECT ticket_key, summary, internal_status, priority, created_at, assigned_to_name, reporter, jira_url
                   FROM jira_tickets WHERE deleted_at IS NULL AND COALESCE(tenant_id, 1) = ?`;

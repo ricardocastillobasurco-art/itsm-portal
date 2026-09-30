@@ -14,7 +14,7 @@
 
 const crypto = require('crypto');
 const { executeQuery, equipmentPool } = require('../../../config/database');
-const { nextLocalTicketKey, agentsRoom } = require('../../utils/tenantTickets');
+const { nextLocalTicketKey, agentsRoom, localKeyPrefix } = require('../../utils/tenantTickets');
 const logger = require('../../utils/logger');
 
 const q = (sql, params = []) => executeQuery(equipmentPool, sql, params);
@@ -113,7 +113,8 @@ async function create(p) {
   const priority = PRIORITIES.includes(p.priority) ? p.priority : 'P3';
   const hours = await slaHours(tid, priority);
   const description = String(p.description || '').trim().slice(0, 20000) || summary;
-  const key = await nextLocalTicketKey(k.prefix);
+  // Numeración por empresa: TK-<CÓDIGO>-0001 (la empresa sin código usa TK-0001)
+  const key = await nextLocalTicketKey(await localKeyPrefix(k.prefix, tid));
 
   if (kind === 'incident') {
     await q(`INSERT INTO jira_tickets

@@ -41,5 +41,8 @@ describe('correo a ticket — reglas', () => {
     expect('RE: [TK-0061] Recibimos tu solicitud'.match(KEY_RE)[1]).toBe('TK-0061');
     expect('Fwd: inc-1234 pendiente'.match(KEY_RE)[1].toUpperCase()).toBe('INC-1234');
     expect('Sin clave aquí'.match(KEY_RE)).toBeNull();
+    // Numeración por empresa
+    expect('RE: [TK-ACME-0042] Recibimos tu incidencia'.match(KEY_RE)[1]).toBe('TK-ACME-0042');
+    expect('Re: RQ-P77-0001 aprobado'.match(KEY_RE)[1]).toBe('RQ-P77-0001');
   });
 });

@@ -849,7 +849,10 @@ function tenantCard(t) {
       <div class="tc-icon"><i class="bi bi-building"></i></div>
       <div class="tc-info">
         <div class="tc-name">${escHtml(t.name)}</div>
-        <div class="tc-slug">/${escHtml(t.slug)}</div>
+        <div class="tc-slug">/${escHtml(t.slug)}
+          <span onclick="editTicketCode(${t.id},'${escHtml(t.name)}','${escHtml(t.ticket_code || '')}')" title="Numeración de tickets de este cliente (clic para cambiar)"
+            style="margin-left:6px;cursor:pointer;font-family:monospace;font-size:10px;padding:1px 6px;border-radius:8px;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;">
+            <i class="bi bi-hash"></i>${t.ticket_code ? 'TK-' + escHtml(t.ticket_code) + '-0001' : 'TK-0001'}</span></div>
         ${domain}
       </div>
     </div>
@@ -997,6 +1000,18 @@ function openProvisionModal(tenantId, tenantName, features) {
 }
 
 /* ── Regenerar archivos de config del tenant ─────────────────────────────────── */
+async function editTicketCode(id, name, current) {
+  const v = prompt(`Código de numeración de tickets para "${name}"\n(2 a 8 letras o números; los tickets quedarán como TK-CODIGO-0001 y RQ-CODIGO-0001)\n\nSolo afecta a los tickets nuevos.`, current || '');
+  if (v === null) return;
+  try {
+    const r = await fetch(`/api/admin/tenants/${id}/ticket-code`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: v }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'No se pudo guardar');
+    toast(`Numeración de ${name}: ${j.data.example}`, 'ok');
+    if (typeof loadTenants === 'function') loadTenants();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
 async function regenerateConfig(tenantId, name) {
   if (!confirm(`¿Regenerar los archivos de configuración de "${name}"?\nEsto sobreescribirá config.js e integrations.js del cliente.`)) return;
   try {

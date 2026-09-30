@@ -508,6 +508,27 @@ router.get('/:tenantId/integrations', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ── Numeración de tickets ─────────────────────────────────────────────────────
+
+// PATCH /api/admin/tenants/:tenantId/ticket-code { code } — código de la numeración (TK-<CODE>-0001).
+// Solo afecta a los tickets nuevos; los existentes conservan su número.
+router.patch('/:tenantId/ticket-code', async (req, res, next) => {
+  try {
+    const tid  = parseInt(req.params.tenantId);
+    const code = String(req.body?.code || '').trim().toUpperCase();
+    const { executeQuery, equipmentPool } = require('../../../../config/database');
+    if (!code && tid !== 1) return res.fail('El código es obligatorio para los clientes', 400);
+    if (code && !/^[A-Z0-9]{2,8}$/.test(code)) return res.fail('Usa de 2 a 8 letras o números, sin espacios', 400);
+    if (code) {
+      const [taken] = await executeQuery(equipmentPool, 'SELECT id FROM tenants WHERE ticket_code = ? AND id <> ? LIMIT 1', [code, tid]);
+      if (taken) return res.fail(`El código ${code} ya lo usa otro cliente`, 409);
+    }
+    await executeQuery(equipmentPool, 'UPDATE tenants SET ticket_code = ? WHERE id = ?', [code || null, tid]);
+    require('../../../utils/tenantTickets').forgetTicketCode(tid);
+    res.ok({ code: code || null, example: code ? `TK-${code}-0001` : 'TK-0001' }, 'Numeración actualizada');
+  } catch (e) { next(e); }
+});
+
 // ── Correo a ticket ───────────────────────────────────────────────────────────
 
 // POST /api/admin/tenants/:tenantId/email-to-ticket/test — conecta al buzón y cuenta no leídos

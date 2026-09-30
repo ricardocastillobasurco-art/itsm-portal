@@ -1106,7 +1106,7 @@ async function cbSendMsg(){
     return;
   }
   // Consulta directa de ticket (INC-XXXX / TK-XXXX)
-  const _tkM = txt.match(/^(INC-\d+|TK-\d+)$/i);
+  const _tkM = txt.match(/^(INC-\d+|(?:TK|RQ)-(?:[A-Z0-9]{2,8}-)?\d+)$/i);
   if (_tkM) {
     cbInput.disabled = false; cbInput.focus();
     cbHandleTicketStatus(_tkM[1].toUpperCase());
