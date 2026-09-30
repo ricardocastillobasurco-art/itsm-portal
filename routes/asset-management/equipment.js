@@ -104,10 +104,10 @@ router.get('/status-options', async (req, res) => {
 
 router.get('/status/:status', async (req, res, next) => {
   try {
-    // Stored procedure legacy sin tenant_id: solo el tenant por defecto
-    if (tenantId(req) !== 1) return res.json({ success: true, data: [], count: 0 });
-    const results = await callStoredProcedure(equipmentPool, 'sp_get_equipment_by_status', [req.params.status]);
-    res.json({ success: true, data: results[0], count: results[0].length });
+    // Antes llamaba a un procedimiento almacenado inexistente (sp_get_equipment_by_status)
+    const rows = await executeQuery(equipmentPool,
+      'SELECT * FROM equipment WHERE status = ? AND tenant_id = ? ORDER BY device_code', [req.params.status, tenantId(req)]);
+    res.json({ success: true, data: rows, count: rows.length });
   } catch (error) { next(error); }
 });
 

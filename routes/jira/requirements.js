@@ -7,6 +7,7 @@ const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID } = require('./helpers');
 const axios = require('axios');
 const { tenantId } = require('../../src/utils/tenantScope');
+const auth = { username: JIRA_EMAIL, password: JIRA_TOKEN };
 const TW = 'COALESCE(tenant_id, 1) = ?';
 const FormData = require('form-data');
 

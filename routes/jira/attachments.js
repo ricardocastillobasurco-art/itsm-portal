@@ -24,7 +24,7 @@ router.post('/attachment', authenticateToken, upload.single('file'), async (req,
             `${JIRA_HOST}/rest/servicedeskapi/servicedesk/${SD_ID}/attachTemporaryFile`,
             fd,
             {
-                auth,
+                auth: { username: JIRA_EMAIL, password: JIRA_TOKEN },
                 headers: {
                     ...fd.getHeaders(),
                     'X-ExperimentalApi':  'opt-in',

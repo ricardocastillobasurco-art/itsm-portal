@@ -384,6 +384,14 @@ router.post('/my-tickets/:key/close', authenticateToken, async (req, res) => {
             if (reanudar) await jira('POST', `/rest/api/2/issue/${key}/transitions`, { transition: { id: reanudar.id } });
         }
 
+        // Transición de cierre disponible (antes no se buscaba y el cierre en Jira fallaba siempre)
+        const { transitions = [] } = await jira('GET', `/rest/api/2/issue/${key}/transitions`);
+        const EXCLUIR = ['escal', 'deriv', 'reanud', 'pendient', 'asign'];
+        const transicierre =
+            transitions.find(t => /resuel|cerr|close|resolv|finaliz/i.test(t.name) && !EXCLUIR.some(x => t.name.toLowerCase().includes(x)))
+            || transitions.find(t => t.id === '11');
+        if (!transicierre) throw new Error('Sin transición de cierre disponible en Jira');
+
 // 4. Cerrar con campos requeridos — axios directo para evitar WAF
         await axios({
             method: 'POST',
