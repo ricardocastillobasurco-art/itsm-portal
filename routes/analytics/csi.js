@@ -1,6 +1,7 @@
 // routes/csi.js — Mejora Continua (CSI - ITIL v4)
 const express = require('express');
 const router  = express.Router();
+const { tenantId } = require('../../src/utils/tenantScope');
 const { v4: uuidv4 }      = require('uuid');
 const { CsiInitiative }   = require('../../src/models');
 const { authenticateToken } = require('../../middleware/auth');
@@ -18,7 +19,7 @@ router.get('/kpis', authenticateToken, async (req, res) => {
               SUM(status = 'completada')   AS completadas,
               SUM(status = 'cancelada')    AS canceladas,
               AVG(CASE WHEN status = 'completada' THEN improvement_pct END) AS avg_mejora
-            FROM csi_initiatives WHERE deleted_at IS NULL
+            FROM csi_initiatives WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (deleted_at IS NULL)
         `, { type: QueryTypes.SELECT });
         res.json({ success: true, data: rows[0] });
     } catch (err) {

@@ -1,15 +1,19 @@
-// routes/catalog.js — Catálogo de Servicios
+// routes/catalog.js — Catálogo de Servicios (por tenant)
 const express = require('express');
 const router  = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { Service, ServiceCategory } = require('../../src/models');
 const { authenticateToken, requireRole } = require('../../middleware/auth');
+const { tenantId } = require('../../src/utils/tenantScope');
+
+// Cada tenant administra su propio catálogo
+const T = (req) => ({ tenantId: tenantId(req) });
 
 // GET /api/catalog/categories
 router.get('/categories', authenticateToken, async (req, res) => {
     try {
         const cats = await ServiceCategory.findAll({
-            where: { isActive: true },
+            where: { isActive: true, ...T(req) },
             order: [['name', 'ASC']],
         });
         res.json({ success: true, data: cats });
@@ -23,7 +27,7 @@ router.post('/categories', authenticateToken, requireRole('administrador', 'supe
     try {
         const { name, description, icon } = req.body;
         if (!name) return res.status(400).json({ success: false, error: 'Nombre requerido' });
-        const cat = await ServiceCategory.create({ id: uuidv4(), name: name.trim(), description: description || null, icon: icon || null });
+        const cat = await ServiceCategory.create({ id: uuidv4(), name: name.trim(), description: description || null, icon: icon || null, ...T(req) });
         res.status(201).json({ success: true, data: cat });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -33,7 +37,7 @@ router.post('/categories', authenticateToken, requireRole('administrador', 'supe
 // PATCH /api/catalog/categories/:id  (admin)
 router.patch('/categories/:id', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
-        const cat = await ServiceCategory.findByPk(req.params.id);
+        const cat = await ServiceCategory.findOne({ where: { id: req.params.id, ...T(req) } });
         if (!cat) return res.status(404).json({ success: false, error: 'Categoría no encontrada' });
         const allowed = ['name','description','icon','isActive'];
         const updates = {};
@@ -48,7 +52,7 @@ router.patch('/categories/:id', authenticateToken, requireRole('administrador', 
 // DELETE /api/catalog/categories/:id  (admin) — soft-delete via isActive=false
 router.delete('/categories/:id', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
-        const cat = await ServiceCategory.findByPk(req.params.id);
+        const cat = await ServiceCategory.findOne({ where: { id: req.params.id, ...T(req) } });
         if (!cat) return res.status(404).json({ success: false, error: 'Categoría no encontrada' });
         await cat.update({ isActive: false });
         res.json({ success: true });
@@ -61,7 +65,7 @@ router.delete('/categories/:id', authenticateToken, requireRole('administrador',
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { categoryId, search } = req.query;
-        const where = { isActive: true };
+        const where = { isActive: true, ...T(req) };
         if (categoryId) where.categoryId = categoryId;
         if (search) {
             const { Op } = require('sequelize');
@@ -82,7 +86,8 @@ router.get('/', authenticateToken, async (req, res) => {
 // GET /api/catalog/:id
 router.get('/:id', authenticateToken, async (req, res) => {
     try {
-        const svc = await Service.findByPk(req.params.id, {
+        const svc = await Service.findOne({
+            where: { id: req.params.id, ...T(req) },
             include: [{ model: ServiceCategory, as: 'categoria' }],
         });
         if (!svc) return res.status(404).json({ success: false, error: 'Servicio no encontrado' });
@@ -97,6 +102,8 @@ router.post('/', authenticateToken, requireRole('administrador', 'superadmin'), 
     try {
         const { categoryId, name, description, slaHours, approvalRequired, approverRole, formSchema } = req.body;
         if (!categoryId || !name) return res.status(400).json({ success: false, error: 'categoryId y name requeridos' });
+        const cat = await ServiceCategory.findOne({ where: { id: categoryId, ...T(req) } });
+        if (!cat) return res.status(404).json({ success: false, error: 'Categoría no encontrada' });
 
         const svc = await Service.create({
             id: uuidv4(),
@@ -105,6 +112,7 @@ router.post('/', authenticateToken, requireRole('administrador', 'superadmin'), 
             approvalRequired: !!approvalRequired,
             approverRole:     approverRole      || null,
             formSchema:       formSchema        || null,
+            ...T(req),
         });
         res.status(201).json({ success: true, data: svc });
     } catch (err) {
@@ -115,7 +123,7 @@ router.post('/', authenticateToken, requireRole('administrador', 'superadmin'), 
 // PATCH /api/catalog/:id (admin)
 router.patch('/:id', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
-        const svc = await Service.findByPk(req.params.id);
+        const svc = await Service.findOne({ where: { id: req.params.id, ...T(req) } });
         if (!svc) return res.status(404).json({ success: false, error: 'Servicio no encontrado' });
 
         const allowed = ['name','description','slaHours','approvalRequired','approverRole','formSchema','isActive'];
@@ -133,7 +141,7 @@ router.patch('/:id', authenticateToken, requireRole('administrador', 'superadmin
 // DELETE /api/catalog/:id (admin)
 router.delete('/:id', authenticateToken, requireRole('administrador', 'superadmin'), async (req, res) => {
     try {
-        const svc = await Service.findByPk(req.params.id);
+        const svc = await Service.findOne({ where: { id: req.params.id, ...T(req) } });
         if (!svc) return res.status(404).json({ success: false, error: 'Servicio no encontrado' });
         await svc.destroy();
         res.json({ success: true });

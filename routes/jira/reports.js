@@ -5,6 +5,8 @@ const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID, loadAgentCache } = require('./helpers');
 const { getSettings: getItsmSettings } = require('./config_itsm');
 const { tenantWhere } = require('../../utils/tenantFilter');
+const { tenantId } = require('../../src/utils/tenantScope');
+const { jiraAllowedForCurrentTenant } = require('./helpers');
 const axios = require('axios');
 const FormData = require('form-data');
 
@@ -18,7 +20,7 @@ const FormData = require('form-data');
 })();
 
 // ── Refrescar caché de agentes ─────────────────────────────────────────────────
-router.post('/agents-cache/refresh', authenticateToken, async (_req, res) => {
+router.post('/agents-cache/refresh', authenticateToken, async (req, res) => {
     try {
         const cache = await loadAgentCache(true);
         res.json({ success: true, count: cache.size, agents: [...cache.entries()].map(([email, v]) => ({ email, ...v })) });
@@ -31,9 +33,9 @@ router.get('/stats/backlog', authenticateToken, async (req, res) => {
     try {
         const tw = tenantWhere(req);
         const [openRows, resolvedRows, slaRows] = await Promise.all([
-            dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets WHERE internal_status NOT IN ('resuelto','cerrado')${tw}`),
-            dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets WHERE internal_status IN ('resuelto','cerrado') AND DATE(resolved_at) = CURDATE()${tw}`),
-            dbQuery(`SELECT SUM(resolved_at IS NOT NULL AND resolved_at <= sla_deadline) AS ok, COUNT(*) AS total FROM jira_tickets WHERE resolved_at IS NOT NULL AND sla_deadline IS NOT NULL${tw}`)
+            dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status NOT IN ('resuelto','cerrado')${tw})`),
+            dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status IN ('resuelto','cerrado') AND DATE(resolved_at) = CURDATE()${tw})`),
+            dbQuery(`SELECT SUM(resolved_at IS NOT NULL AND resolved_at <= sla_deadline) AS ok, COUNT(*) AS total FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (resolved_at IS NOT NULL AND sla_deadline IS NOT NULL${tw})`)
         ]);
         const open     = Number(openRows[0]?.cnt     ?? 0);
         const resolved = Number(resolvedRows[0]?.cnt ?? 0);
@@ -46,7 +48,7 @@ router.get('/stats/backlog', authenticateToken, async (req, res) => {
     }
 });
 
-router.get('/stats', authenticateToken, async (_req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
     try {
         const [byTech, slaStats, unassigned30, weekly, topReporters, topEquipos, topCategorias] = await Promise.all([
             // Por técnico — combina asignaciones locales Y técnicos de Jira
@@ -60,7 +62,7 @@ router.get('/stats', authenticateToken, async (_req, res) => {
                     AVG(TIMESTAMPDIFF(MINUTE, jt.created_at, jt.resolved_at)) AS avg_min
                 FROM jira_tickets jt
                 LEFT JOIN users u ON u.id = jt.assigned_to
-                WHERE jt.assigned_to IS NOT NULL OR jt.jira_assignee IS NOT NULL
+                WHERE COALESCE(jt.tenant_id, 1) = ${Number(tenantId(req))} AND (jt.assigned_to IS NOT NULL OR jt.jira_assignee IS NOT NULL)
                 GROUP BY COALESCE(u.full_name, jt.jira_assignee)
                 ORDER BY resolved DESC
             `),
@@ -70,14 +72,14 @@ router.get('/stats', authenticateToken, async (_req, res) => {
                     SUM(resolved_at IS NOT NULL AND resolved_at <= sla_deadline) AS dentro_sla,
                     SUM(resolved_at IS NOT NULL AND resolved_at > sla_deadline)  AS fuera_sla,
                     SUM(resolved_at IS NULL AND NOW() > sla_deadline)            AS vencidos_abiertos
-                FROM jira_tickets WHERE sla_deadline IS NOT NULL
+                FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (sla_deadline IS NOT NULL)
             `),
             // Sin asignar más de 30 min
             dbQuery(`
                 SELECT COUNT(*) AS cnt FROM jira_tickets
-                WHERE assigned_to IS NULL
+                WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (assigned_to IS NULL
                   AND internal_status = 'abierto'
-                  AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) > 30
+                  AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) > 30)
             `),
             // Semanal por técnico (últimos 7 días)
             dbQuery(`
@@ -87,7 +89,7 @@ router.get('/stats', authenticateToken, async (_req, res) => {
                     SUM(jt.internal_status IN ('resuelto','cerrado') AND jt.resolved_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) AS mes
                 FROM jira_tickets jt
                 LEFT JOIN users u ON u.id = jt.assigned_to
-                WHERE jt.assigned_to IS NOT NULL OR jt.jira_assignee IS NOT NULL
+                WHERE COALESCE(jt.tenant_id, 1) = ${Number(tenantId(req))} AND (jt.assigned_to IS NOT NULL OR jt.jira_assignee IS NOT NULL)
                 GROUP BY COALESCE(u.full_name, jt.jira_assignee)
                 ORDER BY semana DESC
             `),
@@ -95,7 +97,7 @@ router.get('/stats', authenticateToken, async (_req, res) => {
             dbQuery(`
                 SELECT reporter, COUNT(*) AS total
                 FROM jira_tickets
-                WHERE reporter IS NOT NULL AND reporter != ''
+                WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (reporter IS NOT NULL AND reporter != '')
                 GROUP BY reporter ORDER BY total DESC LIMIT 10
             `),
             // Top equipos (desde campo summary o tipologia — usamos reporter como proxy de equipo asignado via employee)
@@ -103,49 +105,49 @@ router.get('/stats', authenticateToken, async (_req, res) => {
                 SELECT COALESCE(tipologia, component, 'Sin categoría') AS equipo_label,
                        COUNT(*) AS total
                 FROM jira_tickets
-                WHERE tipologia IS NOT NULL OR component IS NOT NULL
+                WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (tipologia IS NOT NULL OR component IS NOT NULL)
                 GROUP BY equipo_label ORDER BY total DESC LIMIT 10
             `),
             // Top categorías (summary de la categoría elegida)
             dbQuery(`
                 SELECT summary, COUNT(*) AS total
                 FROM jira_tickets
-                WHERE summary IS NOT NULL AND summary != ''
+                WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (summary IS NOT NULL AND summary != '')
                 GROUP BY summary ORDER BY total DESC LIMIT 10
             `)
         ]);
         // MTTR
         const mttrRows = await dbQuery(`
             SELECT AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at)) AS mttr_min
-            FROM jira_tickets WHERE resolved_at IS NOT NULL
+            FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (resolved_at IS NOT NULL)
         `);
         // Evolución diaria últimos 30 días
         const evolucion = await dbQuery(`
             SELECT DATE(created_at) AS dia, COUNT(*) AS total,
                    SUM(internal_status='cerrado') AS cerrados
             FROM jira_tickets
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))
             GROUP BY DATE(created_at) ORDER BY dia ASC
         `);
         // Alertas en tiempo real
         const [alertaSLA, alertaCriticos, alertaSinAsignar] = await Promise.all([
             dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets
-                     WHERE sla_deadline IS NOT NULL AND resolved_at IS NULL
-                       AND TIMESTAMPDIFF(MINUTE, NOW(), sla_deadline) BETWEEN 0 AND 10`),
+                     WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (sla_deadline IS NOT NULL AND resolved_at IS NULL
+                       AND TIMESTAMPDIFF(MINUTE, NOW(), sla_deadline) BETWEEN 0 AND 10)`),
             dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets
-                     WHERE priority='P1' AND internal_status NOT IN ('resuelto','cerrado')`),
+                     WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (priority='P1' AND internal_status NOT IN ('resuelto','cerrado'))`),
             dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets
-                     WHERE assigned_to IS NULL AND internal_status='abierto'
-                       AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) > 30`)
+                     WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (assigned_to IS NULL AND internal_status='abierto'
+                       AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) > 30)`)
         ]);
         const mttr_min = mttrRows[0]?.mttr_min || 0;
 
         // Distribución por prioridad y estado
         const [porPrioridad, porEstado] = await Promise.all([
             dbQuery(`SELECT priority, COUNT(*) AS total FROM jira_tickets
-                     WHERE internal_status NOT IN ('cerrado','resuelto') GROUP BY priority ORDER BY priority`),
+                     WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status NOT IN ('cerrado','resuelto')) GROUP BY priority ORDER BY priority`),
             dbQuery(`SELECT internal_status, COUNT(*) AS total FROM jira_tickets
-                     WHERE internal_status NOT IN ('cerrado') GROUP BY internal_status ORDER BY total DESC`)
+                     WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status NOT IN ('cerrado')) GROUP BY internal_status ORDER BY total DESC`)
         ]);
 
         // Tickets en riesgo / breach de SLA
@@ -164,9 +166,9 @@ router.get('/stats', authenticateToken, async (_req, res) => {
                    END AS sla_pct,
                    ROUND(TIMESTAMPDIFF(MINUTE, jt.created_at, NOW()) / 60, 1) AS mttr_h
             FROM jira_tickets jt
-            WHERE jt.sla_deadline IS NOT NULL
+            WHERE COALESCE(jt.tenant_id, 1) = ${Number(tenantId(req))} AND (jt.sla_deadline IS NOT NULL
               AND jt.internal_status NOT IN ('cerrado','resuelto')
-              AND jt.sla_deadline <= DATE_ADD(NOW(), INTERVAL 4 HOUR)
+              AND jt.sla_deadline <= DATE_ADD(NOW(), INTERVAL 4 HOUR))
             ORDER BY jt.sla_deadline ASC
             LIMIT 10
         `);
@@ -176,7 +178,7 @@ router.get('/stats', authenticateToken, async (_req, res) => {
             SELECT COALESCE(tipologia, component, 'General') AS cat,
                    ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at)) / 60, 1) AS mttr_h
             FROM jira_tickets
-            WHERE resolved_at IS NOT NULL
+            WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (resolved_at IS NOT NULL)
             GROUP BY cat
             ORDER BY mttr_h DESC
             LIMIT 6
@@ -184,8 +186,9 @@ router.get('/stats', authenticateToken, async (_req, res) => {
 
         // CSAT y FCR
         const [csatRows, fcrRows] = await Promise.all([
-            dbQuery(`SELECT ROUND(AVG(rating), 1) AS avg_rating FROM ticket_surveys WHERE rating > 0 AND skipped = 0`).catch(() => [{}]),
-            dbQuery(`SELECT COUNT(*) AS total, SUM(TIMESTAMPDIFF(HOUR, created_at, resolved_at) < 8) AS fcr FROM jira_tickets WHERE resolved_at IS NOT NULL`).catch(() => [{}])
+            dbQuery(`SELECT ROUND(AVG(s.rating), 1) AS avg_rating FROM ticket_surveys s JOIN tickets t ON t.id = s.ticket_id
+                     WHERE s.rating > 0 AND s.skipped = 0 AND t.tenant_id = ?`, [tenantId(req)]).catch(() => [{}]),
+            dbQuery(`SELECT COUNT(*) AS total, SUM(TIMESTAMPDIFF(HOUR, created_at, resolved_at) < 8) AS fcr FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (resolved_at IS NOT NULL)`).catch(() => [{}])
         ]);
         const fcr_total = Number(fcrRows[0]?.total) || 0;
         const fcr_pct = fcr_total > 0 ? Math.round(Number(fcrRows[0]?.fcr || 0) / fcr_total * 100) : 0;
@@ -212,7 +215,7 @@ router.get('/stats', authenticateToken, async (_req, res) => {
 
 
 // ── Indicadores de técnicos locales ──────────────────────────
-router.get('/local/stats', authenticateToken, async (_req, res) => {
+router.get('/local/stats', authenticateToken, async (req, res) => {
     try {
         const [techStats, summary, byStatus, byPriority, evolucion, mttrByCat, csatRows] = await Promise.all([
             // Por técnico
@@ -227,8 +230,8 @@ router.get('/local/stats', authenticateToken, async (_req, res) => {
                     SUM(jt.resolved_at IS NOT NULL AND jt.resolved_at <= jt.sla_deadline) AS sla_ok,
                     SUM(jt.resolved_at IS NOT NULL AND jt.resolved_at >  jt.sla_deadline) AS sla_bad
                 FROM users u
-                LEFT JOIN jira_tickets jt ON jt.assigned_to = u.id AND jt.ticket_key LIKE 'TK-%'
-                WHERE u.is_active = 1 AND u.deleted_at IS NULL
+                LEFT JOIN jira_tickets jt ON jt.assigned_to = u.id AND jt.ticket_key LIKE 'TK-%' AND COALESCE(jt.tenant_id, 1) = ${Number(tenantId(req))}
+                WHERE u.is_active = 1 AND u.deleted_at IS NULL AND COALESCE(u.tenant_id, 1) = ${Number(tenantId(req))}
                   AND u.role IN ('especialista','administrador','agente','tecnico')
                 GROUP BY u.id
                 ORDER BY (SUM(jt.internal_status NOT IN ('resuelto','cerrado','abierto'))) DESC, total DESC
@@ -245,18 +248,18 @@ router.get('/local/stats', authenticateToken, async (_req, res) => {
                     SUM(resolved_at IS NOT NULL AND resolved_at >  sla_deadline) AS sla_bad,
                     AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at))          AS mttr_min,
                     SUM(MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW())) AS este_mes
-                FROM jira_tickets WHERE ticket_key LIKE 'TK-%'
+                FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (ticket_key LIKE 'TK-%')
             `),
             // Por estado activos
             dbQuery(`
                 SELECT internal_status, COUNT(*) AS total
-                FROM jira_tickets WHERE internal_status != 'cerrado' AND ticket_key LIKE 'TK-%'
+                FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status != 'cerrado' AND ticket_key LIKE 'TK-%')
                 GROUP BY internal_status ORDER BY total DESC
             `),
             // Por prioridad (todos)
             dbQuery(`
                 SELECT priority, COUNT(*) AS total
-                FROM jira_tickets WHERE ticket_key LIKE 'TK-%'
+                FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (ticket_key LIKE 'TK-%')
                 GROUP BY priority ORDER BY FIELD(priority,'P1','P2','P3','P4')
             `),
             // Evolución diaria últimos 30 días
@@ -265,8 +268,8 @@ router.get('/local/stats', authenticateToken, async (_req, res) => {
                        COUNT(*) AS total,
                        SUM(internal_status IN ('resuelto','cerrado')) AS cerrados
                 FROM jira_tickets
-                WHERE ticket_key LIKE 'TK-%'
-                  AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (ticket_key LIKE 'TK-%'
+                  AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))
                 GROUP BY DATE(created_at) ORDER BY dia ASC
             `),
             // MTTR por categoría
@@ -275,11 +278,11 @@ router.get('/local/stats', authenticateToken, async (_req, res) => {
                        ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at)) / 60, 1) AS mttr_h,
                        COUNT(*) AS total
                 FROM jira_tickets
-                WHERE ticket_key LIKE 'TK-%' AND resolved_at IS NOT NULL
+                WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (ticket_key LIKE 'TK-%' AND resolved_at IS NOT NULL)
                 GROUP BY cat ORDER BY mttr_h DESC LIMIT 8
             `),
             // CSAT de itsm_surveys
-            dbQuery(`SELECT ROUND(AVG(rating),1) AS avg_rating, COUNT(*) AS total FROM itsm_surveys WHERE rating IS NOT NULL`).catch(()=>[{}])
+            dbQuery(`SELECT ROUND(AVG(rating),1) AS avg_rating, COUNT(*) AS total FROM itsm_surveys WHERE rating IS NOT NULL AND COALESCE(tenant_id, 1) = ?`, [tenantId(req)]).catch(()=>[{}])
         ]);
 
         const s = summary[0] || {};
@@ -318,15 +321,15 @@ router.get('/alerts', authenticateToken, async (req, res) => {
         const srcFilter = req.query.source === 'local' ? `AND ticket_key LIKE 'TK-%'` : '';
         const [sla, criticos, sinAsignar, breachRows] = await Promise.all([
             dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets
-                     WHERE sla_deadline IS NOT NULL AND resolved_at IS NULL
-                       AND TIMESTAMPDIFF(MINUTE, NOW(), sla_deadline) BETWEEN 0 AND ${_win} ${srcFilter}`),
+                     WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (sla_deadline IS NOT NULL AND resolved_at IS NULL
+                       AND TIMESTAMPDIFF(MINUTE, NOW(), sla_deadline) BETWEEN 0 AND ${_win} ${srcFilter})`),
             dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets
-                     WHERE priority='P1' AND internal_status NOT IN ('resuelto','cerrado') ${srcFilter}`),
+                     WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (priority='P1' AND internal_status NOT IN ('resuelto','cerrado') ${srcFilter})`),
             dbQuery(`SELECT COUNT(*) AS cnt FROM jira_tickets
-                     WHERE assigned_to IS NULL AND internal_status='abierto'
-                       AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) > 30 ${srcFilter}`),
+                     WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (assigned_to IS NULL AND internal_status='abierto'
+                       AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) > 30 ${srcFilter})`),
             dbQuery(`SELECT ticket_key FROM jira_tickets
-                     WHERE sla_deadline IS NOT NULL AND resolved_at IS NULL AND sla_deadline < NOW() ${srcFilter}
+                     WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (sla_deadline IS NOT NULL AND resolved_at IS NULL AND sla_deadline < NOW() ${srcFilter})
                      ORDER BY sla_deadline ASC LIMIT 20`)
         ]);
         res.json({ success: true, data: {
@@ -341,7 +344,7 @@ router.get('/alerts', authenticateToken, async (req, res) => {
 });
 
 // KPIs del dashboard admin — Jira Workplace directo
-router.get('/dashboard/kpis', authenticateToken, async (_req, res) => {
+router.get('/dashboard/kpis', authenticateToken, async (req, res) => {
     try {
         const today = new Date().toISOString().slice(0, 10);
         const [sinAsigR, resueltosR] = await Promise.all([
@@ -354,16 +357,16 @@ router.get('/dashboard/kpis', authenticateToken, async (_req, res) => {
     }
 });
 
-router.get('/noc/stats', authenticateToken, async (_req, res) => {
+router.get('/noc/stats', authenticateToken, async (req, res) => {
     try {
         const [abiertos, breach, sinAsig, p1, topTecs, porPrio, recientes] = await Promise.all([
-            dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE internal_status NOT IN ('resuelto','cerrado')`),
-            dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE sla_deadline IS NOT NULL AND resolved_at IS NULL AND sla_deadline < NOW()`),
-            dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE assigned_to IS NULL AND internal_status='abierto' AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) > 30`),
-            dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE priority='P1' AND internal_status NOT IN ('resuelto','cerrado')`),
-            dbQuery(`SELECT assigned_to_name AS nombre, COUNT(*) AS resueltos FROM jira_tickets WHERE DATE(resolved_at) = CURDATE() AND assigned_to_name IS NOT NULL GROUP BY assigned_to_name ORDER BY resueltos DESC LIMIT 5`),
-            dbQuery(`SELECT priority, COUNT(*) AS n FROM jira_tickets WHERE internal_status NOT IN ('resuelto','cerrado') GROUP BY priority ORDER BY FIELD(priority,'P1','P2','P3','P4') LIMIT 6`),
-            dbQuery(`SELECT ticket_key, summary, priority, internal_status, assigned_to_name, created_at FROM jira_tickets WHERE internal_status NOT IN ('resuelto','cerrado') ORDER BY created_at DESC LIMIT 8`)
+            dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status NOT IN ('resuelto','cerrado'))`),
+            dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (sla_deadline IS NOT NULL AND resolved_at IS NULL AND sla_deadline < NOW())`),
+            dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (assigned_to IS NULL AND internal_status='abierto' AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) > 30)`),
+            dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (priority='P1' AND internal_status NOT IN ('resuelto','cerrado'))`),
+            dbQuery(`SELECT assigned_to_name AS nombre, COUNT(*) AS resueltos FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (DATE(resolved_at) = CURDATE() AND assigned_to_name IS NOT NULL) GROUP BY assigned_to_name ORDER BY resueltos DESC LIMIT 5`),
+            dbQuery(`SELECT priority, COUNT(*) AS n FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status NOT IN ('resuelto','cerrado')) GROUP BY priority ORDER BY FIELD(priority,'P1','P2','P3','P4') LIMIT 6`),
+            dbQuery(`SELECT ticket_key, summary, priority, internal_status, assigned_to_name, created_at FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status NOT IN ('resuelto','cerrado')) ORDER BY created_at DESC LIMIT 8`)
         ]);
 
         // Resueltos hoy desde Jira API directamente
@@ -373,7 +376,7 @@ router.get('/noc/stats', authenticateToken, async (_req, res) => {
             const r = await jira('GET', `/rest/api/3/search?jql=${encodeURIComponent(`project = INC AND resolutiondate >= "${today}"`)}&maxResults=0`);
             resueltos_hoy = r.total ?? 0;
         } catch (_) {
-            const [fb] = await dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE internal_status IN ('resuelto','cerrado') AND DATE(COALESCE(resolved_at,updated_at)) = CURDATE()`);
+            const [fb] = await dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status IN ('resuelto','cerrado') AND DATE(COALESCE(resolved_at,updated_at)) = CURDATE())`);
             resueltos_hoy = Number(fb?.n ?? 0);
         }
 
@@ -404,7 +407,7 @@ router.get('/report', authenticateToken, async (req, res) => {
                           jt.tipo_atencion, jt.sla_deadline, jt.description,
                           jt.component, jt.tipologia,
                           TIMESTAMPDIFF(MINUTE, jt.created_at, COALESCE(jt.resolved_at, NOW())) AS min_total
-                   FROM jira_tickets jt WHERE 1=1`;
+                   FROM jira_tickets jt WHERE COALESCE(jt.tenant_id, 1) = ${Number(tenantId(req))} AND (1=1)`;
         const params = [];
         if (estado)   { sql += ' AND jt.internal_status=?';    params.push(estado); }
         if (prioridad){ sql += ' AND jt.priority=?';           params.push(prioridad); }
@@ -431,7 +434,7 @@ router.post('/report/send-email', authenticateToken, async (req, res) => {
             SELECT ticket_key, summary, reporter, priority, internal_status,
                    assigned_to_name, created_at, resolved_at
             FROM jira_tickets
-            WHERE DATE(created_at) BETWEEN ? AND ?
+            WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (DATE(created_at) BETWEEN ? AND ?)
             ORDER BY created_at DESC`, [desde||'2000-01-01', hasta||'2099-01-01']);
 
         const nodemailer = require('nodemailer');
@@ -474,7 +477,7 @@ router.post('/report/send-email', authenticateToken, async (req, res) => {
 
 // ============================================================
 
-router.get('/survey-results', authenticateToken, async (_req, res) => {
+router.get('/survey-results', authenticateToken, async (req, res) => {
     try {
         const rows = await dbQuery(`
             SELECT s.ticket_key, s.reporter_email, s.rating, s.comment,
@@ -482,14 +485,16 @@ router.get('/survey-results', authenticateToken, async (_req, res) => {
                    jt.summary
             FROM itsm_surveys s
             LEFT JOIN jira_tickets jt ON jt.ticket_key = s.ticket_key
+            WHERE COALESCE(s.tenant_id, 1) = ?
             ORDER BY s.sent_at DESC LIMIT 100
-        `);
+        `, [tenantId(req)]);
         const stats = await dbQuery(`
             SELECT COUNT(*) AS total,
                    SUM(rating IS NOT NULL) AS respondidas,
                    ROUND(AVG(rating), 1) AS promedio
             FROM itsm_surveys
-        `);
+            WHERE COALESCE(tenant_id, 1) = ?
+        `, [tenantId(req)]);
         res.json({ success: true, data: rows, stats: stats[0] });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -499,7 +504,7 @@ router.get('/survey-results', authenticateToken, async (_req, res) => {
 
 router.get('/survey/:token', async (req, res) => {
     try {
-        const rows = await dbQuery(`SELECT * FROM itsm_surveys WHERE token=? LIMIT 1`, [req.params.token]);
+        const rows = await dbQuery(`SELECT * FROM itsm_surveys /* tenant_id: el token aleatorio identifica la encuesta */ WHERE token=? LIMIT 1`, [req.params.token]);
         if (!rows.length) return res.status(404).json({ success: false, message: 'Encuesta no encontrada' });
         res.json({ success: true, data: rows[0] });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
@@ -509,9 +514,9 @@ router.post('/survey/:token', async (req, res) => {
     try {
         const { rating, comment = '' } = req.body;
         if (!rating || rating < 1 || rating > 5) return res.status(400).json({ success: false, message: 'Rating inválido (1-5)' });
-        const rows = await dbQuery(`SELECT * FROM itsm_surveys WHERE token=? AND rating IS NULL LIMIT 1`, [req.params.token]);
+        const rows = await dbQuery(`SELECT * FROM itsm_surveys /* tenant_id: el token aleatorio identifica la encuesta */ WHERE token=? AND rating IS NULL LIMIT 1`, [req.params.token]);
         if (!rows.length) return res.status(400).json({ success: false, message: 'Encuesta ya respondida o no existe' });
-        await dbQuery(`UPDATE itsm_surveys SET rating=?, comment=?, responded_at=NOW() WHERE token=?`, [rating, comment, req.params.token]);
+        await dbQuery(`UPDATE itsm_surveys /* tenant_id: el token aleatorio identifica la encuesta */ SET rating=?, comment=?, responded_at=NOW() WHERE token=?`, [rating, comment, req.params.token]);
         res.json({ success: true, message: '¡Gracias por tu calificación!' });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -549,20 +554,20 @@ router.get('/kb/suggest', authenticateToken, async (req, res) => {
 
 
 // ── Roster de técnicos conocidos (DB activos + histórico Jira) ───────────────
-router.get('/techs-roster', authenticateToken, async (_req, res) => {
+router.get('/techs-roster', authenticateToken, async (req, res) => {
     try {
         const fromUsers = await dbQuery(`
             SELECT full_name AS name, email FROM users
-            WHERE is_active=1 AND deleted_at IS NULL
+            WHERE is_active=1 AND deleted_at IS NULL AND COALESCE(tenant_id, 1) = ?
               AND role IN ('administrador','especialista','agente','tecnico')
-            ORDER BY full_name`);
+            ORDER BY full_name`, [tenantId(req)]);
         const fromJira = await dbQuery(`
             SELECT
               COALESCE(MAX(assigned_to_name), jira_assignee) AS name,
               jira_assignee AS email,
               MAX(jira_account_id) AS accountId
             FROM jira_tickets
-            WHERE jira_assignee IS NOT NULL AND jira_assignee LIKE '%@%'
+            WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (jira_assignee IS NOT NULL AND jira_assignee LIKE '%@%')
             GROUP BY jira_assignee
             ORDER BY name`);
         const seen = new Set();
@@ -591,7 +596,7 @@ router.post('/import-assignees', authenticateToken, async (req, res) => {
             const val = (r.assignee || '').trim();
             if (!key || !val) { skipped++; continue; }
             const result = await dbQuery(
-                `UPDATE jira_tickets SET jira_assignee = ? WHERE ticket_key = ?`, [val, key]
+                `UPDATE jira_tickets SET jira_assignee = ? WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (ticket_key = ?)`, [val, key]
             );
             if (result.affectedRows > 0) updated++;
             else skipped++;
@@ -603,9 +608,9 @@ router.post('/import-assignees', authenticateToken, async (req, res) => {
 });
 
 // ── Sync assignees desde Jira (api/2 → api/3 fallback) ───────
-router.post('/sync-assignees', authenticateToken, async (_req, res) => {
+router.post('/sync-assignees', authenticateToken, async (req, res) => {
     try {
-        const keys = await dbQuery(`SELECT ticket_key FROM jira_tickets WHERE jira_assignee IS NULL OR jira_assignee = ''`);
+        const keys = await dbQuery(`SELECT ticket_key FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (jira_assignee IS NULL OR jira_assignee = '')`);
         if (!keys.length) return res.json({ success: true, updated: 0, message: 'Todos los tickets ya tienen assignee de Jira' });
 
         const BATCH = 50;
@@ -640,7 +645,7 @@ router.post('/sync-assignees', authenticateToken, async (_req, res) => {
                 const name = a.emailAddress || a.displayName || null;
                 if (!name) continue;
                 await dbQuery(
-                    `UPDATE jira_tickets SET jira_assignee = ?, jira_account_id = COALESCE(?, jira_account_id) WHERE ticket_key = ?`,
+                    `UPDATE jira_tickets SET jira_assignee = ?, jira_account_id = COALESCE(?, jira_account_id) WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (ticket_key = ?)`,
                     [name, a.accountId || null, issue.key]
                 );
                 updated++;
@@ -680,7 +685,12 @@ async function jiraSearchAll(jql, fields = [], maxResults = 500) {
 
 const _SLA_HRS = { P1: 1, P2: 4, P3: 8, P4: 24 };
 
-router.get('/stats-live', authenticateToken, async (_req, res) => {
+router.get('/stats-live', authenticateToken, async (req, res) => {
+    // Otros tenants no usan el Jira del .env: estadísticas desde su BD local
+    if (!jiraAllowedForCurrentTenant()) {
+        try { return res.json({ success: true, data: await _statsFromLocalDB(tenantId(req)), _source: 'local' }); }
+        catch (e) { return res.status(500).json({ success: false, message: e.message }); }
+    }
     if (_statsLiveCache && Date.now() - _statsLiveCacheTs < STATS_LIVE_TTL) {
         return res.json({ success: true, data: _statsLiveCache });
     }
@@ -877,7 +887,8 @@ router.get('/stats-live', authenticateToken, async (_req, res) => {
         // CSAT desde BD local (complementario)
         let csat = 0;
         try {
-            const cs = await dbQuery(`SELECT ROUND(AVG(rating),1) AS v FROM ticket_surveys WHERE rating>0 AND skipped=0`);
+            const cs = await dbQuery(`SELECT ROUND(AVG(s.rating),1) AS v FROM ticket_surveys s JOIN tickets t ON t.id = s.ticket_id
+                                      WHERE s.rating>0 AND s.skipped=0 AND t.tenant_id = ?`, [tenantId(req)]);
             csat = Number(cs[0]?.v) || 0;
         } catch (_) {}
 
@@ -898,7 +909,7 @@ router.get('/stats-live', authenticateToken, async (_req, res) => {
     } catch (e) {
         console.error('[stats-live] Jira falló, usando BD local:', e.message);
         try {
-            const data = await _statsFromLocalDB();
+            const data = await _statsFromLocalDB(tenantId(req));
             res.json({ success: true, data, _source: 'local' });
         } catch (e2) {
             console.error('[stats-live] BD local también falló:', e2.message);
@@ -907,7 +918,7 @@ router.get('/stats-live', authenticateToken, async (_req, res) => {
     }
 });
 
-async function _statsFromLocalDB() {
+async function _statsFromLocalDB(tenantId) {
     const { QueryTypes } = require('sequelize');
     const seq = require('../../src/config/database');
     const SLA_HRS = { P1: 1, P2: 4, P3: 8, P4: 24 };
@@ -923,9 +934,9 @@ async function _statsFromLocalDB() {
         LEFT JOIN users u_ass ON u_ass.id = t.assigned_to AND u_ass.deleted_at IS NULL
         LEFT JOIN users u_rep ON u_rep.id = t.requester_id AND u_rep.deleted_at IS NULL
         LEFT JOIN ticket_categories cat ON cat.id = t.category_id AND cat.deleted_at IS NULL
-        WHERE t.deleted_at IS NULL AND t.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        WHERE t.deleted_at IS NULL AND t.tenant_id = ? AND t.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         ORDER BY t.created_at ASC
-    `, { type: QueryTypes.SELECT });
+    `, { replacements: [tenantId], type: QueryTypes.SELECT });
 
     const openTix     = tickets.filter(t => !['resuelto','cerrado'].includes(t.status));
     const resolvedTix = tickets.filter(t =>  ['resuelto','cerrado'].includes(t.status));

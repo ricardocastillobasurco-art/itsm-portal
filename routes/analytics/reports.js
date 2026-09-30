@@ -82,12 +82,13 @@ function pdfHeader(doc, title) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── 1) Empleados → PDF ────────────────────────────────────────────────────────
-async function generateEmpleadosPDF() {
+async function generateEmpleadosPDF(tid) {
     const rows = await execQuery(equipmentPool, `
         SELECT full_name, cip, email, position_name, is_active, updated_at
         FROM employees
+        WHERE tenant_id = ?
         ORDER BY is_active DESC, full_name
-    `);
+    `, [tid]);
 
     const doc = new PDFDocument({ margin: 40, size: 'A4', compress: true });
     pdfHeader(doc, 'Reporte de Empleados');
@@ -112,7 +113,7 @@ async function generateEmpleadosPDF() {
 }
 
 // ── 2) Asignaciones Activas → Excel ──────────────────────────────────────────
-async function generateAsignacionesExcel() {
+async function generateAsignacionesExcel(tid) {
     const rows = await execQuery(equipmentPool, `
         SELECT a.id,
                e.full_name  AS empleado,
@@ -129,8 +130,9 @@ async function generateAsignacionesExcel() {
         LEFT JOIN locations   l  ON l.id  = a.location_id
         WHERE a.return_date IS NULL
           AND a.employee_id != 0
+          AND a.tenant_id = ?
         ORDER BY a.assignment_date DESC
-    `);
+    `, [tid]);
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'EquipManager';
@@ -164,17 +166,17 @@ async function generateAsignacionesExcel() {
 }
 
 // ── 3) Cola de Impresión → PDF ────────────────────────────────────────────────
-async function generatePrintQueuePDF() {
+async function generatePrintQueuePDF(tid) {
     const rows = await execQuery(equipmentPool, `
         SELECT id, email_from_name, file_original, file_type,
                copies, num_pages, priority, status, queued_at
         FROM print_queue
-        WHERE status IN ('pendiente','imprimiendo')
+        WHERE status IN ('pendiente','imprimiendo') AND tenant_id = ?
         ORDER BY is_vip DESC,
                  CASE priority WHEN 'urgente' THEN 1 WHEN 'alta' THEN 2 ELSE 3 END,
                  queued_at ASC
         LIMIT 200
-    `);
+    `, [tid]);
 
     const doc = new PDFDocument({ margin: 40, size: 'A4', compress: true });
     pdfHeader(doc, 'Cola de Impresión — Pendientes');
@@ -203,22 +205,23 @@ async function generatePrintQueuePDF() {
 }
 
 // ── 4) KPIs del Mes → PDF ────────────────────────────────────────────────────
-async function generateKpisPDF() {
+async function generateKpisPDF(tid) {
     const [[emp], [asig], [cola], [equip]] = await Promise.all([
-        execQuery(equipmentPool, 'SELECT COUNT(*) AS total, SUM(is_active) AS activos FROM employees'),
-        execQuery(equipmentPool, `SELECT COUNT(*) AS total FROM assignments WHERE return_date IS NULL AND employee_id != 0`),
+        execQuery(equipmentPool, 'SELECT COUNT(*) AS total, SUM(is_active) AS activos FROM employees WHERE tenant_id = ?', [tid]),
+        execQuery(equipmentPool, `SELECT COUNT(*) AS total FROM assignments WHERE return_date IS NULL AND employee_id != 0 AND tenant_id = ?`, [tid]),
         execQuery(equipmentPool, `
             SELECT SUM(COALESCE(num_pages,1)*copies) AS hojas,
                    COUNT(*) AS docs
             FROM print_queue
-            WHERE MONTH(queued_at)=MONTH(CURRENT_DATE) AND YEAR(queued_at)=YEAR(CURRENT_DATE)`),
+            WHERE MONTH(queued_at)=MONTH(CURRENT_DATE) AND YEAR(queued_at)=YEAR(CURRENT_DATE) AND tenant_id = ?`, [tid]),
         execQuery(equipmentPool, `
             SELECT
                 SUM(status='Disponible')   AS disponibles,
                 SUM(status='Asignado')     AS asignados,
                 SUM(status='En Mantenimiento') AS mantenimiento,
                 COUNT(*) AS total
-            FROM equipment`),
+            FROM equipment
+            WHERE tenant_id = ?`, [tid]),
     ]);
 
     const mes = new Date().toLocaleString('es-PE', { month: 'long', year: 'numeric' });
@@ -252,7 +255,7 @@ async function generateKpisPDF() {
 }
 
 // ── 5) Inventario de Equipos → Excel ─────────────────────────────────────────
-async function generateInventarioExcel() {
+async function generateInventarioExcel(tid) {
     const rows = await execQuery(equipmentPool, `
         SELECT eq.id,
                eq.device_code        AS codigo,
@@ -269,8 +272,9 @@ async function generateInventarioExcel() {
         LEFT JOIN assignments a  ON a.equipment_id = eq.id AND a.return_date IS NULL AND a.employee_id != 0
         LEFT JOIN employees   e  ON e.id = a.employee_id
         LEFT JOIN locations   l  ON l.id = eq.location_id
+        WHERE eq.tenant_id = ?
         ORDER BY eq.status, eq.brand, eq.model
-    `);
+    `, [tid]);
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'EquipManager';
@@ -300,7 +304,7 @@ async function generateInventarioExcel() {
 }
 
 // ── 6) Mantenimientos → PDF ───────────────────────────────────────────────────
-async function generateMantenimientoPDF() {
+async function generateMantenimientoPDF(tid) {
     // ⚠️  Ajusta el nombre de la tabla y columnas a tu esquema real.
     //     Si no tienes tabla 'maintenances', este endpoint devolverá 0 registros sin error.
     const rows = await execQuery(equipmentPool, `
@@ -308,11 +312,11 @@ async function generateMantenimientoPDF() {
                eq.device_code, eq.model,
                e.full_name AS tecnico
         FROM maintenances m
-        LEFT JOIN equipment eq ON eq.id = m.equipment_id
+        JOIN equipment eq ON eq.id = m.equipment_id AND eq.tenant_id = ?
         LEFT JOIN employees  e  ON e.id  = m.technician_id
         ORDER BY m.maintenance_date DESC
         LIMIT 300
-    `).catch(() => []);   // Si la tabla no existe aún, devuelve array vacío
+    `, [tid]).catch(() => []);   // Si la tabla no existe aún, devuelve array vacío
 
     const doc = new PDFDocument({ margin: 40, size: 'A4', compress: true });
     pdfHeader(doc, 'Historial de Mantenimientos');
@@ -369,7 +373,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     try {
-        const { buffer, filename, contentType } = await gen();
+        const { buffer, filename, contentType } = await gen(require('../../src/utils/tenantScope').tenantId(req));
         res.setHeader('Content-Type',        contentType);
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-Length',      buffer.length);

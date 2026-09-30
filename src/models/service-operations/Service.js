@@ -3,6 +3,7 @@ const sequelize = require('../../config/database');
 
 const Service = sequelize.define('Service', {
     id:               { type: DataTypes.CHAR(36),    primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    tenantId: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: 'tenant_id' },
     categoryId:       { type: DataTypes.CHAR(36),    allowNull: false, field: 'category_id' },
     name:             { type: DataTypes.STRING(150), allowNull: false },
     description:      { type: DataTypes.TEXT,        allowNull: true  },

@@ -1,6 +1,7 @@
 // routes/reports-itsm.js — Reportes ITSM + exportación
 const express = require('express');
 const router  = express.Router();
+const { tenantId } = require('../../src/utils/tenantScope');
 const { v4: uuidv4 }    = require('uuid');
 const { ReportJob }     = require('../../src/models');
 const { enqueueReport } = require('../../src/queues/index');
@@ -34,7 +35,7 @@ router.get('/sla-compliance', authenticateToken, async (req, res) => {
                    SUM(${SLA_VENCIDO})  AS vencidos,
                    ROUND(100.0 * SUM(${SLA_CUMPLIDO}) / COUNT(*), 1) AS pct_cumplimiento
             FROM jira_tickets
-            WHERE ${where}
+            WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (${where})
             GROUP BY priority
             ORDER BY FIELD(priority,'P1','P2','P3','P4')
         `, { replacements: rep, type: QueryTypes.SELECT });
@@ -46,7 +47,7 @@ router.get('/sla-compliance', authenticateToken, async (req, res) => {
                    SUM(${SLA_VENCIDO})  AS vencidos,
                    ROUND(100.0 * SUM(${SLA_CUMPLIDO}) / COUNT(*), 1) AS pct
             FROM jira_tickets
-            WHERE ${where} AND assigned_to_name IS NOT NULL AND assigned_to_name != ''
+            WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (${where} AND assigned_to_name IS NOT NULL AND assigned_to_name != '')
             GROUP BY assigned_to_name
             ORDER BY pct ASC
             LIMIT 20
@@ -70,22 +71,20 @@ router.get('/trends', authenticateToken, async (req, res) => {
               ON th.ticket_id = jt.ticket_key
              AND th.evento = 'cierre'
              AND DATE(th.created_at) = DATE(jt.created_at)
-            WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            WHERE COALESCE(jt.tenant_id, 1) = ${Number(tenantId(req))} AND (jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))
             GROUP BY DATE(jt.created_at)
             ORDER BY fecha ASC
         `, { type: QueryTypes.SELECT });
 
         const byStatus = await sequelize.query(`
             SELECT internal_status AS status, COUNT(*) AS total
-            FROM jira_tickets
-            GROUP BY internal_status
+            FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} GROUP BY internal_status
             ORDER BY total DESC
         `, { type: QueryTypes.SELECT });
 
         const byPriority = await sequelize.query(`
             SELECT priority, COUNT(*) AS total
-            FROM jira_tickets
-            GROUP BY priority
+            FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} GROUP BY priority
             ORDER BY FIELD(priority,'P1','P2','P3','P4')
         `, { type: QueryTypes.SELECT });
 
@@ -96,8 +95,7 @@ router.get('/trends', authenticateToken, async (req, res) => {
                 'Sin categoría'
             ) AS categoria,
             COUNT(*) AS total
-            FROM jira_tickets
-            GROUP BY categoria
+            FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} GROUP BY categoria
             ORDER BY total DESC
             LIMIT 8
         `, { type: QueryTypes.SELECT });
@@ -119,8 +117,8 @@ router.get('/agent-load', authenticateToken, async (req, res) => {
                    SUM(sla_deadline IS NOT NULL AND sla_deadline < NOW()) AS en_riesgo,
                    AVG(TIMESTAMPDIFF(HOUR, created_at, IFNULL(resolved_at, NOW()))) AS avg_horas
             FROM jira_tickets
-            WHERE internal_status NOT IN ('resuelto','cerrado')
-              AND assigned_to_name IS NOT NULL AND assigned_to_name != ''
+            WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status NOT IN ('resuelto','cerrado')
+              AND assigned_to_name IS NOT NULL AND assigned_to_name != '')
             GROUP BY assigned_to_name
             ORDER BY total_abiertos DESC
             LIMIT 15
@@ -141,7 +139,7 @@ router.get('/agent-dashboard', authenticateToken, async (req, res) => {
               SUM(internal_status NOT IN ('resuelto','cerrado') AND sla_deadline IS NOT NULL AND sla_deadline < DATE_ADD(NOW(), INTERVAL 2 HOUR)) AS en_riesgo,
               SUM(internal_status NOT IN ('resuelto','cerrado') AND sla_deadline IS NOT NULL AND sla_deadline < NOW()) AS vencidos,
               SUM(DATE(resolved_at) = CURDATE()) AS resueltos_hoy
-            FROM jira_tickets WHERE assigned_to = ?
+            FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (assigned_to = ?)
         `, { replacements: [userId], type: QueryTypes.SELECT });
 
         const misTickets = await sequelize.query(`
@@ -149,7 +147,7 @@ router.get('/agent-dashboard', authenticateToken, async (req, res) => {
                    assigned_to_name, wp_resultado_padre AS category_name,
                    sla_deadline, created_at
             FROM jira_tickets
-            WHERE assigned_to = ? AND internal_status NOT IN ('resuelto','cerrado')
+            WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (assigned_to = ? AND internal_status NOT IN ('resuelto','cerrado'))
             ORDER BY FIELD(priority,'P1','P2','P3','P4'), created_at ASC
             LIMIT 20
         `, { replacements: [userId], type: QueryTypes.SELECT });
@@ -175,8 +173,7 @@ router.get('/recent-tickets', authenticateToken, async (req, res) => {
                           THEN 'riesgo'
                      ELSE 'ok' END AS sla_status,
                    created_at AS createdAt
-            FROM jira_tickets
-            ORDER BY created_at DESC
+            FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} ORDER BY created_at DESC
             LIMIT 20
         `, { type: QueryTypes.SELECT });
         res.json({ success: true, data: rows });

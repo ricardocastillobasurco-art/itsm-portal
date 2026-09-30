@@ -9,6 +9,9 @@ const sequelize  = require('../../../config/database');
 
 const auth = authenticateToken;
 const can  = requirePolicy;
+const { tenantId } = require('../../../utils/tenantScope');
+const KB_STAFF = ['administrador', 'especialista', 'agente', 'tecnico', 'superadmin'];
+const requireKbStaff = requireRole('administrador', 'especialista', 'agente', 'tecnico');
 
 // ── KB table bootstrap ────────────────────────────────────────────────────────
 (async () => {
@@ -78,8 +81,8 @@ router.get('/learning', authenticateToken, async (req, res, next) => {
   try {
     const { category, status, mine } = req.query;
     const isAdmin = ['administrador', 'especialista', 'agente', 'tecnico'].includes(req.user?.role);
-    let sql = 'SELECT id,title,category,author,duration,description,content_type,file_name,views,status,admin_response,created_by,created_at FROM kb_learning_resources WHERE deleted_at IS NULL';
-    const replacements = [];
+    let sql = 'SELECT id,title,category,author,duration,description,content_type,file_name,views,status,admin_response,created_by,created_at FROM kb_learning_resources WHERE deleted_at IS NULL AND tenant_id = ?';
+    const replacements = [tenantId(req)];
     if (mine === '1' && req.user?.id) {
       // Solo los propios del usuario autenticado (cualquier status)
       sql += ' AND created_by = ?'; replacements.push(req.user.id);
@@ -101,8 +104,8 @@ router.get('/learning', authenticateToken, async (req, res, next) => {
 router.get('/learning/:id/content', authenticateToken, async (req, res, next) => {
   try {
     const [[row]] = await sequelize.query(
-      'SELECT content_type, content_data, status, admin_response, created_by FROM kb_learning_resources WHERE id = ? AND deleted_at IS NULL',
-      { replacements: [req.params.id] }
+      'SELECT content_type, content_data, status, admin_response, created_by FROM kb_learning_resources WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL',
+      { replacements: [req.params.id, tenantId(req)] }
     );
     if (!row) return res.status(404).json({ success: false, error: 'Recurso no encontrado' });
     const isAdmin = ['administrador', 'especialista', 'agente', 'tecnico'].includes(req.user?.role);
@@ -116,11 +119,11 @@ router.get('/learning/:id/content', authenticateToken, async (req, res, next) =>
 });
 
 // Guardar respuesta del admin a un aporte
-router.patch('/learning/:id/response', auth, async (req, res, next) => {
+router.patch('/learning/:id/response', auth, requireKbStaff, async (req, res, next) => {
   try {
     const { response } = req.body;
     if (!response?.trim()) return res.status(400).json({ success: false, error: 'La respuesta no puede estar vacía' });
-    await sequelize.query('UPDATE kb_learning_resources SET admin_response = ? WHERE id = ?', { replacements: [response.trim(), req.params.id] });
+    await sequelize.query('UPDATE kb_learning_resources SET admin_response = ? WHERE id = ? AND tenant_id = ?', { replacements: [response.trim(), req.params.id, tenantId(req)] });
     res.json({ success: true });
   } catch (e) { next(e); }
 });
@@ -132,33 +135,37 @@ router.post('/learning', authenticateToken, async (req, res, next) => {
     if (!content_data?.trim()) return res.status(400).json({ success: false, error: 'El contenido es requerido' });
     // Siempre pendiente — el admin aprueba desde /gestion-documental → Aportes
     const [result] = await sequelize.query(
-      'INSERT INTO kb_learning_resources (title,category,author,duration,description,content_type,content_data,file_name,created_by,status) VALUES (?,?,?,?,?,?,?,?,?,?)',
-      { replacements: [title.trim(), category, author||null, duration||null, description||null, content_type, content_data.trim(), file_name||null, req.user?.id||null, 'pendiente'] }
+      'INSERT INTO kb_learning_resources (title,category,author,duration,description,content_type,content_data,file_name,created_by,status,tenant_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+      { replacements: [title.trim(), category, author||null, duration||null, description||null, content_type, content_data.trim(), file_name||null, req.user?.id||null, 'pendiente', tenantId(req)] }
     );
     res.json({ success: true, data: { id: result }, pendiente: true });
   } catch (e) { next(e); }
 });
 
-router.patch('/learning/:id/status', auth, async (req, res, next) => {
+router.patch('/learning/:id/status', auth, requireKbStaff, async (req, res, next) => {
   try {
     const { status } = req.body;
     if (!['publicado','pendiente','rechazado'].includes(status))
       return res.status(400).json({ success: false, error: 'Estado inválido' });
-    await sequelize.query('UPDATE kb_learning_resources SET status = ? WHERE id = ?', { replacements: [status, req.params.id] });
+    await sequelize.query('UPDATE kb_learning_resources SET status = ? WHERE id = ? AND tenant_id = ?', { replacements: [status, req.params.id, tenantId(req)] });
     res.json({ success: true });
   } catch (e) { next(e); }
 });
 
 router.post('/learning/:id/view', authenticateToken, async (req, res, next) => {
   try {
-    await sequelize.query('UPDATE kb_learning_resources SET views = views + 1 WHERE id = ?', { replacements: [req.params.id] });
+    await sequelize.query('UPDATE kb_learning_resources SET views = views + 1 WHERE id = ? AND tenant_id = ?', { replacements: [req.params.id, tenantId(req)] });
     res.json({ success: true });
   } catch (e) { next(e); }
 });
 
 router.delete('/learning/:id', authenticateToken, async (req, res, next) => {
   try {
-    await sequelize.query('UPDATE kb_learning_resources SET deleted_at = NOW() WHERE id = ?', { replacements: [req.params.id] });
+    const isStaff = KB_STAFF.includes(req.user?.role);
+    const [result] = await sequelize.query(
+      `UPDATE kb_learning_resources SET deleted_at = NOW() WHERE id = ? AND tenant_id = ?${isStaff ? '' : ' AND created_by = ?'}`,
+      { replacements: isStaff ? [req.params.id, tenantId(req)] : [req.params.id, tenantId(req), req.user?.id] });
+    if (!result?.affectedRows) return res.status(404).json({ success: false, error: 'Recurso no encontrado' });
     res.json({ success: true });
   } catch (e) { next(e); }
 });
@@ -178,9 +185,9 @@ router.post('/procedures/draft',                      auth, async (req, res, nex
     if (!title?.trim()) return res.status(400).json({ success: false, error: 'Título requerido' });
     const created_by = req.user?.full_name || req.user?.username || req.user?.email || '';
     await sequelize.query(
-      `INSERT INTO kb_procedures (title, description, procedure_category, content_type, content_data, file_name, created_by, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-      { replacements: [title.trim(), description||'', procedure_category||'general', content_type||'text', content_data||'', file_name||'', created_by] }
+      `INSERT INTO kb_procedures (title, description, procedure_category, content_type, content_data, file_name, created_by, active, tenant_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      { replacements: [title.trim(), description||'', procedure_category||'general', content_type||'text', content_data||'', file_name||'', created_by, tenantId(req)] }
     );
     res.json({ success: true });
   } catch (e) { next(e); }

@@ -64,37 +64,37 @@ class ServiceRequestRepository extends TenantBaseRepository {
   }
 
   async findServiceById(id) {
-    return Service.findByPk(id);
+    return Service.findOne({ where: { id, tenantId: this.tenantId } });
   }
 
   async getCatalog() {
     return ServiceCategory.findAll({
-      where:   { isActive: true },
-      include: [{ model: Service, as: 'servicios', where: { isActive: true }, required: false }],
+      where:   { isActive: true, tenantId: this.tenantId },
+      include: [{ model: Service, as: 'servicios', where: { isActive: true, tenantId: this.tenantId }, required: false }],
       order:   [['name', 'ASC']],
     });
   }
 
-  // ── Software catalog (raw SQL — tabla legacy sin tenant_id) ──────────────────
+  // ── Software catalog (raw SQL, por tenant) ───────────────────────────────────
   async findSoftware(term) {
     if (term) {
       return dbQ(
-        'SELECT * FROM catalog_software WHERE activo=1 AND (nombre LIKE ? OR proveedor LIKE ?) ORDER BY nombre ASC LIMIT 30',
-        [`%${term}%`, `%${term}%`]
+        'SELECT * FROM catalog_software WHERE activo=1 AND tenant_id=? AND (nombre LIKE ? OR proveedor LIKE ?) ORDER BY nombre ASC LIMIT 30',
+        [this.tenantId, `%${term}%`, `%${term}%`]
       );
     }
-    return dbQ('SELECT * FROM catalog_software WHERE activo=1 ORDER BY nombre ASC LIMIT 100');
+    return dbQ('SELECT * FROM catalog_software WHERE activo=1 AND tenant_id=? ORDER BY nombre ASC LIMIT 100', [this.tenantId]);
   }
 
   async createSoftware({ nombre, version, proveedor, categoria, detalles }) {
     return dbQ(
-      'INSERT INTO catalog_software (nombre,version,proveedor,categoria,detalles) VALUES (?,?,?,?,?)',
-      [nombre.trim(), version || null, proveedor || null, categoria || 'Software', detalles || null]
+      'INSERT INTO catalog_software (nombre,version,proveedor,categoria,detalles,tenant_id) VALUES (?,?,?,?,?,?)',
+      [nombre.trim(), version || null, proveedor || null, categoria || 'Software', detalles || null, this.tenantId]
     );
   }
 
   async deactivateSoftware(id) {
-    return dbQ('UPDATE catalog_software SET activo=0 WHERE id=?', [id]);
+    return dbQ('UPDATE catalog_software SET activo=0 WHERE id=? AND tenant_id=?', [id, this.tenantId]);
   }
 }
 

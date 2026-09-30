@@ -1,12 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { equipmentPool, executeQuery } = require('../../config/database');
+const { tenantId } = require('../../src/utils/tenantScope');
 
-// Caché en memoria (se actualiza cada 5 minutos)
-let dashboardCache = {
-    data: null,
-    timestamp: null
-};
+// Caché en memoria por tenant (se actualiza cada 5 minutos)
+const dashboardCaches = new Map();
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
@@ -15,6 +13,8 @@ router.get('/graphs-all', async (req, res) => {
     try {
         // Verificar caché
         const now = Date.now();
+        const tid = tenantId(req);
+        const dashboardCache = dashboardCaches.get(tid) || {};
         if (dashboardCache.data && dashboardCache.timestamp && (now - dashboardCache.timestamp < CACHE_DURATION)) {
             console.log('✅ Sirviendo desde caché');
             return res.json({
@@ -31,9 +31,9 @@ router.get('/graphs-all', async (req, res) => {
         const query = `
             SELECT 
                 -- Equipos por tipo en almacén
-                (SELECT COUNT(*) FROM equipment WHERE equipment_type = 'Laptop' AND status = 'Disponible') as almacen_laptops,
-                (SELECT COUNT(*) FROM equipment WHERE equipment_type = 'Desktop' AND status = 'Disponible') as almacen_desktops,
-                (SELECT COUNT(*) FROM equipment WHERE equipment_type = 'Monitor' AND status = 'Disponible') as almacen_monitores,
+                (SELECT COUNT(*) FROM equipment WHERE tenant_id = :tid AND equipment_type = 'Laptop' AND status = 'Disponible') as almacen_laptops,
+                (SELECT COUNT(*) FROM equipment WHERE tenant_id = :tid AND equipment_type = 'Desktop' AND status = 'Disponible') as almacen_desktops,
+                (SELECT COUNT(*) FROM equipment WHERE tenant_id = :tid AND equipment_type = 'Monitor' AND status = 'Disponible') as almacen_monitores,
                 
                 -- Histórico de asignaciones (últimos 12 meses)
                 (SELECT JSON_ARRAYAGG(
@@ -45,17 +45,17 @@ router.get('/graphs-all', async (req, res) => {
                 ) FROM (
                     SELECT assignment_date 
                     FROM assignments 
-                    WHERE assignment_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                    WHERE tenant_id = :tid AND assignment_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                     GROUP BY DATE_FORMAT(assignment_date, '%Y-%m')
                     ORDER BY assignment_date DESC
                     LIMIT 12
                 ) as monthly_data) as historico_asignaciones,
                 
                 -- Stats generales
-                (SELECT COUNT(*) FROM equipment WHERE status = 'Asignado') as total_asignados,
-                (SELECT COUNT(*) FROM equipment WHERE status = 'Disponible') as total_disponibles,
-                (SELECT COUNT(*) FROM equipment) as total_equipos
-        `;
+                (SELECT COUNT(*) FROM equipment WHERE tenant_id = :tid AND status = 'Asignado') as total_asignados,
+                (SELECT COUNT(*) FROM equipment WHERE tenant_id = :tid AND status = 'Disponible') as total_disponibles,
+                (SELECT COUNT(*) FROM equipment WHERE tenant_id = :tid) as total_equipos
+        `.replace(/:tid/g, String(Number(tid)));
 
         const [result] = await executeQuery(equipmentPool, query);
 
@@ -86,9 +86,8 @@ router.get('/graphs-all', async (req, res) => {
             }
         };
 
-        // Actualizar caché
-        dashboardCache.data = responseData;
-        dashboardCache.timestamp = now;
+        // Actualizar caché del tenant
+        dashboardCaches.set(tid, { data: responseData, timestamp: now });
 
         res.json({
             success: true,

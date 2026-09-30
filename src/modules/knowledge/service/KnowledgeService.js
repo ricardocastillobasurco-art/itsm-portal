@@ -8,6 +8,7 @@ const ALLOWED_FIELDS = ['title','content','kbCategoryId','tags','status','excerp
 const VALID_STATUS   = ['borrador','publicado','archivado','revision','oculto'];
 const VALID_PR_STATUS = ['pendiente','en_progreso','resuelto'];
 
+// tenantId es obligatorio en todas las operaciones (tenantScope.tenantId(req)).
 class KnowledgeService {
   async getCategories(tenantId) { return repo.findCategories(tenantId); }
 
@@ -19,7 +20,7 @@ class KnowledgeService {
   async search(q, limit, userId, tenantId) {
     if (!q?.trim()) return [];
     const { articles, count } = await repo.search(q.trim(), limit, tenantId);
-    await repo.logSearch(q.trim(), count, userId);
+    await repo.logSearch(q.trim(), count, userId, tenantId);
     return articles;
   }
 
@@ -30,59 +31,61 @@ class KnowledgeService {
 
   async popular(tenantId) { return repo.popular(tenantId); }
 
-  async noResults() { return repo.noResultsQueries(); }
+  async noResults(tenantId) { return repo.noResultsQueries(tenantId); }
 
-  async getById(id) {
-    const article = await repo.findById(id);
+  async getById(id, tenantId) {
+    const article = await repo.findById(id, tenantId);
     if (!article) throw new NotFoundError('Artículo no encontrado');
     await repo.incrementViews(id);
     return article;
   }
 
-  async create({ authorId, title, content, kbCategoryId, tags, status, excerpt }) {
+  async create({ authorId, title, content, kbCategoryId, tags, status, excerpt }, tenantId) {
     if (!title || !content) throw new ValidationError('Título y contenido requeridos');
-    return repo.create({ authorId, title, content, kbCategoryId, tags, status, excerpt });
+    return repo.create({ authorId, title, content, kbCategoryId, tags, status, excerpt }, tenantId);
   }
 
-  async update(id, body) {
+  async update(id, body, tenantId) {
     const updates = {};
     for (const k of ALLOWED_FIELDS) { if (body[k] !== undefined) updates[k] = body[k]; }
     // tags debe ser siempre string
     if (updates.tags != null && typeof updates.tags !== 'string') updates.tags = String(updates.tags);
     // validar status
     if (updates.status && !VALID_STATUS.includes(updates.status)) delete updates.status;
-    const article = await repo.update(id, updates);
+    const article = await repo.update(id, updates, tenantId);
     if (!article) throw new NotFoundError('Artículo no encontrado');
     return article;
   }
 
-  async remove(id) {
-    const ok = await repo.remove(id);
+  async remove(id, tenantId) {
+    const ok = await repo.remove(id, tenantId);
     if (!ok) throw new NotFoundError('Artículo no encontrado');
   }
 
-  async vote(id, vote) {
-    const article = await repo.findById(id);
+  async vote(id, vote, tenantId) {
+    const article = await repo.findById(id, tenantId);
     if (!article) throw new NotFoundError('Artículo no encontrado');
     if (vote === 'yes') await repo.incrementHelpfulYes(id);
     else                await repo.incrementHelpfulNo(id);
   }
 
-  async linkTicket(articleId, ticketId, linkedBy) {
+  async linkTicket(articleId, ticketId, linkedBy, tenantId) {
     if (!ticketId) throw new ValidationError('ticketId requerido');
+    const article = await repo.findById(articleId, tenantId);
+    if (!article) throw new NotFoundError('Artículo no encontrado');
     await repo.linkTicket(articleId, ticketId, linkedBy);
   }
 
   // ── Procedimientos ────────────────────────────────────────────────────────
 
-  async getProcedures(category)   { return repo.findProcedures(category); }
-  async getProcedureById(id) {
-    const p = await repo.findProcedureById(id);
+  async getProcedures(category, tenantId) { return repo.findProcedures(category, tenantId); }
+  async getProcedureById(id, tenantId) {
+    const p = await repo.findProcedureById(id, tenantId);
     if (!p) throw new NotFoundError('Procedimiento no encontrado');
     return p;
   }
 
-  async createProcedure({ title, description, procedure_category, content_type, content_data, file_name }, user) {
+  async createProcedure({ title, description, procedure_category, content_type, content_data, file_name }, user, tenantId) {
     if (!ADMIN_ROLES.includes(user?.role)) throw new ForbiddenError('Sin permiso');
     if (!title?.trim()) throw new ValidationError('Título requerido');
     await repo.createProcedure({
@@ -93,22 +96,22 @@ class KnowledgeService {
       content_data:       content_data       || '',
       file_name:          file_name          || '',
       created_by: user.full_name || user.nombre || user.username || '',
-    });
+    }, tenantId);
   }
 
-  async deactivateProcedure(id, user) {
+  async deactivateProcedure(id, user, tenantId) {
     if (!ADMIN_ROLES.includes(user?.role)) throw new ForbiddenError('Sin permiso');
-    await repo.deactivateProcedure(id);
+    await repo.deactivateProcedure(id, tenantId);
   }
 
   // ── Solicitudes de procedimiento ──────────────────────────────────────────
 
-  async getProcedureRequests(user) {
+  async getProcedureRequests(user, tenantId) {
     if (!ADMIN_ROLES.includes(user?.role)) throw new ForbiddenError('Sin permiso');
-    return repo.findProcedureRequests();
+    return repo.findProcedureRequests(tenantId);
   }
 
-  async createProcedureRequest({ query, description }, user, body) {
+  async createProcedureRequest({ query, description }, user, body, tenantId) {
     if (!query?.trim()) throw new ValidationError('Descripción requerida');
     await repo.createProcedureRequest({
       userId:    user ? user.id : null,
@@ -116,13 +119,13 @@ class KnowledgeService {
       userEmail: (body.user_email || user?.email || '').toString(),
       query:     query.trim(),
       description: description || '',
-    });
+    }, tenantId);
   }
 
-  async updateProcedureRequestStatus(id, status, user) {
+  async updateProcedureRequestStatus(id, status, user, tenantId) {
     if (!ADMIN_ROLES.includes(user?.role)) throw new ForbiddenError('Sin permiso');
     if (!VALID_PR_STATUS.includes(status)) throw new ValidationError('Estado inválido');
-    await repo.updateProcedureRequestStatus(id, status);
+    await repo.updateProcedureRequestStatus(id, status, tenantId);
   }
 }
 

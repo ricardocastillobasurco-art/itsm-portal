@@ -26,7 +26,7 @@ async function kbSearch(req, res, next) {
     const { query, limit = 10 } = req.body;
     if (!query?.trim()) throw new ValidationError('query es requerido');
 
-    const tenantId = req.tenant?.id;
+    const tenantId = require('../../../utils/tenantScope').tenantId(req);
 
     // Carga artículos candidatos por búsqueda textual (no semántica) para luego re-rankear con IA
     const where = {
@@ -38,7 +38,7 @@ async function kbSearch(req, res, next) {
         { tags:    { [Op.like]: `%${query}%` } },
       ],
     };
-    if (tenantId) where.tenantId = tenantId;
+    where.tenantId = tenantId;
 
     const articles = await KbArticle.findAll({
       where,

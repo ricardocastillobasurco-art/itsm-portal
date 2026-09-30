@@ -43,6 +43,19 @@ if (!axios.__jiraTenantGuard) {
         return cfg;
     });
 }
+// Mismo guardia para fetch() global (varias rutas llaman a Jira con fetch)
+if (typeof globalThis.fetch === 'function' && !globalThis.fetch.__jiraTenantGuard) {
+    const _fetch = globalThis.fetch;
+    const guarded = function (input, init) {
+        const url = typeof input === 'string' ? input : (input?.url || String(input));
+        if (JIRA_HOST && url.startsWith(JIRA_HOST) && !jiraAllowedForCurrentTenant()) {
+            return Promise.reject(Object.assign(new Error('Jira no está configurado para esta empresa'), { code: 'JIRA_TENANT_BLOCKED' }));
+        }
+        return _fetch.call(this, input, init);
+    };
+    guarded.__jiraTenantGuard = true;
+    globalThis.fetch = guarded;
+}
 
 const auth = { username: JIRA_EMAIL, password: JIRA_TOKEN };
 const _jiraAuthHeader = () =>
@@ -222,8 +235,9 @@ async function sendEmail(to, subject, html) {
 }
 
 // ── Helper config automations ────────────────────────────
-async function getAutomationConfig() {
-    const rows = await dbQuery(`SELECT \`key\`, value FROM itsm_automations`);
+// Configuración de automatizaciones del tenant (por defecto, el de la petición en curso)
+async function getAutomationConfig(tenantId = currentTenantId() ?? JIRA_OWNER_TENANT_ID) {
+    const rows = await dbQuery(`SELECT \`key\`, value FROM itsm_automations WHERE COALESCE(tenant_id, 1) = ?`, [Number(tenantId)]);
     return Object.fromEntries(rows.map(r => [r.key, r.value]));
 }
 

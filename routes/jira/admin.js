@@ -7,14 +7,22 @@ const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID } = require('./helpers');
 const axios = require('axios');
 const FormData = require('form-data');
+const { tenantId } = require('../../src/utils/tenantScope');
+const { requireRole } = require('../../middleware/auth');
+const requireAdmin = requireRole('administrador');
+const requireAdminOrSpecialist = requireRole('administrador', 'especialista');
+// Usuarios con tenant_id NULL son del tenant 1
+const USER_IN_TENANT = 'COALESCE(tenant_id, 1) = ?';
 
 // ── Top Incidentes: cache local stale-while-revalidate ───────────────────
-let _topIncCache   = null;
-let _topIncPromise = null; // promise-lock: waiters await the same promise
+// Caché por tenant: tid → { cache: {data, ts}, promise }
+const _topInc = new Map();
+const _topIncState = (tid) => { if (!_topInc.has(tid)) _topInc.set(tid, { cache: null, promise: null }); return _topInc.get(tid); };
 
-function _refreshTopInc() {
-    if (_topIncPromise) return _topIncPromise; // ya hay un refresh en curso: devuelve la misma promise
-    _topIncPromise = (async () => {
+function _refreshTopInc(tid) {
+    const st = _topIncState(tid);
+    if (st.promise) return st.promise; // ya hay un refresh en curso: devuelve la misma promise
+    st.promise = (async () => {
         try {
             const rows = await dbQuery(`
                 SELECT
@@ -27,28 +35,29 @@ function _refreshTopInc() {
                     COALESCE(eq.equipment_type, '')                     AS equipment_type,
                     COALESCE(eq.status, '')                             AS eq_status
                 FROM jira_tickets jt
-                LEFT JOIN employees               e   ON e.email COLLATE utf8mb4_general_ci = jt.reporter
+                LEFT JOIN employees               e   ON e.email COLLATE utf8mb4_general_ci = jt.reporter AND e.tenant_id = ?
                 LEFT JOIN active_assignments_view aav ON aav.employee_id      = e.id
                           AND aav.equipment_code IS NOT NULL AND aav.equipment_code != ''
-                LEFT JOIN equipment               eq  ON eq.device_code COLLATE utf8mb4_general_ci =
+                LEFT JOIN equipment               eq  ON eq.tenant_id = ? AND eq.device_code COLLATE utf8mb4_general_ci =
                           COALESCE(NULLIF(aav.equipment_code COLLATE utf8mb4_general_ci,''), NULLIF(jt.device_code,''))
                 WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                  AND COALESCE(jt.tenant_id, 1) = ?
                   AND jt.reporter   IS NOT NULL AND jt.reporter != ''
                 GROUP BY jt.reporter, e.full_name,
                          aav.equipment_code, jt.device_code,
                          eq.brand, eq.model, eq.equipment_type, eq.status
                 ORDER BY inc_30d DESC
                 LIMIT 8
-            `);
-            _topIncCache = { data: rows, ts: Date.now() };
+            `, [tid, tid, tid]);
+            st.cache = { data: rows, ts: Date.now() };
         } catch(e) {
             console.error('[top-inc]', e.message);
-            if (!_topIncCache) _topIncCache = { data: [], ts: Date.now() }; // evita loop eterno
+            if (!st.cache) st.cache = { data: [], ts: Date.now() }; // evita loop eterno
         } finally {
-            _topIncPromise = null;
+            st.promise = null;
         }
     })();
-    return _topIncPromise;
+    return st.promise;
 }
 
 // Índice (ignora si ya existe) + primera carga — solo si la tabla existe
@@ -56,55 +65,20 @@ setTimeout(function() {
     dbQuery(`SHOW TABLES LIKE 'jira_tickets'`).then(r => {
         if (!r.length) return;
         dbQuery(`ALTER TABLE jira_tickets ADD INDEX idx_ti_reporter_date (reporter(100), created_at)`).catch(() => {});
-        _refreshTopInc();
     }).catch(() => {});
 }, 500);
-setInterval(function() { if (!_topIncPromise) _refreshTopInc(); }, 10 * 60 * 1000);
+// Refresco periódico de los tenants que ya consultaron el panel
+setInterval(function() { for (const [tid, st] of _topInc) if (!st.promise) _refreshTopInc(tid); }, 10 * 60 * 1000);
 
 
 router.get('/employee-info', authenticateToken, async (req, res) => {
     const { email } = req.query;
     if (!email) return res.json({ success: false, data: null });
     try {
-        const tenantId  = req.user?.tenant_id;
-        const isPrimary = !tenantId || parseInt(tenantId) === 1;
-
-        if (!isPrimary) {
-            // Tenants externos: buscar en users + user_equipment
-            const { executeQuery, equipmentPool } = require('../../config/database');
-            const uRows = await executeQuery(equipmentPool,
-                `SELECT id, full_name, email FROM users WHERE LOWER(email) = LOWER(?) AND tenant_id = ? AND is_active = 1 LIMIT 1`,
-                [email, parseInt(tenantId)]
-            );
-            if (!uRows.length) return res.json({ success: true, data: { full_name:'', department:'', equipo:'', modelo:'', ubicacion:'' } });
-            const u = uRows[0];
-            const eqRows = await executeQuery(equipmentPool,
-                `SELECT device_code, serial_number, equipment_type, brand, model, department_name, location_name, status
-                 FROM user_equipment
-                 WHERE user_id = ? AND status = 'Activo' AND return_date IS NULL
-                 ORDER BY id DESC LIMIT 1`,
-                [u.id]
-            );
-            const eq = eqRows[0] || {};
-            return res.json({
-                success: true,
-                data: {
-                    full_name:  u.full_name         || '',
-                    department: eq.department_name  || '',
-                    equipo:     eq.device_code      || '',
-                    modelo:     [eq.brand, eq.model].filter(Boolean).join(' ') || '',
-                    ubicacion:  eq.location_name    || '',
-                    serial:     eq.serial_number    || '',
-                    tipo:       eq.equipment_type   || '',
-                    eq_status:  eq.status           || '',
-                }
-            });
-        }
-
-        // Tenant primario (Integratel): flujo original
+        const tid = tenantId(req);
         const empRows = await dbQuery(
-            `SELECT id, full_name, cip FROM employees WHERE email = ? LIMIT 1`,
-            [email]
+            `SELECT id, full_name, cip FROM employees WHERE email = ? AND tenant_id = ? LIMIT 1`,
+            [email, tid]
         );
         if (!empRows.length) return res.json({ success: true, data: { full_name:'', department:'', equipo:'', modelo:'', ubicacion:'' } });
 
@@ -112,7 +86,7 @@ router.get('/employee-info', authenticateToken, async (req, res) => {
         const asgRows = await dbQuery(
             `SELECT employee_name, equipment_code, equipment_model, brand,
                     department_name, location_name
-             FROM active_assignments_view
+             FROM active_assignments_view /* tenant_id: empleado validado arriba */
              WHERE employee_id = ?
              ORDER BY assignment_id DESC
              LIMIT 1`,
@@ -124,8 +98,8 @@ router.get('/employee-info', authenticateToken, async (req, res) => {
         if (a.equipment_code) {
             try {
                 const eqRows = await dbQuery(
-                    `SELECT serial_number, equipment_type, brand, model, status FROM equipment WHERE device_code = ? LIMIT 1`,
-                    [a.equipment_code]
+                    `SELECT serial_number, equipment_type, brand, model, status FROM equipment WHERE device_code = ? AND tenant_id = ? LIMIT 1`,
+                    [a.equipment_code, tid]
                 );
                 if (eqRows.length) eqExtra = eqRows[0];
             } catch(_) {}
@@ -153,12 +127,13 @@ router.get('/employee-info', authenticateToken, async (req, res) => {
 // ── CMDB: historial por equipo (device_code) ──────────────────────────
 router.get('/cmdb/device/:code', authenticateToken, async (req, res) => {
     const code = req.params.code;
+    const tid  = tenantId(req);
     try {
         const eqRows = await dbQuery(
             `SELECT device_code, serial_number, equipment_type, brand, model,
                     operating_system, ram_memory, disk_capacity, status
-             FROM equipment WHERE device_code = ? LIMIT 1`,
-            [code]
+             FROM equipment WHERE device_code = ? AND tenant_id = ? LIMIT 1`,
+            [code, tid]
         );
         const device = eqRows[0] || { device_code: code };
 
@@ -166,8 +141,8 @@ router.get('/cmdb/device/:code', authenticateToken, async (req, res) => {
         const byCode = await dbQuery(
             `SELECT ticket_key, summary, priority, status, internal_status,
                     assigned_to_name, created_at, resolved_at, reporter
-             FROM jira_tickets WHERE device_code = ? ORDER BY created_at DESC LIMIT 50`,
-            [code]
+             FROM jira_tickets WHERE device_code = ? AND COALESCE(tenant_id, 1) = ? ORDER BY created_at DESC LIMIT 50`,
+            [code, tid]
         );
 
         // 2. Buscar reportes de empleados actualmente asignados a este equipo
@@ -175,8 +150,8 @@ router.get('/cmdb/device/:code', authenticateToken, async (req, res) => {
         try {
             const emailRows = await dbQuery(
                 `SELECT DISTINCT e.email FROM employees e
-                 WHERE e.id IN (SELECT employee_id FROM active_assignments_view WHERE equipment_code = ?)`,
-                [code]
+                 WHERE e.tenant_id = ? AND e.id IN (SELECT employee_id FROM active_assignments_view WHERE equipment_code = ?)`,
+                [tid, code]
             );
             if (emailRows.length) {
                 const emails = emailRows.map(r => r.email);
@@ -185,8 +160,8 @@ router.get('/cmdb/device/:code', authenticateToken, async (req, res) => {
                 const extra = await dbQuery(
                     `SELECT ticket_key, summary, priority, status, internal_status,
                             assigned_to_name, created_at, resolved_at, reporter
-                     FROM jira_tickets WHERE reporter IN (${ph}) ORDER BY created_at DESC LIMIT 50`,
-                    emails
+                     FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ? AND reporter IN (${ph}) ORDER BY created_at DESC LIMIT 50`,
+                    [tid, ...emails]
                 );
                 byReporter = extra.filter(t => !existingKeys.has(t.ticket_key));
             }
@@ -215,13 +190,14 @@ router.get('/cmdb/by-reporter', authenticateToken, async (req, res) => {
     if (!email) return res.status(400).json({ success: false });
     try {
         // Equipo asignado actualmente
-        const empRows = await dbQuery(`SELECT id, full_name FROM employees WHERE email COLLATE utf8mb4_general_ci = ? LIMIT 1`, [email]);
+        const tid = tenantId(req);
+        const empRows = await dbQuery(`SELECT id, full_name FROM employees WHERE email COLLATE utf8mb4_general_ci = ? AND tenant_id = ? LIMIT 1`, [email, tid]);
         const emp = empRows[0];
         let device = { device_code: null };
 
         if (emp) {
             const asgRows = await dbQuery(
-                `SELECT equipment_code, equipment_model, brand FROM active_assignments_view WHERE employee_id = ? AND equipment_code IS NOT NULL AND equipment_code != '' ORDER BY assignment_id DESC LIMIT 1`,
+                `SELECT equipment_code, equipment_model, brand FROM active_assignments_view /* tenant_id: empleado validado */ WHERE employee_id = ? AND equipment_code IS NOT NULL AND equipment_code != '' ORDER BY assignment_id DESC LIMIT 1`,
                 [emp.id]
             );
             const dc = asgRows[0]?.equipment_code;
@@ -229,8 +205,8 @@ router.get('/cmdb/by-reporter', authenticateToken, async (req, res) => {
                 const eqRows = await dbQuery(
                     `SELECT device_code, serial_number, equipment_type, brand, model,
                             operating_system, ram_memory, disk_capacity, status
-                     FROM equipment WHERE device_code = ? LIMIT 1`,
-                    [dc]
+                     FROM equipment WHERE device_code = ? AND tenant_id = ? LIMIT 1`,
+                    [dc, tid]
                 );
                 device = eqRows[0] || { device_code: dc, model: asgRows[0].equipment_model, brand: asgRows[0].brand };
             }
@@ -240,8 +216,8 @@ router.get('/cmdb/by-reporter', authenticateToken, async (req, res) => {
         const tickets = await dbQuery(
             `SELECT ticket_key, summary, priority, status, internal_status,
                     assigned_to_name, created_at, resolved_at, reporter, device_code
-             FROM jira_tickets WHERE reporter = ? ORDER BY created_at DESC LIMIT 50`,
-            [email]
+             FROM jira_tickets WHERE reporter = ? AND COALESCE(tenant_id, 1) = ? ORDER BY created_at DESC LIMIT 50`,
+            [email, tid]
         );
 
         const now = Date.now();
@@ -269,12 +245,12 @@ router.get('/cmdb/hot-devices', authenticateToken, async (req, res) => {
                    SUM(CASE WHEN jt.created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) THEN 1 ELSE 0 END) AS last60,
                    e.brand, e.model, e.equipment_type, e.status AS eq_status, e.serial_number
             FROM jira_tickets jt
-            LEFT JOIN equipment e ON e.device_code = jt.device_code
-            WHERE jt.device_code IS NOT NULL AND jt.device_code != ''
+            LEFT JOIN equipment e ON e.device_code = jt.device_code AND e.tenant_id = ?
+            WHERE jt.device_code IS NOT NULL AND jt.device_code != '' AND COALESCE(jt.tenant_id, 1) = ?
             GROUP BY jt.device_code, e.brand, e.model, e.equipment_type, e.status, e.serial_number
             ORDER BY last30 DESC, total DESC
             LIMIT 30
-        `);
+        `, [tenantId(req), tenantId(req)]);
         const at_risk = rows.filter(r => Number(r.last30) >= 4).length;
         const suggest_replace = rows.filter(r => Number(r.last60) >= 8).length;
         res.json({ success: true, devices: rows, stats: { total_with_incidents: rows.length, at_risk, suggest_replace } });
@@ -287,32 +263,35 @@ router.get('/cmdb/hot-devices', authenticateToken, async (req, res) => {
 // Top incidentes: sirve desde cache (instantáneo), refresca en background si stale
 router.get('/cmdb/top-incidentes', authenticateToken, async (req, res) => {
     const MAX_AGE = 10 * 60 * 1000;
-    if (!_topIncCache) {
-        await _refreshTopInc(); // awaita la promise en curso O inicia una nueva
-    } else if (Date.now() - _topIncCache.ts > MAX_AGE) {
-        _refreshTopInc(); // stale-while-revalidate: responde YA, refresca en BG
+    const tid = tenantId(req);
+    const st  = _topIncState(tid);
+    if (!st.cache) {
+        await _refreshTopInc(tid); // awaita la promise en curso O inicia una nueva
+    } else if (Date.now() - st.cache.ts > MAX_AGE) {
+        _refreshTopInc(tid); // stale-while-revalidate: responde YA, refresca en BG
     }
-    if (!_topIncCache || !Array.isArray(_topIncCache.data)) {
+    if (!st.cache || !Array.isArray(st.cache.data)) {
         return res.json({ success: true, loading: false, data: [] });
     }
-    res.json({ success: true, loading: false, data: _topIncCache.data, ts: _topIncCache.ts });
+    res.json({ success: true, loading: false, data: st.cache.data, ts: st.cache.ts });
 });
 
 // CMDB quick-stats: 3 COUNTs locales, sin joins pesados (~30ms)
 router.get('/cmdb/quick-stats', authenticateToken, async (req, res) => {
     try {
+        const tid = tenantId(req);
         const [[eq], [emp], [asig], [incEq], [incMail]] = await Promise.all([
-            dbQuery(`SELECT COUNT(*) AS n FROM equipment`),
-            dbQuery(`SELECT COUNT(*) AS n FROM employees`),
-            dbQuery(`SELECT COUNT(*) AS n FROM active_assignments_view`),
+            dbQuery(`SELECT COUNT(*) AS n FROM equipment WHERE tenant_id = ?`, [tid]),
+            dbQuery(`SELECT COUNT(*) AS n FROM employees WHERE tenant_id = ?`, [tid]),
+            dbQuery(`SELECT COUNT(*) AS n FROM assignments WHERE tenant_id = ? AND status = 'Activo' AND return_date IS NULL`, [tid]),
             dbQuery(`SELECT COUNT(DISTINCT jt.id) AS n FROM jira_tickets jt
-                     INNER JOIN employees e ON e.email COLLATE utf8mb4_general_ci = jt.reporter
+                     INNER JOIN employees e ON e.email COLLATE utf8mb4_general_ci = jt.reporter AND e.tenant_id = ?
                      INNER JOIN active_assignments_view aav ON aav.employee_id = e.id
                          AND aav.equipment_code IS NOT NULL AND aav.equipment_code != ''
-                     WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+                     WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND COALESCE(jt.tenant_id, 1) = ?`, [tid, tid]),
             dbQuery(`SELECT COUNT(DISTINCT jt.id) AS n FROM jira_tickets jt
-                     INNER JOIN employees e ON e.email COLLATE utf8mb4_general_ci = jt.reporter
-                     WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+                     INNER JOIN employees e ON e.email COLLATE utf8mb4_general_ci = jt.reporter AND e.tenant_id = ?
+                     WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND COALESCE(jt.tenant_id, 1) = ?`, [tid, tid]),
         ]);
         res.json({ success: true, equipos: eq.n, empleados: emp.n, asignados: asig.n,
                    inc_by_device: incEq.n, inc_by_email: incMail.n });
@@ -324,6 +303,7 @@ router.get('/cmdb/quick-stats', authenticateToken, async (req, res) => {
 // Detalle expandido de stat cards (with_equip | identified)
 router.get('/cmdb/stat-detail', authenticateToken, async (req, res) => {
     const { type } = req.query;
+    const tid = tenantId(req);
     try {
         let rows;
         if (type === 'with_equip') {
@@ -337,15 +317,15 @@ router.get('/cmdb/stat-detail', authenticateToken, async (req, res) => {
                     MAX(eq.equipment_type)              AS equipment_type,
                     MAX(eq.status)                      AS eq_status
                 FROM jira_tickets jt
-                INNER JOIN employees               e   ON e.email COLLATE utf8mb4_general_ci = jt.reporter
+                INNER JOIN employees               e   ON e.email COLLATE utf8mb4_general_ci = jt.reporter AND e.tenant_id = ?
                 INNER JOIN active_assignments_view aav ON aav.employee_id = e.id
                     AND aav.equipment_code IS NOT NULL AND aav.equipment_code != ''
-                LEFT JOIN equipment                eq  ON eq.device_code COLLATE utf8mb4_general_ci = aav.equipment_code
-                WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                LEFT JOIN equipment                eq  ON eq.tenant_id = ? AND eq.device_code COLLATE utf8mb4_general_ci = aav.equipment_code
+                WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND COALESCE(jt.tenant_id, 1) = ?
                 GROUP BY aav.equipment_code
                 ORDER BY inc_30d DESC
                 LIMIT 30
-            `);
+            `, [tid, tid, tid]);
         } else {
             rows = await dbQuery(`
                 SELECT
@@ -356,15 +336,15 @@ router.get('/cmdb/stat-detail', authenticateToken, async (req, res) => {
                     MAX(eq.brand)                                       AS brand,
                     MAX(eq.model)                                       AS model
                 FROM jira_tickets jt
-                INNER JOIN employees               e   ON e.email COLLATE utf8mb4_general_ci = jt.reporter
+                INNER JOIN employees               e   ON e.email COLLATE utf8mb4_general_ci = jt.reporter AND e.tenant_id = ?
                 LEFT JOIN active_assignments_view  aav ON aav.employee_id = e.id
                     AND aav.equipment_code IS NOT NULL AND aav.equipment_code != ''
-                LEFT JOIN equipment                eq  ON eq.device_code COLLATE utf8mb4_general_ci = aav.equipment_code
-                WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                LEFT JOIN equipment                eq  ON eq.tenant_id = ? AND eq.device_code COLLATE utf8mb4_general_ci = aav.equipment_code
+                WHERE jt.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND COALESCE(jt.tenant_id, 1) = ?
                 GROUP BY jt.reporter, e.full_name
                 ORDER BY inc_30d DESC
                 LIMIT 30
-            `);
+            `, [tid, tid, tid]);
         }
         res.json({ success: true, data: rows });
     } catch(e) {
@@ -379,16 +359,16 @@ router.get('/cmdb/autocomplete', authenticateToken, async (req, res) => {
     if (!q || q.length < 2) return res.json({ success: true, data: [] });
     try {
         const devices = await dbQuery(
-            `SELECT device_code, brand, model, equipment_type FROM equipment WHERE device_code LIKE ? LIMIT 8`,
-            [`${q}%`]
+            `SELECT device_code, brand, model, equipment_type FROM equipment WHERE device_code LIKE ? AND tenant_id = ? LIMIT 8`,
+            [`${q}%`, tenantId(req)]
         );
         const reporters = await dbQuery(
             `SELECT e.email, e.full_name, aav.equipment_code
              FROM employees e
              INNER JOIN active_assignments_view aav ON aav.employee_id = e.id
-             WHERE (e.email LIKE ? OR e.full_name LIKE ?) AND aav.equipment_code IS NOT NULL AND aav.equipment_code != ''
+             WHERE e.tenant_id = ? AND (e.email LIKE ? OR e.full_name LIKE ?) AND aav.equipment_code IS NOT NULL AND aav.equipment_code != ''
              LIMIT 8`,
-            [`%${q}%`, `%${q}%`]
+            [tenantId(req), `%${q}%`, `%${q}%`]
         );
         const data = [
             ...devices.map(d => ({ type:'device', value: d.device_code, label: d.device_code, sub: [d.brand, d.model].filter(Boolean).join(' ') || d.equipment_type || '' })),
@@ -408,11 +388,11 @@ router.get('/sincategorizar/stats', authenticateToken, async (req, res) => {
                 COALESCE(NULLIF(TRIM(component), ''), 'Sin categorizar') AS categoria,
                 COUNT(*) AS total
             FROM jira_tickets
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) AND COALESCE(tenant_id, 1) = ?
             GROUP BY COALESCE(NULLIF(TRIM(component), ''), 'Sin categorizar')
             ORDER BY total DESC
             LIMIT 25
-        `);
+        `, [tenantId(req)]);
         res.json({ success: true, data: rows });
     } catch(e) {
         res.json({ success: false, data: [] });
@@ -440,12 +420,13 @@ router.get('/agents', authenticateToken, async (req, res) => {
 
 // ============================================================
 
-router.get('/technicians', authenticateToken, async (_req, res) => {
+router.get('/technicians', authenticateToken, async (req, res) => {
     try {
         const techs = await dbQuery(
             `SELECT id, full_name, username, email, role
-             FROM users WHERE is_active = 1 AND deleted_at IS NULL
-             ORDER BY full_name`
+             FROM users WHERE is_active = 1 AND deleted_at IS NULL AND ${USER_IN_TENANT}
+             ORDER BY full_name`,
+            [tenantId(req)]
         );
         res.json({ success: true, data: techs });
     } catch (e) {
@@ -456,7 +437,7 @@ router.get('/technicians', authenticateToken, async (_req, res) => {
 
 // ============================================================
 
-router.post('/specialists', authenticateToken, async (req, res) => {
+router.post('/specialists', authenticateToken, requireAdmin, async (req, res) => {
     const { full_name, username, email, phone, password, specialty } = req.body;
     if (!full_name || !email || !password)
         return res.status(400).json({ success: false, message: 'Nombre, email y contraseña son obligatorios' });
@@ -465,24 +446,26 @@ router.post('/specialists', authenticateToken, async (req, res) => {
         const { v4: uuidv4 } = require('uuid');
         const hash = await bcrypt.hash(password, 10);
         const uname = username || email.split('@')[0];
-        const exists = await dbQuery(`SELECT id FROM users WHERE (username=? OR email=?) AND deleted_at IS NULL LIMIT 1`, [uname, email]);
+        const exists = await dbQuery(`SELECT id FROM users /* tenant_id: username/email son únicos en toda la plataforma */ WHERE (username=? OR email=?) AND deleted_at IS NULL LIMIT 1`, [uname, email]);
         if (exists.length) return res.status(409).json({ success: false, message: 'El usuario o email ya existe' });
         const cols = await dbQuery(`SHOW COLUMNS FROM users LIKE 'password_hash'`);
         const passCol = cols.length ? 'password_hash' : 'password';
-        const deleted = await dbQuery(`SELECT id FROM users WHERE (username=? OR email=?) LIMIT 1`, [uname, email]);
+        // Reactivar solo una cuenta eliminada del mismo tenant
+        const deleted = await dbQuery(`SELECT id, COALESCE(tenant_id, 1) AS tid FROM users WHERE (username=? OR email=?) LIMIT 1`, [uname, email]);
+        if (deleted.length && Number(deleted[0].tid) !== tenantId(req)) return res.status(409).json({ success: false, message: 'El usuario o email ya existe' });
         let newId;
         if (deleted.length) {
             newId = deleted[0].id;
             await dbQuery(
-                `UPDATE users SET full_name=?, username=?, email=?, phone=?, ${passCol}=?, role='especialista', specialty=?, is_active=1, is_verified=1, deleted_at=NULL WHERE id=?`,
-                [full_name, uname, email, phone||null, hash, specialty||null, newId]
+                `UPDATE users SET full_name=?, username=?, email=?, phone=?, ${passCol}=?, role='especialista', specialty=?, is_active=1, is_verified=1, deleted_at=NULL WHERE id=? AND ${USER_IN_TENANT}`,
+                [full_name, uname, email, phone||null, hash, specialty||null, newId, tenantId(req)]
             );
         } else {
             newId = uuidv4();
             await dbQuery(
-                `INSERT INTO users (id, username, email, phone, ${passCol}, full_name, role, specialty, is_active, is_verified, created_by, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, 'especialista', ?, 1, 1, ?, NOW(), NOW())`,
-                [newId, uname, email, phone||null, hash, full_name, specialty||null, req.user?.id||null]
+                `INSERT INTO users (id, username, email, phone, ${passCol}, full_name, role, specialty, is_active, is_verified, created_by, created_at, updated_at, tenant_id)
+                 VALUES (?, ?, ?, ?, ?, ?, 'especialista', ?, 1, 1, ?, NOW(), NOW(), ?)`,
+                [newId, uname, email, phone||null, hash, full_name, specialty||null, req.user?.id||null, tenantId(req)]
             );
         }
         res.status(201).json({ success: true, data: { id: newId, full_name, email, username: uname } });
@@ -493,16 +476,17 @@ router.post('/specialists', authenticateToken, async (req, res) => {
 });
 
 // GET /api/jira/specialists — Lista de especialistas
-router.get('/specialists', authenticateToken, async (_req, res) => {
+router.get('/specialists', authenticateToken, async (req, res) => {
     try {
         const rows = await dbQuery(
             `SELECT u.id, u.username, u.full_name, u.email, u.phone, u.specialty, u.is_active,
                     COUNT(jt.id) AS total_tickets,
                     SUM(jt.internal_status NOT IN ('resuelto','cerrado')) AS open_tickets
              FROM users u
-             LEFT JOIN jira_tickets jt ON jt.assigned_to = u.id
-             WHERE u.deleted_at IS NULL AND u.role = 'especialista'
-             GROUP BY u.id ORDER BY u.full_name`
+             LEFT JOIN jira_tickets jt ON jt.assigned_to = u.id AND COALESCE(jt.tenant_id, 1) = COALESCE(u.tenant_id, 1)
+             WHERE u.deleted_at IS NULL AND u.role = 'especialista' AND COALESCE(u.tenant_id, 1) = ?
+             GROUP BY u.id ORDER BY u.full_name`,
+            [tenantId(req)]
         );
         res.json({ success: true, data: rows });
     } catch (e) {
@@ -511,9 +495,9 @@ router.get('/specialists', authenticateToken, async (_req, res) => {
 });
 
 // PUT /api/jira/specialists/:id/toggle — Activar/desactivar
-router.put('/specialists/:id/toggle', authenticateToken, async (req, res) => {
+router.put('/specialists/:id/toggle', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        await dbQuery(`UPDATE users SET is_active = NOT is_active WHERE id = ?`, [req.params.id]);
+        await dbQuery(`UPDATE users SET is_active = NOT is_active WHERE id = ? AND role = 'especialista' AND ${USER_IN_TENANT}`, [req.params.id, tenantId(req)]);
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
@@ -528,9 +512,9 @@ router.get('/software-catalog', authenticateToken, async (req, res) => {
     try {
         const rows = await dbQuery(
             `SELECT id, nombre, version, fabricante FROM software_catalog
-             WHERE activo = 1 ${q ? 'AND nombre LIKE ?' : ''}
+             WHERE activo = 1 AND tenant_id = ? ${q ? 'AND nombre LIKE ?' : ''}
              ORDER BY nombre ASC LIMIT 15`,
-            q ? [`%${q}%`] : []
+            q ? [tenantId(req), `%${q}%`] : [tenantId(req)]
         );
         res.json({ success: true, data: rows });
     } catch (e) {
@@ -543,11 +527,11 @@ router.post('/software-catalog', authenticateToken, async (req, res) => {
     const { nombre, version, fabricante } = req.body;
     if (!nombre?.trim()) return res.status(400).json({ success: false, message: 'Nombre requerido' });
     try {
-        const exists = await dbQuery(`SELECT id FROM software_catalog WHERE nombre = ? LIMIT 1`, [nombre.trim()]);
+        const exists = await dbQuery(`SELECT id FROM software_catalog WHERE nombre = ? AND tenant_id = ? LIMIT 1`, [nombre.trim(), tenantId(req)]);
         if (exists.length) return res.json({ success: true, data: exists[0], nuevo: false });
         const r = await dbQuery(
-            `INSERT INTO software_catalog (nombre, version, fabricante) VALUES (?, ?, ?)`,
-            [nombre.trim(), version||null, fabricante||null]
+            `INSERT INTO software_catalog (nombre, version, fabricante, tenant_id) VALUES (?, ?, ?, ?)`,
+            [nombre.trim(), version||null, fabricante||null, tenantId(req)]
         );
         res.status(201).json({ success: true, data: { id: r.insertId, nombre: nombre.trim() }, nuevo: true });
     } catch (e) {
@@ -601,10 +585,9 @@ async function ensureCatTable() {
 router.get('/categories', authenticateToken, async (req, res) => {
     try {
         await ensureCatTable();
-        const tenantId = req.user?.tenant_id || 1;
         const flat = await dbQuery(
             `SELECT * FROM ticket_categories WHERE is_active=1 AND tenant_id=? ORDER BY COALESCE(parent_id,id), sort_order, name`,
-            [tenantId]
+            [tenantId(req)]
         );
         // Si se pide árbol, construir jerarquía
         if (req.query.tree === '1') {
@@ -623,14 +606,13 @@ router.get('/categories', authenticateToken, async (req, res) => {
     }
 });
 
-router.post('/categories', authenticateToken, async (req, res) => {
+router.post('/categories', authenticateToken, requireAdminOrSpecialist, async (req, res) => {
     try {
         await ensureCatTable();
         const { name, icon, parent_id, component_id, component_label, app_id, app_label,
                 tipologia_id, tipologia_label, impact_id, impact_label,
                 urgency_id, urgency_label, description_template, sort_order } = req.body;
         if (!name) return res.status(400).json({ success: false, message: 'Nombre requerido' });
-        const tenantId = req.user?.tenant_id || 1;
         const result = await dbQuery(`
             INSERT INTO ticket_categories
                 (parent_id,name,icon,component_id,component_label,app_id,app_label,tipologia_id,tipologia_label,
@@ -640,14 +622,14 @@ router.post('/categories', authenticateToken, async (req, res) => {
             app_id||null, app_label||null, tipologia_id||null, tipologia_label||null,
             impact_id||'618437', impact_label||null,
             urgency_id||'618441', urgency_label||null,
-            description_template||null, sort_order||0, tenantId]);
+            description_template||null, sort_order||0, tenantId(req)]);
         res.status(201).json({ success: true, data: { id: result.insertId, name, parent_id: parent_id||null } });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-router.put('/categories/:id', authenticateToken, async (req, res) => {
+router.put('/categories/:id', authenticateToken, requireAdminOrSpecialist, async (req, res) => {
     try {
         const { name, icon, parent_id, component_id, component_label, app_id, app_label,
                 tipologia_id, tipologia_label, impact_id, impact_label,
@@ -658,22 +640,22 @@ router.put('/categories/:id', authenticateToken, async (req, res) => {
                 parent_id=?,name=?,icon=?,component_id=?,component_label=?,app_id=?,app_label=?,
                 tipologia_id=?,tipologia_label=?,impact_id=?,impact_label=?,
                 urgency_id=?,urgency_label=?,description_template=?,sort_order=?
-            WHERE id=?
+            WHERE id=? AND tenant_id=?
         `, [parent_id||null, name, icon||'bi-tag', component_id||null, component_label||null,
             app_id||null, app_label||null, tipologia_id||null, tipologia_label||null,
             impact_id||'618437', impact_label||null,
             urgency_id||'618441', urgency_label||null,
             description_template||null, sort_order||0,
-            req.params.id]);
+            req.params.id, tenantId(req)]);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-router.delete('/categories/:id', authenticateToken, async (req, res) => {
+router.delete('/categories/:id', authenticateToken, requireAdminOrSpecialist, async (req, res) => {
     try {
-        await dbQuery(`UPDATE ticket_categories SET is_active=0 WHERE id=?`, [req.params.id]);
+        await dbQuery(`UPDATE ticket_categories SET is_active=0 WHERE id=? AND tenant_id=?`, [req.params.id, tenantId(req)]);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -683,20 +665,20 @@ router.delete('/categories/:id', authenticateToken, async (req, res) => {
 
 // ============================================================
 
-router.get('/automations', authenticateToken, async (_req, res) => {
+router.get('/automations', authenticateToken, async (req, res) => {
     try {
-        const cfg = await getAutomationConfig();
+        const cfg = await getAutomationConfig(tenantId(req));
         res.json({ success: true, data: cfg });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-router.put('/automations', authenticateToken, async (req, res) => {
+router.put('/automations', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const allowed = ['p1_escalation_enabled','p1_escalation_email','p1_escalation_minutes',
                          'satisfaction_enabled','sla_alert_enabled','sla_alert_email','sla_alert_minutes'];
         for (const [k, v] of Object.entries(req.body)) {
             if (allowed.includes(k)) {
-                await dbQuery(`INSERT INTO itsm_automations (\`key\`, value) VALUES (?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)`, [k, String(v)]);
+                await dbQuery(`INSERT INTO itsm_automations (tenant_id, \`key\`, value) VALUES (?,?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)`, [tenantId(req), k, String(v)]);
             }
         }
         res.json({ success: true, message: 'Configuración guardada' });
@@ -714,10 +696,11 @@ router.get('/admin/users', authenticateToken, async (req, res) => {
         const rows = await dbQuery(
             `SELECT u.id, u.full_name, u.username, u.email, u.role, u.is_active, u.last_login
              FROM users u
-             INNER JOIN (SELECT MAX(id) AS max_id, email FROM users WHERE deleted_at IS NULL GROUP BY email) t
+             INNER JOIN (SELECT MAX(id) AS max_id, email FROM users WHERE deleted_at IS NULL AND COALESCE(tenant_id, 1) = ? GROUP BY email) t
                ON u.id = t.max_id AND u.email = t.email
-             WHERE u.deleted_at IS NULL
-             ORDER BY u.full_name ASC`
+             WHERE u.deleted_at IS NULL AND COALESCE(u.tenant_id, 1) = ? AND u.role <> 'superadmin'
+             ORDER BY u.full_name ASC`,
+            [tenantId(req), tenantId(req)]
         );
         res.json({ success: true, data: rows });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
@@ -731,25 +714,26 @@ router.post('/admin/users', authenticateToken, async (req, res) => {
     if (!VALID_ROLES.includes(role)) return res.status(400).json({ success: false, message: 'Rol inválido' });
     try {
         const bcrypt = require('bcrypt'); // mismo módulo que usa el modelo Sequelize
-        const exists = await dbQuery(`SELECT id FROM users WHERE (username=? OR email=?) AND deleted_at IS NULL LIMIT 1`, [username, email]);
+        const exists = await dbQuery(`SELECT id FROM users /* tenant_id: username/email son únicos en toda la plataforma */ WHERE (username=? OR email=?) AND deleted_at IS NULL LIMIT 1`, [username, email]);
         if (exists.length) return res.status(409).json({ success: false, message: 'El usuario o email ya existe' });
         const hash = await bcrypt.hash(password, 12);
         const cols = await dbQuery(`SHOW COLUMNS FROM users LIKE 'password_hash'`);
         const passCol = cols.length ? 'password_hash' : 'password';
         // Si el usuario fue eliminado antes, reactivarlo en vez de duplicar
-        const deleted = await dbQuery(`SELECT id FROM users WHERE (username=? OR email=?) LIMIT 1`, [username, email]);
+        const deleted = await dbQuery(`SELECT id, COALESCE(tenant_id, 1) AS tid FROM users WHERE (username=? OR email=?) LIMIT 1`, [username, email]);
+        if (deleted.length && Number(deleted[0].tid) !== tenantId(req)) return res.status(409).json({ success: false, message: 'El usuario o email ya existe' });
         let resultId;
         if (deleted.length) {
             await dbQuery(
-                `UPDATE users SET full_name=?, username=?, email=?, ${passCol}=?, role=?, is_active=1, is_verified=1, deleted_at=NULL WHERE id=?`,
-                [full_name, username, email, hash, role, deleted[0].id]
+                `UPDATE users SET full_name=?, username=?, email=?, ${passCol}=?, role=?, is_active=1, is_verified=1, deleted_at=NULL WHERE id=? AND ${USER_IN_TENANT}`,
+                [full_name, username, email, hash, role, deleted[0].id, tenantId(req)]
             );
             resultId = deleted[0].id;
         } else {
             const result = await dbQuery(
-                `INSERT INTO users (full_name, username, email, ${passCol}, role, is_active, is_verified, created_at)
-                 VALUES (?,?,?,?,?,1,1,NOW())`,
-                [full_name, username, email, hash, role]
+                `INSERT INTO users (full_name, username, email, ${passCol}, role, is_active, is_verified, created_at, tenant_id)
+                 VALUES (?,?,?,?,?,1,1,NOW(),?)`,
+                [full_name, username, email, hash, role, tenantId(req)]
             );
             resultId = result.insertId;
         }
@@ -763,7 +747,8 @@ router.put('/admin/users/:id/role', authenticateToken, async (req, res) => {
     if (!VALID_ROLES.includes(role)) return res.status(400).json({ success: false, message: 'Rol inválido' });
     if (parseInt(req.params.id) === req.user.id) return res.status(400).json({ success: false, message: 'No puedes cambiar tu propio rol' });
     try {
-        await dbQuery(`UPDATE users SET role=? WHERE id=?`, [role, req.params.id]);
+        const r = await dbQuery(`UPDATE users SET role=? WHERE id=? AND role <> 'superadmin' AND ${USER_IN_TENANT}`, [role, req.params.id, tenantId(req)]);
+        if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -772,10 +757,10 @@ router.put('/admin/users/:id/status', authenticateToken, async (req, res) => {
     if (req.user?.role !== 'administrador') return res.status(403).json({ success: false, message: 'Sin permiso' });
     if (parseInt(req.params.id) === req.user.id) return res.status(400).json({ success: false, message: 'No puedes desactivarte a ti mismo' });
     try {
-        const rows = await dbQuery(`SELECT is_active FROM users WHERE id=? LIMIT 1`, [req.params.id]);
+        const rows = await dbQuery(`SELECT is_active FROM users WHERE id=? AND role <> 'superadmin' AND ${USER_IN_TENANT} LIMIT 1`, [req.params.id, tenantId(req)]);
         if (!rows.length) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
         const newStatus = rows[0].is_active ? 0 : 1;
-        await dbQuery(`UPDATE users SET is_active=? WHERE id=?`, [newStatus, req.params.id]);
+        await dbQuery(`UPDATE users SET is_active=? WHERE id=? AND ${USER_IN_TENANT}`, [newStatus, req.params.id, tenantId(req)]);
         res.json({ success: true, is_active: newStatus });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -784,10 +769,10 @@ router.delete('/admin/users/:id', authenticateToken, async (req, res) => {
     if (req.user?.role !== 'administrador') return res.status(403).json({ success: false, message: 'Sin permiso' });
     if (parseInt(req.params.id) === req.user.id) return res.status(400).json({ success: false, message: 'No puedes eliminarte a ti mismo' });
     try {
-        const rows = await dbQuery(`SELECT id, role FROM users WHERE id=? AND deleted_at IS NULL LIMIT 1`, [req.params.id]);
+        const rows = await dbQuery(`SELECT id, role FROM users WHERE id=? AND deleted_at IS NULL AND ${USER_IN_TENANT} LIMIT 1`, [req.params.id, tenantId(req)]);
         if (!rows.length) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
-        if (rows[0].role === 'administrador') return res.status(400).json({ success: false, message: 'No se puede eliminar a otro administrador' });
-        await dbQuery(`UPDATE users SET deleted_at=NOW(), is_active=0 WHERE id=?`, [req.params.id]);
+        if (['administrador', 'superadmin'].includes(rows[0].role)) return res.status(400).json({ success: false, message: 'No se puede eliminar a otro administrador' });
+        await dbQuery(`UPDATE users SET deleted_at=NOW(), is_active=0 WHERE id=? AND ${USER_IN_TENANT}`, [req.params.id, tenantId(req)]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -799,17 +784,17 @@ router.put('/admin/users/:id/password', authenticateToken, async (req, res) => {
     try {
         const bcrypt = require('bcryptjs');
         const hash = await bcrypt.hash(password, 10);
-        const rows = await dbQuery(`SELECT id FROM users WHERE id=? AND deleted_at IS NULL LIMIT 1`, [req.params.id]);
+        const rows = await dbQuery(`SELECT id FROM users WHERE id=? AND deleted_at IS NULL AND role <> 'superadmin' AND ${USER_IN_TENANT} LIMIT 1`, [req.params.id, tenantId(req)]);
         if (!rows.length) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
-        await dbQuery(`UPDATE users SET password_hash=? WHERE id=?`, [hash, req.params.id]);
+        await dbQuery(`UPDATE users SET password_hash=? WHERE id=? AND ${USER_IN_TENANT}`, [hash, req.params.id, tenantId(req)]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
 // GET /derive-teams — lista de grupos configurados para derivar
-router.get('/derive-teams', authenticateToken, async (_req, res) => {
+router.get('/derive-teams', authenticateToken, async (req, res) => {
     try {
-        const teams = await dbQuery(`SELECT id, name, description, icon, color, jira_option_id FROM derive_teams WHERE is_active=1 ORDER BY sort_order, id`);
+        const teams = await dbQuery(`SELECT id, name, description, icon, color, jira_option_id FROM derive_teams WHERE is_active=1 AND tenant_id=? ORDER BY sort_order, id`, [tenantId(req)]);
         res.json({ ok: true, teams });
     } catch(e) { res.json({ ok: true, teams: [] }); }
 });
@@ -821,8 +806,8 @@ router.post('/derive-teams', authenticateToken, async (req, res) => {
     if (!name) return res.status(400).json({ ok: false, message: 'Nombre requerido' });
     try {
         const r = await dbQuery(
-            `INSERT INTO derive_teams (name, description, icon, color, jira_option_id, sort_order) VALUES (?,?,?,?,?,?)`,
-            [name, description||null, icon||'bi-people', color||'#6b7280', jira_option_id||null, sort_order||0]
+            `INSERT INTO derive_teams (name, description, icon, color, jira_option_id, sort_order, tenant_id) VALUES (?,?,?,?,?,?,?)`,
+            [name, description||null, icon||'bi-people', color||'#6b7280', jira_option_id||null, sort_order||0, tenantId(req)]
         );
         res.json({ ok: true, id: r.insertId });
     } catch(e) { res.status(500).json({ ok: false, message: e.message }); }
@@ -834,8 +819,8 @@ router.put('/derive-teams/:id', authenticateToken, async (req, res) => {
     const { name, description, icon, color, jira_option_id, sort_order, is_active } = req.body;
     try {
         await dbQuery(
-            `UPDATE derive_teams SET name=?, description=?, icon=?, color=?, jira_option_id=?, sort_order=?, is_active=? WHERE id=?`,
-            [name, description||null, icon||'bi-people', color||'#6b7280', jira_option_id||null, sort_order||0, is_active===false?0:1, req.params.id]
+            `UPDATE derive_teams SET name=?, description=?, icon=?, color=?, jira_option_id=?, sort_order=?, is_active=? WHERE id=? AND tenant_id=?`,
+            [name, description||null, icon||'bi-people', color||'#6b7280', jira_option_id||null, sort_order||0, is_active===false?0:1, req.params.id, tenantId(req)]
         );
         res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: e.message }); }
@@ -845,7 +830,7 @@ router.put('/derive-teams/:id', authenticateToken, async (req, res) => {
 router.delete('/derive-teams/:id', authenticateToken, async (req, res) => {
     if (req.user?.role !== 'administrador') return res.status(403).json({ ok: false });
     try {
-        await dbQuery(`UPDATE derive_teams SET is_active=0 WHERE id=?`, [req.params.id]);
+        await dbQuery(`UPDATE derive_teams SET is_active=0 WHERE id=? AND tenant_id=?`, [req.params.id, tenantId(req)]);
         res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: e.message }); }
 });
@@ -865,7 +850,7 @@ router.post('/ticket/:key/derive', authenticateToken, async (req, res) => {
         // Buscar jira_option_id si se pasó team_id
         let jiraOptionId = null;
         if (team_id) {
-            const rows = await dbQuery(`SELECT jira_option_id FROM derive_teams WHERE id=? LIMIT 1`, [team_id]).catch(() => []);
+            const rows = await dbQuery(`SELECT jira_option_id FROM derive_teams WHERE id=? AND tenant_id=? LIMIT 1`, [team_id, tenantId(req)]).catch(() => []);
             jiraOptionId = rows[0]?.jira_option_id || null;
         }
 
@@ -901,7 +886,7 @@ router.post('/ticket/:key/derive', authenticateToken, async (req, res) => {
 
         // BD local
         await dbQuery(
-            `UPDATE jira_tickets SET derived_to=?, derived_at=NOW(), derived_by=?, derived_note=?${unassign ? ', assigned_to=NULL, assigned_to_name=NULL' : ''} WHERE ticket_key=?`,
+            `UPDATE jira_tickets /* tenant_id: clave validada por router.param */ SET derived_to=?, derived_at=NOW(), derived_by=?, derived_note=?${unassign ? ', assigned_to=NULL, assigned_to_name=NULL' : ''} WHERE ticket_key=?`,
             [team_name, by, note, key]
         ).catch(() => {});
 
@@ -914,7 +899,8 @@ router.post('/ticket/:key/derive', authenticateToken, async (req, res) => {
 router.get('/local-wp-cats', authenticateToken, async (req, res) => {
     try {
         const rows = await dbQuery(
-            `SELECT ticket_key, wp_resultado_padre, wp_resultado_hijo FROM jira_tickets WHERE wp_resultado_padre IS NOT NULL`
+            `SELECT ticket_key, wp_resultado_padre, wp_resultado_hijo FROM jira_tickets WHERE wp_resultado_padre IS NOT NULL AND COALESCE(tenant_id, 1) = ?`,
+            [tenantId(req)]
         );
         const map = {};
         rows.forEach(r => { map[r.ticket_key] = { padre: r.wp_resultado_padre, hijo: r.wp_resultado_hijo }; });
@@ -936,12 +922,12 @@ router.get('/gamification', authenticateToken, async (req, res) => {
                 SUM(CASE WHEN resolved_at IS NOT NULL AND sla_deadline IS NOT NULL AND resolved_at <= sla_deadline THEN 1 ELSE 0 END) AS sla_met,
                 ROUND(AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, resolved_at) ELSE NULL END)) AS avg_res_min
             FROM jira_tickets
-            WHERE DATE(created_at) >= ? AND DATE(created_at) <= ?
+            WHERE DATE(created_at) >= ? AND DATE(created_at) <= ? AND COALESCE(tenant_id, 1) = ?
               AND assigned_to_name IS NOT NULL AND assigned_to_name != ''
             GROUP BY assigned_to_name
             HAVING resolved > 0
             ORDER BY resolved DESC
-        `, [from, to]);
+        `, [from, to, tenantId(req)]);
 
         if (!rows.length) return res.json({ ok: true, data: [], from, to });
 

@@ -104,13 +104,17 @@ class CmdbRepository extends TenantBaseRepository {
     return true;
   }
 
+  // Ambos CIs deben pertenecer al tenant del repositorio
   async addRelationship(sourceId, targetId, relationship) {
+    const count = await ConfigItem.count({ where: { id: [sourceId, targetId], ...this._scope() } });
+    if (count !== (sourceId === targetId ? 1 : 2)) throw new NotFoundError('CI no encontrado');
     return CiRelationship.create({ id: uuidv4(), sourceId, targetId, relationship });
   }
 
   async removeRelationship(relId) {
     const rel = await CiRelationship.findByPk(relId);
-    if (!rel) throw new NotFoundError(`Relación ${relId} no encontrada`);
+    const owned = rel && await ConfigItem.count({ where: { id: rel.sourceId, ...this._scope() } });
+    if (!rel || !owned) throw new NotFoundError(`Relación ${relId} no encontrada`);
     await rel.destroy();
     return true;
   }

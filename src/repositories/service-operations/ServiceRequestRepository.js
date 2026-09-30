@@ -82,25 +82,26 @@ class ServiceRequestRepository {
 
   // ── Software catalog (raw SQL) ───────────────────────────────────────────
 
-  async findSoftware(term) {
+  async findSoftware(term, req) {
+    const tid = getTenantId(req);
     if (term) {
       return dbQ(
-        'SELECT * FROM catalog_software WHERE activo=1 AND (nombre LIKE ? OR proveedor LIKE ?) ORDER BY nombre ASC LIMIT 30',
-        [`%${term}%`, `%${term}%`]
+        'SELECT * FROM catalog_software WHERE activo=1 AND tenant_id=? AND (nombre LIKE ? OR proveedor LIKE ?) ORDER BY nombre ASC LIMIT 30',
+        [tid, `%${term}%`, `%${term}%`]
       );
     }
-    return dbQ('SELECT * FROM catalog_software WHERE activo=1 ORDER BY nombre ASC LIMIT 100');
+    return dbQ('SELECT * FROM catalog_software WHERE activo=1 AND tenant_id=? ORDER BY nombre ASC LIMIT 100', [tid]);
   }
 
-  async createSoftware({ nombre, version, proveedor, categoria, detalles }) {
+  async createSoftware({ nombre, version, proveedor, categoria, detalles }, req) {
     return dbQ(
-      'INSERT INTO catalog_software (nombre,version,proveedor,categoria,detalles) VALUES (?,?,?,?,?)',
-      [nombre.trim(), version || null, proveedor || null, categoria || 'Software', detalles || null]
+      'INSERT INTO catalog_software (nombre,version,proveedor,categoria,detalles,tenant_id) VALUES (?,?,?,?,?,?)',
+      [nombre.trim(), version || null, proveedor || null, categoria || 'Software', detalles || null, getTenantId(req)]
     );
   }
 
-  async deactivateSoftware(id) {
-    return dbQ('UPDATE catalog_software SET activo=0 WHERE id=?', [id]);
+  async deactivateSoftware(id, req) {
+    return dbQ('UPDATE catalog_software SET activo=0 WHERE id=? AND tenant_id=?', [id, getTenantId(req)]);
   }
 }
 

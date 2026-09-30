@@ -6,12 +6,13 @@ const express = require('express');
 const router = express.Router();
 const { equipmentPool, executeQuery } = require('../../config/database');
 const { authenticateToken } = require('../../middleware/auth');
+const { tenantId } = require('../../src/utils/tenantScope');
 
 // ============================================================================
 // FUNCIÓN AUXILIAR: CONSTRUIR WHERE CLAUSE CON FILTROS
 // ============================================================================
-function buildWhereClause(filters) {
-    const conditions = [];
+function buildWhereClause(filters, tid) {
+    const conditions = [`a.tenant_id = ${Number(tid)}`];
     const params = [];
     
     // Filtro de fechas
@@ -70,15 +71,15 @@ router.get('/metrics', authenticateToken, async (req, res) => {
             brand: req.query.brand
         };
         
-        const { whereClause, params } = buildWhereClause(filters);
+        const { whereClause, params } = buildWhereClause(filters, tenantId(req));
         
         // Query base sin filtros para totales generales
-        const totalEmployeesQuery = 'SELECT COUNT(*) as total FROM employees WHERE is_active = TRUE';
-        const totalEquipmentQuery = 'SELECT COUNT(*) as total FROM equipment';
+        const totalEmployeesQuery = 'SELECT COUNT(*) as total FROM employees WHERE is_active = TRUE AND tenant_id = ?';
+        const totalEquipmentQuery = 'SELECT COUNT(*) as total FROM equipment WHERE tenant_id = ?';
         
         // Query con filtros para asignaciones
         const assignmentsQuery = `
-            SELECT COUNT(DISTINCT a.id) as total
+            SELECT COUNT(DISTINCT a.id) as total /* tenant_id: en whereClause */
             FROM assignments a
             INNER JOIN equipment e ON a.equipment_id = e.id
             ${whereClause}
@@ -86,8 +87,8 @@ router.get('/metrics', authenticateToken, async (req, res) => {
         `;
         
         const [employeesResult, equipmentResult, assignmentsResult] = await Promise.all([
-            executeQuery(equipmentPool, totalEmployeesQuery),
-            executeQuery(equipmentPool, totalEquipmentQuery),
+            executeQuery(equipmentPool, totalEmployeesQuery, [tenantId(req)]),
+            executeQuery(equipmentPool, totalEquipmentQuery, [tenantId(req)]),
             executeQuery(equipmentPool, assignmentsQuery, params)
         ]);
         
@@ -97,7 +98,7 @@ router.get('/metrics', authenticateToken, async (req, res) => {
                 totalEmployees: employeesResult[0].total,
                 totalEquipment: equipmentResult[0].total,
                 activeAssignments: assignmentsResult[0].total,
-                filtersApplied: !!whereClause
+                filtersApplied: params.length > 0
             }
         });
         
@@ -125,10 +126,10 @@ router.get('/assignments-timeline', authenticateToken, async (req, res) => {
             brand: req.query.brand
         };
         
-        const { whereClause, params } = buildWhereClause(filters);
+        const { whereClause, params } = buildWhereClause(filters, tenantId(req));
         
         const query = `
-            SELECT 
+            SELECT /* tenant_id: en whereClause */
                 DATE_FORMAT(a.assignment_date, '%Y-%m') as month,
                 DATE_FORMAT(a.assignment_date, '%b %Y') as month_label,
                 COUNT(DISTINCT a.id) as total_assignments,
@@ -189,7 +190,7 @@ router.get('/equipment-by-status', authenticateToken, async (req, res) => {
         };
         
         // Para este endpoint, construimos un WHERE diferente (sin tabla assignments)
-        const conditions = [];
+        const conditions = [`e.tenant_id = ${Number(tenantId(req))}`];
         const params = [];
         
         if (filters.equipmentType) {
@@ -233,11 +234,11 @@ router.get('/equipment-by-status', authenticateToken, async (req, res) => {
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
         
         const query = `
-            SELECT 
+            SELECT /* tenant_id: en whereClause */
                 e.status,
                 COUNT(DISTINCT e.id) as total,
                 ROUND(COUNT(DISTINCT e.id) * 100.0 / 
-                    (SELECT COUNT(*) FROM equipment ${whereClause.replace('a.', 'e.')}), 2) as percentage
+                    (SELECT COUNT(*) FROM equipment WHERE tenant_id = ${Number(tenantId(req))}), 2) as percentage
             FROM equipment e
             ${joinClause}
             ${whereClause}
@@ -279,7 +280,7 @@ router.get('/equipment-distribution', authenticateToken, async (req, res) => {
             brand: req.query.brand
         };
         
-        const conditions = [];
+        const conditions = [`tenant_id = ${Number(tenantId(req))}`];
         const params = [];
         
         if (filters.equipmentType) {
@@ -303,7 +304,7 @@ router.get('/equipment-distribution', authenticateToken, async (req, res) => {
             SELECT 
                 equipment_type,
                 COUNT(*) as total,
-                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM equipment ${whereClause}), 2) as percentage
+                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM equipment /* tenant_id: en whereClause */ ${whereClause}), 2) as percentage
             FROM equipment
             ${whereClause}
             GROUP BY equipment_type
@@ -347,7 +348,7 @@ router.get('/assignment-rate', authenticateToken, async (req, res) => {
             brand: req.query.brand
         };
         
-        const conditions = [];
+        const conditions = [`tenant_id = ${Number(tenantId(req))}`];
         const params = [];
         
         if (filters.equipmentType) {
@@ -363,7 +364,7 @@ router.get('/assignment-rate', authenticateToken, async (req, res) => {
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
         
         const query = `
-            SELECT 
+            SELECT /* tenant_id: en whereClause */
                 COUNT(*) as total_equipment,
                 SUM(CASE WHEN status = 'Asignado' THEN 1 ELSE 0 END) as assigned,
                 ROUND(SUM(CASE WHEN status = 'Asignado' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as rate
@@ -408,10 +409,10 @@ router.get('/assignments-detailed', authenticateToken, async (req, res) => {
         
         const limit = parseInt(req.query.limit) || 50;
         
-        const { whereClause, params } = buildWhereClause(filters);
+        const { whereClause, params } = buildWhereClause(filters, tenantId(req));
         
         const query = `
-            SELECT 
+            SELECT /* tenant_id: en whereClause */
                 a.id as assignment_id,
                 emp.full_name as employee_name,
                 emp.cip as employee_cip,
@@ -444,7 +445,7 @@ router.get('/assignments-detailed', authenticateToken, async (req, res) => {
             success: true,
             data: results,
             count: results.length,
-            filtersApplied: !!whereClause
+            filtersApplied: params.length > 1
         });
         
     } catch (error) {
@@ -469,10 +470,10 @@ router.get('/comparison-data', authenticateToken, async (req, res) => {
             location: req.query.location
         };
         
-        const { whereClause, params } = buildWhereClause(filters);
+        const { whereClause, params } = buildWhereClause(filters, tenantId(req));
         
         const query = `
-            SELECT 
+            SELECT /* tenant_id: en whereClause */
                 COUNT(DISTINCT a.id) as total_assignments,
                 COUNT(DISTINCT CASE WHEN a.assignment_date BETWEEN ? AND ? THEN e.id END) as new_equipment,
                 COUNT(DISTINCT CASE WHEN a.return_date BETWEEN ? AND ? THEN a.id END) as returns,
@@ -515,11 +516,11 @@ router.get('/export-data', authenticateToken, async (req, res) => {
             brand: req.query.brand
         };
         
-        const { whereClause, params } = buildWhereClause(filters);
+        const { whereClause, params } = buildWhereClause(filters, tenantId(req));
         
         // Query de asignaciones
         const assignmentsQuery = `
-            SELECT 
+            SELECT /* tenant_id: en whereClause */
                 a.id,
                 emp.full_name as employee,
                 emp.cip,
@@ -547,13 +548,13 @@ router.get('/export-data', authenticateToken, async (req, res) => {
                 e.status,
                 COUNT(*) as total
             FROM equipment e
-            ${whereClause.replace('a.', 'e.')}
+            WHERE e.tenant_id = ${Number(tenantId(req))}
             GROUP BY e.status
         `;
         
         const [assignments, equipmentByStatus] = await Promise.all([
             executeQuery(equipmentPool, assignmentsQuery, params),
-            executeQuery(equipmentPool, statusQuery, params.filter((_, i) => i < params.length - 6)) // Quitar params de JOIN
+            executeQuery(equipmentPool, statusQuery)
         ]);
         
         res.json({

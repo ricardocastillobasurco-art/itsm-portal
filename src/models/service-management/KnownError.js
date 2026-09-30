@@ -3,6 +3,7 @@ const sequelize = require('../../config/database');
 
 const KnownError = sequelize.define('KnownError', {
     id:          { type: DataTypes.CHAR(36),    primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    tenantId: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: 'tenant_id' },
     problemId:   { type: DataTypes.CHAR(36),    allowNull: false, field: 'problem_id' },
     title:       { type: DataTypes.STRING(255), allowNull: false },
     symptoms:    { type: DataTypes.TEXT,        allowNull: true  },

@@ -90,18 +90,18 @@ class ServiceRequestService {
 
   // ── Software catalog ─────────────────────────────────────────────────────
 
-  async findSoftware(term) {
-    return repo.findSoftware(term);
+  async findSoftware(term, req) {
+    return repo.findSoftware(term, req);
   }
 
-  async createSoftware({ nombre, version, proveedor, categoria, detalles }) {
+  async createSoftware({ nombre, version, proveedor, categoria, detalles }, req) {
     if (!nombre) throw Object.assign(new Error('Nombre requerido'), { status: 400 });
-    const r = await repo.createSoftware({ nombre, version, proveedor, categoria, detalles });
+    const r = await repo.createSoftware({ nombre, version, proveedor, categoria, detalles }, req);
     return r.insertId;
   }
 
-  async deactivateSoftware(id) {
-    return repo.deactivateSoftware(id);
+  async deactivateSoftware(id, req) {
+    return repo.deactivateSoftware(id, req);
   }
 }
 
