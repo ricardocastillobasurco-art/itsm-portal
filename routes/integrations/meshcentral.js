@@ -1,11 +1,23 @@
 const express  = require('express');
 const router   = express.Router();
-const { authenticateToken } = require('../../middleware/auth');
+const { authenticateToken, requireRole } = require('../../middleware/auth');
+const { tenantId } = require('../../src/utils/tenantScope');
 const { executeQuery, equipmentPool } = require('../../config/database');
 const meshSvc  = require('../../services/meshcentral');
 const logger   = require('../../utils/logger');
 
-router.use(authenticateToken);
+// RMM = control remoto de equipos: solo personal de TI. La instancia de MeshCentral
+// es de la plataforma; cada tenant solo opera los dispositivos de sus grupos asignados.
+const OWNER_TENANT_ID = 1;
+const requireStaff      = requireRole('administrador', 'especialista', 'agente', 'tecnico');
+const requireSuperadmin = requireRole(); // requireRole deja pasar siempre a superadmin
+router.use(authenticateToken, requireStaff);
+
+// Toda ruta que reciba nodeId (body o query) se valida contra los dispositivos del tenant
+router.use((req, res, next) => {
+    const nodeId = req.body?.nodeId || req.query?.nodeId;
+    return nodeId ? requireNodeAccess(() => nodeId)(req, res, next) : next();
+});
 
 // ── Caché compartida con el motor de alertas ──────────────────────────────────
 const rmmCache = require('../../services/rmmCache');
@@ -31,7 +43,7 @@ function requireNodeAccess(getNodeId) {
     return async (req, res, next) => {
         const nodeId = getNodeId(req);
         if (!nodeId) return next();
-        const allowed = await _assertNodeAllowed(nodeId, req.user?.tenant_id).catch(() => true);
+        const allowed = await _assertNodeAllowed(nodeId, tenantId(req)).catch(() => false);
         if (!allowed) return res.status(403).json({ ok: false, error: 'Acceso denegado a este dispositivo' });
         next();
     };
@@ -39,17 +51,17 @@ function requireNodeAccess(getNodeId) {
 
 // ── Multi-tenant: filtrado por MeshGroup ──────────────────────────────────────
 // Si el tenant tiene grupos configurados, solo ve los dispositivos de esos grupos.
-// Sin grupos configurados → sin filtro (backward-compatible).
+// Sin grupos: el tenant dueño ve todo (backward-compatible); los demás, nada.
 
 const _meshIdCache = new Map(); // tenantId → { ids: Set, ts }
 const MESH_CACHE_TTL = 60000;
 
 async function _getMeshIdsForTenant(tenantId) {
-    if (!tenantId) return null;
+    tenantId = Number(tenantId) || OWNER_TENANT_ID;
     const cached = _meshIdCache.get(tenantId);
     if (cached && Date.now() - cached.ts < MESH_CACHE_TTL) return cached.ids;
     const rows = await dbQuery('SELECT mesh_id FROM rmm_tenant_groups WHERE tenant_id=?', [tenantId]);
-    const ids = rows.length ? new Set(rows.map(r => r.mesh_id)) : null;
+    const ids = rows.length ? new Set(rows.map(r => r.mesh_id)) : (tenantId === OWNER_TENANT_ID ? null : new Set());
     _meshIdCache.set(tenantId, { ids, ts: Date.now() });
     return ids;
 }
@@ -80,13 +92,15 @@ async function _assertNodeAllowed(nodeId, tenantId) {
 
 // ── Estado y dispositivos ──────────────────────────────────────────────────────
 
-router.get('/status', (req, res) => {
+router.get('/status', async (req, res) => {
+    const owner = tenantId(req) === OWNER_TENANT_ID;
+    const meshIds = await _getMeshIdsForTenant(tenantId(req)).catch(() => new Set());
     res.json({
         ok:         true,
         connected:  meshSvc.isConnected(),
-        configured: !!(process.env.MESHCENTRAL_URL && process.env.MESHCENTRAL_USER),
+        configured: !!(process.env.MESHCENTRAL_URL && process.env.MESHCENTRAL_USER) && (owner || !!meshIds?.size),
         url:        process.env.MESHCENTRAL_PUBLIC_URL || process.env.MESHCENTRAL_URL || '',
-        user:       process.env.MESHCENTRAL_USER || '',
+        user:       owner ? (process.env.MESHCENTRAL_USER || '') : '',
     });
 });
 
@@ -95,7 +109,7 @@ router.get('/devices', async (req, res) => {
         const force  = req.query.refresh === '1';
         const result = await meshSvc.getDevices(force);
         if (!result.ok) return res.status(503).json({ ok: false, error: result.error });
-        const meshIds = await _getMeshIdsForTenant(req.user?.tenant_id);
+        const meshIds = await _getMeshIdsForTenant(tenantId(req));
         const q = (req.query.q || '').toLowerCase().trim();
         let devices = _filterDevices(result.devices, meshIds);
         if (q) devices = devices.filter(d =>
@@ -390,8 +404,9 @@ router.get('/scripts/collections', async (req, res) => {
         const rows = await dbQuery(
             `SELECT c.*, COUNT(s.id) AS script_count
              FROM rmm_script_collections c
-             LEFT JOIN rmm_scripts s ON s.collection_id = c.id
-             GROUP BY c.id ORDER BY c.sort_order, c.name`
+             LEFT JOIN rmm_scripts s ON s.collection_id = c.id AND s.tenant_id = c.tenant_id
+             WHERE c.tenant_id = ?
+             GROUP BY c.id ORDER BY c.sort_order, c.name`, [tenantId(req)]
         );
         res.json({ ok: true, collections: rows });
     } catch (e) {
@@ -404,8 +419,8 @@ router.post('/scripts/collections', async (req, res) => {
     if (!name) return res.status(400).json({ ok: false, error: 'name requerido' });
     try {
         const result = await dbQuery(
-            'INSERT INTO rmm_script_collections (name,description,icon,sort_order) VALUES (?,?,?,?)',
-            [name, description||null, icon||'bi-collection', sort_order||0]
+            'INSERT INTO rmm_script_collections (tenant_id,name,description,icon,sort_order) VALUES (?,?,?,?,?)',
+            [tenantId(req), name, description||null, icon||'bi-collection', sort_order||0]
         );
         res.json({ ok: true, id: result.insertId });
     } catch (e) {
@@ -418,8 +433,8 @@ router.put('/scripts/collections/:id', async (req, res) => {
     if (!name) return res.status(400).json({ ok: false, error: 'name requerido' });
     try {
         await dbQuery(
-            'UPDATE rmm_script_collections SET name=?,description=?,icon=?,sort_order=? WHERE id=?',
-            [name, description||null, icon||'bi-collection', sort_order||0, req.params.id]
+            'UPDATE rmm_script_collections SET name=?,description=?,icon=?,sort_order=? WHERE id=? AND tenant_id=?',
+            [name, description||null, icon||'bi-collection', sort_order||0, req.params.id, tenantId(req)]
         );
         res.json({ ok: true });
     } catch (e) {
@@ -429,7 +444,7 @@ router.put('/scripts/collections/:id', async (req, res) => {
 
 router.delete('/scripts/collections/:id', async (req, res) => {
     try {
-        await dbQuery('DELETE FROM rmm_script_collections WHERE id=?', [req.params.id]);
+        await dbQuery('DELETE FROM rmm_script_collections WHERE id=? AND tenant_id=?', [req.params.id, tenantId(req)]);
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ ok: false, error: e.message });
@@ -440,12 +455,12 @@ router.delete('/scripts/collections/:id', async (req, res) => {
 
 router.get('/scripts', async (req, res) => {
     try {
-        const where  = req.query.collection_id ? 'WHERE s.collection_id=?' : '';
-        const params = req.query.collection_id ? [req.query.collection_id] : [];
+        const where  = 'WHERE s.tenant_id=?' + (req.query.collection_id ? ' AND s.collection_id=?' : '');
+        const params = [tenantId(req), ...(req.query.collection_id ? [req.query.collection_id] : [])];
         const rows = await dbQuery(
             `SELECT s.id, s.collection_id, s.name, s.description, s.code,
                     c.name AS collection_name, c.icon AS collection_icon
-             FROM rmm_scripts s
+             FROM rmm_scripts s /* tenant_id: en where */
              JOIN rmm_script_collections c ON c.id = s.collection_id
              ${where}
              ORDER BY c.sort_order, c.name, s.name`,
@@ -462,9 +477,11 @@ router.post('/scripts', async (req, res) => {
     if (!collection_id || !name || !code)
         return res.status(400).json({ ok: false, error: 'collection_id, name y code son requeridos' });
     try {
+        if (!(await dbQuery('SELECT id FROM rmm_script_collections WHERE id=? AND tenant_id=?', [collection_id, tenantId(req)])).length)
+            return res.status(404).json({ ok: false, error: 'Colección no encontrada' });
         const result = await dbQuery(
-            'INSERT INTO rmm_scripts (collection_id,name,description,code) VALUES (?,?,?,?)',
-            [collection_id, name, description||null, code]
+            'INSERT INTO rmm_scripts (tenant_id,collection_id,name,description,code) VALUES (?,?,?,?,?)',
+            [tenantId(req), collection_id, name, description||null, code]
         );
         res.json({ ok: true, id: result.insertId });
     } catch (e) {
@@ -477,9 +494,11 @@ router.put('/scripts/:id', async (req, res) => {
     if (!collection_id || !name || !code)
         return res.status(400).json({ ok: false, error: 'collection_id, name y code son requeridos' });
     try {
+        if (!(await dbQuery('SELECT id FROM rmm_script_collections WHERE id=? AND tenant_id=?', [collection_id, tenantId(req)])).length)
+            return res.status(404).json({ ok: false, error: 'Colección no encontrada' });
         await dbQuery(
-            'UPDATE rmm_scripts SET collection_id=?,name=?,description=?,code=? WHERE id=?',
-            [collection_id, name, description||null, code, req.params.id]
+            'UPDATE rmm_scripts SET collection_id=?,name=?,description=?,code=? WHERE id=? AND tenant_id=?',
+            [collection_id, name, description||null, code, req.params.id, tenantId(req)]
         );
         res.json({ ok: true });
     } catch (e) {
@@ -489,7 +508,7 @@ router.put('/scripts/:id', async (req, res) => {
 
 router.delete('/scripts/:id', async (req, res) => {
     try {
-        await dbQuery('DELETE FROM rmm_scripts WHERE id=?', [req.params.id]);
+        await dbQuery('DELETE FROM rmm_scripts WHERE id=? AND tenant_id=?', [req.params.id, tenantId(req)]);
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ ok: false, error: e.message });
@@ -509,7 +528,7 @@ router.post('/device/run', async (req, res) => {
             code       = customCode;
             scriptName = 'Comando personalizado';
         } else {
-            const rows = await dbQuery('SELECT * FROM rmm_scripts WHERE id=?', [scriptId]);
+            const rows = await dbQuery('SELECT * FROM rmm_scripts WHERE id=? AND tenant_id=?', [scriptId, tenantId(req)]);
             if (!rows.length) return res.status(404).json({ ok: false, error: 'Script no encontrado' });
             code       = rows[0].code;
             scriptName = rows[0].name;
@@ -850,9 +869,9 @@ router.post('/device/recordings', async (req, res) => {
 
 // ── Configuración RMM ─────────────────────────────────────────────────────────
 
-router.get('/config', async (req, res) => {
+router.get('/config', requireSuperadmin, async (req, res) => {
     try {
-        const rows = await dbQuery('SELECT `key`, value, label, is_secret FROM rmm_settings ORDER BY `key`');
+        const rows = await dbQuery('SELECT `key`, value, label, is_secret FROM rmm_settings /* tenant_id: configuración global de la plataforma (superadmin) */ ORDER BY `key`');
         const settings = {};
         for (const r of rows) {
             settings[r.key] = {
@@ -869,7 +888,7 @@ router.get('/config', async (req, res) => {
     }
 });
 
-router.put('/config', async (req, res) => {
+router.put('/config', requireSuperadmin, async (req, res) => {
     const { mesh_url, mesh_public_url, mesh_user, mesh_pass } = req.body;
     try {
         const updates = [
@@ -879,17 +898,17 @@ router.put('/config', async (req, res) => {
         ];
         for (const [k, v] of updates) {
             await dbQuery(
-                'INSERT INTO rmm_settings (`key`, value, updated_at) VALUES (?,?,NOW()) ON DUPLICATE KEY UPDATE value=VALUES(value), updated_at=NOW()',
+                'INSERT INTO rmm_settings /* tenant_id: configuración global de la plataforma (superadmin) */ (`key`, value, updated_at) VALUES (?,?,NOW()) ON DUPLICATE KEY UPDATE value=VALUES(value), updated_at=NOW()',
                 [k, v || null]
             );
         }
         if (mesh_pass !== undefined && mesh_pass !== '••••••••') {
             await dbQuery(
-                'INSERT INTO rmm_settings (`key`, value, updated_at) VALUES (?,?,NOW()) ON DUPLICATE KEY UPDATE value=VALUES(value), updated_at=NOW()',
+                'INSERT INTO rmm_settings /* tenant_id: configuración global de la plataforma (superadmin) */ (`key`, value, updated_at) VALUES (?,?,NOW()) ON DUPLICATE KEY UPDATE value=VALUES(value), updated_at=NOW()',
                 ['mesh_pass', mesh_pass || null]
             );
         }
-        const cfg = await dbQuery('SELECT `key`, value FROM rmm_settings');
+        const cfg = await dbQuery('SELECT `key`, value FROM rmm_settings /* tenant_id: configuración global de la plataforma (superadmin) */');
         const m = {};
         for (const r of cfg) m[r.key] = r.value || '';
         meshSvc.reloadConfig({
@@ -911,47 +930,47 @@ router.get('/alerts', async (req, res) => {
     const { status = 'open', limit = 50, nodeId } = req.query;
     try {
         const lim = Math.min(parseInt(limit) || 50, 200);
-        const allowedIds = await _getAllowedNodeIds(req.user?.tenant_id);
+        const allowedIds = await _getAllowedNodeIds(tenantId(req));
         let rows;
         if (nodeId) {
             if (allowedIds && !allowedIds.has(nodeId)) return res.json({ ok: true, alerts: [], stats: {} });
-            rows = await dbQuery('SELECT * FROM rmm_alerts WHERE node_id=? AND status=? ORDER BY fired_at DESC LIMIT ?', [nodeId, status, lim]);
+            rows = await dbQuery('SELECT * FROM rmm_alerts WHERE COALESCE(tenant_id, 1) = ? AND node_id=? AND status=? ORDER BY fired_at DESC LIMIT ?', [tenantId(req), nodeId, status, lim]);
         } else if (allowedIds) {
             if (!allowedIds.size) return res.json({ ok: true, alerts: [], stats: {} });
             const ph = [...allowedIds].map(() => '?').join(',');
-            rows = await dbQuery(`SELECT * FROM rmm_alerts WHERE node_id IN (${ph}) AND status=? ORDER BY fired_at DESC LIMIT ?`, [...allowedIds, status, lim]);
+            rows = await dbQuery(`SELECT * FROM rmm_alerts WHERE COALESCE(tenant_id, 1) = ? AND node_id IN (${ph}) AND status=? ORDER BY fired_at DESC LIMIT ?`, [tenantId(req), ...allowedIds, status, lim]);
         } else {
-            rows = await dbQuery('SELECT * FROM rmm_alerts WHERE status=? ORDER BY fired_at DESC LIMIT ?', [status, lim]);
+            rows = await dbQuery('SELECT * FROM rmm_alerts WHERE COALESCE(tenant_id, 1) = ? AND status=? ORDER BY fired_at DESC LIMIT ?', [tenantId(req), status, lim]);
         }
-        const stats = await getAlertStats(allowedIds);
+        const stats = await getAlertStats(allowedIds, tenantId(req));
         res.json({ ok: true, alerts: rows, stats });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 router.get('/alerts/stats', async (req, res) => {
     try {
-        const allowedIds = await _getAllowedNodeIds(req.user?.tenant_id);
-        res.json({ ok: true, ...(await getAlertStats(allowedIds)) });
+        const allowedIds = await _getAllowedNodeIds(tenantId(req));
+        res.json({ ok: true, ...(await getAlertStats(allowedIds, tenantId(req))) });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 router.put('/alerts/:id/ack', async (req, res) => {
     try {
-        await dbQuery("UPDATE rmm_alerts SET status='acknowledged', ack_by=? WHERE id=?",
-            [req.user?.email || 'admin', req.params.id]);
+        await dbQuery("UPDATE rmm_alerts SET status='acknowledged', ack_by=? WHERE id=? AND COALESCE(tenant_id, 1) = ?",
+            [req.user?.email || 'admin', req.params.id, tenantId(req)]);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 router.put('/alerts/:id/resolve', async (req, res) => {
     try {
-        await dbQuery("UPDATE rmm_alerts SET status='resolved', resolved_at=NOW() WHERE id=?", [req.params.id]);
+        await dbQuery("UPDATE rmm_alerts SET status='resolved', resolved_at=NOW() WHERE id=? AND COALESCE(tenant_id, 1) = ?", [req.params.id, tenantId(req)]);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 router.get('/alert-rules', async (req, res) => {
-    try { res.json({ ok: true, rules: await dbQuery('SELECT * FROM rmm_alert_rules ORDER BY severity DESC, name') }); }
+    try { res.json({ ok: true, rules: await dbQuery('SELECT * FROM rmm_alert_rules WHERE COALESCE(tenant_id, 1) = ? ORDER BY severity DESC, name', [tenantId(req)]) }); }
     catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -959,9 +978,9 @@ router.post('/alert-rules', async (req, res) => {
     const { name, metric, operator, threshold, param, severity, auto_ticket } = req.body;
     if (!name || !metric) return res.status(400).json({ ok: false, error: 'name y metric requeridos' });
     try {
-        const [r] = await dbQuery(
-            'INSERT INTO rmm_alert_rules (name, metric, operator, threshold, param, severity, auto_ticket) VALUES (?,?,?,?,?,?,?)',
-            [name, metric, operator||'gt', threshold||null, param||null, severity||'warning', auto_ticket?1:0]
+        const r = await dbQuery(
+            'INSERT INTO rmm_alert_rules (tenant_id, name, metric, operator, threshold, param, severity, auto_ticket) VALUES (?,?,?,?,?,?,?,?)',
+            [tenantId(req), name, metric, operator||'gt', threshold||null, param||null, severity||'warning', auto_ticket?1:0]
         );
         res.json({ ok: true, id: r.insertId });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -971,8 +990,8 @@ router.put('/alert-rules/:id', async (req, res) => {
     const { name, metric, operator, threshold, param, severity, auto_ticket, enabled } = req.body;
     try {
         await dbQuery(
-            'UPDATE rmm_alert_rules SET name=?,metric=?,operator=?,threshold=?,param=?,severity=?,auto_ticket=?,enabled=? WHERE id=?',
-            [name, metric, operator||'gt', threshold||null, param||null, severity||'warning', auto_ticket?1:0, enabled===false?0:1, req.params.id]
+            'UPDATE rmm_alert_rules SET name=?,metric=?,operator=?,threshold=?,param=?,severity=?,auto_ticket=?,enabled=? WHERE id=? AND COALESCE(tenant_id, 1) = ?',
+            [name, metric, operator||'gt', threshold||null, param||null, severity||'warning', auto_ticket?1:0, enabled===false?0:1, req.params.id, tenantId(req)]
         );
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -980,7 +999,7 @@ router.put('/alert-rules/:id', async (req, res) => {
 
 router.delete('/alert-rules/:id', async (req, res) => {
     try {
-        await dbQuery('DELETE FROM rmm_alert_rules WHERE id=?', [req.params.id]);
+        await dbQuery('DELETE FROM rmm_alert_rules WHERE id=? AND COALESCE(tenant_id, 1) = ?', [req.params.id, tenantId(req)]);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -989,7 +1008,7 @@ router.delete('/alert-rules/:id', async (req, res) => {
 
 router.get('/software/catalog', async (req, res) => {
     try {
-        const rows = await dbQuery('SELECT * FROM rmm_software_catalog ORDER BY category, name');
+        const rows = await dbQuery('SELECT * FROM rmm_software_catalog WHERE COALESCE(tenant_id, 1) = ? ORDER BY category, name', [tenantId(req)]);
         res.json({ ok: true, apps: rows });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -998,9 +1017,9 @@ router.post('/software/catalog', async (req, res) => {
     const { name, version, description, url, sha256, type, silent_args, category } = req.body;
     if (!name || !url) return res.status(400).json({ ok: false, error: 'name y url requeridos' });
     try {
-        const [r] = await dbQuery(
-            'INSERT INTO rmm_software_catalog (name, version, description, url, sha256, type, silent_args, category) VALUES (?,?,?,?,?,?,?,?)',
-            [name, version||null, description||null, url, sha256||null, type||'exe', silent_args||null, category||'General']
+        const r = await dbQuery(
+            'INSERT INTO rmm_software_catalog (tenant_id, name, version, description, url, sha256, type, silent_args, category) VALUES (?,?,?,?,?,?,?,?,?)',
+            [tenantId(req), name, version||null, description||null, url, sha256||null, type||'exe', silent_args||null, category||'General']
         );
         res.json({ ok: true, id: r.insertId });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -1011,8 +1030,8 @@ router.put('/software/catalog/:id', async (req, res) => {
     if (!name || !url) return res.status(400).json({ ok: false, error: 'name y url requeridos' });
     try {
         await dbQuery(
-            'UPDATE rmm_software_catalog SET name=?,version=?,description=?,url=?,sha256=?,type=?,silent_args=?,category=?,updated_at=NOW() WHERE id=?',
-            [name, version||null, description||null, url, sha256||null, type||'exe', silent_args||null, category||'General', req.params.id]
+            'UPDATE rmm_software_catalog SET name=?,version=?,description=?,url=?,sha256=?,type=?,silent_args=?,category=?,updated_at=NOW() WHERE id=? AND COALESCE(tenant_id, 1) = ?',
+            [name, version||null, description||null, url, sha256||null, type||'exe', silent_args||null, category||'General', req.params.id, tenantId(req)]
         );
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -1020,7 +1039,7 @@ router.put('/software/catalog/:id', async (req, res) => {
 
 router.delete('/software/catalog/:id', async (req, res) => {
     try {
-        await dbQuery('DELETE FROM rmm_software_catalog WHERE id=?', [req.params.id]);
+        await dbQuery('DELETE FROM rmm_software_catalog WHERE id=? AND COALESCE(tenant_id, 1) = ?', [req.params.id, tenantId(req)]);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -1033,7 +1052,7 @@ router.post('/device/deploy', async (req, res) => {
 
     let app;
     if (catalogId) {
-        const rows = await dbQuery('SELECT * FROM rmm_software_catalog WHERE id=?', [catalogId]);
+        const rows = await dbQuery('SELECT * FROM rmm_software_catalog WHERE id=? AND COALESCE(tenant_id, 1) = ?', [catalogId, tenantId(req)]);
         if (!rows.length) return res.status(404).json({ ok: false, error: 'App no encontrada en catálogo' });
         app = rows[0];
     } else if (customUrl && customName) {
@@ -1043,9 +1062,9 @@ router.post('/device/deploy', async (req, res) => {
     }
 
     // Registrar job
-    const [jr] = await dbQuery(
-        'INSERT INTO rmm_deploy_jobs (catalog_id, node_id, node_name, app_name, status, started_by) VALUES (?,?,?,?,\'running\',?)',
-        [catalogId||null, nodeId, nodeName||nodeId, app.name, req.user?.email||'admin']
+    const jr = await dbQuery(
+        'INSERT INTO rmm_deploy_jobs (tenant_id, catalog_id, node_id, node_name, app_name, status, started_by) VALUES (?,?,?,?,?,\'running\',?)',
+        [tenantId(req), catalogId||null, nodeId, nodeName||nodeId, app.name, req.user?.email||'admin']
     );
     const jobId = jr.insertId;
 
@@ -1079,11 +1098,11 @@ Remove-Item '${tmpVar}' -Force -EA SilentlyContinue;
             let parsed = {};
             try { parsed = JSON.parse((result.output||'').trim()); } catch {}
             const ok = parsed.ok === true || parsed.exitCode === 0;
-            dbQuery('UPDATE rmm_deploy_jobs SET status=?,exit_code=?,error_msg=?,finished_at=NOW() WHERE id=?',
+            dbQuery('UPDATE rmm_deploy_jobs /* tenant_id: jobId recién creado */ SET status=?,exit_code=?,error_msg=?,finished_at=NOW() WHERE id=?',
                 [ok?'ok':'error', parsed.exitCode??null, ok?null:(parsed.error||'Error desconocido'), jobId]);
         })
         .catch(err => {
-            dbQuery('UPDATE rmm_deploy_jobs SET status=\'error\',error_msg=?,finished_at=NOW() WHERE id=?',
+            dbQuery('UPDATE rmm_deploy_jobs /* tenant_id: jobId recién creado */ SET status=\'error\',error_msg=?,finished_at=NOW() WHERE id=?',
                 [err.message, jobId]);
         });
 });
@@ -1092,17 +1111,17 @@ router.get('/device/deploy/jobs', async (req, res) => {
     const { nodeId, limit } = req.query;
     try {
         const lim = Math.min(parseInt(limit)||20, 100);
-        const allowedIds = await _getAllowedNodeIds(req.user?.tenant_id);
+        const allowedIds = await _getAllowedNodeIds(tenantId(req));
         let rows;
         if (nodeId) {
             if (allowedIds && !allowedIds.has(nodeId)) return res.json({ ok: true, jobs: [] });
-            rows = await dbQuery('SELECT * FROM rmm_deploy_jobs WHERE node_id=? ORDER BY started_at DESC LIMIT ?', [nodeId, lim]);
+            rows = await dbQuery('SELECT * FROM rmm_deploy_jobs WHERE COALESCE(tenant_id, 1) = ? AND node_id=? ORDER BY started_at DESC LIMIT ?', [tenantId(req), nodeId, lim]);
         } else if (allowedIds) {
             if (!allowedIds.size) return res.json({ ok: true, jobs: [] });
             const ph = [...allowedIds].map(() => '?').join(',');
-            rows = await dbQuery(`SELECT * FROM rmm_deploy_jobs WHERE node_id IN (${ph}) ORDER BY started_at DESC LIMIT ?`, [...allowedIds, lim]);
+            rows = await dbQuery(`SELECT * FROM rmm_deploy_jobs WHERE COALESCE(tenant_id, 1) = ? AND node_id IN (${ph}) ORDER BY started_at DESC LIMIT ?`, [tenantId(req), ...allowedIds, lim]);
         } else {
-            rows = await dbQuery('SELECT * FROM rmm_deploy_jobs ORDER BY started_at DESC LIMIT ?', [lim]);
+            rows = await dbQuery('SELECT * FROM rmm_deploy_jobs WHERE COALESCE(tenant_id, 1) = ? ORDER BY started_at DESC LIMIT ?', [tenantId(req), lim]);
         }
         res.json({ ok: true, jobs: rows });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -1111,7 +1130,7 @@ router.get('/device/deploy/jobs', async (req, res) => {
 // ── Admin: gestión de grupos por tenant ───────────────────────────────────────
 
 // Lista todos los meshes disponibles en MeshCentral (para el selector)
-router.get('/meshes', async (req, res) => {
+router.get('/meshes', requireSuperadmin, async (req, res) => {
     try {
         const result = await meshSvc.getDevices(false);
         const meshMap = {};
@@ -1128,18 +1147,18 @@ router.get('/meshes', async (req, res) => {
 });
 
 // Lista grupos asignados (opcionalmente filtrado por tenant)
-router.get('/tenant-groups', async (req, res) => {
+router.get('/tenant-groups', requireSuperadmin, async (req, res) => {
     try {
         const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id) : null;
         const rows = tenantId
             ? await dbQuery('SELECT tg.*, t.name AS tenant_name FROM rmm_tenant_groups tg LEFT JOIN tenants t ON t.id=tg.tenant_id WHERE tg.tenant_id=? ORDER BY tg.id', [tenantId])
-            : await dbQuery('SELECT tg.*, t.name AS tenant_name FROM rmm_tenant_groups tg LEFT JOIN tenants t ON t.id=tg.tenant_id ORDER BY tg.tenant_id, tg.id');
+            : await dbQuery('SELECT tg.*, t.name AS tenant_name FROM rmm_tenant_groups tg /* tenant_id: vista de plataforma (superadmin) */ LEFT JOIN tenants t ON t.id=tg.tenant_id ORDER BY tg.tenant_id, tg.id');
         res.json({ ok: true, groups: rows });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 // Asignar un grupo de mesh a un tenant
-router.post('/tenant-groups', async (req, res) => {
+router.post('/tenant-groups', requireSuperadmin, async (req, res) => {
     const { tenant_id, mesh_id, mesh_name } = req.body;
     if (!tenant_id || !mesh_id) return res.status(400).json({ ok: false, error: 'tenant_id y mesh_id requeridos' });
     try {
@@ -1153,10 +1172,10 @@ router.post('/tenant-groups', async (req, res) => {
 });
 
 // Eliminar asignación
-router.delete('/tenant-groups/:id', async (req, res) => {
+router.delete('/tenant-groups/:id', requireSuperadmin, async (req, res) => {
     try {
         const rows = await dbQuery('SELECT tenant_id FROM rmm_tenant_groups WHERE id=?', [req.params.id]);
-        await dbQuery('DELETE FROM rmm_tenant_groups WHERE id=?', [req.params.id]);
+        await dbQuery('DELETE FROM rmm_tenant_groups /* tenant_id: vista de plataforma (superadmin) */ WHERE id=?', [req.params.id]);
         if (rows.length) _invalidateMeshCache(rows[0].tenant_id);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -1224,7 +1243,7 @@ async function _buildComplianceData(tenantId) {
     // Alertas abiertas por nodo
     let alertMap = {};
     try {
-        const rows = await dbQuery("SELECT node_id, COUNT(*) AS cnt, MAX(severity) AS top_sev FROM rmm_alerts WHERE status='open' GROUP BY node_id");
+        const rows = await dbQuery("SELECT node_id, COUNT(*) AS cnt, MAX(severity) AS top_sev FROM rmm_alerts WHERE COALESCE(tenant_id, 1) = ? AND status='open' GROUP BY node_id", [Number(tenantId) || OWNER_TENANT_ID]);
         for (const r of rows) alertMap[r.node_id] = { count: parseInt(r.cnt), severity: r.top_sev };
     } catch {}
 
@@ -1267,7 +1286,7 @@ async function _buildComplianceData(tenantId) {
 
 router.get('/compliance/summary', async (req, res) => {
     try {
-        const data = await _buildComplianceData(req.user?.tenant_id);
+        const data = await _buildComplianceData(tenantId(req));
         res.json({ ok: true, ...data });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -1275,7 +1294,7 @@ router.get('/compliance/summary', async (req, res) => {
 router.get('/compliance/export/excel', async (req, res) => {
     if (!ExcelJS) return res.status(500).json({ ok: false, error: 'exceljs no disponible' });
     try {
-        const { devices, kpis, generatedAt } = await _buildComplianceData(req.user?.tenant_id);
+        const { devices, kpis, generatedAt } = await _buildComplianceData(tenantId(req));
 
         const wb = new ExcelJS.Workbook();
         wb.creator = 'ITSM Compliance';
@@ -1351,7 +1370,7 @@ router.get('/compliance/export/excel', async (req, res) => {
 router.get('/compliance/export/pdf', async (req, res) => {
     if (!PDFDocument) return res.status(500).json({ ok: false, error: 'pdfkit no disponible' });
     try {
-        const { devices, kpis, generatedAt } = await _buildComplianceData(req.user?.tenant_id);
+        const { devices, kpis, generatedAt } = await _buildComplianceData(tenantId(req));
         const doc = new PDFDocument({ margin: 40, size: 'A4', compress: true });
 
         // Cabecera

@@ -1,3 +1,4 @@
+// tenant-scope: owner-only — montado con ownerTenantOnly en routes/api.js (solo tenant 1).
 // ============================================================
 // routes/print-queue.js
 // Cola de impresión — código de seguridad por correo

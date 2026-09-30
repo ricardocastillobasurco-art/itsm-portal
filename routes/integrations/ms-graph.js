@@ -1,3 +1,4 @@
+// tenant-scope: owner-only — restringido a tenant 1 dentro del router (credenciales Graph de .env).
 'use strict';
 
 const express             = require('express');

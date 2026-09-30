@@ -1,3 +1,4 @@
+// tenant-scope: owner-only — montado con ownerTenantOnly en routes/api.js (solo tenant 1).
 // ============================================================
 // routes/outlook-sync.js
 // FIX PRINCIPAL: findEmailAndAllCsvs() descarga TODOS los CSVs
