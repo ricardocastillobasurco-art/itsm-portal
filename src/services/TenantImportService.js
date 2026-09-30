@@ -130,8 +130,9 @@ class TenantImportService {
     const role        = VALID_ROLES.includes(row.role) ? row.role : 'usuario';
     const employeeCip = (row.employee_cip || null);
 
-    // Contraseña temporal: nombre_usuario@año (el admin debe notificar al usuario)
-    const tempPass = await bcrypt.hash(`${username}@${new Date().getFullYear()}`, 10);
+    // Contraseña aleatoria que nadie conoce: el usuario define la suya con
+    // "¿Olvidaste tu contraseña?" (código por correo) o entra con Microsoft
+    const tempPass = await bcrypt.hash(require('crypto').randomBytes(24).toString('base64url'), 10);
 
     await sequelize.query(
       `INSERT INTO users

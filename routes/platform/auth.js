@@ -8,6 +8,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { authenticateToken: requireAuth, requireRole } = require('../../middleware/auth');
 const { tenantId: reqTenantId } = require('../../src/utils/tenantScope');
+const { SUPERADMIN_EMAILS, ADMIN_EMAILS } = require('../../src/config/platform');
 
 // Gestión de usuarios: solo administradores, y siempre dentro de su propio tenant.
 // Usuarios con tenant_id NULL son del tenant 1 (instalación original).
@@ -21,9 +22,7 @@ async function tenantForEmail(email) {
     if (!domain) return null;
     const [t] = await executeQuery(equipmentPool,
         'SELECT id FROM tenants WHERE LOWER(domain) = ? AND is_active = 1 LIMIT 1', [domain]).catch(() => []);
-    if (t) return t.id;
-    // Compatibilidad: instalaciones donde el tenant 1 aún no tiene dominio registrado
-    return domain.includes('integratel') ? 1 : null;
+    return t ? t.id : null;
 }
 
 // Código de verificación por correo para el primer acceso (evita que alguien
@@ -561,6 +560,58 @@ router.post('/employee-setup', async (req, res) => {
     }
 });
 
+// ── Recuperar contraseña con código por correo ────────────────────────────────
+// POST /api/auth/password-reset/code  { email }  — respuesta genérica (no revela cuentas)
+router.post('/password-reset/code', async (req, res) => {
+    const cleanEmail = (req.body?.email || '').trim().toLowerCase();
+    if (!cleanEmail) return res.status(400).json({ success: false, error: 'email requerido' });
+    const generic = { success: true, message: 'Si el correo tiene una cuenta, recibirás un código para restablecer tu contraseña' };
+    try {
+        const usr = await User.findOne( /* tenant_id: identidad por email/id (login) */{ where: { email: cleanEmail, activo: true } });
+        if (!usr || usr.rol === 'superadmin') return res.json(generic);
+        const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+        await executeQuery(equipmentPool,
+            `REPLACE INTO auth_email_codes (email, code_hash, attempts, expires_at)
+             VALUES (?, ?, 0, DATE_ADD(NOW(), INTERVAL ? MINUTE))`,
+            [cleanEmail, hashCode(cleanEmail, code), CODE_TTL_MIN]);
+        await enqueueEmail({ to: cleanEmail, subject: '🔐 Código para restablecer tu contraseña',
+            template: 'codigo-verificacion', vars: { code, minutes: CODE_TTL_MIN } });
+        res.json(generic);
+    } catch (err) {
+        console.error('password-reset/code error:', err.message);
+        res.status(500).json({ success: false, error: 'No se pudo enviar el código' });
+    }
+});
+
+// POST /api/auth/password-reset  { email, code, password }
+router.post('/password-reset', async (req, res) => {
+    const { email, password, code } = req.body || {};
+    if (!email || !password || !code) return res.status(400).json({ success: false, error: 'email, código y contraseña requeridos' });
+    if (!pwValid(password)) return res.status(400).json({
+        success: false,
+        error: 'La contraseña debe tener mínimo 6 caracteres, una mayúscula, un número y un símbolo'
+    });
+    try {
+        const cleanEmail = email.trim().toLowerCase();
+        const [pending] = await executeQuery(equipmentPool,
+            `SELECT code_hash, attempts, expires_at > NOW() AS vigente FROM auth_email_codes WHERE email = ?`, [cleanEmail]);
+        if (!pending || !pending.vigente || pending.attempts >= CODE_MAX_ATTEMPTS)
+            return res.status(400).json({ success: false, error: 'El código expiró. Solicita uno nuevo' });
+        if (pending.code_hash !== hashCode(cleanEmail, String(code).trim())) {
+            await executeQuery(equipmentPool, 'UPDATE auth_email_codes SET attempts = attempts + 1 WHERE email = ?', [cleanEmail]);
+            return res.status(400).json({ success: false, error: 'Código incorrecto' });
+        }
+        const usr = await User.findOne( /* tenant_id: identidad por email/id (login) */{ where: { email: cleanEmail, activo: true } });
+        if (!usr || usr.rol === 'superadmin') return res.status(400).json({ success: false, error: 'El código expiró. Solicita uno nuevo' });
+        await executeQuery(equipmentPool, 'DELETE FROM auth_email_codes WHERE email = ?', [cleanEmail]);
+        await usr.update({ password });
+        res.json({ success: true, message: 'Contraseña actualizada. Ya puedes ingresar' });
+    } catch (err) {
+        console.error('password-reset error:', err.message);
+        res.status(500).json({ success: false, error: 'No se pudo restablecer la contraseña' });
+    }
+});
+
 // ── GET /auth/microsoft — iniciar SSO ─────────────────────────────────────────
 router.get('/microsoft', async (req, res) => {
     if (!_msalClient) return res.redirect('/login?error=sso_no_disponible');
@@ -614,17 +665,8 @@ router.get('/microsoft/callback', async (req, res) => {
             return res.redirect('/login?error=cuenta_de_otra_empresa');
         }
 
-        // Emails pre-autorizados como superadmin
-        const SUPERADMIN_EMAILS = [
-            'ricardo.castillo.opr@integratel.com.pe',
-        ];
-
-        // Emails pre-autorizados como admin (nuevos o existentes)
-        const ADMIN_EMAILS = [
-            'juan.urteaga.opr@integratel.com.pe',
-            'jose.zevallos.opr@integratel.com.pe',
-            'luis.urteaga.opr@integratel.com.pe',
-        ];
+        // Correos pre-autorizados como superadmin / admin: variables de entorno
+        // SUPERADMIN_EMAILS y ADMIN_EMAILS (src/config/platform.js)
 
         // Si no existe, crear con el rol correcto desde el inicio
         if (!userRows || !userRows.length) {

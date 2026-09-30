@@ -259,31 +259,6 @@ module.exports = function runMigrations() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
 
-        // Seed: equipos de ejemplo para usuarios Petrotal (tenant_id = 5)
-        const petrotalUsers = await dbQuery(
-            `SELECT id, email, full_name FROM users WHERE tenant_id = 5 AND is_active = 1 AND deleted_at IS NULL LIMIT 20`
-        );
-        if (petrotalUsers.length) {
-            const sampleEquip = [
-                { device_code: 'PCG-PET-001', serial: 'SN-PET-2024-001', type: 'Laptop',  brand: 'Dell',   model: 'Latitude 5540',   dept: 'Tecnología de Información', loc: 'Lima - Sede Principal' },
-                { device_code: 'PCG-PET-002', serial: 'SN-PET-2024-002', type: 'Laptop',  brand: 'HP',     model: 'EliteBook 840 G9', dept: 'Operaciones',               loc: 'Lima - Sede Principal' },
-                { device_code: 'PCG-PET-003', serial: 'SN-PET-2024-003', type: 'Desktop', brand: 'Lenovo', model: 'ThinkCentre M90q', dept: 'Finanzas',                  loc: 'Lima - Sede Principal' },
-            ];
-            for (let i = 0; i < petrotalUsers.length; i++) {
-                const u = petrotalUsers[i];
-                const eq = sampleEquip[i % sampleEquip.length];
-                const userDevCode = `${eq.device_code.slice(0,-1)}${(i+1).toString().padStart(2,'0')}`;
-                const existing = await dbQuery(`SELECT id FROM user_equipment /* tenant_id: seed inicial del tenant 1 al arrancar (DEFAULT/NULL = 1) */ WHERE user_id = ? LIMIT 1`, [u.id]);
-                if (!existing.length) {
-                    await dbQuery(
-                        `INSERT INTO user_equipment (user_id, tenant_id, device_code, serial_number, equipment_type, brand, model, department_name, location_name, assignment_date, status)
-                         VALUES (?, 5, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 'Activo')`,
-                        [u.id, userDevCode, eq.serial.replace('001', (i+1).toString().padStart(3,'0')), eq.type, eq.brand, eq.model, eq.dept, eq.loc]
-                    );
-                    console.log(`✅ user_equipment: equipo asignado a ${u.email}`);
-                }
-            }
-        }
     } catch(e) { console.error('⚠️ user_equipment:', e.message); }
 })();
 };

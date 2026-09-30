@@ -466,7 +466,8 @@ router.post('/:tenantId/users', async (req, res, next) => {
     const rawUsername  = (username || cleanEmail.split('@')[0]).trim().replace(/[^a-zA-Z0-9._-]/g,'').substring(0,100) || `user_${Date.now()}`;
     const fullName     = (full_name || rawUsername).trim().substring(0,150);
     const userRole     = VALID_ROLES.includes(role) ? role : 'usuario';
-    const rawPass      = (password || '').trim() || `${rawUsername}@${new Date().getFullYear()}`;
+    // Sin contraseña indicada se genera una aleatoria (se devuelve una sola vez al superadmin)
+    const rawPass      = (password || '').trim() || require('crypto').randomBytes(12).toString('base64url') + 'A1!';
     const hash         = await bcrypt.hash(rawPass, 10);
 
     await sequelize.query(

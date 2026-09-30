@@ -54,7 +54,7 @@
     <div class="aria-head-av"><i class="bi bi-stars"></i></div>
     <div class="aria-head-info">
       <b>ARIA</b>
-      <span>Asistente Virtual de TI · Integratel</span>
+      <span>Asistente Virtual de TI<%= locals.tenantName ? ' · ' + locals.tenantName : '' %></span>
     </div>
     <button class="aria-close" onclick="ariaToggle()"><i class="bi bi-x-lg"></i></button>
   </div>

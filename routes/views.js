@@ -692,11 +692,12 @@ router.get('/incidencias', authenticateToken, async (req, res) => {
             if (flags['jira'] !== undefined && flags['jira'].enabled === false) jiraEnabled = false;
         } catch(_) {}
     }
-    let tenantDomain = 'integratel.com.pe';
-    if (tenantId && parseInt(tenantId) !== 1) {
+    // Dominio de correo del tenant (tabla tenants; el tenant dueño también)
+    let tenantDomain = '';
+    {
         try {
             const { executeQuery, equipmentPool } = require('../config/database');
-            const t = await executeQuery(equipmentPool, 'SELECT domain FROM tenants WHERE id = ? LIMIT 1', [parseInt(tenantId)]);
+            const t = await executeQuery(equipmentPool, 'SELECT domain FROM tenants WHERE id = ? LIMIT 1', [parseInt(tenantId) || 1]);
             if (t.length && t[0].domain) tenantDomain = t[0].domain;
         } catch(_) {}
     }

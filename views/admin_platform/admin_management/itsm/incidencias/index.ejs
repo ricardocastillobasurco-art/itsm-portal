@@ -156,8 +156,9 @@ const CURRENT_USER_ROLE  = <%- JSON.stringify(locals.user?.role || 'usuario') %>
 const CURRENT_USER_NAME  = <%- JSON.stringify(locals.user?.full_name || locals.user?.nombre || locals.user?.username || '') %>;
 const CURRENT_USER_EMAIL = <%- JSON.stringify(locals.user?.email || locals.user?.username || '') %>;
 const CURRENT_TENANT_ID  = <%- JSON.stringify(locals.user?.tenant_id || null) %>;
+window.JIRA_BASE_URL = <%- JSON.stringify(((locals.user && locals.user.tenant_id) || 1) == 1 ? (locals.jiraHost || '') : '') %>;
 </script>
-<script src="/js/incidencias/app.js?v=61"></script>
+<script src="/js/incidencias/app.js?v=62"></script>
 <script src="/js/incidencias/_exec_dashboard.js?v=2"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>

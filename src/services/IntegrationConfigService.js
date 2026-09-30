@@ -19,7 +19,7 @@ const logger = require('../utils/logger');
 // Valores por defecto desde .env para cada integración
 const ENV_DEFAULTS = {
     jira: {
-        base_url:    () => process.env.JIRA_HOST      || 'https://integratelperu.atlassian.net',
+        base_url:    () => process.env.JIRA_HOST      || '',
         username:    () => process.env.JIRA_EMAIL     || '',
         api_token:   () => process.env.JIRA_API_TOKEN || '',
         project_key: () => process.env.JIRA_PROJECT   || 'IT',

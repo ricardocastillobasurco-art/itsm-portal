@@ -15,7 +15,7 @@ class GraphService {
     }
 
     static fromTenant(tenant) {
-        const g = tenant?.settings?.graph || {};
+        const g = require('../../utils/secretBox').openConfig(tenant?.settings?.graph || {});
         // Las credenciales globales (.env) pertenecen al tenant por defecto: otros
         // tenants deben configurar las suyas, nunca heredarlas.
         const env = (tenant?.id ?? 1) === 1 ? process.env : {};

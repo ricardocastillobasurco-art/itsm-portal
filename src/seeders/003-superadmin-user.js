@@ -15,7 +15,8 @@ const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 
 const EMAIL    = process.env.SUPERADMIN_EMAIL    || 'superadmin@plataforma.local';
-const PASSWORD = process.env.SUPERADMIN_PASSWORD || 'SuperAdmin@2026!';
+// Sin contraseña por defecto conocida: si no se define SUPERADMIN_PASSWORD se genera una y se muestra una sola vez
+const PASSWORD = process.env.SUPERADMIN_PASSWORD || require('crypto').randomBytes(12).toString('base64url') + 'A1!';
 const USERNAME = process.env.SUPERADMIN_USERNAME || 'superadmin';
 
 module.exports = {
@@ -38,6 +39,7 @@ module.exports = {
              VALUES (?, ?, ?, ?, ?, 'superadmin', NULL, 1, 1, ?, ?)`,
             { replacements: [uuidv4(), USERNAME, 'Super Administrador de Plataforma', EMAIL, hash, now, now] }
         );
+        if (!process.env.SUPERADMIN_PASSWORD) console.log(`  🔑 Contraseña de superadmin generada (guárdala): ${PASSWORD}`);
 
         console.log(`  ✅ Superadmin creado → ${EMAIL}`);
         console.log(`  🔑 Password: ${PASSWORD}`);

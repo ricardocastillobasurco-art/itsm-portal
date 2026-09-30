@@ -1409,7 +1409,7 @@
                 </div>
                 <textarea id="csvAssigneeInput" rows="9"
                   style="width:100%;font-size:12px;font-family:monospace;padding:10px;border:1px solid var(--border-soft);border-radius:8px;background:var(--bg-main);color:var(--text-main);resize:vertical;box-sizing:border-box;"
-                  placeholder="INC-135948, pmsalinas@stefanini.com&#10;INC-136441, fjoro@stefanini.com&#10;INC-137263, rabasurco@stefanini.com&#10;INC-138071, pmsalinas@stefanini.com"></textarea>
+                  placeholder="INC-135948, tecnico1@empresa.com&#10;INC-136441, tecnico2@empresa.com&#10;INC-137263, tecnico3@empresa.com"></textarea>
                 <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">También acepta CSV con encabezados "Issue key,Assignee"</div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
                   <button class="btn-outline-sm" onclick="document.getElementById('modalImportAssignees').style.display='none'">Cancelar</button>
@@ -2058,7 +2058,7 @@
 
                 <!-- Footer -->
                 <div style="border-top:1px solid var(--border-soft);padding-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--text-muted);">
-                  <span><i class="bi bi-shield-check-fill" style="color:#3b82f6;margin-right:4px;"></i>IT Platform · ITSM · Stefanini Movistar Perú</span>
+                  <span><i class="bi bi-shield-check-fill" style="color:#3b82f6;margin-right:4px;"></i>IT Platform · ITSM<%= locals.tenantName ? ' · ' + locals.tenantName : '' %></span>
                   <span id="execFooterTs"></span>
                 </div>
 

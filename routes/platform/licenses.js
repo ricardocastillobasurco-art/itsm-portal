@@ -50,7 +50,7 @@ function graphCredentials(tenant) {
             ? { clientId: MS_CLIENT_ID, tenantId: MS_TENANT_ID, clientSecret: MS_CLIENT_SECRET }
             : null;
     }
-    const g = tenant?.settings?.graph || {};
+    const g = require('../../src/utils/secretBox').openConfig(tenant?.settings?.graph || {});
     return g.clientId && g.tenantId && g.clientSecret
         ? { clientId: g.clientId, tenantId: g.tenantId, clientSecret: g.clientSecret }
         : null;

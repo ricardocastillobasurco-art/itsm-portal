@@ -1518,7 +1518,7 @@ img{max-width:100%;height:auto;}
           <div class="id-input-row">
             <div class="id-ac-wrap">
               <input type="email" id="identEmail" class="id-field"
-                     placeholder="usuario@integratel.com.pe"
+                     placeholder="usuario@<%= (locals.tenantDomain || 'empresa.com') %>"
                      autocomplete="off"
                      oninput="acIdentDebounce()" onkeydown="acIdentKey(event)">
               <div class="ac-drop" id="identDrop"></div>

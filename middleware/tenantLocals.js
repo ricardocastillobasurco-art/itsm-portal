@@ -9,7 +9,7 @@
  * En plantillas EJS se usa:
  *   tenantCfg.features.jira        → boolean
  *   tenantCfg.branding.bannerImage → 'banner-promo.jpg'
- *   tenantCfg.name                 → 'Integratel'
+ *   tenantCfg.name                 → 'Mi Empresa'
  *   jiraEnabled                    → shortcut boolean
  */
 
@@ -28,6 +28,8 @@ module.exports = function tenantLocals(req, res, next) {
     res.locals.jiraEnabled  = cfg?.features?.jira ?? false;
     res.locals.tenantName   = cfg?.name           ?? null;
     res.locals.tenantDomain = cfg?.domain         ?? null;
+    // Jira del tenant dueño (las vistas solo lo usan para el tenant 1)
+    res.locals.jiraHost     = (process.env.JIRA_HOST || '').replace(/\/$/, '');
 
     next();
 };

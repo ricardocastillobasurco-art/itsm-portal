@@ -1,16 +1,12 @@
 'use strict';
 const { v4: uuidv4 } = require('uuid');
 
-// Datos demo para Petrotal. Envuelto en try/catch para que un fallo
-// no crashee la app — solo emite un warning y continúa.
+// Antes sembraba un tenant demo con datos de un tercero y una contraseña conocida.
+// Desactivado: un producto comercial no debe crear datos demo en producción.
+// Se conserva el archivo (y _run) porque Umzug registra la migración por nombre;
+// las instalaciones que ya la ejecutaron se corrigen en 20260930000001.
 module.exports = {
-    async up(queryInterface) {
-        try {
-            await _run(queryInterface);
-        } catch (e) {
-            console.warn('⚠️  Demo Petrotal seed falló (no crítico):', e.message);
-        }
-    },
+    async up() {},
     async down(queryInterface) {
         const q = (sql, p) => queryInterface.sequelize.query(sql, { replacements: p });
         await q(`DELETE FROM jira_tickets WHERE ticket_key LIKE 'TK-P%'`, []).catch(() => {});

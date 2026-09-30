@@ -147,7 +147,7 @@
           <div>
             <div class="form-label-custom">Correo del solicitante *</div>
             <div class="autocomplete-wrap">
-              <input type="email" id="rq_reporter" class="form-control-custom" placeholder="usuario@integratel.com.pe"
+              <input type="email" id="rq_reporter" class="form-control-custom" placeholder="usuario@<%= (locals.tenantDomain || 'empresa.com') %>"
                      autocomplete="off" oninput="acRqReporter(this.value)" onkeydown="acKeydownRq(event,'acRqReporterDrop')"
                      onblur="loadRqEmployeeInfo(this.value.trim())">
               <div id="acRqReporterDrop" class="ac-dropdown"></div>
@@ -208,7 +208,7 @@
             <div>
               <div class="form-label-custom">Correo del colaborador (usuario del equipo)</div>
               <div class="autocomplete-wrap">
-                <input type="email" id="rqEqColaborador" class="form-control-custom" placeholder="colaborador@integratel.com.pe"
+                <input type="email" id="rqEqColaborador" class="form-control-custom" placeholder="colaborador@<%= (locals.tenantDomain || 'empresa.com') %>"
                        autocomplete="off" oninput="acRqColaborador(this.value)" onkeydown="acKeydownRq(event,'acRqColaboradorDrop')"
                        onblur="rqEquiposBuild()">
                 <div id="acRqColaboradorDrop" class="ac-dropdown"></div>

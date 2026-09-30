@@ -60,7 +60,8 @@ const CURRENT_USER_ROLE  = <%- JSON.stringify(locals.user?.role || 'usuario') %>
 const CURRENT_USER_NAME  = <%- JSON.stringify(locals.user?.full_name || locals.user?.nombre || locals.user?.username || '') %>;
 const CURRENT_USER_EMAIL = <%- JSON.stringify(locals.user?.email || locals.user?.username || '') %>;
 const LOCAL_VIEW         = false;
+window.JIRA_BASE_URL = <%- JSON.stringify(((locals.user && locals.user.tenant_id) || 1) == 1 ? (locals.jiraHost || '') : '') %>;
 </script>
-<script src="/js/incidencias/app.js?v=28"></script>
+<script src="/js/incidencias/app.js?v=29"></script>
 </body>
 </html>

@@ -42,7 +42,7 @@
             <div class="form-label-custom">Tu correo corporativo *</div>
             <div class="autocomplete-wrap">
                 <input type="email" id="cf_reporter" class="form-control-custom"
-                       placeholder="usuario@integratel.com.pe" autocomplete="off"
+                       placeholder="usuario@<%= (locals.tenantDomain || 'empresa.com') %>" autocomplete="off"
                        oninput="acCfReporter(this.value)" onkeydown="acKeydown(event,'acCfReporterDrop')"
                        onblur="loadEmployeeInfo(this.value.trim())">
                 <div id="acCfReporterDrop" class="ac-dropdown"></div>

@@ -1,5 +1,8 @@
 'use strict';
 
+// La guarda protege el Jira del .env; sin JIRA_HOST no hay nada que proteger
+process.env.JIRA_HOST = process.env.JIRA_HOST || 'https://owner-test.atlassian.net';
+
 jest.mock('../../../config/database', () => ({ equipmentPool: {}, executeQuery: jest.fn() }));
 jest.mock('../../../middleware/auth', () => ({
   authenticateToken: (req, _res, next) => { req.user = { id: 1 }; req.tenant = req._tokenTenant; next(); },

@@ -11,19 +11,23 @@ const MODULES = {
     itsm_avanzado:   { label: 'ITSM avanzado',        description: 'Gestión de problemas, cambios y mejora continua (CSI)' },
     activos:         { label: 'Gestión de activos',   description: 'Inventario/CMDB, asignaciones, almacén, garantías, devoluciones y soporte' },
     reportes:        { label: 'Reportería',           description: 'Indicadores KPI, reportes ITSM y envío programado de reportes' },
-    impresion:       { label: 'Cola de impresión',    description: 'Gestión de solicitudes de impresión' },
+    // ownerOnly: aún depende de la infraestructura del tenant dueño (buzón, AD, impresoras);
+    // no se entrega a clientes aunque esté en su plan, hasta que se adapte a multi-empresa.
+    impresion:       { label: 'Cola de impresión',    description: 'Gestión de solicitudes de impresión', ownerOnly: true },
     licencias_m365:  { label: 'Licencias M365',       description: 'Costos, uso y recomendaciones de ahorro de licencias Microsoft 365' },
-    microsoft:       { label: 'Microsoft 365 + Intune', description: 'Panel de dispositivos Intune, BitLocker, LAPS, Active Directory y sincronización Outlook' },
+    microsoft:       { label: 'Microsoft 365 + Intune', description: 'Panel de dispositivos Intune, BitLocker, LAPS, Active Directory y sincronización Outlook', ownerOnly: true },
     rmm:             { label: 'Control remoto (RMM)', description: 'Monitoreo y acceso remoto a equipos con MeshCentral' },
 };
 
 const ALL_MODULES = Object.keys(MODULES);
+// Módulos que se pueden vender hoy a un cliente
+const SELLABLE_MODULES = ALL_MODULES.filter(k => !MODULES[k].ownerOnly);
 
 const PLANS = {
-    trial:        { label: 'Prueba',       modules: ALL_MODULES },
+    trial:        { label: 'Prueba',       modules: SELLABLE_MODULES },
     starter:      { label: 'Starter',      modules: ['helpdesk'] },
-    professional: { label: 'Profesional',  modules: ['helpdesk', 'itsm_avanzado', 'activos', 'reportes', 'impresion', 'licencias_m365'] },
-    enterprise:   { label: 'Enterprise',   modules: ALL_MODULES },
+    professional: { label: 'Profesional',  modules: ['helpdesk', 'itsm_avanzado', 'activos', 'reportes', 'licencias_m365'] },
+    enterprise:   { label: 'Enterprise',   modules: SELLABLE_MODULES },
 };
 
 // El tenant 1 es la instalación original: conserva todos los módulos
@@ -37,11 +41,11 @@ function modulesForTenant(tenant) {
     // Plan desconocido o vacío = prueba (no se le quita nada a un cliente mal configurado)
     const plan  = PLANS[tenant?.plan] || PLANS.trial;
     const extra = Array.isArray(tenant?.settings?.extraModules) ? tenant.settings.extraModules : [];
-    return new Set([...plan.modules, ...extra.filter(m => MODULES[m])]);
+    return new Set([...plan.modules, ...extra].filter(m => MODULES[m] && !MODULES[m].ownerOnly));
 }
 
 function hasModule(tenant, moduleKey) {
     return modulesForTenant(tenant).has(moduleKey);
 }
 
-module.exports = { MODULES, PLANS, ALL_MODULES, OWNER_TENANT_ID, modulesForTenant, hasModule };
+module.exports = { MODULES, PLANS, ALL_MODULES, SELLABLE_MODULES, OWNER_TENANT_ID, modulesForTenant, hasModule };

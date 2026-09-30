@@ -104,7 +104,7 @@ async function identificar(){
     const d = await r.json();
 
     if(!d.success){
-      setIdentStatus('err', d.error || 'Correo no encontrado. Solo se permite el dominio @integratel.com.pe');
+      setIdentStatus('err', d.error || 'Correo no encontrado. Usa tu correo corporativo');
       return;
     }
 

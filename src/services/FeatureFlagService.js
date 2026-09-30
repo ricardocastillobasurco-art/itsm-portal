@@ -2,6 +2,8 @@
 
 const redis  = require('../config/redis');
 const logger = require('../utils/logger');
+// Credenciales de integraciones: cifradas en BD y en caché, descifradas solo al devolverlas
+const { sealConfig, openConfig } = require('../utils/secretBox');
 
 // Modelo cargado lazy para evitar dependencias circulares en el boot
 function _model() {
@@ -45,7 +47,8 @@ const FeatureFlagService = {
   async getAll(tenantId) {
     try {
       const cached = await redis.get(_allKey(tenantId));
-      if (cached) return JSON.parse(cached);
+      const open = (m) => Object.fromEntries(Object.entries(m).map(([n, f]) => [n, { ...f, config: openConfig(f.config) }]));
+      if (cached) return open(JSON.parse(cached));
 
       const records = await _model().findAll({ where: { tenantId } });
       const map = Object.fromEntries(
@@ -53,7 +56,7 @@ const FeatureFlagService = {
       );
 
       await redis.setex(_allKey(tenantId), TTL, JSON.stringify(map));
-      return map;
+      return open(map);
     } catch (err) {
       logger.warn(`[FeatureFlagService] getAll error (tenant ${tenantId}):`, err.message);
       return {};
@@ -66,7 +69,7 @@ const FeatureFlagService = {
   async set(tenantId, featureName, enabled, config = null) {
     const TenantFeature = _model();
     const [record] = await TenantFeature.upsert(
-      { tenantId, name: featureName, enabled, config },
+      { tenantId, name: featureName, enabled, config: sealConfig(config) },
       { returning: true }
     );
     await FeatureFlagService.invalidate(tenantId, featureName);

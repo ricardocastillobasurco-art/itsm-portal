@@ -12,7 +12,8 @@ const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL    || 'admin@sistema.local';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin@2024!';
+// Sin contraseña por defecto conocida: si no se define ADMIN_PASSWORD se genera una y se muestra una sola vez
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || require('crypto').randomBytes(12).toString('base64url') + 'A1!';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 
 module.exports = {
@@ -38,6 +39,7 @@ module.exports = {
         );
 
         console.log(`  ✅ Usuario admin creado → ${ADMIN_EMAIL}`);
+        if (!process.env.ADMIN_PASSWORD) console.log(`  🔑 Contraseña generada (cámbiala al ingresar): ${ADMIN_PASSWORD}`);
         console.log(`  ⚠️  Cambia la contraseña en producción (ADMIN_PASSWORD en .env)`);
     },
 

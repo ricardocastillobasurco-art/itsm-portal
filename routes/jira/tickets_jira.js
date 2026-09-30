@@ -261,11 +261,15 @@ router.post('/ticket', authenticateToken, async (req, res) => {
         const slaHours = { P1: 1, P2: 4, P3: 8, P4: 24 };
         const slaH = slaHours[priority] || 8;
 
-        // Buscar usuario por defecto (rabasurco@stefanini.com)
-        const defaultAssigneeRows = await dbQuery(
-            `SELECT id, full_name FROM users WHERE email='rabasurco@stefanini.com' AND COALESCE(tenant_id, 1)=? AND deleted_at IS NULL LIMIT 1`,
-            [tenantId(req)]
-        );
+        // Técnico por defecto del tenant (Automatizaciones → Asignación por defecto).
+        // El tenant dueño puede definirlo también con la variable DEFAULT_ASSIGNEE_EMAIL.
+        const autoCfg = await getAutomationConfig(tenantId(req)).catch(() => ({}));
+        const defEmail = (autoCfg.default_assignee_email
+            || (tenantId(req) === JIRA_OWNER_TENANT_ID ? process.env.DEFAULT_ASSIGNEE_EMAIL : '') || '').trim().toLowerCase();
+        const defaultAssigneeRows = defEmail ? await dbQuery(
+            `SELECT id, full_name FROM users WHERE LOWER(email)=? AND COALESCE(tenant_id, 1)=? AND deleted_at IS NULL LIMIT 1`,
+            [defEmail, tenantId(req)]
+        ) : [];
         const defAssignee = defaultAssigneeRows[0] || null;
         const initStatus = defAssignee ? 'asignado' : 'abierto';
 

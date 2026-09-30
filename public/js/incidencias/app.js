@@ -1,3 +1,5 @@
+// URL base de Jira del tenant (la inyecta la vista en window.JIRA_BASE_URL)
+const JIRA_BASE = (window.JIRA_BASE_URL || '');
 
 let allTickets=[],filteredData=[],currentPage=1;
 const PAGE_SIZE=20;
@@ -1902,6 +1904,7 @@ async function loadAutomations() {
         chk('auto_sla_enabled', c.sla_alert_enabled);       toggleAutoSection('sla');
         set('auto_sla_email',   c.sla_alert_email);
         set('auto_sla_minutes', c.sla_alert_minutes||'10');
+        set('auto_default_assignee', c.default_assignee_email);
         // Resultados encuestas
         loadSurveyResults();
     } catch(e) { showToast('Error cargando config: '+e.message,'error'); }
@@ -1917,6 +1920,7 @@ async function saveAutomations() {
         sla_alert_enabled:      gc('auto_sla_enabled'),
         sla_alert_email:        g('auto_sla_email'),
         sla_alert_minutes:      g('auto_sla_minutes'),
+        default_assignee_email: g('auto_default_assignee').trim().toLowerCase(),
     };
     try {
         const r = await fetch('/api/jira/automations', {
@@ -3303,7 +3307,7 @@ async function loadAlertasPanel(force) {
         const age = cre ? _alrtAge(Date.now() - cre.getTime()) : '—';
         const asgn = f.assignee?.displayName || f.assignee?.emailAddress || 'Sin asignar';
         return `<div class="alrt-row">
-          <span class="alrt-key" onclick="window.open('https://integratelperu.atlassian.net/browse/${key}','_blank')" style="cursor:pointer;">${key}</span>
+          <span class="alrt-key" onclick="window.open('${JIRA_BASE}/browse/${key}','_blank')" style="cursor:pointer;">${key}</span>
           <span class="alrt-sum" title="${sum}">${sum}</span>
           <span class="alrt-age">${incEsc(asgn.split(' ').slice(0,2).join(' '))} · ${age}</span>
         </div>`;
@@ -4205,7 +4209,7 @@ async function searchTicket(){
         const status  = local?.status  || jiraD?.status  || '—';
         const summary = local?.summary || jiraD?.summary || '—';
         const reporter= local?.reporter|| jiraD?.reporter|| '—';
-        const jiraUrl = local?.jira_url|| `https://integratelperu.atlassian.net/browse/${key}`;
+        const jiraUrl = local?.jira_url|| `${JIRA_BASE}/browse/${key}`;
         const created = local?.created_at
             ? new Date(local.created_at).toLocaleString('es-PE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
             : jiraD?.created ? new Date(jiraD.created).toLocaleString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) : '—';
@@ -4397,7 +4401,7 @@ function exportPortalCSV(){
 (function prefillReporter(){
   const params = new URLSearchParams(window.location.search);
   // Only accept ?reporter= URL param OR emails from the allowed corporate domain
-  const ALLOWED_DOMAINS = ['@integratel.com.pe', '@stefanini.com'];
+  const ALLOWED_DOMAINS = (typeof TENANT_EMAIL_DOMAIN !== 'undefined' && TENANT_EMAIL_DOMAIN) ? ['@' + TENANT_EMAIL_DOMAIN] : [];
   const fromUrl   = params.get('reporter') || '';
   const fromLocal = localStorage.getItem('portal_user_email') || '';
   const email = fromUrl ||
@@ -4661,7 +4665,7 @@ function renderTicket(issue, opts) {
         ${!isClosed_ && !key.startsWith('TK-') ? `<button class="btn-outline-sm" style="font-size:12px;color:#0f172a;border-color:rgba(15,23,42,.35);" onclick="openDeriveModal('${key}')"><i class="bi bi-arrow-right-circle"></i> Derivar</button>` : ''}
         <button class="btn-outline-sm" style="font-size:12px;color:#6366f1;border-color:rgba(99,102,241,.3);" onclick="openTimeline('${key}')"><i class="bi bi-clock-history"></i> Timeline</button>
         <button class="btn-outline-sm" id="noteBtn-${key}" style="font-size:12px;${_hasNote ? 'color:#8b5cf6;border-color:rgba(139,92,246,.4);' : ''}" onclick="toggleNoteInc('${key}',this)"><i class="bi bi-sticky${_hasNote ? '-fill' : ''}"></i> Nota${_hasNote ? ' ·' : ''}</button>
-        <a href="https://integratelperu.atlassian.net/browse/${key}" target="_blank" class="btn-outline-sm" style="font-size:12px;text-decoration:none;margin-left:auto;"><i class="bi bi-box-arrow-up-right"></i> Jira</a>
+        <a href="${JIRA_BASE}/browse/${key}" target="_blank" class="btn-outline-sm" style="font-size:12px;text-decoration:none;margin-left:auto;"><i class="bi bi-box-arrow-up-right"></i> Jira</a>
       </div>
 
       <!-- COMENTAR INLINE -->
@@ -5579,7 +5583,7 @@ function _sinCatApply() {
             <button class="btn-outline-sm" style="font-size:12px;color:#d97706;border-color:rgba(217,119,6,.4);font-weight:700;" onclick="openCategorizeModal('${key}')"><i class="bi bi-tag-fill"></i> Categorizar</button>
             <button class="btn-outline-sm" style="font-size:12px;" onclick="toggleComentarInc('${key}',this)"><i class="bi bi-chat-dots"></i> Comentar</button>
             <button class="btn-outline-sm" style="font-size:12px;color:#6366f1;border-color:rgba(99,102,241,.3);" onclick="openTimeline('${key}')"><i class="bi bi-clock-history"></i> Timeline</button>
-            <a href="https://integratelperu.atlassian.net/browse/${key}" target="_blank" class="btn-outline-sm" style="font-size:12px;text-decoration:none;margin-left:auto;"><i class="bi bi-box-arrow-up-right"></i> Jira</a>
+            <a href="${JIRA_BASE}/browse/${key}" target="_blank" class="btn-outline-sm" style="font-size:12px;text-decoration:none;margin-left:auto;"><i class="bi bi-box-arrow-up-right"></i> Jira</a>
           </div>
           <div class="asig-inline" id="comentar-${key}" style="display:none;padding:12px;border:1px solid var(--border-soft);border-radius:8px;margin-top:8px;background:var(--bg-card);">
             <textarea id="comentar-input-${key}" class="form-control-custom" rows="2" placeholder="Escribe un comentario..." style="resize:vertical;margin-bottom:8px;"></textarea>
@@ -5870,7 +5874,7 @@ async function runReporte() {
                 const sla = issue._sla;
                 const slaClr = {Cumplido:'#10b981',Vencido:'#ef4444','En riesgo':'#f59e0b','En curso':'#3b82f6'}[sla.slaStatus] || 'var(--text-muted)';
                 return `<tr>
-                    <td><a href="https://integratelperu.atlassian.net/browse/${issue.key}" target="_blank" style="color:var(--jira-blue);font-weight:700;font-family:monospace;">${issue.key}</a></td>
+                    <td><a href="${JIRA_BASE}/browse/${issue.key}" target="_blank" style="color:var(--jira-blue);font-weight:700;font-family:monospace;">${issue.key}</a></td>
                     <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;" title="${incEsc(f.summary||'')}">${incEsc((f.summary||'').slice(0,55))}${(f.summary||'').length>55?'…':''}</td>
                     <td><span class="status-badge ${incStatusClass(f.status?.name||'')}" style="font-size:10px;">${f.status?.name||'—'}</span></td>
                     <td><span class="inc-prio ${incPrioClass(f.priority?.name||'')}"></span> ${incEsc(f.priority?.name||'—')}</td>
@@ -7871,7 +7875,7 @@ function _kbCardHtml(issue) {
       style="border-left:3px solid ${tc};"
       ondragstart="kbDragStart(event)" ondragend="kbDragEnd(event)">
       <div class="kb-card-top">
-        <span class="kb-key" onclick="event.stopPropagation();window.open('https://integratelperu.atlassian.net/browse/${key}','_blank')">${key}</span>
+        <span class="kb-key" onclick="event.stopPropagation();window.open('${JIRA_BASE}/browse/${key}','_blank')">${key}</span>
         <span style="width:7px;height:7px;border-radius:50%;background:${pc};flex-shrink:0;" title="${incEsc(pri)}"></span>
         <span style="font-size:10px;color:var(--text-muted);margin-left:auto;">${age}</span>
       </div>
@@ -8362,7 +8366,7 @@ function _renderTecDetailHtml(tickets) {
         var resS = res ? res.toLocaleDateString('es-PE',{day:'2-digit',month:'short'}) : '-';
         var mttr = (cre&&res) ? _tecFmtDur(res.getTime()-cre.getTime()) : '-';
         return '<tr>'
-            +'<td><span style="font-family:monospace;font-weight:700;font-size:10px;color:var(--jira-blue);cursor:pointer;" onclick="window.open(\'https://integratelperu.atlassian.net/browse/'+key+'\',\'_blank\')">'+key+'</span></td>'
+            +'<td><span style="font-family:monospace;font-weight:700;font-size:10px;color:var(--jira-blue);cursor:pointer;" onclick="window.open(\''+JIRA_BASE+'/browse/'+key+'\',\'_blank\')">'+key+'</span></td>'
             +'<td title="'+incEsc(f.summary||'')+'">'+sum+'</td>'
             +'<td><span class="tec-badge" style="background:'+stC+'20;color:'+stC+';">'+incEsc(st)+'</span></td>'
             +'<td style="font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+incEsc(catStr)+'</td>'
@@ -8644,7 +8648,7 @@ function _slaRender() {
         var avatarHtml = p.avatarUrl ? av : '<span class="tec-avatar" style="width:22px;height:22px;font-size:9px;background:#6366f1;display:inline-flex;vertical-align:middle;margin-right:5px;">'+initials+'</span>';
 
         return '<tr'+rowCls+'>'
-            +'<td><span style="font-family:monospace;font-weight:700;font-size:11px;color:var(--jira-blue);cursor:pointer;" onclick="window.open(\'https://integratelperu.atlassian.net/browse/'+p.key+'\',\'_blank\')">'+p.key+'</span></td>'
+            +'<td><span style="font-family:monospace;font-weight:700;font-size:11px;color:var(--jira-blue);cursor:pointer;" onclick="window.open(\''+JIRA_BASE+'/browse/'+p.key+'\',\'_blank\')">'+p.key+'</span></td>'
             +'<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+incEsc(p.issue.fields&&p.issue.fields.summary||'')+'">'+incEsc(p.summary)+'</td>'
             +'<td>'+_slaPriHtml(p.priName)+'</td>'
             +'<td style="white-space:nowrap;">'+avatarHtml+incEsc(p.assignee.split(' ').slice(0,2).join(' '))+'</td>'

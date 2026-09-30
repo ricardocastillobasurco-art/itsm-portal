@@ -5,7 +5,7 @@
     <div class="identify-sub">Ingrese su correo corporativo para acceder al portal de servicios</div>
     <div class="id-input-row">
       <div class="id-ac-wrap">
-        <input type="email" id="identEmail" class="id-field" placeholder="usuario@integratel.com.pe"
+        <input type="email" id="identEmail" class="id-field" placeholder="usuario@<%= (locals.tenantDomain || 'empresa.com') %>"
                autocomplete="off" oninput="acIdentDebounce()" onkeydown="acIdentKey(event)">
         <div class="ac-drop" id="identDrop"></div>
       </div>

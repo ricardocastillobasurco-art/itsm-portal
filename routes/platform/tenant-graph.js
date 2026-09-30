@@ -4,6 +4,7 @@ const express      = require('express');
 const router       = express.Router();
 const GraphService = require('../../src/services/integrations/GraphService');
 const tenantRepo   = require('../../src/repositories/platform/TenantRepository');
+const { sealConfig } = require('../../src/utils/secretBox');
 
 // GET /api/tenant-graph/config — config del tenant actual (sin secretos)
 router.get('/config', async (req, res) => {
@@ -28,7 +29,8 @@ router.put('/config', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Tenant no identificado en esta sesión' });
 
         const current  = await tenantRepo.findById(tid);
-        const settings = { ...(current?.settings || {}), graph: { clientId, tenantId, clientSecret, mailbox } };
+        // clientSecret se guarda cifrado (CONFIG_ENCRYPTION_KEY)
+        const settings = { ...(current?.settings || {}), graph: sealConfig({ clientId, tenantId, clientSecret, mailbox }) };
 
         await tenantRepo.updateSettings(tid, settings);
 

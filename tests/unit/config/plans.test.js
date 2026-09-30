@@ -31,6 +31,13 @@ describe('modulesForTenant()', () => {
     expect(modulesForTenant({ id: 7, plan: 'plan-que-no-existe' }).size).toBe(PLANS.trial.modules.length);
   });
 
+  it('never grants owner-only modules to other tenants', () => {
+    const mods = modulesForTenant({ id: 7, plan: 'enterprise', settings: { extraModules: ['impresion', 'microsoft'] } });
+    expect(mods.has('impresion')).toBe(false);
+    expect(mods.has('microsoft')).toBe(false);
+    expect(mods.has('rmm')).toBe(true);
+  });
+
   it('adds valid extraModules and ignores unknown ones', () => {
     const mods = modulesForTenant({ id: 7, plan: 'starter', settings: { extraModules: ['rmm', 'inventado'] } });
     expect(mods.has('rmm')).toBe(true);

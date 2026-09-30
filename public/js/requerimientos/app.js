@@ -1,3 +1,5 @@
+// URL base de Jira del tenant (la inyecta la vista en window.JIRA_BASE_URL)
+const JIRA_BASE = (window.JIRA_BASE_URL || '');
 // ── Jira proxy (same as incidencias) ────────────────────────────────────────
 async function jira(method, path, body) {
     const res = await fetch('/api/jira' + path, {
@@ -89,7 +91,7 @@ function _reqActionsHTML(key, isClosed, isPending, hasNote) {
         ${!isClosed ? `<button class="btn-outline-sm" style="font-size:12px;color:#0f172a;border-color:rgba(15,23,42,.35);" onclick="reqOpenDerive('${key}')"><i class="bi bi-arrow-right-circle"></i> Derivar</button>` : ''}
         <button class="btn-outline-sm" style="font-size:12px;color:#6366f1;border-color:rgba(99,102,241,.3);" onclick="reqOpenTimeline('${key}')"><i class="bi bi-clock-history"></i> Timeline</button>
         <button class="btn-outline-sm" id="req-noteBtn-${key}" style="font-size:12px;${hasNote?'color:#8b5cf6;border-color:rgba(139,92,246,.4);':''}" onclick="reqToggleNota('${key}',this)"><i class="bi bi-sticky${hasNote?'-fill':''}"></i> Nota${hasNote?' ·':''}</button>
-        <a href="https://integratelperu.atlassian.net/browse/${key}" target="_blank" class="btn-outline-sm" style="font-size:12px;text-decoration:none;margin-left:auto;"><i class="bi bi-box-arrow-up-right"></i> Jira</a>
+        <a href="${JIRA_BASE}/browse/${key}" target="_blank" class="btn-outline-sm" style="font-size:12px;text-decoration:none;margin-left:auto;"><i class="bi bi-box-arrow-up-right"></i> Jira</a>
     </div>`;
 }
 
@@ -697,7 +699,7 @@ function _reqKbCard(issue, colColor) {
     const ageStr  = _reqFmtAge(ageMs);
     const ageColor = ageMs > 5*86400000 ? '#ef4444' : ageMs > 2*86400000 ? '#f59e0b' : '#10b981';
     const prioIcon = /high|alta|critico|critical/i.test(pr) ? '🔴' : /medium|media/i.test(pr) ? '🟡' : '🟢';
-    return `<div class="req-kb-card" onclick="window.open('https://integratelperu.atlassian.net/browse/${key}','_blank')" title="${reqEsc(f.summary||'')}">
+    return `<div class="req-kb-card" onclick="window.open('${JIRA_BASE}/browse/${key}','_blank')" title="${reqEsc(f.summary||'')}">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
         <span style="font-size:10px;font-family:monospace;font-weight:700;color:${colColor};">${key}</span>
         <span style="font-size:10px;">${prioIcon}</span>
@@ -882,7 +884,7 @@ function _reqRenderSLA(issues, el) {
               <span class="tc-key">${i.key}</span>
               <span class="tc-summary">${reqEsc(f.summary||'')}</span>
               <span style="font-size:10px;font-weight:800;color:${bdrCol};font-family:monospace;white-space:nowrap;flex-shrink:0;">${lvl==='breach' ? '⚡ VENCIDO +'+_reqFmtAge(-remain) : '⚠ '+_reqFmtAge(remain)+' restante'}</span>
-              <a href="https://integratelperu.atlassian.net/browse/${i.key}" target="_blank" style="margin-left:auto;font-size:11px;color:#6366f1;text-decoration:none;flex-shrink:0;"><i class="bi bi-box-arrow-up-right"></i></a>
+              <a href="${JIRA_BASE}/browse/${i.key}" target="_blank" style="margin-left:auto;font-size:11px;color:#6366f1;text-decoration:none;flex-shrink:0;"><i class="bi bi-box-arrow-up-right"></i></a>
             </div>
             <div class="tc-meta">
               <span>Asignado: <b>${reqEsc(f.assignee?.displayName||'Sin asignar')}</b></span>
@@ -1679,7 +1681,7 @@ function _reqAlrtSection(title, items, color) {
             const asgn = f.assignee?.displayName || 'Sin asignar';
             const ageMs = f.created ? Date.now() - new Date(f.created).getTime() : 0;
             return `<div class="req-alrt-row">
-              <span class="req-alrt-key"><a href="https://integratelperu.atlassian.net/browse/${i.key}" target="_blank" style="color:#6366f1;text-decoration:none;">${i.key}</a></span>
+              <span class="req-alrt-key"><a href="${JIRA_BASE}/browse/${i.key}" target="_blank" style="color:#6366f1;text-decoration:none;">${i.key}</a></span>
               <span class="req-alrt-sum" title="${reqEsc(f.summary||'')}">${reqEsc(f.summary||'')}</span>
               <span style="font-size:10px;color:var(--text-muted);flex-shrink:0;">${reqEsc(asgn.split(' ')[0])}</span>
               <span style="font-size:10px;font-family:monospace;color:var(--text-muted);flex-shrink:0;">${_reqFmtAge(ageMs)}</span>
@@ -2007,7 +2009,7 @@ function _reqRenderComparativa(curr, prev, el) {
               const pr     = f.priority?.name || '—';
               const prioCl = /critico|critical|highest/i.test(pr) ? '#ef4444' : /high|alta/i.test(pr) ? '#f59e0b' : '#6366f1';
               return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:12px;">
-                <span style="font-family:monospace;font-weight:700;color:#6366f1;font-size:11px;flex-shrink:0;"><a href="https://integratelperu.atlassian.net/browse/${i.key}" target="_blank" style="color:#6366f1;text-decoration:none;">${i.key}</a></span>
+                <span style="font-family:monospace;font-weight:700;color:#6366f1;font-size:11px;flex-shrink:0;"><a href="${JIRA_BASE}/browse/${i.key}" target="_blank" style="color:#6366f1;text-decoration:none;">${i.key}</a></span>
                 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${reqEsc(f.summary||'')}</span>
                 <span style="font-size:10px;font-weight:700;color:${prioCl};flex-shrink:0;">${reqEsc(pr)}</span>
                 <span style="font-size:10px;font-weight:600;color:${closed?'#10b981':'#f59e0b'};flex-shrink:0;">${reqEsc(st)}</span>
@@ -2096,7 +2098,7 @@ function _reqRenderReportes(el) {
                 const prioCl = /critico|critical|highest/i.test(pr) ? '#ef4444' : /high|alta/i.test(pr) ? '#f59e0b' : '#6366f1';
                 const d      = f.created ? new Date(f.created).toLocaleDateString('es-PE',{day:'2-digit',month:'short'}) : '—';
                 return `<tr>
-                  <td><a href="https://integratelperu.atlassian.net/browse/${i.key}" target="_blank" style="color:#6366f1;font-family:monospace;font-weight:700;text-decoration:none;">${i.key}</a></td>
+                  <td><a href="${JIRA_BASE}/browse/${i.key}" target="_blank" style="color:#6366f1;font-family:monospace;font-weight:700;text-decoration:none;">${i.key}</a></td>
                   <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${reqEsc(f.summary||'')}">${reqEsc(f.summary||'')}</td>
                   <td><span style="color:${prioCl};font-weight:700;font-size:11px;">${reqEsc(pr)}</span></td>
                   <td><span style="color:${closed?'#10b981':'#f59e0b'};font-weight:700;font-size:11px;">${reqEsc(st)}</span></td>

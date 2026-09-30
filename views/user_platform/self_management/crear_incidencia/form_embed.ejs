@@ -93,10 +93,11 @@ const CURRENT_USER_NAME     = <%- JSON.stringify(locals.user?.full_name || local
 const CURRENT_USER_EMAIL    = <%- JSON.stringify(locals.user?.email || locals.user?.username || '') %>;
 const JIRA_ENABLED          = <%- JSON.stringify(locals.jiraEnabled !== false) %>;
 const CURRENT_TENANT_ID     = <%- JSON.stringify(locals.user?.tenant_id || 1) %>;
-const TENANT_EMAIL_DOMAIN   = <%- JSON.stringify(locals.tenantDomain || 'integratel.com.pe') %>;
+const TENANT_EMAIL_DOMAIN   = <%- JSON.stringify(locals.tenantDomain || '') %>;
+window.JIRA_BASE_URL = <%- JSON.stringify(((locals.user && locals.user.tenant_id) || 1) == 1 ? (locals.jiraHost || '') : '') %>;
 const LOCAL_VIEW            = <%- JSON.stringify(locals.jiraEnabled === false) %>;
 </script>
-<script src="/js/incidencias/app.js?v=54"></script>
+<script src="/js/incidencias/app.js?v=55"></script>
 
 </body>
 </html>

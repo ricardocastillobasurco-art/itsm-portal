@@ -738,7 +738,7 @@ document.addEventListener('DOMContentLoaded',function(){ _syncToggleUI(localStor
       <i class="bi bi-people-fill" style="color:#fff;"></i>
     </div>
     <div>
-      <h1>Usuarios Integratel</h1>
+      <h1>Usuarios<%= locals.tenantName ? ' ' + locals.tenantName : '' %></h1>
       <p>Gestión de usuarios · Reporte de bajas, altas y asignaciones de equipos</p>
     </div>
   </div>

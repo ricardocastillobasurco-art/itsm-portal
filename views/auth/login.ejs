@@ -77,15 +77,15 @@
         /* ══════════════════════════════════════════════
            FONDO FOTOGRAFICO — izquierdo 60%
         ══════════════════════════════════════════════ */
-        .telefonica-background {
+        .brand-background {
             position: fixed; top:0; left:0;
             width: 60%; height: 100%;
-            background-image: url("https://telefonica.com.pe/wp-content/uploads/sites/5/2025/08/Integratel-Peru-continua-avanzando-en-la-transformacion-Foto-MOVISTAR.jpg?resize=1224,673");
+            background-image: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #0ea5e9 100%);
             background-size: cover;
             background-position: center;
             z-index: 1;
         }
-        .telefonica-overlay {
+        .brand-overlay {
             position: fixed; top:0; left:0;
             width: 60%; height: 100%;
             background: linear-gradient(135deg, var(--overlay-start), var(--overlay-end));
@@ -105,7 +105,7 @@
             padding: 60px;
             color: white;
         }
-        .telefonica-logo {
+        .brand-logo {
             font-size: 2.2rem; font-weight: 700;
             display: flex; align-items: center; gap: 14px;
         }
@@ -270,8 +270,8 @@
            RESPONSIVE
         ══════════════════════════════════════════════ */
         @media (max-width:1024px) {
-            .telefonica-background,
-            .telefonica-overlay,
+            .brand-background,
+            .brand-overlay,
             .info-section  { width:50%; }
             .login-section { width:50%; }
             .theme-toggle-wrap { right:calc(50% + 14px); }
@@ -279,8 +279,8 @@
             .team-info     { grid-template-columns:1fr; gap:18px; }
         }
         @media (max-width:768px) {
-            .telefonica-background,
-            .telefonica-overlay,
+            .brand-background,
+            .brand-overlay,
             .info-section { display:none; }
             .login-section { width:100%; position:relative; }
             .theme-toggle-wrap {
@@ -295,13 +295,13 @@
 </head>
 <body>
 
-    <div class="telefonica-background"></div>
-    <div class="telefonica-overlay"></div>
+    <div class="brand-background"></div>
+    <div class="brand-overlay"></div>
 
     <!-- Info izquierda -->
     <div class="info-section">
         <div>
-            <div class="telefonica-logo">
+            <div class="brand-logo">
                 <i class="bi bi-cpu"></i> <span id="leftTenantName">Portal TI</span>
             </div>
             <p class="company-tagline" id="leftTagline">Sistema de Gestión Informática</p>
@@ -356,7 +356,7 @@
                 <div class="mb-3">
                     <label class="form-label">Correo corporativo</label>
                     <input type="email" class="form-control" id="emailInput"
-                        placeholder="usuario@integratel.com.pe"
+                        placeholder="tu.correo@empresa.com"
                         autocomplete="email" onkeydown="if(event.key==='Enter')checkEmail()">
                 </div>
                 <button class="btn btn-login" id="checkEmailBtn" onclick="checkEmail()">
@@ -400,6 +400,9 @@
                     <span id="loginBtnText"><i class="bi bi-box-arrow-in-right me-2"></i>Ingresar</span>
                     <span id="loginBtnSpin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Iniciando sesión...</span>
                 </button>
+                <div style="text-align:center;margin-top:12px;">
+                    <a href="#" onclick="startReset();return false;" style="font-size:12px;">¿Olvidaste tu contraseña?</a>
+                </div>
             </div>
 
             <!-- PASO 2b: Crear contraseña (primer acceso) -->
@@ -413,7 +416,7 @@
                     <button onclick="goBack()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;">Cambiar</button>
                 </div>
                 <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.18);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-muted);">
-                    <i class="bi bi-info-circle" style="color:var(--primary);"></i> Primer acceso detectado. Te enviamos un código a tu correo; ingrésalo y crea tu contraseña.
+                    <i class="bi bi-info-circle" style="color:var(--primary);"></i> <span id="createInfo">Primer acceso detectado. Te enviamos un código a tu correo; ingrésalo y crea tu contraseña.</span>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Código de verificación</label>
@@ -507,8 +510,28 @@
         }
 
         var _currentEmail = '', _currentName = '';
+        // 'setup' = primer acceso, 'reset' = recuperar contraseña (mismo formulario)
+        var _mode = 'setup';
+
+        function startReset() {
+            _mode = 'reset';
+            document.getElementById('step2login').style.display   = 'none';
+            document.getElementById('loginTitle').textContent     = 'Restablecer contraseña';
+            document.getElementById('createInfo').textContent     = 'Te enviamos un código a tu correo; ingrésalo y crea una nueva contraseña.';
+            document.getElementById('createBtnText').innerHTML    = '<i class="bi bi-shield-lock-fill me-2"></i>Guardar nueva contraseña';
+            document.getElementById('empNameCreate').textContent  = _currentName;
+            document.getElementById('empEmailCreate').textContent = _currentEmail;
+            document.getElementById('step2create').style.display  = 'block';
+            sendSetupCode();
+            setTimeout(function(){ document.getElementById('codeCreate').focus(); }, 100);
+        }
 
         function goBack() {
+            _mode = 'setup';
+            document.getElementById('createInfo').textContent  = 'Primer acceso detectado. Te enviamos un código a tu correo; ingrésalo y crea tu contraseña.';
+            document.getElementById('createBtnText').innerHTML = '<i class="bi bi-shield-lock-fill me-2"></i>Crear contraseña y acceder';
+            document.getElementById('codeCreate').value = '';
+            document.getElementById('passwordCreate').value = '';
             document.getElementById('step2login').style.display  = 'none';
             document.getElementById('step2create').style.display = 'none';
             document.getElementById('step1').style.display       = 'block';
@@ -635,7 +658,7 @@
 
         async function sendSetupCode() {
             try {
-                var r = await fetch('/api/auth/employee-setup/code', {
+                var r = await fetch(_mode === 'reset' ? '/api/auth/password-reset/code' : '/api/auth/employee-setup/code', {
                     method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({ email: _currentEmail })
                 });
@@ -652,14 +675,20 @@
             var ctrl = new AbortController();
             var timer = setTimeout(function(){ ctrl.abort(); }, 12000);
             try {
-                var r = await fetch('/api/auth/employee-setup', {
+                var r = await fetch(_mode === 'reset' ? '/api/auth/password-reset' : '/api/auth/employee-setup', {
                     method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({ email: _currentEmail, password: pw, code: code }),
                     signal: ctrl.signal
                 });
                 clearTimeout(timer);
                 var d = await r.json();
-                if (r.ok && d.success) {
+                if (r.ok && d.success && _mode === 'reset') {
+                    // Contraseña cambiada: volver al paso de ingreso con la nueva contraseña
+                    setBusy('createBtnText','createBtnSpin','createBtn', false);
+                    goBack();
+                    document.getElementById('emailInput').value = _currentEmail;
+                    showAlert(d.message || 'Contraseña actualizada. Ya puedes ingresar', 'success');
+                } else if (r.ok && d.success) {
                     localStorage.setItem('accessToken',  d.accessToken);
                     localStorage.setItem('refreshToken', d.refreshToken);
                     localStorage.setItem('user', JSON.stringify(d.user));

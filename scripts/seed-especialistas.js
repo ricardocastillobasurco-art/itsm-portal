@@ -18,13 +18,14 @@ async function main() {
     for (const s of SPECIALISTS) {
         const existing = await dbQuery('SELECT id FROM users WHERE email=? OR username=? LIMIT 1', [s.email, s.username]);
         if (existing.length) { console.log(`⏭  Ya existe: ${s.full_name} (id=${existing[0].id})`); continue; }
-        const hash = await bcrypt.hash('Especialista@2026!', 12);
+        const pass = require('crypto').randomBytes(12).toString('base64url') + 'A1!';
+        const hash = await bcrypt.hash(pass, 12);
         await dbQuery(
             `INSERT INTO users (id, full_name, username, email, password_hash, role, specialty, is_active, is_verified, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, 'especialista', ?, 1, 1, NOW(), NOW())`,
             [nextId, s.full_name, s.username, s.email, hash, s.specialty]
         );
-        console.log(`✅ Creado: ${s.full_name} (${s.email}) id=${nextId} — pass: Especialista@2026!`);
+        console.log(`✅ Creado: ${s.full_name} (${s.email}) id=${nextId} — pass: ${pass}`);
         nextId++;
     }
 

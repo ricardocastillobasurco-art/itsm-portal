@@ -16,8 +16,9 @@ const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 // ── Config (con fallback a .env para backward compat) ─────
 const IntegrationConfig = require('../../src/services/IntegrationConfigService');
 
-const JIRA_HOST  = process.env.JIRA_HOST  || 'https://integratelperu.atlassian.net';
-const JIRA_EMAIL = process.env.JIRA_EMAIL || 'rabasurco@stefanini.com';
+const JIRA_HOST  = process.env.JIRA_HOST  || '';
+const JIRA_EMAIL = process.env.JIRA_EMAIL || '';
+if (!JIRA_HOST || !JIRA_EMAIL) console.warn('⚠️ JIRA_HOST / JIRA_EMAIL no definidos: la integración Jira del tenant dueño queda inactiva');
 const JIRA_TOKEN = process.env.JIRA_API_TOKEN;
 const SD_ID      = '23';
 const RT_ID      = '213';
