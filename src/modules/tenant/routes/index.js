@@ -352,6 +352,10 @@ router.get('/:tenantId/provision', async (req, res) => {
             );
         }
 
+        send(6, 78, 'Copiando estructura base (SLA, categorías, catálogo, automatizaciones)...');
+        const { copyBaseStructure } = require('../../../services/TenantProvisioningService');
+        await copyBaseStructure(tenantId);
+
         send(6, 82, 'Aplicando configuración base...');
         const FeatureFlagService = require('../../../services/FeatureFlagService');
         await FeatureFlagService.set(tenantId, 'portal',      true,  {}).catch(() => {});

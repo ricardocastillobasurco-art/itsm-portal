@@ -4,7 +4,10 @@
  * IntegrationConfigService
  *
  * Lee la config de una integración para un tenant específico.
- * Prioridad: TenantFeature.config → process.env (fallback global)
+ * Prioridad: TenantFeature.config → process.env. El fallback a .env (credenciales
+ * del dueño de la plataforma) solo aplica al tenant dueño; los demás tenants usan
+ * únicamente su propia configuración, salvo los servicios de plataforma compartidos
+ * (PLATFORM_SHARED, p. ej. la clave de IA).
  *
  * Esto permite que cada cliente tenga su propia instancia de Jira/Teams/etc.
  * sin romper el comportamiento actual (si no hay config de tenant, usa .env).
@@ -48,6 +51,16 @@ const ENV_DEFAULTS = {
         webhook_secret: () => '',
     },
 };
+
+const OWNER_TENANT_ID = 1;
+
+// Campos que la plataforma provee a todos los tenants (servicio propio, no del cliente)
+const PLATFORM_SHARED = { api_externa: ['api_key'] };
+
+function envAllowed(tenantId, integrationName, field) {
+    return !tenantId || Number(tenantId) === OWNER_TENANT_ID
+        || (PLATFORM_SHARED[integrationName] || []).includes(field);
+}
 
 // Módulos del sistema que usa cada integración
 const INTEGRATION_MODULES = {
@@ -95,7 +108,8 @@ const IntegrationConfigService = {
                 const tenantCfg = features[integrationName]?.config || {};
                 const result = {};
                 for (const [key, defaultFn] of Object.entries(envDefaults)) {
-                    result[key] = (tenantCfg[key] && tenantCfg[key] !== '') ? tenantCfg[key] : defaultFn();
+                    result[key] = (tenantCfg[key] && tenantCfg[key] !== '') ? tenantCfg[key]
+                        : (envAllowed(tenantId, integrationName, key) ? defaultFn() : '');
                 }
                 return result;
             }
@@ -103,9 +117,9 @@ const IntegrationConfigService = {
             logger.warn(`[IntegrationConfig] get error (${integrationName}):`, err.message);
         }
 
-        // Fallback: solo valores de .env
+        // Fallback: valores de .env solo donde el tenant tiene derecho a ellos
         const result = {};
-        for (const [key, fn] of Object.entries(envDefaults)) result[key] = fn();
+        for (const [key, fn] of Object.entries(envDefaults)) result[key] = envAllowed(tenantId, integrationName, key) ? fn() : '';
         return result;
     },
 
@@ -130,7 +144,7 @@ const IntegrationConfigService = {
 
             for (const [field, envFn] of Object.entries(envDefaultFns)) {
                 const tenantVal   = tenantCfg[field] || '';
-                const envVal      = envFn() || '';
+                const envVal      = envAllowed(tenantId, key, field) ? (envFn() || '') : '';
                 const effective   = tenantVal || envVal;
                 const isSensitive = SENSITIVE_FIELDS.includes(field);
 
@@ -141,9 +155,10 @@ const IntegrationConfigService = {
             }
 
             const hasTenantCfg = Object.keys(tenantCfg).some(k => tenantCfg[k]);
+            const ownEnv = envAllowed(tenantId, key, 'base_url');
             const effectiveUri = tenantCfg.base_url || tenantCfg.smtp_host || tenantCfg.tenant_id
-                              || envDefaultFns.base_url?.() || envDefaultFns.smtp_host?.()
-                              || envDefaultFns.tenant_id?.() || '';
+                              || (ownEnv ? (envDefaultFns.base_url?.() || envDefaultFns.smtp_host?.() || envDefaultFns.tenant_id?.()) : '')
+                              || '';
             const anyConfigured = Object.values(config).some(v => v);
 
             status[key] = {

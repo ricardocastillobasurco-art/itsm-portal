@@ -17,18 +17,28 @@ const logger    = require('../utils/logger');
 // SHIM de pool — mantiene compatibilidad con rutas que usan
 // equipmentPool directamente (ej: equipmentPool.query(...))
 // ============================================================================
+// En INSERT/REPLACE, Sequelize (mysql, RAW) devuelve [insertId, affectedRows]:
+// se normaliza a la forma de mysql2 ({ insertId, affectedRows }) para que result.insertId funcione
+function normalizeWrite(sql, results, meta) {
+    if (typeof results === 'number' && /^\s*(INSERT|REPLACE)\b/i.test(sql)) return { insertId: results, affectedRows: meta };
+    return results;
+}
+
 const equipmentPool = {
     query: async (sql, params = []) => {
         const [results, metadata] = await sequelize.query(sql, {
             replacements: params,
             type:         QueryTypes.RAW,
         });
-        return [results, metadata];
+        return [normalizeWrite(sql, results, metadata), metadata];
     },
     getConnection: async () => {
         const t = await sequelize.transaction();
         return {
-            execute:          async (sql, params = []) => sequelize.query(sql, { replacements: params, transaction: t, type: QueryTypes.RAW }),
+            execute:          async (sql, params = []) => {
+                const [results, meta] = await sequelize.query(sql, { replacements: params, transaction: t, type: QueryTypes.RAW });
+                return [normalizeWrite(sql, results, meta), meta];
+            },
             beginTransaction: async () => {},
             commit:           async () => t.commit(),
             rollback:         async () => t.rollback(),
@@ -42,11 +52,11 @@ const equipmentPool = {
 // El argumento `pool` se ignora (compatibilidad hacia atrás).
 // ============================================================================
 async function executeQuery(_pool, sql, params = []) {
-    const [results] = await sequelize.query(sql, {
+    const [results, meta] = await sequelize.query(sql, {
         replacements: params,
         type:         QueryTypes.RAW,
     });
-    return results;
+    return normalizeWrite(sql, results, meta);
 }
 
 // ============================================================================
@@ -73,7 +83,7 @@ async function executeTransaction(_pool, callback) {
                 transaction:  t,
                 type:         QueryTypes.RAW,
             });
-            return [results, meta];
+            return [normalizeWrite(sql, results, meta), meta];
         },
         beginTransaction: async () => {},
         commit:           async () => t.commit(),
