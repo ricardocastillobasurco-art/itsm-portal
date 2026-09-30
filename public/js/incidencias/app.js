@@ -1905,6 +1905,8 @@ async function loadAutomations() {
         set('auto_sla_email',   c.sla_alert_email);
         set('auto_sla_minutes', c.sla_alert_minutes||'10');
         set('auto_default_assignee', c.default_assignee_email);
+        { const el = document.getElementById('auto_notify_reporter'); if (el) el.checked = c.notify_reporter !== '0'; }
+        set('auto_close_days', c.auto_close_days === undefined || c.auto_close_days === '' ? '3' : c.auto_close_days);
         // Resultados encuestas
         loadSurveyResults();
     } catch(e) { showToast('Error cargando config: '+e.message,'error'); }
@@ -1921,6 +1923,8 @@ async function saveAutomations() {
         sla_alert_email:        g('auto_sla_email'),
         sla_alert_minutes:      g('auto_sla_minutes'),
         default_assignee_email: g('auto_default_assignee').trim().toLowerCase(),
+        notify_reporter:        document.getElementById('auto_notify_reporter')?.checked === false ? '0' : '1',
+        auto_close_days:        g('auto_close_days') || '3',
     };
     try {
         const r = await fetch('/api/jira/automations', {

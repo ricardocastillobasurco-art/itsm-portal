@@ -676,7 +676,7 @@ router.put('/automations', authenticateToken, requireAdmin, async (req, res) => 
     try {
         const allowed = ['p1_escalation_enabled','p1_escalation_email','p1_escalation_minutes',
                          'satisfaction_enabled','sla_alert_enabled','sla_alert_email','sla_alert_minutes',
-                         'default_assignee_email'];
+                         'default_assignee_email','notify_reporter','auto_close_days'];
         for (const [k, v] of Object.entries(req.body)) {
             if (allowed.includes(k)) {
                 await dbQuery(`INSERT INTO itsm_automations (tenant_id, \`key\`, value) VALUES (?,?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)`, [tenantId(req), k, String(v)]);

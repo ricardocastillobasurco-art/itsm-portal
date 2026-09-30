@@ -62,6 +62,6 @@ const CURRENT_USER_EMAIL = <%- JSON.stringify(locals.user?.email || locals.user?
 const LOCAL_VIEW         = false;
 window.JIRA_BASE_URL = <%- JSON.stringify(((locals.user && locals.user.tenant_id) || 1) == 1 ? (locals.jiraHost || '') : '') %>;
 </script>
-<script src="/js/incidencias/app.js?v=29"></script>
+<script src="/js/incidencias/app.js?v=30"></script>
 </body>
 </html>

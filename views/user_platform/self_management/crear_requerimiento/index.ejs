@@ -368,7 +368,7 @@ function _showJiraNotConfigured() {
 }
 
 async function rqLoadTypes() {
-    if (!JIRA_ENABLED) { _showJiraNotConfigured(); return; }
+    // Sin Jira el servidor usa la gestión local (tipos = catálogo de servicios)
     try {
         const r = await fetch('/api/jira/requesttypes', { credentials:'include' });
         const d = await r.json();

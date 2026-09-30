@@ -12,6 +12,9 @@ const FormData = require('form-data');
 const { jira, dbQuery, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID, resolveJiraAccountId, jiraAllowedForCurrentTenant } = require('../jira/helpers');
 const { tenantId } = require('../../src/utils/tenantScope');
 const { agentsRoom, nextLocalTicketKey } = require('../../src/utils/tenantTickets');
+// Jira o gestión local según el interruptor del superadmin (misma regla que el resto de la app)
+const { ticketMode } = require('../../src/services/TicketModeService');
+const LocalTickets = require('../../src/services/localTickets/LocalTicketService');
 const SD_REQ_CHATBOT = process.env.JIRA_REQ_SD_ID || '1156';
 const RT_REQ_CHATBOT = process.env.JIRA_REQ_RT_ID || '1595';
 // Chatbot incident creation uses its own SD/RT (simpler than the form which requires many custom fields).
@@ -675,7 +678,7 @@ router.post('/incident', authenticateToken, async (req, res) => {
 
     // ── 1. Crear en Jira Service Desk (si token configurado o feature habilitado) ───
     // El Jira del .env es del tenant original; los demás crean tickets locales
-    const jiraEnabled = !!JIRA_TOKEN && jiraAllowedForCurrentTenant();
+    const jiraEnabled = !!JIRA_TOKEN && jiraAllowedForCurrentTenant() && (await ticketMode(tid)) === 'jira';
     let jiraKey = null;
     let jiraUrl = null;
     if (jiraEnabled) try {
@@ -762,10 +765,18 @@ router.post('/incident', authenticateToken, async (req, res) => {
       }
     }
 
-    // ── 2. Clave: INC-XXXX (Jira real) o INC-XXXX (local sin Jira) ─────────
-    // Clave local única en toda la plataforma (ticket_key es único global)
-    let key = jiraKey || await nextLocalTicketKey('INC');
-
+    // ── 2. Jira (modo integración) o gestión local (TK-XXXX con el motor local) ─
+    // Antes el modo local usaba claves INC-, invisibles en los paneles locales (TK-)
+    // y con riesgo de chocar con claves reales de Jira.
+    let key = jiraKey;
+    if (!jiraKey) {
+      const created = await LocalTickets.create({
+        tenantId: tid, kind: 'incident', summary, description: summary.trim() + (_cmdbLine ? `\n\n${_cmdbLine}` : ''),
+        priority, reporter: userEmail || reporter, channel: 'chatbot',
+        actor: { id: req.user?.id, name: reporter }, io: req.app.get('io'),
+      });
+      key = created.key;
+    } else {
     const _initStatus = outOfHours ? 'pendiente' : 'abierto';
 
     await dbQuery(
@@ -783,6 +794,7 @@ router.post('/incident', authenticateToken, async (req, res) => {
        VALUES (?,?,?,'creacion',?)`,
       [key, req.user?.id || 0, reporter, `Ticket ${key} creado desde ARIA Chatbot`]
     ).catch(() => {});
+    }
 
     if (outOfHours) {
       await dbQuery(
@@ -793,7 +805,7 @@ router.post('/incident', authenticateToken, async (req, res) => {
     }
 
     const io = req.app.get('io');
-    if (io) io.to(agentsRoom(tid)).emit('ticket:created', {
+    if (io && jiraKey) io.to(agentsRoom(tid)).emit('ticket:created', {
       key, summary: summary.trim(), priority, reporter: userEmail
     });
 
@@ -816,7 +828,7 @@ router.post('/requirement', authenticateToken, async (req, res) => {
     const desc      = `Requerimiento vía ARIA Chatbot\n\nUsuario: ${reporter} (${userEmail})\n\nDetalle: ${summary.trim()}`;
 
     let jiraKey = null, jiraUrl = null;
-    if (jiraAllowedForCurrentTenant() && JIRA_TOKEN) try {
+    if (jiraAllowedForCurrentTenant() && JIRA_TOKEN && (await ticketMode(tid)) === 'jira') try {
       const payload = {
         serviceDeskId: SD_REQ_CHATBOT, requestTypeId: RT_REQ_CHATBOT,
         requestFieldValues: { summary: summary.trim(), description: _adf(desc) },
@@ -839,7 +851,16 @@ router.post('/requirement', authenticateToken, async (req, res) => {
       }
     }
 
-    let key = jiraKey || await nextLocalTicketKey('REQ');
+    // Gestión local: requerimiento RQ-XXXX en la tabla de requerimientos (antes REQ- en la de
+    // incidencias, con riesgo de chocar con el proyecto REQ de Jira)
+    if (!jiraKey) {
+      const created = await LocalTickets.create({
+        tenantId: tid, kind: 'requirement', summary, description: desc, priority,
+        reporter: userEmail || reporter, channel: 'chatbot', actor: { id: req.user?.id, name: reporter }, io: req.app.get('io'),
+      });
+      return res.json({ success: true, key: created.key, url: '/home', isLocal: true });
+    }
+    let key = jiraKey;
 
     await dbQuery(
       `INSERT INTO jira_tickets
@@ -1256,7 +1277,19 @@ router.post('/consult/:id/resolve', authenticateToken, async (req, res) => {
     let jiraUrl      = null;
     let jiraErrMsg   = null;
     let assigneeName = null;
-    if (createTicket && jiraAllowedForCurrentTenant() && JIRA_TOKEN) {
+    const _consultMode = createTicket ? await ticketMode(tenantId(req)) : null;
+    if (createTicket && _consultMode === 'local') {
+      // Gestión local: ticket TK- asignado al especialista que atendió la consulta
+      const created = await LocalTickets.create({
+        tenantId: tenantId(req), kind: 'incident', summary: `Consulta en línea — ${session.user_email}`.slice(0, 200),
+        description: `Consulta en línea derivada a incidencia.\nUsuario: ${session.user_email}\n\nDetalle: ${session.topic}`,
+        priority: 'P3', reporter: session.user_email, phone: session.phone, channel: 'chatbot',
+        actor: { id: req.user?.id, name: req.user?.full_name || req.user?.username },
+        assignTo: bodyAssignee ? { email: bodyAssignee } : { userId: req.user?.id }, io: req.app.get('io'),
+      });
+      ticketKey = created.key;
+      assigneeName = req.user?.full_name || req.user?.username;
+    } else if (createTicket && jiraAllowedForCurrentTenant() && JIRA_TOKEN) {
       const specName  = req.user?.full_name || req.user?.username;
       const specEmail = bodyAssignee || req.user?.email;
       const reporter  = session.user_email;

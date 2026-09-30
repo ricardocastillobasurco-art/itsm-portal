@@ -4,6 +4,7 @@
 // ============================================================================
 
 const express    = require('express');
+const { ticketMode } = require('../src/services/TicketModeService');
 const router     = express.Router();
 const { equipmentPool, callStoredProcedure, executeQuery } = require('../config/database');
 const { tenantId } = require('../src/utils/tenantScope');
@@ -34,14 +35,8 @@ router.get('/login', authenticateToken, requireVerified, (req, res) => {
 // ============================================================================
 router.get('/requerimientos', authenticateToken, async (req, res) => {
     const tenantId = req.user?.tenant_id;
-    let jiraEnabled = true;
-    if (tenantId && parseInt(tenantId) !== 1) {
-        try {
-            const FeatureFlagService = require('../src/services/FeatureFlagService');
-            const flags = await FeatureFlagService.getAll(parseInt(tenantId));
-            if (flags['jira'] !== undefined && flags['jira'].enabled === false) jiraEnabled = false;
-        } catch(_) {}
-    }
+    // Jira o gestión local según el interruptor del superadmin (TicketModeService)
+    const jiraEnabled = (await ticketMode(tenantId)) === 'jira';
     res.render('admin_platform/admin_management/itsm/requerimientos/form_legacy', {
         title: 'Requerimientos', user: req.user, reporterEmail: req.query.reporter || '',
         reporterName: req.query.name || '', embed: !!req.query.embed, jiraEnabled
@@ -113,7 +108,7 @@ router.get('/administracion', (req, res, next) => {
         const jwt     = require('jsonwebtoken');
         const decoded = jwt.verify(req.query._pt, process.env.JWT_SECRET || 'fallback_jwt_secret_dev_only');
         if (decoded?._preview && decoded?.role === 'superadmin') {
-            return res.render('admin_platform/admin_management/configuracion/administracion/index', { user: decoded });
+            return ticketMode(decoded.tenant_id).then(m => res.render('admin_platform/admin_management/configuracion/administracion/index', { user: decoded, ticketModeJira: m === 'jira' }));
         }
     } catch(_) {}
     next();
@@ -121,8 +116,9 @@ router.get('/administracion', (req, res, next) => {
 router.get('/administracion',
     authenticateToken,
     requireRole('administrador', 'especialista', 'agente', 'tecnico', 'superadmin'),
-    (req, res) => {
-        res.render('admin_platform/admin_management/configuracion/administracion/index', { user: req.user });
+    async (req, res) => {
+        const ticketModeJira = (await ticketMode(req.user?.tenant_id)) === 'jira';
+        res.render('admin_platform/admin_management/configuracion/administracion/index', { user: req.user, ticketModeJira });
     }
 );
 router.get('/sccm',       (req, res) => res.render('admin_platform/admin_management/asset_management/sccm/index'));
@@ -650,8 +646,9 @@ router.get('/itsm/noc', authenticateToken, requireVerified,
 // GET /itsm/incidencias/gestion
 router.get('/itsm/incidencias/gestion', authenticateToken, requireVerified,
     requireRole('administrador', 'especialista', 'agente', 'tecnico'),
-    (req, res) => {
-        const localView = req.query.view === 'local';
+    async (req, res) => {
+        // En modo local (interruptor Jira apagado) la gestión es siempre la local
+        const localView = req.query.view === 'local' || (await ticketMode(req.user?.tenant_id)) === 'local';
         res.render('admin_platform/admin_management/itsm/incidencias/index', { title: localView ? 'GestiÃ³n Local' : 'GestiÃ³n de Incidencias', user: req.user, currentUserId: req.user?.id || null, localView });
     }
 );
@@ -659,22 +656,16 @@ router.get('/itsm/incidencias/gestion', authenticateToken, requireVerified,
 // GET /itsm/requerimientos/registrar
 router.get('/itsm/requerimientos/registrar', authenticateToken, requireVerified, async (req, res) => {
     const tenantId = req.user?.tenant_id;
-    let jiraEnabled = true;
-    if (tenantId && parseInt(tenantId) !== 1) {
-        try {
-            const FeatureFlagService = require('../src/services/FeatureFlagService');
-            const flags = await FeatureFlagService.getAll(parseInt(tenantId));
-            if (flags['jira'] !== undefined && flags['jira'].enabled === false) jiraEnabled = false;
-        } catch(_) {}
-    }
+    // Jira o gestión local según el interruptor del superadmin (TicketModeService)
+    const jiraEnabled = (await ticketMode(tenantId)) === 'jira';
     res.render('user_platform/self_management/crear_requerimiento/index', { title: 'Registrar Requerimiento', user: req.user, currentUserId: req.user?.id || null, jiraEnabled });
 });
 
 // GET /itsm/requerimientos/gestion
 router.get('/itsm/requerimientos/gestion', authenticateToken, requireVerified,
     requireRole('administrador', 'especialista', 'agente', 'tecnico'),
-    (req, res) => {
-        const localView = req.query.view === 'local';
+    async (req, res) => {
+        const localView = req.query.view === 'local' || (await ticketMode(req.user?.tenant_id)) === 'local';
         res.render('admin_platform/admin_management/itsm/requerimientos/index', { title: localView ? 'GestiÃ³n Local' : 'GestiÃ³n de Requerimientos', user: req.user, currentUserId: req.user?.id || null, localView });
     }
 );
@@ -682,16 +673,10 @@ router.get('/itsm/requerimientos/gestion', authenticateToken, requireVerified,
 // GET /incidencias
 router.get('/incidencias', authenticateToken, async (req, res) => {
     // tenant_id: from JWT, or from ?tenant= param (superadmin visiting a tenant portal)
-    const tenantId = req.user?.tenant_id || (req.query.tenant ? parseInt(req.query.tenant) : null);
+    const tenantId = req.user?.tenant_id || (req.user?.role === 'superadmin' && req.query.tenant ? parseInt(req.query.tenant) : null);
     // Jira habilitado por defecto; solo se deshabilita si el flag está explícitamente en false
-    let jiraEnabled = true;
-    if (tenantId && parseInt(tenantId) !== 1) {
-        try {
-            const FeatureFlagService = require('../src/services/FeatureFlagService');
-            const flags = await FeatureFlagService.getAll(parseInt(tenantId));
-            if (flags['jira'] !== undefined && flags['jira'].enabled === false) jiraEnabled = false;
-        } catch(_) {}
-    }
+    // Jira o gestión local según el interruptor del superadmin (TicketModeService)
+    const jiraEnabled = (await ticketMode(tenantId)) === 'jira';
     // Dominio de correo del tenant (tabla tenants; el tenant dueño también)
     let tenantDomain = '';
     {

@@ -10,6 +10,16 @@ const axios = require('axios');
 const FormData = require('form-data');
 const { tenantId } = require('../../src/utils/tenantScope');
 const { nextLocalTicketKey } = require('../../src/utils/tenantTickets');
+const LocalTickets = require('../../src/services/localTickets/LocalTicketService');
+
+// Tickets de la gestión local (TK-/RQ-): los maneja el motor local (SLA, reglas, avisos).
+// Las claves de Jira siguen su flujo original.
+const isLocalKey = (k) => /^(TK|RQ)-/i.test(String(k || ''));
+const STAFF_ROLES = ['administrador', 'admin', 'especialista', 'agente', 'tecnico', 'superadmin'];
+const isStaff = (req) => STAFF_ROLES.includes(req.user?.role);
+const actorOf = (req) => ({ id: req.user?.id, name: req.user?.full_name || req.user?.nombre || req.user?.username || 'Técnico' });
+const engineFail = (res, e) => res.status(e.status || 500).json({ success: false, message: e.message });
+const requireStaff = (req, res, next) => isStaff(req) ? next() : res.status(403).json({ success: false, message: 'Solo el personal de TI puede realizar esta acción' });
 
 
 router.get('/', authenticateToken, (req, res) => {
@@ -145,8 +155,14 @@ router.get('/ticket/:key', authenticateToken, async (req, res) => {
 // ============================================================
 
 
-router.put('/ticket/:key/take', authenticateToken, async (req, res) => {
+router.put('/ticket/:key/take', authenticateToken, requireStaff, async (req, res) => {
     const { key } = req.params;
+    if (isLocalKey(key)) {
+        try {
+            const r = await LocalTickets.assign({ tenantId: tenantId(req), key, userId: req.user.id, actor: actorOf(req), io: req.app.get('io') });
+            return res.json({ success: true, message: `Ticket ${key} asignado a ${r.assignedTo.name}` });
+        } catch (e) { return engineFail(res, e); }
+    }
     const userId   = req.user?.id;
     const userName = req.user?.full_name || req.user?.username || 'Técnico';
     try {
@@ -176,9 +192,15 @@ router.put('/ticket/:key/take', authenticateToken, async (req, res) => {
 // ============================================================
 
 
-router.put('/ticket/:key/internal-status', authenticateToken, async (req, res) => {
+router.put('/ticket/:key/internal-status', authenticateToken, requireStaff, async (req, res) => {
     const { key } = req.params;
     const { status, note } = req.body;
+    if (isLocalKey(key)) {
+        try {
+            await LocalTickets.changeStatus({ tenantId: tenantId(req), key, status, note, actor: actorOf(req), io: req.app.get('io') });
+            return res.json({ success: true, message: `Estado actualizado a ${LocalTickets.STATUS_LABEL[status] || status}` });
+        } catch (e) { return engineFail(res, e); }
+    }
     const validStatuses = ['abierto','asignado','en_progreso','pendiente_usuario','resuelto','cerrado'];
     if (!validStatuses.includes(status))
         return res.status(400).json({ success: false, message: 'Estado inválido' });
@@ -208,8 +230,16 @@ router.put('/ticket/:key/internal-status', authenticateToken, async (req, res) =
 
 
 router.post('/ticket/:key/comment', authenticateToken, async (req, res) => {
-    const { comment, tipo = 'comentario' } = req.body;
+    const { comment } = req.body;
+    const tipo = req.body.tipo === 'interno' && isStaff(req) ? 'interno' : 'comentario';
     if (!comment?.trim()) return res.status(400).json({ success: false, message: 'Comentario vacío' });
+    if (isLocalKey(req.params.key)) {
+        try {
+            await LocalTickets.comment({ tenantId: tenantId(req), key: req.params.key, text: comment, internal: tipo === 'interno',
+                actor: actorOf(req), fromReporter: !isStaff(req), io: req.app.get('io') });
+            return res.status(201).json({ success: true, author: actorOf(req).name });
+        } catch (e) { return engineFail(res, e); }
+    }
     try {
         const userName = req.user?.full_name || req.user?.username || 'Sistema';
         const esInterno = tipo === 'interno';
@@ -236,7 +266,7 @@ router.post('/ticket/:key/comment', authenticateToken, async (req, res) => {
 router.get('/ticket/:key/comments', authenticateToken, async (req, res) => {
     try {
         // Los comentarios internos solo los ven usuarios autenticados con role != 'reporter'
-        const showInternal = req.user?.role !== 'reporter';
+        const showInternal = isStaff(req);
         const rows = await dbQuery(
             `SELECT tc.*, u.full_name AS author_name, u.username /* tenant_id: clave validada por router.param */
              FROM ticket_comments tc
@@ -458,6 +488,12 @@ router.post('/ticket/:key/send-email', authenticateToken, async (req, res) => {
 router.post('/ticket/:key/reopen', authenticateToken, async (req, res) => {
     const { key } = req.params;
     const { motivo = 'Reabierto por el usuario' } = req.body;
+    if (isLocalKey(key)) {
+        try {
+            await LocalTickets.reopen({ tenantId: tenantId(req), key, reason: motivo, actor: actorOf(req), io: req.app.get('io') });
+            return res.json({ success: true, message: `Ticket ${key} reabierto. Nuevo SLA asignado.` });
+        } catch (e) { return engineFail(res, e); }
+    }
     try {
         const rows = await dbQuery(`SELECT internal_status, reporter FROM jira_tickets /* tenant_id: clave validada por router.param */ WHERE ticket_key=? LIMIT 1`, [key]);
         if (!rows.length) return res.status(404).json({ success: false, message: 'Ticket no encontrado' });
@@ -484,33 +520,25 @@ router.post('/ticket/:key/reopen', authenticateToken, async (req, res) => {
 
 
 // ── Crear incidencia local (TK-NNN) ─────────────────────────────────────────
+// PUT /api/jira/ticket/:key/assign-local { userId | email } — asignar a un técnico de la empresa
+router.put('/ticket/:key/assign-local', authenticateToken, requireStaff, async (req, res) => {
+    if (!isLocalKey(req.params.key)) return res.status(400).json({ success: false, message: 'Solo para tickets de la gestión local' });
+    try {
+        const r = await LocalTickets.assign({ tenantId: tenantId(req), key: req.params.key, userId: req.body.userId, email: req.body.email,
+            actor: actorOf(req), io: req.app.get('io') });
+        res.json({ success: true, message: `Ticket ${req.params.key} asignado a ${r.assignedTo.name}`, data: r.assignedTo });
+    } catch (e) { engineFail(res, e); }
+});
+
 router.post('/ticket/create-local', authenticateToken, async (req, res) => {
     const { summary, description = '', priority = 'P3' } = req.body;
     if (!summary?.trim()) return res.status(400).json({ success: false, message: 'El resumen es obligatorio' });
-
-    const SLA_H = { P1: 1, P2: 4, P3: 8, P4: 24 };
-    const slaH = SLA_H[priority] || 8;
-    const reporter = req.user?.full_name || req.user?.nombre || req.user?.username || 'Usuario local';
-
     try {
-        // Clave única en toda la plataforma (secuencia atómica)
-        const ticketKey = await nextLocalTicketKey('TK');
-
-        await dbQuery(
-            `INSERT INTO jira_tickets
-                (ticket_key, summary, reporter, status, internal_status, priority, description, sla_deadline, tenant_id)
-             VALUES (?, ?, ?, 'Abierto', 'abierto', ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR), ?)`,
-            [ticketKey, summary.trim(), reporter, priority, description.trim(), slaH, tenantId(req)]
-        );
-        await dbQuery(
-            `INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle) VALUES (?,?,?,'creacion',?)`,
-            [ticketKey, req.user?.id || 0, reporter, `Ticket ${ticketKey} creado por ${reporter}`]
-        ).catch(() => {});
-
-        res.json({ success: true, key: ticketKey, message: `Ticket ${ticketKey} creado` });
-    } catch (e) {
-        res.status(500).json({ success: false, message: e.message });
-    }
+        const r = await LocalTickets.create({ tenantId: tenantId(req), kind: 'incident', summary, description, priority,
+            reporter: req.body.reporter || req.user?.email || req.user?.username, phone: req.body.phone, category: req.body.category,
+            channel: 'admin', actor: actorOf(req), io: req.app.get('io') });
+        return res.json({ success: true, key: r.key, message: `Ticket ${r.key} creado` });
+    } catch (e) { return engineFail(res, e); }
 });
 
 module.exports = router;

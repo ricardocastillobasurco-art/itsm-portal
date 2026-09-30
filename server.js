@@ -228,6 +228,10 @@ startAlertJob(io);
 const { startEmailToTicketJob } = require('./src/jobs/emailToTicketJob');
 startEmailToTicketJob(io);
 
+// Gestión local: cierre automático de tickets resueltos
+const { startLocalTicketsJob } = require('./src/jobs/localTicketsJob');
+startLocalTicketsJob();
+
 // Socket.io — conexión autenticada con la cookie de sesión. Las salas son por
 // usuario y por tenant: un cliente solo recibe eventos de su propia empresa.
 const { agentsRoom, tvRoom } = require('./src/utils/tenantTickets');

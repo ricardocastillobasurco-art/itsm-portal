@@ -1,0 +1,30 @@
+<%
+// Aviso genérico de la gestión local de tickets. Todo el texto se escapa: el
+// asunto y las notas pueden venir de usuarios o de correos externos.
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rows = (typeof fields !== 'undefined' && Array.isArray(fields) ? fields : [])
+  .filter(f => f && f[1] != null && f[1] !== '')
+  .map(f => `<div class="field"><div class="field-label">${esc(f[0])}</div><div class="field-val">${esc(f[1])}</div></div>`).join('');
+const noteHtml = (typeof note !== 'undefined' && note)
+  ? `<div class="field"><div class="field-label">${esc(typeof noteLabel !== 'undefined' ? noteLabel : 'Detalle')}</div><div class="field-val" style="white-space:pre-wrap;">${esc(note)}</div></div>` : '';
+const ctaHtml = (typeof ctaUrl !== 'undefined' && ctaUrl)
+  ? `<div class="cta"><a href="${esc(ctaUrl)}">${esc(typeof ctaLabel !== 'undefined' ? ctaLabel : 'Ver ticket')}</a></div>` : '';
+const surveyHtml = (typeof surveyUrl !== 'undefined' && surveyUrl)
+  ? `<p style="margin:18px 0 8px;font-size:14px;color:#172B4D;text-align:center;">¿Cómo fue la atención?</p>
+     <p style="text-align:center;font-size:26px;">${[1,2,3,4,5].map(n => `<a href="${esc(surveyUrl)}?rating=${n}" style="text-decoration:none;margin:0 4px;">${['😞','😐','🙂','😊','🤩'][n-1]}</a>`).join('')}</p>` : '';
+const body = `
+<div class="header">
+  <h1>${esc(title)}</h1>
+  <p>${esc(intro)}</p>
+</div>
+<div class="body">
+  <div class="field"><div class="field-label">Ticket</div><div class="field-val" style="font-family:monospace;font-size:17px;">${esc(key)}</div></div>
+  <div class="field"><div class="field-label">Asunto</div><div class="field-val">${esc(summary)}</div></div>
+  ${rows}
+  ${noteHtml}
+  ${surveyHtml}
+  ${ctaHtml}
+  <p style="margin:16px 0 0;font-size:12px;color:#64748b;">Puedes responder a este correo sin cambiar el asunto para agregar información al ticket ${esc(key)}.</p>
+</div>`;
+%>
+<%- include('_base', { body }) %>

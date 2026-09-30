@@ -8,6 +8,8 @@ const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, 
 const axios = require('axios');
 const { tenantId } = require('../../src/utils/tenantScope');
 const auth = { username: JIRA_EMAIL, password: JIRA_TOKEN };
+const { ticketMode } = require('../../src/services/TicketModeService');
+const LocalTickets = require('../../src/services/localTickets/LocalTicketService');
 const TW = 'COALESCE(tenant_id, 1) = ?';
 const FormData = require('form-data');
 
@@ -151,11 +153,14 @@ const _REQ_TYPES_FALLBACK = [
 // GET /api/jira/requesttypes
 router.get('/requesttypes', authenticateToken, async (req, res) => {
     try {
-        const tenantId = req.user?.tenant_id;
-        if (tenantId && parseInt(tenantId) !== 1) {
-            const FeatureFlagService = require('../../src/services/FeatureFlagService');
-            const hasJira = await FeatureFlagService.isEnabled(parseInt(tenantId), 'jira');
-            if (!hasJira) return res.json({ success: false, code: 'JIRA_NOT_CONFIGURED', data: [] });
+        // Gestión local: los tipos de requerimiento son los servicios del catálogo de la empresa
+        if ((await ticketMode(tenantId(req))) === 'local') {
+            const rows = await dbQuery(
+                `SELECT id, name, description FROM services WHERE tenant_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY name`,
+                [tenantId(req)]).catch(() => []);
+            const types = rows.map(r => ({ id: String(r.id), name: r.name, description: r.description || '' }));
+            if (!types.length) types.push({ id: 'general', name: 'Solicitud general', description: 'Cualquier solicitud al equipo de TI' });
+            return res.json({ success: true, mode: 'local', data: types });
         }
 
         const now = Date.now();
@@ -189,16 +194,21 @@ router.get('/requesttypes', authenticateToken, async (req, res) => {
 router.post('/requirement', authenticateToken, async (req, res) => {
     const start = Date.now();
     try {
-        const tenantId = req.user?.tenant_id;
-        if (tenantId && parseInt(tenantId) !== 1) {
-            const FeatureFlagService = require('../../src/services/FeatureFlagService');
-            const hasJira = await FeatureFlagService.isEnabled(parseInt(tenantId), 'jira');
-            if (!hasJira) return res.status(422).json({ success: false, code: 'JIRA_NOT_CONFIGURED', message: 'Integración con Jira no configurada para este tenant. Contacta al administrador.' });
-        }
-
         let { summary, reporter, phone, description, tipo, priority = 'P3', attachmentId, requestTypeId, requestTypeName } = req.body;
         if (!summary || !reporter || !description)
             return res.status(400).json({ success: false, message: 'Faltan campos: summary, reporter, description' });
+
+        // Gestión local (interruptor Jira apagado): requerimiento RQ-XXXX con el motor local
+        if ((await ticketMode(tenantId(req))) === 'local') {
+            const STAFF = ['administrador', 'admin', 'especialista', 'agente', 'tecnico', 'superadmin'];
+            const who = STAFF.includes(req.user?.role) ? reporter : (req.user?.email || reporter);
+            const r = await LocalTickets.create({
+                tenantId: tenantId(req), kind: 'requirement', summary, description, priority, phone,
+                reporter: who, tipo: tipo || requestTypeName, channel: 'portal',
+                actor: { id: req.user?.id, name: req.user?.full_name || req.user?.username }, io: req.app.get('io'),
+            });
+            return res.json({ success: true, data: { key: r.key, url: null }, key: r.key, isLocal: true });
+        }
 
         if (requestTypeName && !tipo) tipo = requestTypeName;
 

@@ -9,6 +9,11 @@ const FormData = require('form-data');
 const { tenantId } = require('../../src/utils/tenantScope');
 const { agentsRoom, tvRoom } = require('../../src/utils/tenantTickets');
 const { JIRA_OWNER_TENANT_ID } = require('./helpers');
+// Claves locales (TK-/RQ-) se delegan al motor local: estas rutas son del flujo Jira
+const LocalTickets = require('../../src/services/localTickets/LocalTicketService');
+const _isLocalKey = (k) => /^(TK|RQ)-/i.test(String(k || ''));
+const _actor = (req) => ({ id: req.user?.id, name: req.user?.full_name || req.user?.nombre || req.user?.username || 'Técnico' });
+const _STAFF = ['administrador', 'admin', 'especialista', 'agente', 'tecnico', 'superadmin'];
 
 const auth = { username: JIRA_EMAIL, password: JIRA_TOKEN };
 
@@ -672,6 +677,17 @@ router.put('/ticket/:key/wp-category', authenticateToken, async (req, res) => {
 
 router.post('/ticket/:key/close', authenticateToken, async (req, res) => {
     const { key } = req.params;
+    if (_isLocalKey(key)) {
+        if (!_STAFF.includes(req.user?.role)) return res.status(403).json({ success: false, message: 'Solo el personal de TI puede cerrar tickets aquí' });
+        try {
+            // Cierre desde el panel = resolución con la nota del técnico (el usuario recibe el aviso y la encuesta)
+            const note = String(req.body.comment || '').trim();
+            const { row } = await LocalTickets.load(tenantId(req), key);
+            const target = row.internal_status === 'resuelto' ? 'cerrado' : 'resuelto';
+            await LocalTickets.changeStatus({ tenantId: tenantId(req), key, status: target, note, actor: _actor(req), io: req.app.get('io') });
+            return res.json({ success: true, local: true, jiraClosed: false, status: target });
+        } catch (e) { return res.status(e.status || 500).json({ success: false, message: e.message }); }
+    }
     const {
         comment,
         tipo_atencion   = 'remota',
@@ -1563,6 +1579,13 @@ router.put('/ticket/:key/assign-tech', authenticateToken, async (req, res) => {
     const { key } = req.params;
     const { techId, email, accountId: providedAccountId } = req.body;
     if (!techId && !email) return res.status(400).json({ success: false, message: 'techId o email requerido' });
+    if (_isLocalKey(key)) {
+        if (!_STAFF.includes(req.user?.role)) return res.status(403).json({ success: false, message: 'Solo el personal de TI puede asignar tickets' });
+        try {
+            const r = await LocalTickets.assign({ tenantId: tenantId(req), key, userId: techId, email, actor: _actor(req), io: req.app.get('io') });
+            return res.json({ success: true, local: true, message: `Ticket ${key} asignado a ${r.assignedTo.name}`, data: r.assignedTo });
+        } catch (e) { return res.status(e.status || 500).json({ success: false, message: e.message }); }
+    }
     try {
         const techs = email
             ? await dbQuery(`SELECT id, full_name, username, email FROM users WHERE email=? AND COALESCE(tenant_id, 1)=? LIMIT 1`, [email, tenantId(req)])

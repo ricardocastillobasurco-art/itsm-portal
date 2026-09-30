@@ -13,6 +13,7 @@ const { dbQuery }           = require('./helpers');
 const { tenantWhere }       = require('../../utils/tenantFilter');
 const { tenantId }          = require('../../src/utils/tenantScope');
 const { agentsRoom, nextLocalTicketKey } = require('../../src/utils/tenantTickets');
+const LocalTickets = require('../../src/services/localTickets/LocalTicketService');
 
 // LOCAL(req, alias?) devuelve el fragmento WHERE para tickets locales del tenant.
 // Siempre filtra (tenant_id NULL = tenant 1, datos legacy).
@@ -354,46 +355,22 @@ router.get('/local/categorias', authenticateToken, async (req, res) => {
 // ── POST /api/jira/local/ticket — Crear ticket local (TK-%) ──────────────────
 router.post('/local/ticket', authenticateToken, async (req, res) => {
     const { summary, reporter, phone, description, category_name, priority = 'P3' } = req.body;
-    if (!reporter?.trim()) return res.status(400).json({ success: false, message: 'Reporter requerido' });
+    const STAFF = ['administrador', 'admin', 'especialista', 'agente', 'tecnico', 'superadmin'];
+    const isStaff = STAFF.includes(req.user?.role);
+    // Un usuario final solo registra tickets a su nombre; TI puede registrar por otra persona
+    const who = isStaff ? (reporter || req.user?.email) : (req.user?.email || reporter);
+    if (!String(who || '').trim()) return res.status(400).json({ success: false, message: 'Reporter requerido' });
     if (!summary?.trim())  return res.status(400).json({ success: false, message: 'Asunto requerido' });
-
     try {
-        // Clave única en toda la plataforma (secuencia atómica)
-        const newKey  = await nextLocalTicketKey('TK');
-
-        // SLA según prioridad
-        const slaHours = { P1: 4, P2: 8, P3: 24, P4: 72 }[priority] || 24;
-        const slaDeadline = new Date(Date.now() + slaHours * 3600000);
-
-        const tid = tenantId(req);
-        await dbQuery(
-            `INSERT INTO jira_tickets
-                (ticket_key, summary, description, status, internal_status,
-                 priority, reporter, phone, component, sla_deadline, tenant_id, created_at)
-             VALUES (?, ?, ?, 'Abierto', 'abierto', ?, ?, ?, ?, ?, ?, NOW())`,
-            [newKey, summary.trim(),
-             description?.trim() || `Problemas con ${summary.trim()}.`,
-             priority,
-             reporter.trim(), phone?.trim() || '-',
-             category_name?.trim() || 'General',
-             slaDeadline, tid]
-        );
-
-        // Comentario de sistema
-        await dbQuery(
-            `INSERT INTO ticket_comments /* tenant_id: ticket recién creado por este tenant */ (ticket_id, user_id, contenido, tipo, created_at)
-             VALUES (?, 0, ?, 'sistema', NOW())`,
-            [newKey, `Ticket registrado por ${reporter.trim()} vía portal local.`]
-        ).catch(() => {});
-
-        // Notificar por socket
-        const io = req.app.get('io');
-        if (io) io.to(agentsRoom(tid)).emit('ticket:created', { key: newKey, summary: summary.trim(), priority });
-
-        res.json({ success: true, data: { key: newKey, url: null } });
-    } catch(e) {
+        const r = await LocalTickets.create({
+            tenantId: tenantId(req), kind: 'incident', summary, description, priority, phone,
+            reporter: who, category: category_name, channel: isStaff ? 'admin' : 'portal',
+            actor: { id: req.user?.id, name: req.user?.full_name || req.user?.username }, io: req.app.get('io'),
+        });
+        res.json({ success: true, data: { key: r.key, url: null } });
+    } catch (e) {
         console.error('[local/ticket POST]', e.message);
-        res.status(500).json({ success: false, message: e.message });
+        res.status(e.status || 500).json({ success: false, message: e.message });
     }
 });
 

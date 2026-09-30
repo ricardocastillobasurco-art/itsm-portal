@@ -7,6 +7,9 @@ const { authenticateToken, optionalAuth } = require('../../middleware/auth');
 const { tenantWhere } = require('../../utils/tenantFilter');
 const { jira, dbQuery, upload, assignEmailHtml, sendEmail, getAutomationConfig, mapJiraStatus, mapPriority, extractAdfText, IMPACT_LABELS, URGENCY_LABELS, COMPONENT_LABELS, APP_LABELS, TIPOLOGIA_LABELS, JIRA_HOST, JIRA_EMAIL, JIRA_TOKEN, SD_ID, RT_ID } = require('./helpers');
 const axios = require('axios');
+const { ticketMode } = require('../../src/services/TicketModeService');
+const LocalTickets = require('../../src/services/localTickets/LocalTicketService');
+const { tenantId: tenantIdOf } = require('../../src/utils/tenantScope');
 
 // El reporter sale de la sesión: un usuario final solo ve/opera sus propios tickets.
 // El personal de TI puede consultar por otro reporter (el ticket igual se valida por tenant en router.param).
@@ -45,24 +48,11 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
             return res.status(400).json({ success: false, error: 'reporter requerido' });
 
-        // Determinar modo Jira vs Local según feature flag del tenant
-        const tenantId = req.user?.tenant_id;
-        let tenantJiraEnabled = true; // Por defecto Jira
-        if (tenantId && parseInt(tenantId) !== 1) {
-            try {
-                const FeatureFlagService = require('../../src/services/FeatureFlagService');
-                const flags = await FeatureFlagService.getAll(parseInt(tenantId));
-                if (flags['jira'] !== undefined && flags['jira'].enabled === false) tenantJiraEnabled = false;
-            } catch (_) {}
-        }
-        // Jira mode → solo tickets INC-/SD-/RT-XXXX (excluir TK-% locales)
-        // Local mode → solo tickets TK-XXXX
-        const ticketKeyFilter = tenantJiraEnabled
-            ? ` AND jt.ticket_key NOT LIKE 'TK-%'`
-            : ` AND jt.ticket_key LIKE 'TK-%'`;
-        const reqKeyFilter = tenantJiraEnabled
-            ? ` AND req_key NOT LIKE 'TK-%'`
-            : ` AND req_key LIKE 'TK-%'`;
+        // Modo según el interruptor del superadmin. El usuario ve TODOS sus tickets (locales
+        // TK-/RQ- y de Jira) en cualquier modo: si la empresa cambia de modo no pierde su historial.
+        const tenantJiraEnabled = (await ticketMode(tenantIdOf(req))) === 'jira';
+        const ticketKeyFilter = '';
+        const reqKeyFilter = '';
 
         // En modo Jira los tickets pueden ser de meses atrás — no aplicar filtro de días en BD
         // En modo local sí aplicar filtro de días para limitar resultados locales
@@ -129,7 +119,7 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
             jiraStatus: r.status || 'Abierto',
             priority:  r.priority || 'P3',
             createdAt: r.created_at,
-            jiraUrl:   r.jira_url || `${JIRA_HOST}/browse/${r.req_key}`,
+            jiraUrl:   r.jira_url || (/^RQ-/i.test(r.req_key) ? null : `${JIRA_HOST}/browse/${r.req_key}`),
             categoria: r.tipo ? { nombre: r.tipo } : null,
             lastComment: null, lastCommentAt: null,
         }));
@@ -141,7 +131,8 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
             // Enriquecer con estados frescos desde Jira (servicedeskapi — misma que /sync)
             const freshStatus = {};
             try {
-                const keys = dbRows.map(t => t.ticket_key);
+                // Solo se consulta a Jira por tickets de Jira (no por los locales TK-/RQ-)
+                const keys = tenantJiraEnabled ? dbRows.map(t => t.ticket_key).filter(k => !/^(TK|RQ)-/i.test(k)) : [];
                 // Usar servicedeskapi/request para obtener estado real de cada ticket
                 await Promise.allSettled(keys.map(async key => {
                     try {
@@ -171,13 +162,13 @@ router.get('/my-tickets', authenticateToken, async (req, res) => {
                     jiraStatus,
                     priority:      fresh?.priority ? mapPriority(fresh.priority) : (t.priority || 'P3'),
                     createdAt:     t.created_at,
-                    jiraUrl:       t.jira_url || `${JIRA_HOST}/browse/${t.ticket_key}`,
+                    jiraUrl:       t.jira_url || (/^(TK|RQ)-/i.test(t.ticket_key) ? null : `${JIRA_HOST}/browse/${t.ticket_key}`),
                     categoria:     t.component ? { nombre: t.component } : (t.tipologia ? { nombre: t.tipologia } : null),
                     lastComment:   t.last_comment   || null,
                     lastCommentAt: t.last_comment_at || null,
                 };
             });
-        } else {
+        } else if (tenantJiraEnabled) {
             // Sin resultados en BD — buscar directamente en Jira API (sin filtro de días)
             try {
                 let jiraIssues = [];
@@ -370,6 +361,18 @@ router.post('/my-tickets/:key/close', authenticateToken, async (req, res) => {
     if (!comment)
         return res.status(400).json({ success: false, error: 'Comentario obligatorio para cerrar' });
 
+    // Ticket de la gestión local (TK-/RQ-): lo maneja el motor local (reglas, avisos, SLA)
+    if (/^(TK|RQ)-/i.test(key)) {
+        try {
+            const { row } = await LocalTickets.load(tenantIdOf(req), key);
+            if (String(row.reporter || '').toLowerCase() !== reporter.toLowerCase())
+                return res.status(403).json({ success: false, error: 'No tienes permiso sobre este ticket' });
+            const actor = { id: req.user?.id, name: req.user?.full_name || req.user?.username || reporter };
+            await LocalTickets.changeStatus({ tenantId: tenantIdOf(req), key, status: 'cerrado', note: comment, actor, io: req.app.get('io') });
+            return res.json({ success: true, jiraClosed: false, local: true, data: { key } });
+        } catch (e) { return res.status(e.status || 500).json({ success: false, error: e.message }); }
+    }
+
     // Verificar que el ticket pertenece a este reporter
     const rows = await dbQuery(`SELECT ticket_key FROM jira_tickets /* tenant_id: ticket_key validado por router.param */ WHERE ticket_key=? AND reporter=? LIMIT 1`, [key, reporter]);
     if (!rows.length) return res.status(403).json({ success: false, error: 'No tienes permiso para cerrar este ticket' });
@@ -453,6 +456,18 @@ router.post('/my-tickets/:key/comment', authenticateToken, async (req, res) => {
         return res.status(400).json({ success: false, error: 'reporter requerido' });
     if (!comment)
         return res.status(400).json({ success: false, error: 'Comentario vacío' });
+
+    // Ticket de la gestión local (TK-/RQ-): lo maneja el motor local (reglas, avisos, SLA)
+    if (/^(TK|RQ)-/i.test(key)) {
+        try {
+            const { row } = await LocalTickets.load(tenantIdOf(req), key);
+            if (String(row.reporter || '').toLowerCase() !== reporter.toLowerCase())
+                return res.status(403).json({ success: false, error: 'No tienes permiso sobre este ticket' });
+            const actor = { id: req.user?.id, name: req.user?.full_name || req.user?.username || reporter };
+            await LocalTickets.comment({ tenantId: tenantIdOf(req), key, text: comment, actor, fromReporter: true, io: req.app.get('io') });
+            return res.json({ success: true, jiraOk: false, message: 'Comentario guardado' });
+        } catch (e) { return res.status(e.status || 500).json({ success: false, error: e.message }); }
+    }
 
     const rows = await dbQuery(
         `SELECT ticket_key FROM jira_tickets /* tenant_id: ticket_key validado por router.param */ WHERE ticket_key=? AND reporter=? LIMIT 1`,

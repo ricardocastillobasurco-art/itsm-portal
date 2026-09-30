@@ -402,7 +402,8 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
   const _mod         = (k) => (locals.hasModule ? locals.hasModule(k) : true);
   // Usa config del tenant (inyectada por middleware/tenantLocals.js) — sin hardcodes
   const _cfg         = tenantCfg || {};
-  const _jiraEnabled = _cfg.features?.jira   ?? false;
+  // Modo según el interruptor del superadmin (TicketModeService); archivos de config como respaldo
+  const _jiraEnabled = (typeof ticketModeJira !== 'undefined') ? ticketModeJira : (_cfg.features?.jira ?? false);
   const _tenantName  = _cfg.name              ?? 'Portal TI';
 %>
 

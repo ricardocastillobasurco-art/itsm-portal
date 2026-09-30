@@ -12,8 +12,8 @@ const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
 const { executeQuery, equipmentPool } = require('../../../config/database');
-const { nextLocalTicketKey, agentsRoom } = require('../../utils/tenantTickets');
 const logger = require('../../utils/logger');
+const LocalTickets = require('../localTickets/LocalTicketService');
 
 const q = (sql, params = []) => executeQuery(equipmentPool, sql, params);
 
@@ -21,8 +21,7 @@ const UPLOAD_DIR       = path.join(__dirname, '../../../uploads/tickets');
 const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
 const MAX_ATTACHMENTS  = 10;
 const MAX_PER_SENDER_H = 10;   // tickets nuevos por remitente y hora (anti-spam / anti-bucle)
-const SLA_FALLBACK_H   = { P1: 1, P2: 4, P3: 8, P4: 24 };
-const KEY_RE           = /\[?\b((?:TK|INC|REQ)-\d{3,})\b\]?/i;
+const KEY_RE           = /\[?\b((?:TK|RQ|INC|REQ)-\d{3,})\b\]?/i;
 const URGENT_RE        = /\b(urgente|urgent|cr[ií]tico|ca[ií]do|no funciona nada)\b/i;
 const NOREPLY_RE       = /(no-?reply|mailer-daemon|postmaster|bounce)/i;
 const AUTO_SUBJECT_RE  = /^(automatic reply|respuesta autom[aá]tica|auto:|out of office|fuera de la oficina|undeliverable|no se puede entregar|delivery status notification)/i;
@@ -92,24 +91,13 @@ async function saveAttachments(ticketKey, msg) {
   return files.length;
 }
 
-async function slaHours(tid, priority) {
-  try {
-    const { SLAPolicy } = require('../../models');
-    const p = await SLAPolicy.forTenant(tid, priority);
-    if (p?.tiempoResolucionH) return Number(p.tiempoResolucionH);
-  } catch (_) {}
-  return SLA_FALLBACK_H[priority] || 8;
-}
-
+// Comentario y alta pasan por el motor local: mismas reglas, SLA y avisos que el resto de canales
 async function addComment(tid, ticketKey, msg, io) {
   const body = stripQuoted(msg.text) || '(correo sin texto)';
   const from = msg.from.email.toLowerCase();
-  await q(`INSERT INTO ticket_comments /* tenant_id: ticket validado en el tenant */ (ticket_id, user_id, contenido, tipo, created_at)
-           VALUES (?, 0, ?, 'comentario', NOW())`, [ticketKey, `✉️ ${from}:\n${body}`.slice(0, 15000)]);
-  await q(`INSERT INTO ticket_history /* tenant_id: ticket validado en el tenant */ (ticket_id, user_id, user_name, evento, detalle)
-           VALUES (?, 0, ?, 'comentario', ?)`, [ticketKey, from, `Respuesta por correo de ${from}`]).catch(() => {});
-  const n = await saveAttachments(ticketKey, msg);
-  if (io) io.to(agentsRoom(tid)).emit('ticket:comment', { key: ticketKey, from, attachments: n });
+  await LocalTickets.comment({ tenantId: tid, key: ticketKey, text: `✉️ ${from}:\n${body}`, fromReporter: true,
+    actor: { name: from }, io });
+  await saveAttachments(ticketKey, msg);
 }
 
 async function createTicket(tid, cfg, msg, io) {
@@ -118,29 +106,10 @@ async function createTicket(tid, cfg, msg, io) {
   const priority = URGENT_RE.test(`${subject} ${text.slice(0, 500)}`) ? 'P2'
                  : (['P1', 'P2', 'P3', 'P4'].includes(cfg.default_priority) ? cfg.default_priority : 'P3');
   const from     = msg.from.email.toLowerCase();
-  const key      = await nextLocalTicketKey('TK');
-  const hours    = await slaHours(tid, priority);
-
-  await q(`INSERT INTO jira_tickets
-             (ticket_key, summary, description, reporter, status, internal_status, priority, sla_deadline, tenant_id, created_at)
-           VALUES (?, ?, ?, ?, 'Abierto', 'abierto', ?, DATE_ADD(NOW(), INTERVAL ? HOUR), ?, NOW())`,
-    [key, subject.slice(0, 500), text.slice(0, 20000), from, priority, hours, tid]);
-  await q(`INSERT INTO ticket_history /* tenant_id: ticket recién creado por este tenant */ (ticket_id, user_id, user_name, evento, detalle)
-           VALUES (?, 0, ?, 'creacion', ?)`, [key, from, `Ticket ${key} creado desde correo de ${from}`]).catch(() => {});
+  // El motor registra, aplica SLA de la empresa, asigna por defecto y envía el acuse al remitente
+  const { key } = await LocalTickets.create({ tenantId: tid, kind: 'incident', summary: subject, description: text,
+    priority, reporter: from, channel: 'correo', actor: { name: from }, io });
   await saveAttachments(key, msg);
-
-  if (io) io.to(agentsRoom(tid)).emit('ticket:created', { key, summary: subject, priority, reporter: from, source: 'email' });
-
-  // Acuse de recibo: el asunto lleva la clave para que las respuestas se agreguen al ticket
-  try {
-    const { enqueueEmail } = require('../../queues/index');
-    await enqueueEmail({
-      to: from,
-      subject: `[${key}] Recibimos tu solicitud: ${subject}`.slice(0, 250),
-      template: 'ticket-recibido-correo',
-      vars: { key, subject, priority, hours },
-    });
-  } catch (e) { logger.warn(`[email-to-ticket] acuse de recibo no enviado (${key}): ${e.message}`); }
   return key;
 }
 
@@ -161,8 +130,9 @@ async function processMessage(tenant, cfg, msg, { io = null } = {}) {
     // ¿Respuesta a un ticket existente de ESTE tenant?
     const m = (msg.subject || '').match(KEY_RE);
     if (m) {
-      const [t] = await q('SELECT ticket_key FROM jira_tickets WHERE ticket_key = ? AND COALESCE(tenant_id, 1) = ? LIMIT 1',
-        [m[1].toUpperCase(), tid]);
+      const [t] = await q(`SELECT ticket_key FROM jira_tickets WHERE ticket_key = ? AND COALESCE(tenant_id, 1) = ?
+                           UNION ALL SELECT req_key FROM jira_requirements WHERE req_key = ? AND COALESCE(tenant_id, 1) = ? LIMIT 1`,
+        [m[1].toUpperCase(), tid, m[1].toUpperCase(), tid]);
       if (t) {
         await addComment(tid, t.ticket_key, msg, io);
         await log(tid, msg, 'comment', t.ticket_key);

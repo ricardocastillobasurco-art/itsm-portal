@@ -17,6 +17,24 @@
       <input type="email" id="auto_default_assignee" class="form-control-custom" placeholder="tecnico@empresa.com">
     </div>
 
+    <!-- Gestión local: avisos y cierre automático -->
+    <div class="card-panel" style="margin-bottom:20px;">
+      <div class="card-panel-title" style="margin-bottom:16px;">
+        <i class="bi bi-envelope-check-fill" style="color:#059669"></i> Avisos al usuario y cierre automático
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px;">Gestión local (sin Jira)</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <label class="auto-toggle-wrap">
+          <input type="checkbox" id="auto_notify_reporter">
+          <span class="auto-toggle"></span>
+        </label>
+        <span style="font-size:13px;font-weight:600;color:var(--text-main);">Avisar por correo al usuario (registro, asignación, respuestas, resolución)</span>
+      </div>
+      <div class="form-label-custom">Cerrar automáticamente los tickets resueltos después de (días)</div>
+      <input type="number" id="auto_close_days" class="form-control-custom" value="3" min="0" max="60" style="width:100px;">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">0 = no cerrar automáticamente</div>
+    </div>
+
     <!-- Escalación P1 -->
     <div class="card-panel" style="margin-bottom:20px;">
       <div class="card-panel-title" style="margin-bottom:16px;">
