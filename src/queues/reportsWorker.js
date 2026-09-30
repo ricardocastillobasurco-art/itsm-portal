@@ -14,6 +14,7 @@ if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
 
 reportsQueue.process(async (job) => {
     const { type, filters, userId, reportId } = job.data;
+    const tenantId = Number(job.data.tenantId) || 1;
 
     // Obtener datos según filtros
     let sql = `
@@ -23,9 +24,9 @@ reportsQueue.process(async (job) => {
                c.name AS category
         FROM tickets t
         LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.deleted_at IS NULL
+        WHERE t.deleted_at IS NULL AND COALESCE(t.tenant_id, 1) = ?
     `;
-    const replacements = [];
+    const replacements = [tenantId];
     if (filters?.startDate) { sql += ' AND t.created_at >= ?'; replacements.push(filters.startDate); }
     if (filters?.endDate)   { sql += ' AND t.created_at <= ?'; replacements.push(filters.endDate + ' 23:59:59'); }
     if (filters?.status)    { sql += ' AND t.status = ?';      replacements.push(filters.status); }

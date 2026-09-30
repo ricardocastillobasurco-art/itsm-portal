@@ -4,6 +4,8 @@ const router  = express.Router();
 const { v4: uuidv4 }    = require('uuid');
 const { Notification }  = require('../../src/models');
 const { authenticateToken } = require('../../middleware/auth');
+const { equipmentPool, executeQuery } = require('../../config/database');
+const { tenantId } = require('../../src/utils/tenantScope');
 
 // GET /api/notifications — las del usuario autenticado
 router.get('/', authenticateToken, async (req, res) => {
@@ -54,7 +56,13 @@ router.patch('/read-all', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
     try {
         const { userId, type, title, body, data } = req.body;
-        const n = await Notification.create({
+        // Solo se puede notificar a usuarios de la misma empresa
+        if (userId && String(userId) !== String(req.user.id)) {
+            const [u] = await executeQuery(equipmentPool,
+                'SELECT id FROM users WHERE id = ? AND COALESCE(tenant_id, 1) = ? LIMIT 1', [userId, tenantId(req)]);
+            if (!u) return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+        const n = await Notification.create({ /* tenant_id: destinatario validado en el tenant */
             id: uuidv4(),
             userId: userId || req.user.id,
             type, title, body, data,

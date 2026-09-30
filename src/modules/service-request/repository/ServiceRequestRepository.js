@@ -60,7 +60,7 @@ class ServiceRequestRepository extends TenantBaseRepository {
   }
 
   async createApproval({ serviceRequestId, approverId, status, comments }) {
-    return ApprovalFlow.create({ id: uuidv4(), serviceRequestId, approverId, status, comments, decidedAt: new Date() });
+    return ApprovalFlow.create /* tenant_id: solicitud padre validada por el repositorio del tenant */({ id: uuidv4(), serviceRequestId, approverId, status, comments, decidedAt: new Date() });
   }
 
   async findServiceById(id) {

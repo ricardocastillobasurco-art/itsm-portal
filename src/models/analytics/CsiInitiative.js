@@ -3,6 +3,7 @@ const sequelize = require('../../config/database');
 
 const CsiInitiative = sequelize.define('CsiInitiative', {
     id:             { type: DataTypes.CHAR(36),      primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    tenantId:       { type: DataTypes.INTEGER,       allowNull: false, defaultValue: 1, field: 'tenant_id' },
     title:          { type: DataTypes.STRING(255),   allowNull: false },
     description:    { type: DataTypes.TEXT,          allowNull: true  },
     objective:      { type: DataTypes.TEXT,          allowNull: true  },

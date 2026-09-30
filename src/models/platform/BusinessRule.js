@@ -3,6 +3,7 @@ const sequelize = require('../../config/database');
 
 const BusinessRule = sequelize.define('BusinessRule', {
     id:          { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    tenantId:    { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: 'tenant_id' },
     name:        { type: DataTypes.STRING(150), allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
     conditions:  { type: DataTypes.JSON, allowNull: false, comment: 'json-rules-engine conditions object' },

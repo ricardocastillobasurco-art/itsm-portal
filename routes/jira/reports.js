@@ -924,17 +924,18 @@ async function _statsFromLocalDB(tenantId) {
     const SLA_HRS = { P1: 1, P2: 4, P3: 8, P4: 24 };
     const now = Date.now();
 
+    // Incidencias locales del tenant (jira_tickets, claves TK-*); antes leía la tabla
+    // legacy `tickets` con columnas inexistentes y fallaba siempre
     const tickets = await seq.query(`
-        SELECT t.id, t.status, t.priority, t.created_at, t.resolved_at,
-               t.sla_deadline, u_ass.full_name AS assignee_name,
-               u_rep.full_name AS reporter_name,
-               u_rep.email    AS reporter_email,
-               cat.name       AS category_name
-        FROM tickets t
-        LEFT JOIN users u_ass ON u_ass.id = t.assigned_to AND u_ass.deleted_at IS NULL
-        LEFT JOIN users u_rep ON u_rep.id = t.requester_id AND u_rep.deleted_at IS NULL
-        LEFT JOIN ticket_categories cat ON cat.id = t.category_id AND cat.deleted_at IS NULL
-        WHERE t.deleted_at IS NULL AND t.tenant_id = ? AND t.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        SELECT t.ticket_key AS id,
+               LOWER(COALESCE(t.internal_status, t.status)) AS status,
+               t.priority, t.created_at, t.resolved_at, t.sla_deadline,
+               t.assigned_to_name AS assignee_name,
+               t.reporter         AS reporter_name,
+               t.reporter         AS reporter_email,
+               COALESCE(t.tipologia, t.component) AS category_name
+        FROM jira_tickets t
+        WHERE COALESCE(t.tenant_id, 1) = ? AND t.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         ORDER BY t.created_at ASC
     `, { replacements: [tenantId], type: QueryTypes.SELECT });
 

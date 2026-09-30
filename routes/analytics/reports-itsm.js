@@ -193,12 +193,12 @@ router.post('/export', authenticateToken, async (req, res) => {
         });
 
         // Encolar
-        const bullJob = await enqueueReport({ type, filters, userId: req.user.id, reportId: jobId });
+        const bullJob = await enqueueReport({ type, filters, userId: req.user.id, reportId: jobId, tenantId: tenantId(req) });
 
         // Escuchar resultado del worker y actualizar DB
         bullJob.finished()
             .then(async (result) => {
-                await ReportJob.update(
+                await ReportJob.update( /* tenant_id: jobId recién creado por este usuario */
                     { status: 'done', fileUrl: result.url, rowCount: result.rows, completedAt: new Date() },
                     { where: { id: jobId } }
                 );
@@ -206,7 +206,7 @@ router.post('/export', authenticateToken, async (req, res) => {
                 if (io) io.to(`user:${req.user.id}`).emit('report-ready', { jobId, url: result.url });
             })
             .catch(async (err) => {
-                await ReportJob.update({ status: 'failed', errorMsg: err.message }, { where: { id: jobId } });
+                await ReportJob.update( /* tenant_id: jobId recién creado por este usuario */{ status: 'failed', errorMsg: err.message }, { where: { id: jobId } });
             });
 
         res.json({ success: true, jobId, message: 'Reporte en cola, recibirás una notificación cuando esté listo.' });

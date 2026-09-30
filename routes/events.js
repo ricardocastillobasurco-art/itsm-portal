@@ -1,12 +1,19 @@
 const express    = require('express');
 const router     = express.Router();
 const nodemailer = require('nodemailer');
+const { authenticateToken } = require('../middleware/auth');
 
-router.post('/send-invite', async (req, res) => {
+const MAX_RECIPIENTS = 100;
+
+// Requiere sesión: sin ella cualquiera podía enviar correo con el SMTP de la plataforma
+router.post('/send-invite', authenticateToken, async (req, res) => {
   const { subject, recipients, extraMsg, imageBase64 } = req.body;
 
   if (!subject || !recipients?.length || !imageBase64) {
     return res.status(400).json({ success: false, error: 'Faltan campos requeridos' });
+  }
+  if (!Array.isArray(recipients) || recipients.length > MAX_RECIPIENTS) {
+    return res.status(400).json({ success: false, error: `Máximo ${MAX_RECIPIENTS} destinatarios por envío` });
   }
 
   const validRecipients = recipients.filter(r => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r));

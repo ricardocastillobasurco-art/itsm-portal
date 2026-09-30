@@ -101,9 +101,9 @@ module.exports = function runMigrations() {
                 created_at      DATETIME     DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
-        const existing = await dbQuery(`SELECT COUNT(*) as n FROM derive_teams`);
+        const existing = await dbQuery(`SELECT COUNT(*) as n FROM derive_teams /* tenant_id: seed inicial del tenant 1 al arrancar (DEFAULT/NULL = 1) */`);
         if (!existing[0]?.n) {
-            await dbQuery(`INSERT INTO derive_teams (name, description, icon, color, jira_option_id, sort_order) VALUES
+            await dbQuery(`INSERT INTO derive_teams /* tenant_id: seed inicial del tenant 1 al arrancar (DEFAULT/NULL = 1) */ (name, description, icon, color, jira_option_id, sort_order) VALUES
                 ('Accesos / Conectividad',      'Problemas de red, VPN o accesos al sistema', 'bi-hdd-network',      '#3b82f6', '11278', 1),
                 ('Consultas Generales',          'Consultas no especializadas o informativas',  'bi-question-circle',  '#8b5cf6', '11279', 2),
                 ('Seguridad Informática',        'Incidentes de seguridad o accesos no autorizados', 'bi-shield-lock', '#ef4444', NULL,    3),
@@ -146,9 +146,9 @@ module.exports = function runMigrations() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
         // Seed inicial
-        const existing_sw = await dbQuery(`SELECT COUNT(*) AS cnt FROM software_catalog`);
+        const existing_sw = await dbQuery(`SELECT COUNT(*) AS cnt FROM software_catalog /* tenant_id: seed inicial del tenant 1 al arrancar (DEFAULT/NULL = 1) */`);
         if (!existing_sw[0]?.cnt) {
-            await dbQuery(`INSERT INTO software_catalog (nombre, fabricante) VALUES
+            await dbQuery(`INSERT INTO software_catalog /* tenant_id: seed inicial del tenant 1 al arrancar (DEFAULT/NULL = 1) */ (nombre, fabricante) VALUES
                 ('Bizagi Modeler','Bizagi'),('Adobe Reader','Adobe'),
                 ('Microsoft Office 2021','Microsoft'),('Microsoft Office 365','Microsoft'),
                 ('Power BI Desktop','Microsoft'),('Visual Studio Code','Microsoft'),
@@ -182,7 +182,7 @@ module.exports = function runMigrations() {
             ['sla_alert_minutes',     '10'],
         ];
         for (const [k, v] of seeds) {
-            await dbQuery(`INSERT IGNORE INTO itsm_automations (\`key\`, value) VALUES (?, ?)`, [k, v]);
+            await dbQuery(`INSERT IGNORE INTO itsm_automations /* tenant_id: seed inicial del tenant 1 al arrancar (DEFAULT/NULL = 1) */ (\`key\`, value) VALUES (?, ?)`, [k, v]);
         }
     } catch(e) { console.error('⚠️ itsm_automations:', e.message); }
 
@@ -230,7 +230,7 @@ module.exports = function runMigrations() {
             ENUM('admin','agente','usuario','supervisor','administrador','especialista','visor','operador','superadmin')
             DEFAULT 'usuario'
         `);
-        await dbQuery(`UPDATE users SET role='usuario' WHERE role='' OR role IS NULL`);
+        await dbQuery(`UPDATE users /* tenant_id: normalización de esquema, todas las filas */ SET role='usuario' WHERE role='' OR role IS NULL`);
         console.log('✅ ENUM users.role actualizado y roles vacíos normalizados');
     } catch(e) { console.error('⚠️ ENUM users.role:', e.message); }
 
@@ -273,7 +273,7 @@ module.exports = function runMigrations() {
                 const u = petrotalUsers[i];
                 const eq = sampleEquip[i % sampleEquip.length];
                 const userDevCode = `${eq.device_code.slice(0,-1)}${(i+1).toString().padStart(2,'0')}`;
-                const existing = await dbQuery(`SELECT id FROM user_equipment WHERE user_id = ? LIMIT 1`, [u.id]);
+                const existing = await dbQuery(`SELECT id FROM user_equipment /* tenant_id: seed inicial del tenant 1 al arrancar (DEFAULT/NULL = 1) */ WHERE user_id = ? LIMIT 1`, [u.id]);
                 if (!existing.length) {
                     await dbQuery(
                         `INSERT INTO user_equipment (user_id, tenant_id, device_code, serial_number, equipment_type, brand, model, department_name, location_name, assignment_date, status)

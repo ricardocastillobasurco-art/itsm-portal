@@ -69,7 +69,7 @@ class TicketRepository extends TenantBaseRepository {
   }
 
   async getCategories() {
-    return Category.findAll({ where: { activo: true }, order: [['nombre', 'ASC']] });
+    return Category.findAll({ where: { activo: true, ...this._scope() }, order: [["nombre", "ASC"]] });
   }
 }
 

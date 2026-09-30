@@ -20,7 +20,7 @@ cron.schedule('0 * * * *', async () => {
         const now = new Date();
 
         for (const [priority, thresholdMin] of Object.entries(ESCALATION_THRESHOLDS)) {
-            const tickets = await Ticket.findAll({
+            const tickets = await Ticket.findAll /* tenant_id: job de plataforma: recorre todos los tenants, cada ticket conserva el suyo */({
                 where: {
                     priority,
                     status:    { [Op.in]: ['abierto', 'en_progreso'] },
@@ -48,7 +48,8 @@ cron.schedule('0 * * * *', async () => {
                     });
 
                     // Notificar supervisores
-                    const supervisors = await User.findAll({ where: { rol: 'supervisor', activo: true } });
+                    // Solo supervisores de la empresa del ticket (tenant NULL = tenant 1)
+                    const supervisors = await User.findAll({ where: { rol: 'supervisor', activo: true, tenantId: ticket.tenantId ?? 1 } });
                     for (const sup of supervisors) {
                         await enqueueEmail({
                             to:       sup.email,

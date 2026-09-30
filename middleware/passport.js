@@ -25,7 +25,7 @@ passport.use('local', new LocalStrategy(
         try {
             const rows = await executeQuery(
                 equipmentPool,
-                'SELECT * FROM users WHERE email = ? AND is_active = 1 LIMIT 1',
+                'SELECT * FROM users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ WHERE email = ? AND is_active = 1 LIMIT 1',
                 [email.toLowerCase().trim()]
             );
 
@@ -63,7 +63,7 @@ passport.deserializeUser(async (id, done) => {
     try {
         const rows = await executeQuery(
             equipmentPool,
-            'SELECT id, username, email, full_name, role, is_active, is_verified FROM users WHERE id = ? AND is_active = 1 LIMIT 1',
+            'SELECT id, username, email, full_name, role, is_active, is_verified FROM users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ WHERE id = ? AND is_active = 1 LIMIT 1',
             [id]
         );
         done(null, rows[0] || null);

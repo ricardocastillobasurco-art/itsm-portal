@@ -110,6 +110,16 @@ function buildHtml(sup, s, topCats, agentLoad, weekStr) {
 async function runWeeklyReport() {
     logger.info('[weeklyReport] Generando reporte semanal...');
     try {
+        // Un reporte por empresa: cada una recibe solo sus propios números
+        const tenants = await dbQuery('SELECT id FROM tenants WHERE is_active = 1');
+        for (const { id } of tenants) await runWeeklyReportForTenant(Number(id));
+    } catch(err) {
+        logger.error('[weeklyReport] Error:', err.message);
+    }
+}
+
+async function runWeeklyReportForTenant(tid) {
+    try {
         const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
             .toISOString().slice(0, 19).replace('T', ' ');
         const weekStr = `Semana del ${new Date(Date.now() - 7*24*60*60*1000).toLocaleDateString('es-PE',{day:'numeric',month:'long'})} al ${new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long',year:'numeric'})}`;
@@ -128,32 +138,32 @@ async function runWeeklyReport() {
                 NULLIF(SUM(CASE WHEN status IN ('resuelto','cerrado') THEN 1 ELSE 0 END), 0) * 100
               , 1)                                                                       AS sla_pct
             FROM jira_tickets
-            WHERE created_at >= ?
-        `, [weekAgo]);
+            WHERE COALESCE(tenant_id, 1) = ? AND created_at >= ?
+        `, [tid, weekAgo]);
 
         const topCats = await dbQuery(`
             SELECT COALESCE(category, tipologia, 'Sin categoría') AS nombre, COUNT(*) AS cnt
             FROM jira_tickets
-            WHERE created_at >= ?
+            WHERE COALESCE(tenant_id, 1) = ? AND created_at >= ?
             GROUP BY nombre ORDER BY cnt DESC LIMIT 5
-        `, [weekAgo]);
+        `, [tid, weekAgo]);
 
         const agentLoad = await dbQuery(`
             SELECT u.full_name AS nombre, COUNT(t.ticket_key) AS total,
               SUM(CASE WHEN t.status IN ('resuelto','cerrado') THEN 1 ELSE 0 END) AS resueltos
             FROM jira_tickets t
             JOIN users u ON u.id = t.assigned_user_id
-            WHERE t.created_at >= ?
+            WHERE COALESCE(t.tenant_id, 1) = ? AND t.created_at >= ?
             GROUP BY u.id, u.full_name ORDER BY total DESC LIMIT 10
-        `, [weekAgo]);
+        `, [tid, weekAgo]);
 
         // Destinatarios: admins y supervisores
         const supervisors = await dbQuery(
-            `SELECT id, full_name, username, email FROM users WHERE role IN ('administrador','supervisor','admin') AND is_active = 1 AND email IS NOT NULL`
+            `SELECT id, full_name, username, email FROM users WHERE COALESCE(tenant_id, 1) = ? AND role IN ('administrador','supervisor','admin') AND is_active = 1 AND email IS NOT NULL`, [tid]
         );
 
         if (!supervisors.length) {
-            logger.warn('[weeklyReport] No hay supervisores activos con email');
+            logger.warn(`[weeklyReport] Tenant ${tid}: no hay supervisores activos con email`);
             return;
         }
 
@@ -171,9 +181,9 @@ async function runWeeklyReport() {
                 logger.error(`[weeklyReport] Error enviando a ${sup.email}:`, emailErr.message);
             }
         }
-        logger.info(`[weeklyReport] Completado — ${supervisors.length} destinatarios`);
+        logger.info(`[weeklyReport] Tenant ${tid} completado — ${supervisors.length} destinatarios`);
     } catch(err) {
-        logger.error('[weeklyReport] Error:', err.message);
+        logger.error(`[weeklyReport] Error tenant ${tid}:`, err.message);
     }
 }
 

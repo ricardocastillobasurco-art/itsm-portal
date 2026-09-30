@@ -31,7 +31,7 @@ router.get('/kpis', authenticateToken, async (req, res) => {
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { status, priority, page = 1, limit = 20 } = req.query;
-        const where = {};
+        const where = { tenantId: tenantId(req) };
         if (status)   where.status   = status;
         if (priority) where.priority = priority;
 
@@ -50,7 +50,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // GET /api/csi/:id
 router.get('/:id', authenticateToken, async (req, res) => {
     try {
-        const item = await CsiInitiative.findByPk(req.params.id);
+        const item = await CsiInitiative.findOne({ where: { id: req.params.id, tenantId: tenantId(req) } });
         if (!item) return res.status(404).json({ success: false, error: 'Iniciativa no encontrada' });
         res.json({ success: true, data: item });
     } catch (err) {
@@ -66,7 +66,7 @@ router.post('/', authenticateToken, async (req, res) => {
         if (!title) return res.status(400).json({ success: false, error: 'Título requerido' });
 
         const item = await CsiInitiative.create({
-            id: uuidv4(), title, description, objective,
+            id: uuidv4(), tenantId: tenantId(req), title, description, objective,
             priority:       priority   || 'media',
             ownerId:        req.user.id,
             targetDate:     targetDate || null,
@@ -81,7 +81,7 @@ router.post('/', authenticateToken, async (req, res) => {
 // PATCH /api/csi/:id
 router.patch('/:id', authenticateToken, async (req, res) => {
     try {
-        const item = await CsiInitiative.findByPk(req.params.id);
+        const item = await CsiInitiative.findOne({ where: { id: req.params.id, tenantId: tenantId(req) } });
         if (!item) return res.status(404).json({ success: false, error: 'Iniciativa no encontrada' });
 
         const allowed = ['title','description','objective','status','priority','targetDate',
@@ -99,7 +99,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 // DELETE /api/csi/:id
 router.delete('/:id', authenticateToken, async (req, res) => {
     try {
-        const item = await CsiInitiative.findByPk(req.params.id);
+        const item = await CsiInitiative.findOne({ where: { id: req.params.id, tenantId: tenantId(req) } });
         if (!item) return res.status(404).json({ success: false, error: 'Iniciativa no encontrada' });
         await item.destroy();
         res.json({ success: true });

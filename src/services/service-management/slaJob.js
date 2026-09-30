@@ -22,7 +22,7 @@ async function checkSLA() {
         const ahora = new Date();
 
         // ── Marcar VENCIDOS ────────────────────────────────────────────────
-        const vencidos = await Ticket.update(
+        const vencidos = await Ticket.update /* tenant_id: job de plataforma: recorre todos los tenants, cada ticket conserva el suyo */(
             { slaStatus: 'vencido' },
             {
                 where: {
@@ -36,10 +36,11 @@ async function checkSLA() {
 
         // ── Marcar EN RIESGO (dentro del último 20%) ───────────────────────
         // Para cada prioridad calculamos el umbral de riesgo
-        const policies = await SLAPolicy.findAll();
+        const policies = await SLAPolicy.findAll(); /* tenant_id: cada política se aplica solo a su tenant (abajo) */
 
         let enRiesgoCount = 0;
         for (const policy of policies) {
+            const p = policy;
             const windowMs   = policy.tiempoResolucionH * 60 * 60 * 1000;
             const riesgoMs   = windowMs * RIESGO_PCT;
             const umbral     = new Date(ahora.getTime() + riesgoMs);
@@ -48,6 +49,7 @@ async function checkSLA() {
                 { slaStatus: 'riesgo' },
                 {
                     where: {
+                        ...(p.tenantId === 1 || p.tenantId == null ? { [Op.or]: [{ tenantId: 1 }, { tenantId: null }] } : { tenantId: p.tenantId }),
                         priority:  policy.prioridad,
                         slaDueAt:  { [Op.between]: [ahora, umbral] },
                         slaStatus: 'ok',
@@ -60,7 +62,7 @@ async function checkSLA() {
         }
 
         // ── Restaurar a OK tickets resueltos/cerrados ──────────────────────
-        await Ticket.update(
+        await Ticket.update /* tenant_id: job de plataforma: recorre todos los tenants, cada ticket conserva el suyo */(
             { slaStatus: 'ok' },
             {
                 where: {

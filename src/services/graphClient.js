@@ -39,7 +39,7 @@ class GraphForbiddenError extends Error {
 
 async function getAccessToken(userId) {
   const rows = await dbQuery(
-    'SELECT ms_home_account_id, ms_token_cache FROM users WHERE id=? LIMIT 1',
+    'SELECT ms_home_account_id, ms_token_cache FROM users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ WHERE id=? LIMIT 1',
     [userId]
   );
   const row = rows?.[0];
@@ -88,7 +88,7 @@ async function getAccessToken(userId) {
         const cacheJson = JSON.parse(_decrypt(row.ms_token_cache));
         const rtKey = Object.keys(cacheJson.RefreshToken || {})[0];
         if (rtKey) cacheJson.RefreshToken[rtKey].secret = resp.data.refresh_token;
-        await dbQuery('UPDATE users SET ms_token_cache=? WHERE id=?',
+        await dbQuery('UPDATE users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ SET ms_token_cache=? WHERE id=?',
           [_encrypt(JSON.stringify(cacheJson)), userId]);
       } catch(_) {}
     }

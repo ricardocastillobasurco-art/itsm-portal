@@ -9,18 +9,17 @@ const { BusinessRule } = require('../models');
 const { enqueueEmail } = require('../queues/index');
 
 // ── Cache de reglas cargadas ─────────────────────────────────────────────────
-let _engine = null;
-let _loadedAt = null;
+const _engines = new Map(); // tenantId → { engine, loadedAt }
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 
-async function getEngine() {
-    const now = Date.now();
-    if (_engine && _loadedAt && (now - _loadedAt) < CACHE_TTL_MS) return _engine;
-    return reloadEngine();
+async function getEngine(tenantId = 1) {
+    const c = _engines.get(tenantId);
+    if (c && (Date.now() - c.loadedAt) < CACHE_TTL_MS) return c.engine;
+    return reloadEngine(tenantId);
 }
 
-async function reloadEngine() {
-    const rules = await BusinessRule.findAll({ where: { isActive: true }, order: [['priority', 'ASC']] });
+async function reloadEngine(tenantId = 1) {
+    const rules = await BusinessRule.findAll({ where: { isActive: true, tenantId }, order: [['priority', 'ASC']] });
     const engine = new Engine([], { allowUndefinedFacts: true });
 
     // Convertir cada regla de BD al formato json-rules-engine
@@ -36,17 +35,18 @@ async function reloadEngine() {
         });
     });
 
-    _engine = engine;
-    _loadedAt = Date.now();
-    logger.info(`Rules engine: ${rules.length} reglas cargadas`);
+    _engines.set(tenantId, { engine, loadedAt: Date.now() });
+    logger.info(`Rules engine (tenant ${tenantId}): ${rules.length} reglas cargadas`);
     return engine;
 }
 
 // ── Ejecutar reglas contra un contexto de ticket ─────────────────────────────
 // context = { ticketId, titulo, priority, status, categoryId, categoryName,
-//             assignedTo, createdBy, creatorTag, tipo, ageMinutes }
-async function evalTicket(context, runOn = 'ticket_created') {
-    const engine = await getEngine();
+//             assignedTo, createdBy, creatorTag, tipo, ageMinutes, tenantId }
+// dryRun: solo evalúa, no aplica acciones (para /api/business-rules/test)
+async function evalTicket(context, runOn = 'ticket_created', { dryRun = false } = {}) {
+    const tenantId = Number(context.tenantId) || 1;
+    const engine = await getEngine(tenantId);
 
     const facts = { ...context };
     const { events } = await engine.run(facts);
@@ -59,7 +59,7 @@ async function evalTicket(context, runOn = 'ticket_created') {
     for (const ev of matched) {
         const { ruleId, ruleName, actions } = ev.params;
         logger.info(`Regla "${ruleName}" (id:${ruleId}) disparada para ticket ${context.ticketId}`);
-        const applied = await applyActions(actions, context);
+        const applied = dryRun ? actions.map(a => ({ type: a.type, status: 'dry-run' })) : await applyActions(actions, { ...context, tenantId });
         results.push({ ruleId, ruleName, actions: applied });
     }
     return results;
@@ -69,6 +69,9 @@ async function evalTicket(context, runOn = 'ticket_created') {
 async function applyActions(actions, context) {
     const applied = [];
     const { Ticket, TicketComment, User } = require('../models');
+    // El ticket se toca solo dentro de su tenant (NULL = tenant 1)
+    const { Op } = require('sequelize');
+    const ticketWhere = { id: context.ticketId, [Op.or]: [{ tenantId: context.tenantId }, ...(context.tenantId === 1 ? [{ tenantId: null }] : [])] };
 
     for (const action of actions) {
         try {
@@ -77,7 +80,7 @@ async function applyActions(actions, context) {
                 case 'notify_role': {
                     // Notificar a todos los usuarios con el rol indicado
                     const { role, message } = action.params;
-                    const users = await User.findAll({ where: { rol: role, activo: true } });
+                    const users = await User.findAll({ where: { rol: role, activo: true, tenantId: context.tenantId } });
                     for (const u of users) {
                         await enqueueEmail({
                             to:       u.email,
@@ -92,7 +95,7 @@ async function applyActions(actions, context) {
 
                 case 'set_sla_status': {
                     const { status } = action.params;
-                    await Ticket.update({ slaStatus: status }, { where: { id: context.ticketId } });
+                    await Ticket.update({ slaStatus: status }, { where: ticketWhere });
                     applied.push({ type: action.type, status: 'ok' });
                     break;
                 }
@@ -103,7 +106,7 @@ async function applyActions(actions, context) {
                     const cur    = order.indexOf(context.priority);
                     const next   = order[Math.min(cur + levels, order.length - 1)];
                     if (next !== context.priority) {
-                        await Ticket.update({ priority: next }, { where: { id: context.ticketId } });
+                        await Ticket.update({ priority: next }, { where: ticketWhere });
                     }
                     applied.push({ type: action.type, status: 'ok', from: context.priority, to: next });
                     break;
@@ -130,7 +133,7 @@ async function applyActions(actions, context) {
                 }
 
                 case 'add_tag': {
-                    const ticket = await Ticket.findByPk(context.ticketId);
+                    const ticket = await Ticket.findOne({ where: ticketWhere });
                     if (ticket) {
                         const meta = ticket.metadata || {};
                         meta.tags = [...new Set([...(meta.tags || []), action.params.tag])];
@@ -153,9 +156,8 @@ async function applyActions(actions, context) {
 }
 
 // Invalidar cache manualmente (llamar después de CRUD de reglas)
-function invalidateCache() {
-    _engine   = null;
-    _loadedAt = null;
+function invalidateCache(tenantId) {
+    if (tenantId == null) _engines.clear(); else _engines.delete(Number(tenantId));
 }
 
 module.exports = { evalTicket, reloadEngine, invalidateCache };

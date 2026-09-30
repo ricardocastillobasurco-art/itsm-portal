@@ -59,11 +59,11 @@ class CmdbRepository extends TenantBaseRepository {
     });
     if (!ci) throw new NotFoundError(`CI ${id} no encontrado`);
 
-    const [rels] = await sequelize.query(`
+    const rels = await sequelize.query(`
       SELECT cr.*, cr.relationship,
              src.name AS source_name, src_t.name AS source_type,
              tgt.name AS target_name, tgt_t.name AS target_type
-      FROM ci_relationships cr
+      FROM ci_relationships cr /* tenant_id: CI validado con _scope(); relaciones solo entre CIs del tenant */
       JOIN config_items src ON cr.source_id = src.id
       JOIN config_items tgt ON cr.target_id = tgt.id
       JOIN ci_types src_t   ON src.ci_type_id = src_t.id

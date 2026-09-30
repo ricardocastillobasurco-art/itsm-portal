@@ -87,7 +87,7 @@ class ServiceRequestService {
 
     // Si viene approvalFlowId → workflow engine multi-step
     if (approvalFlowId) {
-      const { entityStatus } = await WorkflowEngine.decide(approvalFlowId, { decision, comments, approverId });
+      const { entityStatus } = await WorkflowEngine.decide(approvalFlowId, { decision, comments, approverId, entityId: id });
       if (entityStatus) {
         await this.repo.update(sr, {
           status:         entityStatus,

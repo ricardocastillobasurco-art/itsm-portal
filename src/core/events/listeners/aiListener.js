@@ -19,7 +19,7 @@ module.exports = function registerAiListener(bus) {
     if (result.palabras_clave?.length) updates.aiKeywords = result.palabras_clave.join(',');
 
     if (Object.keys(updates).length) {
-      await Ticket.update(updates, { where: { id: ticket.id } });
+      await Ticket.update(updates, { where: { id: ticket.id } }); /* tenant_id: ticket del evento interno */
       logger.info('AI clasificó ticket', { ticketId: ticket.id, classification: result });
     }
   });

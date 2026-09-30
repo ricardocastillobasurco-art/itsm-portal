@@ -123,7 +123,7 @@ router.get('/sync', authenticateToken, async (_req, res) => {
                         urgency.toLowerCase().includes('no me impide')  ? 2 : 1;
 
                     await dbQuery(`
-                        INSERT INTO jira_tickets
+                        INSERT INTO jira_tickets /* tenant_id: sync del Jira propio (tenant 1, NULL=1); otros tenants bloqueados por la guarda Jira */
                             (ticket_key, summary, reporter, status, urgency, urgency_level,
                              impact, component, app_item, tipologia, phone, description,
                              impact_label, jira_url, created_at)

@@ -47,7 +47,7 @@ router.post('/templates', async (req, res, next) => {
       );
     }
 
-    const full = await WorkflowTemplate.findByPk(template.id, {
+    const full = await WorkflowTemplate.findByPk(template.id, { /* tenant_id: template recién creado en este tenant */
       include: [{ model: WorkflowTemplateStep, as: 'steps' }],
     });
     res.ok(full, 'Template creado', 201);
@@ -136,7 +136,7 @@ router.get('/instances', async (req, res, next) => {
 // POST /api/workflow/instances/:instanceId/cancel
 router.post('/instances/:instanceId/cancel', async (req, res, next) => {
   try {
-    await WorkflowEngine.cancel(req.params.instanceId, req.user?.id);
+    await WorkflowEngine.cancel(req.params.instanceId, req.user?.id, req.tenant.id);
     res.ok(null, 'Workflow cancelado');
   } catch (e) { next(e); }
 });
@@ -165,7 +165,7 @@ router.post('/approve/:approvalFlowId', async (req, res, next) => {
 // GET /api/workflow/my-pending  — flujos pendientes del usuario autenticado
 router.get('/my-pending', async (req, res, next) => {
   try {
-    const flows = await ApprovalFlow.findAll({
+    const flows = await ApprovalFlow.findAll({ /* tenant_id: aprobaciones asignadas al propio usuario */
       where:  { approverId: req.user?.id, status: 'pendiente' },
       order:  [['createdAt', 'ASC']],
       limit:  100,

@@ -59,7 +59,7 @@ const authenticateToken = async (req, res, next) => {
 
             try {
                 // Buscar usuario en la base de datos para verificar que siga activo
-                const userQuery = 'SELECT * FROM users WHERE id = ? AND is_active = 1 LIMIT 1';
+                const userQuery = 'SELECT * FROM users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ WHERE id = ? AND is_active = 1 LIMIT 1';
                 const userResult = await executeQuery(equipmentPool, userQuery, [decoded.id]);
 
                 if (!userResult || userResult.length === 0) {
@@ -328,7 +328,7 @@ const optionalAuth = async (req, res, next) => {
             }
 
             try {
-                const userQuery = 'SELECT * FROM users WHERE id = ? AND is_active = 1 LIMIT 1';
+                const userQuery = 'SELECT * FROM users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ WHERE id = ? AND is_active = 1 LIMIT 1';
                 const userResult = await executeQuery(equipmentPool, userQuery, [decoded.id]);
 
                 if (userResult && userResult.length > 0) {

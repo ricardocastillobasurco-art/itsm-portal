@@ -15,7 +15,7 @@ cron.schedule('*/5 * * * *', async () => {
     logger.info('[slaMonitor] Ejecutando revisión SLA...');
     try {
         const now = new Date();
-        const tickets = await Ticket.findAll({
+        const tickets = await Ticket.findAll /* tenant_id: job de plataforma: recorre todos los tenants, cada ticket conserva el suyo */({
             where: {
                 status:   { [Op.notIn]: ['resuelto', 'cerrado'] },
                 slaDueAt: { [Op.not]: null },
@@ -55,10 +55,11 @@ cron.schedule('*/5 * * * *', async () => {
                 }
 
                 // Evaluar reglas de motor
-                const policy = await SLAPolicy.findOne({ where: { prioridad: ticket.priority } });
+                const policy = await SLAPolicy.forTenant(ticket.tenantId, ticket.priority);
                 const ageMin = Math.round((now - new Date(ticket.createdAt)) / 60000);
                 await evalTicket({
                     ticketId:     ticket.id,
+                    tenantId:     ticket.tenantId ?? 1,
                     priority:     ticket.priority,
                     assignedTo:   ticket.assignedTo,
                     categoryName: '',

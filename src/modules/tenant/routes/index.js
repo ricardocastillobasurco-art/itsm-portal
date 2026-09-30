@@ -2,6 +2,7 @@
 
 const { Router } = require('express');
 const { authenticateToken } = require('../../../../middleware/auth');
+const { tenantId: ownTenantId } = require('../../../utils/tenantScope');
 const FeatureFlagService       = require('../../../services/FeatureFlagService');
 const IntegrationConfigService = require('../../../services/IntegrationConfigService');
 const ViewResolver             = require('../../../services/ViewResolver');
@@ -10,8 +11,15 @@ const lifecycle                = require('../controller/TenantLifecycleControlle
 
 const router = Router({ mergeParams: true });
 
-// Todas las rutas requieren autenticación
-router.use(authenticateToken);
+// Todas las rutas requieren autenticación y rol superadmin (panel de plataforma).
+// Única excepción: el administrador de un tenant puede subir el banner de SU propio tenant.
+const SELF_SERVICE = /^\/(\d+)\/banner\/?$/;
+router.use(authenticateToken, (req, res, next) => {
+  if (req.user?.role === 'superadmin') return next();
+  const m = req.path.match(SELF_SERVICE);
+  if (m && ['administrador', 'admin'].includes(req.user?.role) && Number(m[1]) === ownTenantId(req)) return next();
+  return res.status(403).json({ ok: false, error: 'Solo el superadministrador puede gestionar clientes' });
+});
 
 // ── Lifecycle (solo superadmin / platform admin) ───────────────────────────────
 

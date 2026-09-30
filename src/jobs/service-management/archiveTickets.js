@@ -24,7 +24,7 @@ async function archiveOldTickets(daysOld = 90) {
     const cutoff = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000);
 
     // Obtener tickets a archivar
-    const tickets = await Ticket.findAll({
+    const tickets = await Ticket.findAll /* tenant_id: job de plataforma: recorre todos los tenants, cada ticket conserva el suyo */({
         where: {
             status:    { [Op.in]: ['cerrado', 'resuelto'] },
             closedAt:  { [Op.lt]: cutoff },
@@ -76,7 +76,7 @@ async function archiveOldTickets(daysOld = 90) {
 
         // Soft-delete los tickets originales (paranoid: true)
         const ids = tickets.map(tk => tk.id);
-        await Ticket.destroy({ where: { id: { [Op.in]: ids } }, transaction: t });
+        await Ticket.destroy /* tenant_id: job de plataforma: recorre todos los tenants, cada ticket conserva el suyo */({ where: { id: { [Op.in]: ids } }, transaction: t });
 
         await t.commit();
         logger.info(`[archiveTickets] ${rows.length} tickets movidos al archivo`);

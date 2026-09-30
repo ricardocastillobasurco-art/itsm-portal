@@ -9,13 +9,16 @@ const { authenticateToken, requireRole } = require('../../middleware/auth');
 const { BusinessRule }      = require('../../src/models');
 const { invalidateCache }   = require('../../src/rules/engine');
 const logger = require('../../utils/logger');
+const { tenantId } = require('../../src/utils/tenantScope');
+
+const findOwn = (req) => BusinessRule.findOne({ where: { id: req.params.id, tenantId: tenantId(req) } });
 
 const adminOnly = [authenticateToken, requireRole('administrador')];
 
 // ── GET /api/business-rules ─────────────────────────────────────────────────
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const rules = await BusinessRule.findAll({ order: [['priority', 'ASC'], ['id', 'ASC']] });
+        const rules = await BusinessRule.findAll({ where: { tenantId: tenantId(req) }, order: [['priority', 'ASC'], ['id', 'ASC']] });
         res.json({ success: true, data: rules });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -25,7 +28,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // ── GET /api/business-rules/:id ─────────────────────────────────────────────
 router.get('/:id', authenticateToken, async (req, res) => {
     try {
-        const rule = await BusinessRule.findByPk(req.params.id);
+        const rule = await findOwn(req);
         if (!rule) return res.status(404).json({ success: false, error: 'Regla no encontrada' });
         res.json({ success: true, data: rule });
     } catch (err) {
@@ -41,13 +44,14 @@ router.post('/', ...adminOnly, async (req, res) => {
             return res.status(400).json({ success: false, error: 'name, conditions y actions son requeridos' });
         }
         const rule = await BusinessRule.create({
+            tenantId: tenantId(req),
             name, description, conditions, actions,
             isActive: isActive !== false,
             priority: priority || 10,
             runOn:    runOn    || 'ticket_created',
             createdBy: req.user.id,
         });
-        invalidateCache();
+        invalidateCache(tenantId(req));
         res.status(201).json({ success: true, data: rule });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -57,11 +61,11 @@ router.post('/', ...adminOnly, async (req, res) => {
 // ── PATCH /api/business-rules/:id ───────────────────────────────────────────
 router.patch('/:id', ...adminOnly, async (req, res) => {
     try {
-        const rule = await BusinessRule.findByPk(req.params.id);
+        const rule = await findOwn(req);
         if (!rule) return res.status(404).json({ success: false, error: 'Regla no encontrada' });
         const { name, description, conditions, actions, isActive, priority, runOn } = req.body;
         await rule.update({ name, description, conditions, actions, isActive, priority, runOn });
-        invalidateCache();
+        invalidateCache(tenantId(req));
         res.json({ success: true, data: rule });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -71,10 +75,10 @@ router.patch('/:id', ...adminOnly, async (req, res) => {
 // ── PATCH /api/business-rules/:id/toggle ────────────────────────────────────
 router.patch('/:id/toggle', ...adminOnly, async (req, res) => {
     try {
-        const rule = await BusinessRule.findByPk(req.params.id);
+        const rule = await findOwn(req);
         if (!rule) return res.status(404).json({ success: false, error: 'Regla no encontrada' });
         await rule.update({ isActive: !rule.isActive });
-        invalidateCache();
+        invalidateCache(tenantId(req));
         res.json({ success: true, data: { id: rule.id, isActive: rule.isActive } });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -84,10 +88,10 @@ router.patch('/:id/toggle', ...adminOnly, async (req, res) => {
 // ── DELETE /api/business-rules/:id ──────────────────────────────────────────
 router.delete('/:id', ...adminOnly, async (req, res) => {
     try {
-        const rule = await BusinessRule.findByPk(req.params.id);
+        const rule = await findOwn(req);
         if (!rule) return res.status(404).json({ success: false, error: 'Regla no encontrada' });
         await rule.destroy();
-        invalidateCache();
+        invalidateCache(tenantId(req));
         res.json({ success: true, message: 'Regla eliminada' });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -99,7 +103,7 @@ router.delete('/:id', ...adminOnly, async (req, res) => {
 router.post('/test', ...adminOnly, async (req, res) => {
     try {
         const { evalTicket } = require('../../src/rules/engine');
-        const results = await evalTicket(req.body, req.body.runOn || 'ticket_created');
+        const results = await evalTicket({ ...req.body, tenantId: tenantId(req) }, req.body.runOn || 'ticket_created', { dryRun: true });
         res.json({ success: true, matched: results.length, data: results });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });

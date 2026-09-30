@@ -130,14 +130,14 @@ router.post('/ticket/:key/attachments', authenticateToken, (req, res) => {
         if (!req.file) return res.status(400).json({ success: false, message: 'No se recibió archivo' });
         try {
             await dbQuery(
-                `INSERT INTO ticket_attachments (ticket_id, user_id, filename, originalname, mimetype, size, path)
+                `INSERT INTO ticket_attachments /* tenant_id: ticket_key validado por router.param */ (ticket_id, user_id, filename, originalname, mimetype, size, path)
                  VALUES (?,?,?,?,?,?,?)`,
                 [req.params.key, req.user?.id || 0, req.file.filename, req.file.originalname,
                  req.file.mimetype, req.file.size, req.file.path]
             );
             // Registrar en historial de comentarios como evento
             await dbQuery(
-                `INSERT INTO ticket_comments (ticket_id, user_id, contenido, tipo, created_at) VALUES (?,?,?,?,NOW())`,
+                `INSERT INTO ticket_comments /* tenant_id: ticket_key validado por router.param */ (ticket_id, user_id, contenido, tipo, created_at) VALUES (?,?,?,?,NOW())`,
                 [req.params.key, req.user?.id || 0,
                  `📎 Adjunto subido: ${req.file.originalname} (${(req.file.size/1024).toFixed(1)} KB)`,
                  'sistema']
@@ -151,7 +151,7 @@ router.post('/ticket/:key/attachments', authenticateToken, (req, res) => {
 router.get('/ticket/:key/attachments', authenticateToken, async (req, res) => {
     try {
         const rows = await dbQuery(
-            `SELECT ta.*, u.full_name AS uploader_name FROM ticket_attachments ta
+            `SELECT ta.*, u.full_name AS uploader_name FROM ticket_attachments ta /* tenant_id: ticket_key validado por router.param */
              LEFT JOIN users u ON u.id = ta.user_id
              WHERE ta.ticket_id = ? ORDER BY ta.created_at DESC`,
             [req.params.key]
@@ -164,7 +164,7 @@ router.get('/ticket/:key/attachments', authenticateToken, async (req, res) => {
 router.get('/ticket/:key/attachments/:id/download', authenticateToken, async (req, res) => {
     try {
         const rows = await dbQuery(
-            `SELECT * FROM ticket_attachments WHERE id=? AND ticket_id=? LIMIT 1`,
+            `SELECT * FROM ticket_attachments /* tenant_id: ticket_key validado por router.param */ WHERE id=? AND ticket_id=? LIMIT 1`,
             [req.params.id, req.params.key]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Archivo no encontrado' });
@@ -183,7 +183,7 @@ router.get('/ticket/:key/attachments/:id/download', authenticateToken, async (re
 router.delete('/ticket/:key/attachments/:id', authenticateToken, async (req, res) => {
     try {
         const rows = await dbQuery(
-            `SELECT * FROM ticket_attachments WHERE id=? AND ticket_id=? LIMIT 1`,
+            `SELECT * FROM ticket_attachments /* tenant_id: ticket_key validado por router.param */ WHERE id=? AND ticket_id=? LIMIT 1`,
             [req.params.id, req.params.key]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Adjunto no encontrado' });
@@ -192,7 +192,7 @@ router.delete('/ticket/:key/attachments/:id', authenticateToken, async (req, res
             return res.status(403).json({ success: false, message: 'Sin permiso para eliminar' });
         }
         if (fs.existsSync(rows[0].path)) fs.unlinkSync(rows[0].path);
-        await dbQuery(`DELETE FROM ticket_attachments WHERE id=?`, [req.params.id]);
+        await dbQuery(`DELETE FROM ticket_attachments /* tenant_id: ticket_key validado por router.param */ WHERE id=?`, [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 });

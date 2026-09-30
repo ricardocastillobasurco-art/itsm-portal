@@ -29,15 +29,15 @@ async function generateDailyStats(forDate) {
     const statDate = d.toISOString().slice(0, 10);
 
     const [created, resolved, breached] = await Promise.all([
-        Ticket.count({ where: { createdAt: { [Op.between]: [dayStart, dayEnd] }, deletedAt: null } }),
-        Ticket.count({ where: { resolvedAt: { [Op.between]: [dayStart, dayEnd] }, deletedAt: null } }),
-        Ticket.count({ where: { slaStatus: 'vencido', createdAt: { [Op.lte]: dayEnd }, deletedAt: null } }),
+        Ticket.count /* tenant_id: métrica agregada de plataforma; daily_stats no se expone a tenants */({ where: { createdAt: { [Op.between]: [dayStart, dayEnd] }, deletedAt: null } }),
+        Ticket.count /* tenant_id: métrica agregada de plataforma; daily_stats no se expone a tenants */({ where: { resolvedAt: { [Op.between]: [dayStart, dayEnd] }, deletedAt: null } }),
+        Ticket.count /* tenant_id: métrica agregada de plataforma; daily_stats no se expone a tenants */({ where: { slaStatus: 'vencido', createdAt: { [Op.lte]: dayEnd }, deletedAt: null } }),
     ]);
 
     // Avg resolution time (hours) for tickets resolved that day
     const [avgRows] = await sequelize.query(`
         SELECT AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at)) / 60.0 AS avg_h
-        FROM tickets
+        FROM tickets /* tenant_id: métrica agregada de plataforma; daily_stats no se expone a tenants */
         WHERE resolved_at BETWEEN :start AND :end AND deleted_at IS NULL AND resolved_at IS NOT NULL
     `, { replacements: { start: dayStart, end: dayEnd } });
     const avgH = avgRows[0]?.avg_h ? parseFloat(avgRows[0].avg_h).toFixed(2) : null;
@@ -47,7 +47,7 @@ async function generateDailyStats(forDate) {
         SELECT
           COUNT(*) as total,
           SUM(CASE WHEN sla_status = 'ok' THEN 1 ELSE 0 END) as within_sla
-        FROM tickets
+        FROM tickets /* tenant_id: métrica agregada de plataforma; daily_stats no se expone a tenants */
         WHERE resolved_at BETWEEN :start AND :end AND deleted_at IS NULL
     `, { replacements: { start: dayStart, end: dayEnd } });
     const total    = slaRows[0]?.total || 0;
@@ -56,7 +56,7 @@ async function generateDailyStats(forDate) {
 
     // Priority counts (open at midnight)
     const [prioRows] = await sequelize.query(`
-        SELECT priority, COUNT(*) as cnt FROM tickets
+        SELECT priority, COUNT(*) as cnt FROM tickets /* tenant_id: métrica agregada de plataforma; daily_stats no se expone a tenants */
         WHERE status NOT IN ('resuelto','cerrado') AND deleted_at IS NULL
         GROUP BY priority
     `);
@@ -64,7 +64,7 @@ async function generateDailyStats(forDate) {
     prioRows.forEach(r => { prioCounts[r.priority] = parseInt(r.cnt); });
 
     // Tickets abiertos al final del día
-    const openAtMidnight = await Ticket.count({ where: { status: { [Op.notIn]: ['resuelto','cerrado'] }, deletedAt: null } });
+    const openAtMidnight = await Ticket.count /* tenant_id: métrica agregada de plataforma; daily_stats no se expone a tenants */({ where: { status: { [Op.notIn]: ['resuelto','cerrado'] }, deletedAt: null } });
 
     await sequelize.query(`
         INSERT INTO daily_stats (stat_date, tickets_created, tickets_resolved, tickets_breached,

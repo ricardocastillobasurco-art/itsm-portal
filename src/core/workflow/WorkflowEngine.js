@@ -3,6 +3,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const logger = require('../../utils/logger');
+const { ForbiddenError, NotFoundError } = require('../../utils/errors');
 
 // Lazy para evitar dependencias circulares en boot
 function _models() {
@@ -62,11 +63,14 @@ const WorkflowEngine = {
    *   'aprobado' | 'rechazado' (cuando se cierra el workflow)
    *   null (cuando hay más pasos pendientes)
    */
-  async decide(approvalFlowId, { decision, comments, approverId }) {
+  async decide(approvalFlowId, { decision, comments, approverId, entityId = null }) {
     const { ApprovalFlow, WorkflowInstance, WorkflowTemplate, WorkflowTemplateStep, User } = _models();
 
-    const flow = await ApprovalFlow.findByPk(approvalFlowId);
-    if (!flow) throw new Error(`ApprovalFlow ${approvalFlowId} no encontrado`);
+    // El flujo solo lo decide su aprobador asignado (usuario del mismo tenant que lo generó)
+    const flow = await ApprovalFlow.findByPk(approvalFlowId); /* tenant_id: se valida por aprobador asignado */
+    if (!flow) throw new NotFoundError(`ApprovalFlow ${approvalFlowId} no encontrado`);
+    if (String(flow.approverId) !== String(approverId)) throw new ForbiddenError('No eres el aprobador asignado de este paso');
+    if (entityId && String(flow.serviceRequestId) !== String(entityId)) throw new ForbiddenError('El paso de aprobación no corresponde a esta solicitud');
     if (flow.status !== 'pendiente') throw new Error('Este paso ya fue procesado');
 
     // Registrar decisión
@@ -77,7 +81,7 @@ const WorkflowEngine = {
       return { instance: null, entityStatus: decision === 'aprobado' ? 'aprobado' : 'rechazado' };
     }
 
-    const instance = await WorkflowInstance.findByPk(flow.workflowInstanceId, {
+    const instance = await WorkflowInstance.findByPk(flow.workflowInstanceId, { /* tenant_id: instancia del flujo ya validado */
       include: [{ model: WorkflowTemplate, as: 'template',
                   include: [{ model: WorkflowTemplateStep, as: 'steps' }] }],
     });
@@ -89,7 +93,7 @@ const WorkflowEngine = {
     if (decision === 'rechazado') {
       await instance.update({ status: 'rechazado', resolvedAt: new Date(), resolvedBy: approverId });
       // Cancelar flujos pendientes del mismo paso
-      await ApprovalFlow.update(
+      await ApprovalFlow.update( /* tenant_id: flujos de la instancia validada */
         { status: 'rechazado', comments: 'Rechazado por otro aprobador', decidedAt: new Date() },
         { where: { workflowInstanceId: instance.id, status: 'pendiente' } }
       );
@@ -97,7 +101,7 @@ const WorkflowEngine = {
     }
 
     // Aprobado — verificar si todos los flujos del paso actual están aprobados
-    const pendingInStep = await ApprovalFlow.count({
+    const pendingInStep = await ApprovalFlow.count({ /* tenant_id: flujos de la instancia validada */
       where: { workflowInstanceId: instance.id, stepOrder: instance.currentStep, status: 'pendiente' },
     });
 
@@ -126,13 +130,15 @@ const WorkflowEngine = {
   /**
    * Cancela un workflow en curso (ej: la entidad fue cancelada).
    */
-  async cancel(instanceId, cancelledBy = null) {
+  async cancel(instanceId, cancelledBy = null, tenantId = null) {
     const { WorkflowInstance, ApprovalFlow } = _models();
-    const instance = await WorkflowInstance.findByPk(instanceId);
+    const instance = tenantId == null
+      ? await WorkflowInstance.findByPk(instanceId) /* tenant_id: llamada interna sin petición */
+      : await WorkflowInstance.findOne({ where: { id: instanceId, tenantId } });
     if (!instance || instance.status !== 'en_curso') return;
 
     await instance.update({ status: 'cancelado', resolvedAt: new Date(), resolvedBy: cancelledBy });
-    await ApprovalFlow.update(
+    await ApprovalFlow.update( /* tenant_id: flujos de la instancia validada */
       { status: 'rechazado', comments: 'Workflow cancelado', decidedAt: new Date() },
       { where: { workflowInstanceId: instanceId, status: 'pendiente' } }
     );
@@ -144,7 +150,7 @@ const WorkflowEngine = {
    */
   async getActive(entityType, entityId) {
     const { WorkflowInstance, ApprovalFlow } = _models();
-    return WorkflowInstance.findOne({
+    return WorkflowInstance.findOne({ /* tenant_id: entityId ya validado por el llamador */
       where:   { entityType, entityId, status: 'en_curso' },
       include: [{ model: ApprovalFlow, as: 'flows', where: { status: 'pendiente' }, required: false }],
     });
@@ -162,7 +168,7 @@ async function _createStepFlows(instance, stepDef, entityId, tenantId) {
     return;
   }
 
-  await ApprovalFlow.create({
+  await ApprovalFlow.create({ /* tenant_id: aprobador resuelto dentro del tenant de la instancia */
     id:                 uuidv4(),
     workflowInstanceId: instance.id,
     stepId:             stepDef.id,

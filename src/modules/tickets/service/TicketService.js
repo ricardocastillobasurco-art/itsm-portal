@@ -8,6 +8,7 @@ const { TicketPolicy } = require('../../../core/policies');
 
 class TicketService {
   constructor(tenantId) {
+    this.tenantId = tenantId;
     this.repo = new TicketRepository(tenantId);
   }
 
@@ -157,7 +158,7 @@ class TicketService {
   // ── Privados ─────────────────────────────────────────────────────────────
 
   async _calcularSlaDueAt(priority) {
-    const policy = await SLAPolicy.findOne({ where: { prioridad: priority } });
+    const policy = await SLAPolicy.forTenant(this.tenantId, priority);
     if (!policy) return null;
     return new Date(Date.now() + policy.tiempoResolucionH * 60 * 60 * 1000);
   }

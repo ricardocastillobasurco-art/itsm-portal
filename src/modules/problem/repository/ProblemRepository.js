@@ -19,7 +19,7 @@ class ProblemRepository {
 
     return Problem.findAndCountAll({
       where,
-      include: [{ model: KnownError, as: 'erroresConocidos', required: false }],
+      include: [{ model: KnownError, as: 'erroresConocidos', where: { tenantId: requireTenant(tenantId) }, required: false }],
       order:   [['createdAt', 'DESC']],
       limit:   parseInt(limit),
       offset:  (parseInt(page) - 1) * parseInt(limit),
@@ -48,7 +48,7 @@ class ProblemRepository {
   async findByIdWithKnownErrors(id, tenantId) {
     return Problem.findOne({
       where:   { id, tenantId: requireTenant(tenantId) },
-      include: [{ model: KnownError, as: 'erroresConocidos' }],
+      include: [{ model: KnownError, as: 'erroresConocidos', where: { tenantId: requireTenant(tenantId) }, required: false }],
     });
   }
 

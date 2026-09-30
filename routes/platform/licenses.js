@@ -411,11 +411,11 @@ async function runSync(tenant) {
                 cost, +(cost * consumed).toFixed(2)]);
         }
 
-        await dbQuery(`UPDATE m365_sync_log SET finished_at=NOW(),status='completed',users_synced=? WHERE id=?`, [usersSynced, logId]);
+        await dbQuery(`UPDATE m365_sync_log /* tenant_id: logId creado por este sync del tenant */ SET finished_at=NOW(),status='completed',users_synced=? WHERE id=?`, [usersSynced, logId]);
         Object.assign(_sync, { running: false, progress: 100, message: `Completado: ${usersSynced} usuarios sincronizados`, usersCount: usersSynced, lastRun: new Date().toISOString() });
 
     } catch (e) {
-        if (logId) await dbQuery(`UPDATE m365_sync_log SET finished_at=NOW(),status='failed',error_message=? WHERE id=?`, [e.message, logId]).catch(() => {});
+        if (logId) await dbQuery(`UPDATE m365_sync_log /* tenant_id: logId creado por este sync del tenant */ SET finished_at=NOW(),status='failed',error_message=? WHERE id=?`, [e.message, logId]).catch(() => {});
         Object.assign(_sync, { running: false, progress: 0, message: e.message, error: e.message });
         console.error(`[licenses] Sync error (tenant ${tid}):`, e.message);
     }

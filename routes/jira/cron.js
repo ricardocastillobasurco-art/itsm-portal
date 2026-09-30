@@ -3,18 +3,29 @@ const { dbQuery, getAutomationConfig, sendEmail } = require('./helpers');
 module.exports = function startCron() {
     setInterval(async () => {
     try {
-        const cfg = await getAutomationConfig();
+        // Cada empresa escala sus P1 con su propia configuración y correo
+        const tenants = await dbQuery(
+            "SELECT DISTINCT COALESCE(tenant_id, 1) AS tid FROM itsm_automations /* tenant_id: listado de tenants */ WHERE `key` = 'p1_escalation_enabled' AND value = '1'");
+        for (const { tid } of tenants) await escalateTenant(Number(tid));
+    } catch(e) { console.error('⚠️ P1 escalation check:', e.message); }
+}, 5 * 60 * 1000);
+};
+
+async function escalateTenant(tid) {
+    try {
+        const cfg = await getAutomationConfig(tid);
         if (cfg.p1_escalation_enabled !== '1' || !cfg.p1_escalation_email) return;
         const mins = parseInt(cfg.p1_escalation_minutes) || 30;
         const tickets = await dbQuery(`
             SELECT ticket_key, summary, reporter, created_at
             FROM jira_tickets
-            WHERE priority = 'P1'
+            WHERE COALESCE(tenant_id, 1) = ?
+              AND priority = 'P1'
               AND assigned_to IS NULL
               AND internal_status NOT IN ('cerrado','resuelto')
               AND escalation_notified_at IS NULL
               AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) >= ?
-        `, [mins]);
+        `, [tid, mins]);
         for (const t of tickets) {
             const age = Math.round((Date.now() - new Date(t.created_at)) / 60000);
             const html = `
@@ -34,9 +45,8 @@ module.exports = function startCron() {
               </div>
             </div>`;
             await sendEmail(cfg.p1_escalation_email, `🚨 ESCALACIÓN P1: ${t.ticket_key} sin asignar (${age} min)`, html);
-            await dbQuery(`UPDATE jira_tickets SET escalation_notified_at = NOW() WHERE ticket_key = ?`, [t.ticket_key]);
+            await dbQuery(`UPDATE jira_tickets /* tenant_id: ticket del tenant en curso */ SET escalation_notified_at = NOW() WHERE ticket_key = ?`, [t.ticket_key]);
             console.log(`📧 Escalación P1 enviada para ${t.ticket_key}`);
         }
-    } catch(e) { console.error('⚠️ P1 escalation check:', e.message); }
-}, 5 * 60 * 1000);
-};
+    } catch(e) { console.error(`⚠️ P1 escalation check (tenant ${tid}):`, e.message); }
+}

@@ -38,7 +38,7 @@ async function createMsalForUser(userId) {
   // Cargar cache cifrado desde BD
   let cachedData = null;
   try {
-    const rows = await dbQuery('SELECT ms_token_cache FROM users WHERE id=? LIMIT 1', [userId]);
+    const rows = await dbQuery('SELECT ms_token_cache FROM users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ WHERE id=? LIMIT 1', [userId]);
     const raw  = rows?.[0]?.ms_token_cache;
     if (raw) cachedData = _decrypt(raw);
   } catch (_) { /* cache inválido o columna no existe aún → arrancar limpio */ }
@@ -60,7 +60,7 @@ async function createMsalForUser(userId) {
             const serialized = ctx.tokenCache.serialize();
             const encrypted  = _encrypt(serialized);
             await dbQuery(
-              'UPDATE users SET ms_token_cache=? WHERE id=?',
+              'UPDATE users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ SET ms_token_cache=? WHERE id=?',
               [encrypted, userId]
             );
           } catch (e) {

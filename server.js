@@ -141,7 +141,7 @@ app.use('/api/ai', require('./src/modules/ai/routes'));
 app.get('/logout', logout);
 app.use('/api/events', require('./routes/events'));
 app.use('/tickets', jiraRoutes);
-app.use('/uploads/tickets', express.static(path.join(__dirname, 'uploads/tickets')));
+app.use('/uploads/tickets', require('./middleware/protectTicketUploads'), express.static(path.join(__dirname, 'uploads/tickets')));
 app.use('/public/reports', express.static(path.join(__dirname, 'public/reports')));
 
 // ── Prometheus metrics scrape endpoint ───────────────────────────────────────

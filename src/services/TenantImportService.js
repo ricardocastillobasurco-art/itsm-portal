@@ -119,7 +119,7 @@ class TenantImportService {
     const email = row.email.trim().toLowerCase();
 
     const [existing] = await sequelize.query(
-      'SELECT id FROM users WHERE email = ? LIMIT 1',
+      'SELECT id FROM users /* tenant_id: email de usuario es único global (identidad de login) */ WHERE email = ? LIMIT 1',
       { replacements: [email], type: 'SELECT' }
     );
     if (existing) throw new Error(`Email ya registrado: ${email}`);

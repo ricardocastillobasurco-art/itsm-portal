@@ -105,10 +105,10 @@ class KnowledgeRepository {
     return true;
   }
 
-  // El artículo ya fue validado por findById(id, tenantId) en el servicio
+  /* tenant_id: el artículo ya fue validado por findById(id, tenantId) en el servicio */
   async incrementViews(id)      { return KbArticle.increment('views',      { where: { id } }); }
-  async incrementHelpfulYes(id) { return KbArticle.increment('helpfulYes', { where: { id } }); }
-  async incrementHelpfulNo(id)  { return KbArticle.increment('helpfulNo',  { where: { id } }); }
+  async incrementHelpfulYes(id) { return KbArticle.increment('helpfulYes', { where: { id } }); } /* tenant_id: ídem */
+  async incrementHelpfulNo(id)  { return KbArticle.increment('helpfulNo',  { where: { id } }); } /* tenant_id: ídem */
 
   async logSearch(query, results, userId, tenantId) {
     await sequelize.query(

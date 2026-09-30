@@ -16,15 +16,16 @@ slaQueue.process(async (job) => {
     };
     if (ticketId) where.id = ticketId;
 
-    const [vencidos] = await Ticket.update({ slaStatus: 'vencido' }, { where });
+    const [vencidos] = await Ticket.update({ slaStatus: 'vencido' }, { where }); /* tenant_id: vencimiento por fecha propia de cada ticket */
 
     // Marcar en riesgo
-    const policies = await SLAPolicy.findAll();
+    const policies = await SLAPolicy.findAll(); /* tenant_id: cada política se aplica solo a su tenant (abajo) */
     let enRiesgo = 0;
     for (const p of policies) {
         const riesgoMs  = p.tiempoResolucionH * 3600 * 1000 * 0.20;
         const umbral    = new Date(ahora.getTime() + riesgoMs);
         const w = {
+            ...(p.tenantId === 1 || p.tenantId == null ? { [Op.or]: [{ tenantId: 1 }, { tenantId: null }] } : { tenantId: p.tenantId }),
             priority:  p.prioridad,
             slaDueAt:  { [Op.between]: [ahora, umbral] },
             slaStatus: 'ok',

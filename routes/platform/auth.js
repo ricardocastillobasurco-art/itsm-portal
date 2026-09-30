@@ -171,7 +171,7 @@ router.post('/login', async (req, res) => {
         console.log(`🔍 Intentando login para: ${username}`);
 
         // Buscar usuario por username o email (Sequelize ORM)
-        const userData = await User.findOne({
+        const userData = await User.findOne( /* tenant_id: identidad por email/id (login) */{
             where: {
                 [Op.or]: [{ username }, { email: username }],
                 activo: true,
@@ -210,7 +210,7 @@ router.post('/login', async (req, res) => {
         // Escrituras auxiliares en paralelo — fire-and-forget
         Promise.all([
             executeQuery(equipmentPool,
-                'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
+                'UPDATE users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
                 [userData.id]),
             executeQuery(equipmentPool,
                 'INSERT INTO login_attempts (user_id, ip_address, status) VALUES (?, ?, ?)',
@@ -340,7 +340,7 @@ router.get('/perfil', authenticateToken, async (req, res) => {
             equipmentPool,
             `SELECT id, username, full_name, email, role, employee_cip,
                     is_active, is_verified, created_at
-             FROM users WHERE id = ? AND is_active = 1 LIMIT 1`,
+             FROM users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ WHERE id = ? AND is_active = 1 LIMIT 1`,
             [req.user.id]
         );
 
@@ -362,7 +362,7 @@ router.get('/perfil', authenticateToken, async (req, res) => {
 router.get('/users', requireAdmin, async (req, res) => {
     try {
         const rows = await executeQuery(equipmentPool,
-            `SELECT id, username, full_name, email, role, is_active, created_at FROM users
+            `SELECT id, username, full_name, email, role, is_active, created_at FROM users /* tenant_id: en USER_IN_TENANT */
              WHERE ${USER_IN_TENANT} AND role <> 'superadmin' ORDER BY full_name ASC`,
             [reqTenantId(req)]
         );
@@ -443,18 +443,18 @@ router.post('/check-employee', async (req, res) => {
         // 1. Buscar en employees (aislado: si la BD no está disponible, continúa al fallback)
         try {
             const emp = await executeQuery(equipmentPool,
-                `SELECT id, full_name, email FROM employees WHERE LOWER(email)=LOWER(?) AND is_active=1 LIMIT 1`,
+                `SELECT id, full_name, email FROM employees /* tenant_id: identidad por email en primer acceso; el usuario hereda el tenant del empleado */ WHERE LOWER(email)=LOWER(?) AND is_active=1 LIMIT 1`,
                 [cleanEmail]
             );
             if (emp.length) {
-                const usr    = await User.findOne({ where: { email: cleanEmail } });
+                const usr    = await User.findOne( /* tenant_id: identidad por email/id (login) */{ where: { email: cleanEmail } });
                 const tenant = await _tenantLookup(usr?.tenant_id || null);
                 return res.json({ success: true, name: emp[0].full_name, hasAccount: !!usr, tenant });
             }
         } catch(_) { /* employees table no disponible, continuar con users */ }
 
         // 2. Buscar en users por email o username
-        const usr = await User.findOne({
+        const usr = await User.findOne( /* tenant_id: identidad por email/id (login) */{
             where: { [Op.or]: [{ email: cleanEmail }, { username: email.trim() }] }
         });
         if (usr) {
@@ -479,8 +479,8 @@ router.post('/employee-setup/code', async (req, res) => {
     const generic = { success: true, message: 'Si el correo está registrado, recibirás un código de verificación' };
     try {
         const emp = await executeQuery(equipmentPool,
-            `SELECT id FROM employees WHERE LOWER(email)=? AND is_active=1 LIMIT 1`, [cleanEmail]);
-        const usr = await User.findOne({ where: { email: cleanEmail } });
+            `SELECT id FROM employees /* tenant_id: identidad por email en primer acceso; el usuario hereda el tenant del empleado */ WHERE LOWER(email)=? AND is_active=1 LIMIT 1`, [cleanEmail]);
+        const usr = await User.findOne( /* tenant_id: identidad por email/id (login) */{ where: { email: cleanEmail } });
         if (!emp.length || usr) return res.json(generic);
 
         const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
@@ -514,7 +514,7 @@ router.post('/employee-setup', async (req, res) => {
         if (!emp.length) return res.status(403).json({ success: false, error: 'Correo no autorizado' });
 
         // Solo primer acceso: una cuenta existente se recupera con su administrador
-        if (await User.findOne({ where: { email: cleanEmail } }))
+        if (await User.findOne( /* tenant_id: identidad por email/id (login) */{ where: { email: cleanEmail } }))
             return res.status(409).json({ success: false, error: 'Ya tienes una cuenta. Ingresa con tu contraseña o pide a tu administrador que la restablezca' });
 
         const [pending] = await executeQuery(equipmentPool,
@@ -650,10 +650,10 @@ router.get('/microsoft/callback', async (req, res) => {
 
         // Corregir rol si no coincide con las listas autorizadas
         if (SUPERADMIN_EMAILS.includes(msEmail) && userRow.role !== 'superadmin') {
-            await executeQuery(equipmentPool, 'UPDATE users SET role = ? WHERE id = ?', ['superadmin', userRow.id]);
+            await executeQuery(equipmentPool, 'UPDATE users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ SET role = ? WHERE id = ?', ['superadmin', userRow.id]);
             userRow.role = 'superadmin';
         } else if (ADMIN_EMAILS.includes(msEmail) && !['admin', 'administrador', 'superadmin'].includes(userRow.role)) {
-            await executeQuery(equipmentPool, 'UPDATE users SET role = ? WHERE id = ?', ['admin', userRow.id]);
+            await executeQuery(equipmentPool, 'UPDATE users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ SET role = ? WHERE id = ?', ['admin', userRow.id]);
             userRow.role = 'admin';
         }
         console.log(`✅ MS login: id=${userRow.id} email=${userRow.email} role=${userRow.role}`);
@@ -670,7 +670,7 @@ router.get('/microsoft/callback', async (req, res) => {
                 const serialized = _msalClient.getTokenCache().serialize();
                 const encrypted  = _encrypt(serialized);
                 await executeQuery(equipmentPool,
-                    `UPDATE users SET ms_home_account_id=?, ms_token_cache=?, ms_scopes_granted=? WHERE id=?`,
+                    `UPDATE users /* tenant_id: identidad: fila del propio usuario (login/sesión) */ SET ms_home_account_id=?, ms_token_cache=?, ms_scopes_granted=? WHERE id=?`,
                     [homeAccountId, encrypted, MSAL_SCOPES.join(' '), userRow.id]
                 );
                 console.log(`✅ Token MS guardado: user=${userRow.id} account=${homeAccountId}`);

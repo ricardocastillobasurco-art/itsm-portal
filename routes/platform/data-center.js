@@ -119,7 +119,7 @@ const SCHEMAS = {
       const [existing] = await qRaw(`SELECT id FROM employees WHERE ${condition} LIMIT 1`, params);
 
       if (existing) {
-        await qRaw(`UPDATE employees SET full_name=?, email=?, department_id=?, position=?,
+        await qRaw(`UPDATE employees /* tenant_id: id obtenido con filtro de tenant */ SET full_name=?, email=?, department_id=?, position=?,
                     position_name=?, category=?, employee_group=?, state=?,
                     supervisor_name=?, cost_center=?, is_active=?, updated_at=NOW()
                     WHERE id=?`,
@@ -261,7 +261,7 @@ const SCHEMAS = {
       );
       if (existing) {
         if (row.notes !== undefined) {
-          await qRaw('UPDATE assignments SET notes=?, updated_at=NOW() WHERE id=?', [row.notes||null, existing.id]);
+          await qRaw('UPDATE assignments /* tenant_id: id obtenido con filtro de tenant */ SET notes=?, updated_at=NOW() WHERE id=?', [row.notes||null, existing.id]);
           return { action: 'updated' };
         }
         return { action: 'skipped', reason: 'Asignación activa ya existe' };

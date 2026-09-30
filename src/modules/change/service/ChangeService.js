@@ -78,7 +78,7 @@ class ChangeService {
     if (!ch) throw new NotFoundError('Cambio no encontrado');
     if (pCtx) ChangePolicy.assertApprove(pCtx, ch);
 
-    const { entityStatus } = await WorkflowEngine.decide(approvalFlowId, { decision, comments, approverId });
+    const { entityStatus } = await WorkflowEngine.decide(approvalFlowId, { decision, comments, approverId, entityId: id });
 
     if (entityStatus) {
       await this.repo.update(id, { status: entityStatus });

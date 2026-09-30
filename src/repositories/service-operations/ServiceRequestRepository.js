@@ -31,18 +31,20 @@ class ServiceRequestRepository {
     });
   }
 
-  async findById(id) {
-    return ServiceRequest.findByPk(id, { include: SR_FULL_INCLUDE });
+  // Sin req se asume tenant 1 (tenantScope); nunca se busca sin filtro de tenant
+  async findById(id, req) {
+    return ServiceRequest.findOne({ where: { id, tenantId: getTenantId(req) }, include: SR_FULL_INCLUDE });
   }
 
-  async findByIdForNotify(id) {
-    return ServiceRequest.findByPk(id, {
+  async findByIdForNotify(id, req) {
+    return ServiceRequest.findOne({
+      where: { id, tenantId: getTenantId(req) },
       include: [{ model: Service, as: 'service', required: false }],
     });
   }
 
-  async findByIdSimple(id) {
-    return ServiceRequest.findByPk(id);
+  async findByIdSimple(id, req) {
+    return ServiceRequest.findOne({ where: { id, tenantId: getTenantId(req) } });
   }
 
   async create(data, req = null) {
@@ -61,23 +63,24 @@ class ServiceRequestRepository {
   // ── ApprovalFlow ─────────────────────────────────────────────────────────
 
   async createApproval({ serviceRequestId, approverId, status, comments }) {
-    return ApprovalFlow.create({
+    return ApprovalFlow.create({ /* tenant_id: solicitud padre validada por el llamador */
       id: uuidv4(), serviceRequestId, approverId, status, comments, decidedAt: new Date(),
     });
   }
 
   // ── ServiceCategory / Service ────────────────────────────────────────────
 
-  async getCatalog() {
+  async getCatalog(req) {
+    const tenantId = getTenantId(req);
     return ServiceCategory.findAll({
-      where: { isActive: true },
-      include: [{ model: Service, as: 'servicios', where: { isActive: true }, required: false }],
+      where: { isActive: true, tenantId },
+      include: [{ model: Service, as: 'servicios', where: { isActive: true, tenantId }, required: false }],
       order: [['name', 'ASC']],
     });
   }
 
-  async findServiceById(id) {
-    return Service.findByPk(id);
+  async findServiceById(id, req) {
+    return Service.findOne({ where: { id, tenantId: getTenantId(req) } });
   }
 
   // ── Software catalog (raw SQL) ───────────────────────────────────────────
