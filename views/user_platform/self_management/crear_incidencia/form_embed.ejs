@@ -41,7 +41,7 @@ window.addEventListener('message',function(e){
     // especialista  : Registrar, Gestión, Indicadores, Categorías
     // visor         : Registrar, Indicadores
     // usuario       : Registrar
-    const _isAdmin       = _role === 'administrador';
+    const _isAdmin       = ['administrador','admin','superadmin'].includes(_role);
     const _isEspecialista= ['especialista','agente','tecnico'].includes(_role);
     const _isVisor       = _role === 'visor';
     // alias para JS client-side
@@ -97,7 +97,7 @@ const TENANT_EMAIL_DOMAIN   = <%- JSON.stringify(locals.tenantDomain || '') %>;
 window.JIRA_BASE_URL = <%- JSON.stringify(((locals.user && locals.user.tenant_id) || 1) == 1 ? (locals.jiraHost || '') : '') %>;
 const LOCAL_VIEW            = <%- JSON.stringify(locals.jiraEnabled === false) %>;
 </script>
-<script src="/js/incidencias/app.js?v=56"></script>
+<script src="/js/incidencias/app.js?v=57"></script>
 
 </body>
 </html>

@@ -14,6 +14,7 @@ const LocalTickets = require('../../src/services/localTickets/LocalTicketService
 const _isLocalKey = (k) => /^(TK|RQ)-/i.test(String(k || ''));
 const _actor = (req) => ({ id: req.user?.id, name: req.user?.full_name || req.user?.nombre || req.user?.username || 'Técnico' });
 const _STAFF = ['administrador', 'admin', 'especialista', 'agente', 'tecnico', 'superadmin'];
+const { ticketMode } = require('../../src/services/TicketModeService');
 
 const auth = { username: JIRA_EMAIL, password: JIRA_TOKEN };
 
@@ -204,6 +205,16 @@ router.post('/ticket', authenticateToken, async (req, res) => {
 
         if (!summary || !reporter || !phone || !description) {
             return res.status(400).json({ success: false, message: 'Faltan campos obligatorios' });
+        }
+
+        // Interruptor Jira apagado (o empresa sin Jira) → gestión local con el motor local
+        if ((await ticketMode(tenantId(req))) === 'local') {
+            const who = _STAFF.includes(req.user?.role) ? reporter : (req.user?.email || reporter);
+            const priority = urgency === '618442' ? 'P1' : urgency === '618441' ? 'P2' : 'P3';
+            const r = await LocalTickets.create({ tenantId: tenantId(req), kind: 'incident', summary, description, priority, phone,
+                reporter: who, category: req.body.category_name || null, channel: _STAFF.includes(req.user?.role) ? 'admin' : 'portal',
+                actor: _actor(req), io: req.app.get('io') });
+            return res.json({ success: true, isLocal: true, data: { key: r.key, url: null } });
         }
 
         // Si no hay adjunto, subir uno genérico para cumplir la validación de Jira

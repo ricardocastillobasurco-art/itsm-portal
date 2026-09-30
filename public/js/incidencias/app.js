@@ -337,43 +337,49 @@ async function submitTicketSimple(){
         const device_code = document.getElementById('cf_device_code')?.value || '';
         const res=await fetch('/api/jira/ticket',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({summary,reporter,phone,description:finalDesc,component,app,tipologia,impact,urgency,attachmentId,device_code})});
-        const json=await res.json();
+        let json=await res.json();
         if(json.code==='JIRA_NOT_CONFIGURED'){
-            // Fallback: crear ticket local TK-%
+            // Respaldo: crear ticket local TK-%
             const localRes=await fetch('/api/jira/local/ticket',{method:'POST',credentials:'include',
                 headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({summary,reporter,phone,description:finalDesc,priority:'P3',category_name:cfSelectedCat?.name||''})});
             const localJson=await localRes.json();
             if(!localJson.success) throw new Error(localJson.message||'Error al crear ticket local');
-            const localKey=(localJson.data?.key||localJson.key||'TK-?');
-            document.getElementById('cfCreatedKey').textContent=localKey;
-            const cfUrlEl=document.getElementById('cfCreatedUrl');
-            if(cfUrlEl){cfUrlEl.style.display='none';}
-            document.getElementById('cfResult').style.display='block';
-            showToast(`Ticket ${localKey} registrado localmente`,'success');
-            return;
+            json={success:true,isLocal:true,data:{key:localJson.data?.key||localJson.key,url:null}};
         }
         if(!json.success) throw new Error(json.message||json.details);
-        document.getElementById('cfCreatedKey').textContent=json.data.key;
-        document.getElementById('cfCreatedUrl').href=json.data.url;
-        document.getElementById('cfResult').style.display='block';
-        const _isEmbed = new URLSearchParams(window.location.search).has('embed');
-        if(_isEmbed){
-            try{ window.parent.postMessage({type:'ticket_created',key:json.data.key,url:json.data.url,kind:'incidencia'},'*'); }catch(e){}
-        } else {
-            const _modalEl=document.getElementById('modalTicketOk');
-            if(_modalEl){
-                document.getElementById('modalTicketKey').textContent=json.data.key;
-                document.getElementById('modalTicketUrl').href=json.data.url;
-                new bootstrap.Modal(_modalEl).show();
-            }
-        }
+        _cfShowCreated(json.data.key, json.data.url, !!json.isLocal);
         loadTickets();
         const _rEmail = document.getElementById('cf_reporter')?.value?.trim() || localStorage.getItem('portal_user_email') || '';
         if(_rEmail) fetch('/api/portal/activity-log',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({email:_rEmail,action:'incidencia_creada',page:'incidencias',metadata:{key:json.data?.key||''}})}).catch(()=>{});
     }catch(err){showToast('Error: '+err.message,'error');}
     finally{btn.disabled=false;btn.innerHTML='<i class="bi bi-send-fill"></i> Registrar Incidencia';}
+}
+
+// Muestra el ticket creado (resultado en línea + modal con Asignarme / Asignar a).
+// En tickets locales oculta "Ver en Jira" y la configuración de correo Jira.
+function _cfShowCreated(key, url, isLocal){
+    document.getElementById('cfCreatedKey').textContent=key;
+    const cfUrlEl=document.getElementById('cfCreatedUrl');
+    if(cfUrlEl){ if(isLocal||!url){cfUrlEl.style.display='none';} else {cfUrlEl.style.display='';cfUrlEl.href=url;} }
+    const manageBtn=document.getElementById('cfBtnManage');
+    if(manageBtn&&isLocal) manageBtn.style.display='inline-flex';
+    document.getElementById('cfResult').style.display='block';
+    if(new URLSearchParams(window.location.search).has('embed')){
+        try{ window.parent.postMessage({type:'ticket_created',key,url:url||'#',kind:'incidencia'},'*'); }catch(e){}
+        return;
+    }
+    const _modalEl=document.getElementById('modalTicketOk');
+    if(!_modalEl) return;
+    document.getElementById('modalTicketKey').textContent=key;
+    const jiraUrlBtn=document.getElementById('modalTicketUrl');
+    if(jiraUrlBtn){ if(isLocal||!url){jiraUrlBtn.style.display='none';} else {jiraUrlBtn.style.display='inline-flex';jiraUrlBtn.href=url;} }
+    const subtitleEl=document.getElementById('modalOkSubtitle');
+    if(subtitleEl) subtitleEl.textContent=isLocal?'Incidencia registrada en la gestión local':'Tu solicitud fue enviada a Jira Service Management';
+    const cfgLink=_modalEl.querySelector('[onclick*="forceConfigJiraEmail"]');
+    if(cfgLink) cfgLink.closest('div')?.style.setProperty('display', isLocal?'none':'');
+    new bootstrap.Modal(_modalEl).show();
 }
 
 async function submitLocalTicket(){
@@ -9069,10 +9075,24 @@ var _crtPickerKey   = null;
 var _crtSearchTimer = null;
 var _crtWPAgents    = null; // cached WP-Soporte Presencial agents
 
+// Tickets de la gestión local (TK-/RQ-): se asignan con el motor local, no con Jira
+function _crtIsLocal(key) { return /^(TK|RQ)-/i.test(String(key || '')); }
+
 async function crtSelfAssign() {
     var key = (document.getElementById('modalTicketKey') || {}).textContent;
     key = key ? key.trim() : '';
     if (!key) return;
+    if (_crtIsLocal(key)) {
+        try {
+            var r = await fetch('/api/jira/ticket/' + encodeURIComponent(key) + '/take', { method: 'PUT', credentials: 'include' });
+            var j = await r.json();
+            if (!j.success) throw new Error(j.message || 'No se pudo asignar');
+            showToast('✓ ' + (j.message || (key + ' asignado')), 'success');
+            try { bootstrap.Modal.getInstance(document.getElementById('modalTicketOk')).hide(); } catch(e2) {}
+            setTimeout(function() { window.location.href = '/itsm/incidencias/gestion?view=local'; }, 700);
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+        return;
+    }
     var email = getJiraEmail();
     if (!email) return;
     try {
@@ -9084,6 +9104,9 @@ async function crtSelfAssign() {
         if (!users || !users.length) throw new Error('"' + email + '" no es un agente Jira asignable. Verifica el correo en Configurar correo Jira.');
         var u = users[0];
         await jira('PUT', '/rest/api/3/issue/' + key + '/assignee', { accountId: u.accountId });
+        // Refleja la asignación también en la copia local (paneles y reportes)
+        fetch('/api/jira/ticket/' + encodeURIComponent(key) + '/assign-tech', { method: 'PUT', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, accountId: u.accountId }) }).catch(function() {});
         showToast('✓ ' + key + ' asignado a ' + (u.displayName || email), 'success');
         try { bootstrap.Modal.getInstance(document.getElementById('modalTicketOk')).hide(); } catch(e2) {}
         setTimeout(function() { window.location.href = '/itsm/incidencias/gestion?panel=misAsig'; }, 700);
@@ -9111,8 +9134,29 @@ function crtShowAssignPicker() {
     _crtLoadWPAgents(list);
 }
 
+var _crtLocalTechs = null;
+async function _crtLoadLocalTechs(listEl, q) {
+    var el = listEl || document.getElementById('crtAssignList');
+    try {
+        if (!_crtLocalTechs) {
+            var r = await fetch('/api/jira/technicians', { credentials: 'include' });
+            var j = await r.json();
+            var STAFF = ['administrador', 'admin', 'especialista', 'agente', 'tecnico'];
+            _crtLocalTechs = (j.data || []).filter(function(u) { return STAFF.indexOf(u.role) >= 0 && u.email; })
+                .map(function(u) { return { accountId: u.email, displayName: u.full_name || u.username || u.email, emailAddress: u.email }; });
+        }
+        var ql = (q || '').toLowerCase();
+        _crtRenderAgentRows(_crtLocalTechs.filter(function(a) {
+            return !ql || (a.displayName + ' ' + a.emailAddress).toLowerCase().indexOf(ql) >= 0;
+        }), el);
+    } catch(e) {
+        if (el) el.innerHTML = '<div style="color:#ef4444;padding:12px;font-size:11px;">' + incEsc(e.message) + '</div>';
+    }
+}
+
 async function _crtLoadWPAgents(listEl) {
     var el = listEl || document.getElementById('crtAssignList');
+    if (_crtIsLocal(_crtPickerKey)) return _crtLoadLocalTechs(el);
     // 1. Use cached WP agents if available
     if (_crtWPAgents && _crtWPAgents.length) { _crtRenderAgentRows(_crtWPAgents, el); return; }
     // 2. Try kanban board agents if loaded (same page session)
@@ -9189,6 +9233,7 @@ function crtFilterAgents() {
     var list     = document.getElementById('crtAssignList');
     var q        = searchEl ? searchEl.value.trim() : '';
     clearTimeout(_crtSearchTimer);
+    if (_crtIsLocal(_crtPickerKey)) { _crtLoadLocalTechs(list, q); return; }
     if (q.length >= 1) {
         // Filter cached WP agents first (instant), then search Jira for complement
         if (_crtWPAgents && _crtWPAgents.length) {
@@ -9214,8 +9259,25 @@ async function crtDoAssign(accountId, displayName) {
     var key = _crtPickerKey;
     crtCloseAssignPicker();
     if (!key) return;
+    if (_crtIsLocal(key)) {
+        // En local el "accountId" es el correo del técnico de la empresa
+        try {
+            var r = await fetch('/api/jira/ticket/' + encodeURIComponent(key) + '/assign-local', { method: 'PUT', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: accountId }) });
+            var j = await r.json();
+            if (!j.success) throw new Error(j.message || 'No se pudo asignar');
+            showToast('✓ ' + (j.message || (key + ' asignado a ' + displayName)), 'success');
+            try { bootstrap.Modal.getInstance(document.getElementById('modalTicketOk')).hide(); } catch(e2) {}
+            setTimeout(function() { window.location.href = '/itsm/incidencias/gestion?view=local'; }, 700);
+        } catch(e) { showToast('Error al asignar: ' + e.message, 'error'); }
+        return;
+    }
     try {
         await jira('PUT', '/rest/api/3/issue/' + key + '/assignee', { accountId: accountId });
+        // Busca el correo del agente elegido para reflejar la asignación en la copia local
+        var _ag = (_crtWPAgents || []).find(function(a) { return (a.accountId || a.name || a.emailAddress) === accountId; });
+        fetch('/api/jira/ticket/' + encodeURIComponent(key) + '/assign-tech', { method: 'PUT', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: (_ag && _ag.emailAddress) || displayName, accountId: accountId }) }).catch(function() {});
         showToast('✓ ' + key + ' asignado a ' + displayName, 'success');
         try { bootstrap.Modal.getInstance(document.getElementById('modalTicketOk')).hide(); } catch(e2) {}
         setTimeout(function() { window.location.href = '/itsm/incidencias/gestion?buscar=' + encodeURIComponent(key); }, 700);
