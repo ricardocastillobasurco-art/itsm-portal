@@ -137,7 +137,7 @@ router.get('/local/sin-asig', authenticateToken, async (req, res) => {
             FROM jira_tickets jt
             LEFT JOIN users u ON u.id = jt.assigned_to
             WHERE /* tenant_id: LOCAL() */ ${LOCAL(req, 'jt')} AND ${where}
-            ORDER BY jt.sla_deadline ASC, jt.created_at ${sort}
+            ORDER BY jt.created_at ${sort}
             LIMIT 200
         `);
 

@@ -5261,7 +5261,7 @@ async function loadMisAsig() {
     list.innerHTML = '<div class="inc-skeleton"></div><div class="inc-skeleton"></div><div class="inc-skeleton"></div>';
 
     const JQL_MAP = {
-        activos:   `project = INC AND assignee = "${email}" AND status NOT IN (Resuelto,Resolved,Cerrado,Done,Closed) ORDER BY created ASC`,
+        activos:   `project = INC AND assignee = "${email}" AND status NOT IN (Resuelto,Resolved,Cerrado,Done,Closed) ORDER BY created DESC`,
         pendiente: `project = INC AND assignee = "${email}" AND status = Pendiente ORDER BY created DESC`,
         resuelto:  `project = INC AND assignee = "${email}" AND status IN (Resuelto,Resolved) ORDER BY updated DESC`,
         cerrado:   `project = INC AND assignee = "${email}" AND status IN (Cerrado,Done,Closed) ORDER BY updated DESC`,
