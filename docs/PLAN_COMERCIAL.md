@@ -31,7 +31,7 @@
 | Portal de autoservicio, chatbot, base de conocimiento, catálogo de servicios, FAQ | ✅ |
 | Reportes, indicadores, Kanban, NOC | ✅ (parte depende de Jira) |
 | Recuperación de contraseña, contraseñas temporales aleatorias | ✅ |
-| Marca blanca básica (nombre/logo por empresa) | ✅ parcial |
+| **Marca blanca por empresa** (nombre, logo, color, título del portal, nombre del equipo de soporte) editable por el admin | ✅ |
 
 ### Técnico / seguridad
 | Área | Estado |
@@ -41,7 +41,9 @@
 | Configuración ITSM por empresa y solo para administradores | ✅ |
 | Migraciones automáticas al desplegar (probadas en MySQL 8) | ✅ |
 | Contenedor Docker con usuario sin privilegios y healthcheck | ✅ |
-| 109 pruebas automáticas + pruebas E2E de gestión local, adjuntos y catálogos | ✅ (se corren a mano) |
+| 109 pruebas automáticas + pruebas E2E de gestión local, adjuntos, catálogos y marca | ✅ |
+| **CI en GitHub**: sintaxis, pruebas y migraciones en MySQL 8 en cada push (`ci.yml`) | ✅ (falta activar "Wait for CI" en Railway) |
+| **Backup diario cifrado** (`backup.yml`) + script de restauración probado — ver `docs/RESPALDOS.md` | ✅ (faltan los secretos en GitHub) |
 
 ---
 
@@ -54,7 +56,7 @@
 | B2 | Datos de Integratel en el código | Yo | Pendiente: IDs de campos Jira (`customfield_11795` teléfono, `15147` categoría Workplace, `13268/13270/13271/15344` cierre), etiquetas de impacto/urgencia/componentes en `routes/jira/helpers.js`, colores `_WP_COLORS`, cola "Workplace" del NOC. Pasar a configuración por empresa. |
 | B3 | Archivos persistentes | Tú (Railway) / Yo (código) | Ahora: Volume en `/app/uploads`. Para escalar: guardar adjuntos en **almacenamiento de objetos** (Azure Blob / S3). |
 | B4 | Correo saliente | Tú | Cuenta propia de la plataforma + `SMTP_USER` / `SMTP_PASS`. Ideal: remitente por empresa. |
-| B5 | Respaldos | Yo (script) / Tú (destino) | Backup diario automático de la BD, retención 30 días, **prueba de restauración** documentada. Exportación de datos de una empresa (si se va). |
+| B5 | Respaldos | ✅ Yo / ⏳ Tú | Hecho: backup diario cifrado, 30 días, restauración probada (`docs/RESPALDOS.md`). **Tú:** cargar los secretos `BACKUP_*` en GitHub. Pendiente (yo): exportación de datos de una empresa. |
 | B6 | Rotar secretos | Tú | Nuevos tokens Jira / Azure / BD / `JWT_SECRET` / `SESSION_SECRET`. |
 | B7 | Contratos | Tú (+ abogado) | Términos de servicio, política de privacidad, **contrato de tratamiento de datos** (Ley 29733 de Protección de Datos Personales – Perú), SLA de la plataforma. |
 | B8 | Errores conocidos | Yo | `noc/stats` (`updated_at`), workflow `my-pending` (`createdAt`), tabla `business_rules` inexistente, módulos legados (activos/planilla). |
@@ -229,20 +231,21 @@ Además de lo anterior: definir infraestructura (tamaño, región o servidores),
 
 ## 8. Plan de trabajo: qué hago yo y qué haces tú
 
-### Fase 1 — Quitar lo de Integratel del código *(en curso, ~50 %)*
+### Fase 1 — Quitar lo de Integratel del código *(en curso, ~75 %)*
 | Yo | Tú |
 |---|---|
 | ✅ Catálogos de cierre por empresa | ✅ Push y verificación en producción |
-| ✅ Configuración ITSM por empresa | Verificar adjuntos de Jira tras el último push (`e9ca896`) |
-| ⏳ Campos de Jira configurables por empresa (teléfono, categoría, cierre) | Revisar que Integratel se vea igual |
+| ✅ Configuración ITSM por empresa | Verificar adjuntos de Jira tras el push |
+| ✅ Marca blanca: portal sin Movistar/Workplace fijos | Revisar que Integratel se vea igual (logo y "Workplace IT") |
+| ⏳ Campos de Jira configurables por empresa (teléfono, categoría, cierre) — solo afecta al modo Jira | |
 | ⏳ Etiquetas de impacto/urgencia/componentes y colores configurables | |
 
-### Fase 2 — Infraestructura mínima
+### Fase 2 — Infraestructura mínima *(en curso)*
 | Yo | Tú |
 |---|---|
-| Script de backup diario + guía de restauración | Volume `/app/uploads` en Railway |
-| GitHub Actions: pruebas + migraciones en MySQL 8 antes de desplegar | `SMTP_USER` / `SMTP_PASS` en Railway |
-| Corregir errores conocidos (B8) | Rotar secretos (B6) |
+| ✅ Backup diario cifrado + restauración probada | Cargar secretos `BACKUP_*` en GitHub y ejecutar la 1.ª copia (`docs/RESPALDOS.md`) |
+| ✅ GitHub Actions: pruebas + migraciones en MySQL 8 | Railway → Settings → **Wait for CI** |
+| ⏳ Corregir errores conocidos (B8) | Volume `/app/uploads` · `SMTP_USER` / `SMTP_PASS` · rotar secretos (B6) |
 
 ### Fase 3 — Listo para un cliente
 | Yo | Tú |
@@ -287,3 +290,4 @@ Además de lo anterior: definir infraestructura (tamaño, región o servidores),
 | 2026-09 | Aislamiento multiempresa completo, cifrado de credenciales, recuperación de contraseña, planes básicos |
 | 2026-09-30 | Correo a ticket, motor local TK-/RQ-, interruptor Jira/local, numeración por empresa; caída por `last_value` en MySQL 8 resuelta |
 | 2026-10-02 | Adjuntos/evidencias y barra de acciones; catálogos de cierre por empresa; configuración ITSM aislada; orden "más recientes primero"; descarga robusta de adjuntos Jira |
+| 2026-10-02 | Marca blanca por empresa desde la BD; CI en GitHub (pruebas + migraciones MySQL 8); backup diario cifrado con restauración probada |

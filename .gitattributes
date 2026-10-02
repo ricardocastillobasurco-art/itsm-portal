@@ -1,0 +1,2 @@
+# Los scripts de shell se ejecutan en Linux (Docker, GitHub Actions): siempre LF
+*.sh text eol=lf
