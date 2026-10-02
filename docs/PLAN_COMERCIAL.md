@@ -56,10 +56,10 @@
 | B2 | Datos de Integratel en el código | Yo | Pendiente: IDs de campos Jira (`customfield_11795` teléfono, `15147` categoría Workplace, `13268/13270/13271/15344` cierre), etiquetas de impacto/urgencia/componentes en `routes/jira/helpers.js`, colores `_WP_COLORS`, cola "Workplace" del NOC. Pasar a configuración por empresa. |
 | B3 | Archivos persistentes | Tú (Railway) / Yo (código) | Ahora: Volume en `/app/uploads`. Para escalar: guardar adjuntos en **almacenamiento de objetos** (Azure Blob / S3). |
 | B4 | Correo saliente | Tú | Cuenta propia de la plataforma + `SMTP_USER` / `SMTP_PASS`. Ideal: remitente por empresa. |
-| B5 | Respaldos | ✅ Yo / ⏳ Tú | Hecho: backup diario cifrado, 30 días, restauración probada (`docs/RESPALDOS.md`). **Tú:** cargar los secretos `BACKUP_*` en GitHub. Pendiente (yo): exportación de datos de una empresa. |
+| B5 | Respaldos | ✅ Yo / ⏳ Tú | Hecho: backup diario cifrado, 30 días, restauración probada (`docs/RESPALDOS.md`). **Tú:** cargar los secretos `BACKUP_*` en GitHub. ✅ Exportación completa de datos por empresa (ZIP JSON+CSV, sin secretos). |
 | B6 | Rotar secretos | Tú | Nuevos tokens Jira / Azure / BD / `JWT_SECRET` / `SESSION_SECRET`. |
 | B7 | Contratos | Tú (+ abogado) | Términos de servicio, política de privacidad, **contrato de tratamiento de datos** (Ley 29733 de Protección de Datos Personales – Perú), SLA de la plataforma. |
-| B8 | Errores conocidos | Yo | `noc/stats` (`updated_at`), workflow `my-pending` (`createdAt`), tabla `business_rules` inexistente, módulos legados (activos/planilla). |
+| B8 | Errores conocidos | ✅ Yo | Corregidos: NOC stats, aprobaciones pendientes, tabla `business_rules`. Queda revisar módulos legados (activos/planilla). |
 
 ### 3.2 Configurable — que el cliente se configure sin programar
 | # | Tema | Quién |
@@ -223,7 +223,8 @@ Además de lo anterior: definir infraestructura (tamaño, región o servidores),
 | Rotación de secretos | ❌ |
 | WAF / protección contra ataques | ❌ (con Azure Front Door) |
 | Bitácora de auditoría visible para el cliente | ⚠️ parcial |
-| Exportación y borrado de datos por empresa | ❌ |
+| Exportación de datos por empresa | ✅ (admin y superadmin; queda en auditoría) |
+| Borrado definitivo de datos al terminar contrato | ❌ |
 | Prueba de penetración externa | ❌ (antes de clientes grandes) |
 | Documentos legales (términos, privacidad, tratamiento de datos) | ❌ |
 
@@ -245,7 +246,7 @@ Además de lo anterior: definir infraestructura (tamaño, región o servidores),
 |---|---|
 | ✅ Backup diario cifrado + restauración probada | Cargar secretos `BACKUP_*` en GitHub y ejecutar la 1.ª copia (`docs/RESPALDOS.md`) |
 | ✅ GitHub Actions: pruebas + migraciones en MySQL 8 | Railway → Settings → **Wait for CI** |
-| ⏳ Corregir errores conocidos (B8) | Volume `/app/uploads` · `SMTP_USER` / `SMTP_PASS` · rotar secretos (B6) |
+| ✅ Corregir errores conocidos (B8) · ✅ Exportación de datos | Volume `/app/uploads` · `SMTP_USER` / `SMTP_PASS` · rotar secretos (B6) |
 
 ### Fase 3 — Listo para un cliente
 | Yo | Tú |
@@ -291,3 +292,4 @@ Además de lo anterior: definir infraestructura (tamaño, región o servidores),
 | 2026-09-30 | Correo a ticket, motor local TK-/RQ-, interruptor Jira/local, numeración por empresa; caída por `last_value` en MySQL 8 resuelta |
 | 2026-10-02 | Adjuntos/evidencias y barra de acciones; catálogos de cierre por empresa; configuración ITSM aislada; orden "más recientes primero"; descarga robusta de adjuntos Jira |
 | 2026-10-02 | Marca blanca por empresa desde la BD; CI en GitHub (pruebas + migraciones MySQL 8); backup diario cifrado con restauración probada |
+| 2026-10-02 | Errores de NOC, aprobaciones y reglas de negocio; exportación completa de datos por empresa |
