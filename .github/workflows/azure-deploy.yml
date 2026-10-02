@@ -1,8 +1,7 @@
 name: Deploy → Azure App Service
 
+# Manual: producción está en Railway. Ejecutar desde GitHub → Actions cuando exista la Web App en Azure.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 env:

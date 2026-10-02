@@ -1,0 +1,73 @@
+name: CI · pruebas y migraciones
+
+# Corre en cada push y pull request. En Railway activar "Wait for CI" para que
+# no despliegue si esto falla (Settings → Deploy → Wait for CI).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Pruebas unitarias y sintaxis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'          # misma versión que el Dockerfile
+          cache: npm
+      - run: npm ci
+      - name: Sintaxis de todos los archivos JS del servidor
+        run: |
+          find . -name '*.js' -not -path './node_modules/*' -not -path './public/*' -not -path './coverage/*' -print0 \
+            | xargs -0 -n 50 node --check
+      - name: Sintaxis de los JS del navegador
+        run: find public/js public/modules -name '*.js' -print0 | xargs -0 -n 50 node --check
+      - name: Jest
+        run: npm test -- --ci
+
+  migrations:
+    name: Migraciones en MySQL 8 (igual que producción)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root
+          MYSQL_DATABASE: itsm_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_root"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    env:
+      EQUIPMENT_HOST: 127.0.0.1
+      EQUIPMENT_PORT: '3306'
+      EQUIPMENT_USER: root
+      EQUIPMENT_PASSWORD: ci_root
+      EQUIPMENT_DATABASE: itsm_ci
+      DB_SSL: 'false'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Base vacía → todas las migraciones
+        run: node src/config/migrator.js up
+      - name: Segunda corrida (deben ser idempotentes)
+        run: node src/config/migrator.js up
+      - name: Tablas clave creadas
+        run: |
+          for t in tenants users jira_tickets ticket_catalog_options tenant_view_overrides ticket_key_sequences; do
+            mysql -h 127.0.0.1 -uroot -pci_root itsm_ci -N -e "SHOW TABLES LIKE '$t'" | grep -q "$t" || { echo "Falta la tabla $t"; exit 1; }
+          done
