@@ -88,5 +88,35 @@ router.delete('/config/close-catalogs', authenticateToken, requireAdmin, async (
     catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// ── Marca de la empresa (nombre, logo, color, textos del portal) ────────────
+const Branding = require('../../src/services/BrandingService');
+const multer = require('multer');
+const logoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024, files: 1 } });
+
+router.get('/config/branding', authenticateToken, async (req, res) => {
+    try { res.json({ success: true, data: await Branding.get(tenantId(req)) }); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+router.put('/config/branding', authenticateToken, requireAdmin, async (req, res) => {
+    try { res.json({ success: true, data: await Branding.save(tenantId(req), req.body || {}) }); }
+    catch (e) { res.status(e.status || 500).json({ success: false, message: e.message }); }
+});
+
+router.post('/config/branding/logo', authenticateToken, requireAdmin, (req, res) => {
+    logoUpload.single('logo')(req, res, async (err) => {
+        if (err) return res.status(400).json({ success: false,
+            message: err.code === 'LIMIT_FILE_SIZE' ? 'El logo debe pesar menos de 1 MB' : err.message });
+        if (!req.file) return res.status(400).json({ success: false, message: 'No se recibió el logo' });
+        try { res.json({ success: true, data: await Branding.saveLogo(tenantId(req), req.file) }); }
+        catch (e) { res.status(e.status || 500).json({ success: false, message: e.message }); }
+    });
+});
+
+router.delete('/config/branding/logo', authenticateToken, requireAdmin, async (req, res) => {
+    try { res.json({ success: true, data: await Branding.removeLogo(tenantId(req)) }); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 module.exports = router;
 module.exports.getSettings = getSettings;

@@ -143,6 +143,11 @@ app.use('/api/events', require('./routes/events'));
 app.use('/tickets', jiraRoutes);
 app.use('/uploads/tickets', require('./middleware/protectTicketUploads'), express.static(path.join(__dirname, 'uploads/tickets')));
 app.use('/public/reports', express.static(path.join(__dirname, 'public/reports')));
+// Logos de cada empresa (públicos: se ven también en el login)
+app.use('/branding-assets', express.static(path.join(__dirname, 'uploads/branding'), {
+    maxAge: '1d', fallthrough: false, dotfiles: 'deny',
+    setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+}));
 
 // ── Prometheus metrics scrape endpoint ───────────────────────────────────────
 const { registry } = require('./src/core/metrics/MetricsRegistry');

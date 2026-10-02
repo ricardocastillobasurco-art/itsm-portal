@@ -11,25 +11,58 @@
  *   tenantCfg.branding.bannerImage → 'banner-promo.jpg'
  *   tenantCfg.name                 → 'Mi Empresa'
  *   jiraEnabled                    → shortcut boolean
+ *   brand                          → marca de la empresa (BrandingService):
+ *                                    companyName, logoUrl, primaryColor, supportName, portalTitle
+ *   brandJson                      → brand serializado seguro para <script>
+ *
+ * La empresa se resuelve AL RENDERIZAR: la autenticación corre después de este
+ * middleware (en cada ruta), así que antes de eso req.user aún no existe y
+ * req.tenant es la empresa por defecto.
  */
 
-const { getTenantConfig } = require('../utils/tenantConfig');
+const { getTenantConfig, loadTenantConfig } = require('../utils/tenantConfig');
+const Branding = require('../src/services/BrandingService');
 
-module.exports = function tenantLocals(req, res, next) {
-    let cfg = getTenantConfig(req);
+function _setLocals(req, res, brand, userTid = null) {
+    const tid = userTid ?? req.user?.tenant_id ?? req.tenant?.id ?? null;
+    let cfg = (userTid ?? req.user?.tenant_id ? loadTenantConfig(userTid ?? req.user.tenant_id) : null) || getTenantConfig(req);
 
     // Banner uploaded via admin takes precedence over static config file
     const bannerFromDb = req.tenant?.config?.bannerImage;
     if (cfg && bannerFromDb) {
         cfg = { ...cfg, branding: { ...(cfg.branding || {}), bannerImage: bannerFromDb } };
     }
+    // Empresas creadas desde el superadmin no tienen carpeta en config/tenants:
+    // se completan con los datos de la BD para que muestren su nombre.
+    if (!cfg && tid) {
+        cfg = { id: Number(tid), name: brand.companyName, domain: req.tenant?.domain ?? null,
+                features: {}, branding: { primaryColor: brand.primaryColor } };
+    }
 
     res.locals.tenantCfg    = cfg;
-    res.locals.jiraEnabled  = cfg?.features?.jira ?? false;
-    res.locals.tenantName   = cfg?.name           ?? null;
-    res.locals.tenantDomain = cfg?.domain         ?? null;
-    // Jira del tenant dueño (las vistas solo lo usan para el tenant 1)
-    res.locals.jiraHost     = (process.env.JIRA_HOST || '').replace(/\/$/, '');
+    res.locals.jiraEnabled  = res.locals.jiraEnabled ?? (cfg?.features?.jira ?? false);
+    res.locals.tenantName   = brand.companyName ?? cfg?.name ?? null;
+    res.locals.tenantDomain = cfg?.domain ?? null;
+    res.locals.brand        = brand;
+    res.locals.brandJson    = JSON.stringify(brand).replace(/</g, '\\u003c');
+}
 
+module.exports = function tenantLocals(req, res, next) {
+    // Jira del tenant dueño (las vistas solo lo usan para el tenant 1)
+    res.locals.jiraHost = (process.env.JIRA_HOST || '').replace(/\/$/, '');
+    _setLocals(req, res, { ...Branding.DEFAULTS, portalTitle: 'SERVICIOS TI' });
+
+    const render = res.render.bind(res);
+    res.render = function (view, options, callback) {
+        // Algunas rutas validan la sesión por su cuenta y pasan `user` a la vista
+        const userTid = (options && typeof options === 'object' && options.user?.tenant_id) || req.user?.tenant_id || null;
+        const tid = userTid ?? req.tenant?.id ?? null;
+        const go = (brand) => {
+            if (brand) _setLocals(req, res, brand, userTid);
+            return render(view, options, callback);
+        };
+        if (!tid) return go(null);
+        Branding.get(tid).then(go, () => go(null));
+    };
     next();
 };

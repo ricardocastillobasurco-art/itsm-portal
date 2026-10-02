@@ -1205,6 +1205,56 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
           </button>
         </div>
       </div>
+      <!-- Marca de la empresa -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-top:24px;max-width:900px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+          <div style="width:32px;height:32px;background:rgba(37,99,235,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#2563eb;"><i class="bi bi-palette-fill"></i></div>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);">Marca de la empresa</div>
+            <div style="font-size:11px;color:var(--muted);">Cómo ven el portal tus usuarios: logo, nombre y textos.</div>
+          </div>
+        </div>
+        <div class="brand-wrap">
+          <div class="cat-grid">
+            <label>Nombre de la empresa
+              <input id="br-company" maxlength="255" placeholder="Mi Empresa S.A.C."></label>
+            <label>Título del portal <span>(aparece como "ITSM · TÍTULO")</span>
+              <input id="br-title" maxlength="60" placeholder="SERVICIOS TI"></label>
+            <label>Nombre del equipo de soporte <span>(lo usa el chatbot)</span>
+              <input id="br-support" maxlength="100" placeholder="Mesa de ayuda TI"></label>
+            <label>Color principal
+              <span style="display:flex;gap:8px;align-items:center;"><input type="color" id="br-color" value="#2563eb" style="width:44px;height:34px;padding:2px;"><code id="br-color-txt" style="font-size:12px;">#2563eb</code></span></label>
+          </div>
+          <div class="brand-logo">
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;">Logo</div>
+            <div class="brand-preview" id="br-preview">
+              <img id="br-logo-img" alt="" style="display:none;">
+              <span id="br-logo-none">Sin logo</span>
+              <span class="brand-prev-name" id="br-prev-name">Mi Empresa</span>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+              <label class="brand-btn"><input type="file" id="br-logo-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onchange="brandUploadLogo(this)"><i class="bi bi-upload"></i> Subir logo</label>
+              <button class="brand-btn" type="button" onclick="brandRemoveLogo()"><i class="bi bi-trash3"></i> Quitar</button>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:5px;">PNG, JPG, WEBP o GIF · máx. 1 MB · fondo transparente recomendado</div>
+          </div>
+        </div>
+        <button onclick="brandSave()" id="brSaveBtn" style="display:flex;align-items:center;gap:7px;padding:9px 22px;margin-top:16px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">
+          <i class="bi bi-floppy-fill"></i> Guardar marca
+        </button>
+      </div>
+      <style>
+        .brand-wrap { display:grid; grid-template-columns:1fr 240px; gap:16px; align-items:start; }
+        .cat-grid input:not([type=color]) { width:100%; box-sizing:border-box; border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; font-size:12px; background:var(--bg); color:var(--text); font-family:inherit; font-weight:400; }
+        .cat-grid input:focus { outline:none; border-color:var(--primary); }
+        .brand-preview { display:flex; align-items:center; gap:10px; min-height:56px; padding:10px 12px; border:1.5px dashed var(--border); border-radius:10px; background:var(--bg); overflow:hidden; }
+        .brand-preview img { max-height:36px; max-width:110px; object-fit:contain; }
+        #br-logo-none { font-size:11px; color:var(--muted); }
+        .brand-prev-name { font-size:13px; font-weight:800; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .brand-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:12px; font-weight:600; color:var(--text); background:transparent; cursor:pointer; }
+        .brand-btn:hover { border-color:var(--primary); }
+        @media (max-width:700px) { .brand-wrap { grid-template-columns:1fr; } }
+      </style>
       <style>
         .cat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         .cat-grid label { display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:700; color:var(--text); }
@@ -1714,7 +1764,61 @@ function panelGo(id) {
   const sub = { panelInicio:'Gestión completa · IT Platform Administración', panelConfig:'SLA, alertas, NOC, escalación y catálogos de cierre' };
   const t = document.getElementById('chTitle'); if (t) t.textContent = hdr[id] || '';
   const s = document.getElementById('chSub');   if (s) s.textContent = sub[id] || '';
-  if (id === 'panelConfig') { cfgLoad(); catLoad(); }
+  if (id === 'panelConfig') { cfgLoad(); catLoad(); brandLoad(); }
+}
+
+/* ── MARCA DE LA EMPRESA ────────────────────────────────────── */
+function _brandFill(b) {
+  document.getElementById('br-company').value = b.companyName || '';
+  document.getElementById('br-title').value   = b.portalTitle || '';
+  document.getElementById('br-support').value = b.supportName || '';
+  document.getElementById('br-color').value   = b.primaryColor || '#2563eb';
+  const img = document.getElementById('br-logo-img');
+  if (b.logoUrl) { img.src = b.logoUrl; img.style.display = ''; } else { img.removeAttribute('src'); img.style.display = 'none'; }
+  document.getElementById('br-logo-none').style.display = b.logoUrl ? 'none' : '';
+  _brandPreview();
+}
+function _brandPreview() {
+  document.getElementById('br-prev-name').textContent = document.getElementById('br-company').value.trim() || 'Mi Empresa';
+  const c = document.getElementById('br-color').value;
+  document.getElementById('br-color-txt').textContent = c;
+  document.getElementById('br-preview').style.borderColor = c;
+}
+document.addEventListener('input', e => { if (['br-company', 'br-color'].includes(e.target.id)) _brandPreview(); });
+async function brandLoad() {
+  try {
+    const d = await (await fetch('/api/jira/config/branding', { credentials:'include' })).json();
+    if (d.success) _brandFill(d.data);
+  } catch(e) { console.error('[marca]', e); }
+}
+async function brandSave() {
+  const btn = document.getElementById('brSaveBtn'); btn.disabled = true;
+  try {
+    const d = await (await fetch('/api/jira/config/branding', { method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ companyName: document.getElementById('br-company').value, portalTitle: document.getElementById('br-title').value,
+        supportName: document.getElementById('br-support').value, primaryColor: document.getElementById('br-color').value }) })).json();
+    if (d.success) { _brandFill(d.data); toast('Marca guardada. Tus usuarios la verán al recargar el portal.'); }
+    else toast(d.message || d.error || 'Error al guardar', 'err');
+  } catch(e) { toast('Error de conexión', 'err'); }
+  finally { btn.disabled = false; }
+}
+async function brandUploadLogo(input) {
+  const file = input.files[0]; input.value = '';
+  if (!file) return;
+  if (file.size > 1024 * 1024) { toast('El logo debe pesar menos de 1 MB', 'err'); return; }
+  const fd = new FormData(); fd.append('logo', file);
+  try {
+    const d = await (await fetch('/api/jira/config/branding/logo', { method:'POST', credentials:'include', body: fd })).json();
+    if (d.success) { _brandFill(d.data); toast('Logo actualizado'); }
+    else toast(d.message || d.error || 'No se pudo subir el logo', 'err');
+  } catch(e) { toast('Error de conexión', 'err'); }
+}
+async function brandRemoveLogo() {
+  if (!confirm('¿Quitar el logo de la empresa?')) return;
+  try {
+    const d = await (await fetch('/api/jira/config/branding/logo', { method:'DELETE', credentials:'include' })).json();
+    if (d.success) { _brandFill(d.data); toast('Logo quitado'); } else toast(d.message || d.error || 'Error', 'err');
+  } catch(e) { toast('Error de conexión', 'err'); }
 }
 
 /* ── CATÁLOGOS DE CIERRE ────────────────────────────────────── */

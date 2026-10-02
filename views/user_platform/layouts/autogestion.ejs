@@ -1243,9 +1243,9 @@ img{max-width:100%;height:auto;}
     <i class="bi bi-layout-sidebar"></i>
   </button>
   <div class="nav-brand">
-    <img src="/images/movistar-logo.png" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
-    <div class="nav-divider"></div>
-    <span class="nav-name">IT Platform</span>
+    <% if (brand.logoUrl) { %><img src="<%= brand.logoUrl %>" alt="<%= brand.companyName || 'Logo' %>" class="nav-logo" onerror="this.style.display='none'">
+    <div class="nav-divider"></div><% } %>
+    <span class="nav-name"><%= brand.companyName || 'IT Platform' %></span>
     <span class="nav-badge">ITSM</span>
   </div>
   <div class="nav-space"></div>

@@ -1,4 +1,9 @@
 <script>
+// Marca de la empresa (BrandingService)
+window.BRAND = <%- typeof brandJson !== 'undefined' ? brandJson : '{}' %>;
+function _brandSupport(){ return (window.BRAND && window.BRAND.supportName) || 'Mesa de ayuda TI'; }
+</script>
+<script>
 (function(){
   const s=localStorage.getItem('dashboardTheme')||'light';
   document.documentElement.setAttribute('data-theme',s);
@@ -435,7 +440,7 @@ function cbOptClick(key){
       var _oorNote = _cbOOR
         ? `<div style="margin:8px 0 4px;padding:6px 10px;background:#fef9c3;border:1px solid #fbbf24;border-radius:6px;font-size:11px;color:#78350f;">⏰ Fuera del horario de atención (Lun–Vie 8:00–18:00). Los especialistas estarán disponibles el próximo día hábil, pero puedes dejarnos tu consulta.</div>`
         : '';
-      cbAddMsg(`🧑‍💻 <strong>Hablar con especialista</strong><br><br>${_oorNote}Cuéntame brevemente cuál es tu consulta o problema, y te conectaré con un especialista de Workplace IT:<br><span style="font-size:11px;color:#94a3b8;">Ej: "Tengo problemas con mi VPN" o "Necesito ayuda con Teams"</span>`, 'bot');
+      cbAddMsg(`🧑‍💻 <strong>Hablar con especialista</strong><br><br>${_oorNote}Cuéntame brevemente cuál es tu consulta o problema, y te conectaré con un especialista de ${_brandSupport()}:<br><span style="font-size:11px;color:#94a3b8;">Ej: "Tengo problemas con mi VPN" o "Necesito ayuda con Teams"</span>`, 'bot');
     } else if(key === 'know_me'){
       _cbFlow = 'know_me'; _cbKnowStep = 0; _cbKnowData = {};
       cbAddMsg(_KNOW_ME_STEPS[0].ask, 'bot');
@@ -668,7 +673,7 @@ async function cbHandleConsultTopic(txt) {
       cbAddMsg(`<div class="cci-waiting-card">
         <div class="cci-w-icon">🧑‍💻</div>
         <div class="cci-w-title">Consulta en espera</div>
-        <div class="cci-w-sub">Tu solicitud fue registrada. Un especialista<br>de Workplace IT se conectará en breve.</div>
+        <div class="cci-w-sub">Tu solicitud fue registrada. Un especialista<br>de ${_brandSupport()} se conectará en breve.</div>
         <div class="cci-w-anim"><span></span><span></span><span></span></div>
       </div>`, 'bot');
       _cbFlow = 'consult_msg';
