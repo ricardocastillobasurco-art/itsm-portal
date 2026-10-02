@@ -508,6 +508,30 @@ router.get('/:tenantId/integrations', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+
+// Envía la exportación de datos de una empresa como ZIP descargable
+async function sendTenantExport(req, res, tid) {
+    const { exportTenant } = require('../../../services/TenantExportService');
+    const { executeQuery, equipmentPool } = require('../../../../config/database');
+    const [t] = await executeQuery(equipmentPool, 'SELECT slug FROM tenants WHERE id = ?', [tid]);
+    if (!t) return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
+    const name = `datos-${String(t.slug || tid).replace(/[^a-z0-9-]/gi, '')}-${new Date().toISOString().slice(0, 10)}.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+        await exportTenant(tid, res, { includeFiles: req.query.archivos === '1',
+            requestedBy: { id: req.user?.id ?? null, email: req.user?.email ?? null, role: req.user?.role ?? null } });
+    } catch (e) {
+        console.error('[exportación]', tid, e.message);
+        if (!res.headersSent) res.status(e.status || 500).json({ success: false, message: e.message });
+        else res.destroy(e);
+    }
+}
+
+// GET /api/admin/tenants/:tenantId/export/zip[?archivos=1] — todos los datos de una empresa (fin de contrato, auditoría)
+router.get('/:tenantId/export/zip', (req, res) => sendTenantExport(req, res, parseInt(req.params.tenantId)));
+
 // ── Numeración de tickets ─────────────────────────────────────────────────────
 
 // PATCH /api/admin/tenants/:tenantId/ticket-code { code } — código de la numeración (TK-<CODE>-0001).

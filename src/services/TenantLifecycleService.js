@@ -7,6 +7,7 @@ const FeatureFlagService = require('./FeatureFlagService');
 const ViewResolver       = require('./ViewResolver');
 const logger             = require('../utils/logger');
 
+const { SECRET_COL } = require('./TenantExportService');
 const EXPORTABLE_TABLES = [
   'tickets', 'ticket_comments', 'ticket_attachments',
   'service_requests', 'changes', 'problems',
@@ -89,7 +90,8 @@ class TenantLifecycleService {
           `SELECT * FROM ${table} WHERE tenant_id = ?`,
           { replacements: [tenantId], type: 'SELECT' }
         );
-        export_.tables[table] = rows;
+        // Nunca exportar secretos (hashes de contraseña, tokens, cachés de credenciales)
+        export_.tables[table] = rows.map(r => { const o = { ...r }; for (const c of Object.keys(o)) if (SECRET_COL.test(c) && o[c] != null) o[c] = '[omitido]'; return o; });
       } catch {
         // tabla sin tenant_id o no existe — omitir silenciosamente
       }
@@ -211,7 +213,10 @@ class TenantLifecycleService {
         file: 'equipos',
       },
       tickets: {
-        sql:  'SELECT titulo, descripcion, tipo, status, priority, sla_status, created_at, resolved_at FROM tickets WHERE tenant_id = ? AND deleted_at IS NULL ORDER BY created_at DESC',
+        // Las incidencias reales (locales TK- y sincronizadas de Jira) están en jira_tickets
+        sql:  `SELECT ticket_key, summary, reporter, priority, internal_status, assigned_to_name,
+               resolution_type, created_at, resolved_at, closed_at
+               FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ? ORDER BY created_at DESC`,
         file: 'incidencias',
       },
       kb_articles: {

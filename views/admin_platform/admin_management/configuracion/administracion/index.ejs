@@ -1243,6 +1243,16 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
           <i class="bi bi-floppy-fill"></i> Guardar marca
         </button>
       </div>
+      <!-- Tus datos (portabilidad) -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-top:24px;max-width:900px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div style="width:32px;height:32px;background:rgba(5,150,105,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#059669;flex-shrink:0;"><i class="bi bi-database-down"></i></div>
+        <div style="flex:1;min-width:220px;">
+          <div style="font-size:13px;font-weight:800;color:var(--text);">Tus datos</div>
+          <div style="font-size:11px;color:var(--muted);">Descarga toda la información de tu empresa (tickets, usuarios, catálogos, base de conocimiento…) en un ZIP con archivos JSON y CSV para Excel. No incluye contraseñas.</div>
+        </div>
+        <a class="brand-btn" href="/api/jira/config/export" download style="text-decoration:none;"><i class="bi bi-file-zip"></i> Descargar datos</a>
+        <a class="brand-btn" href="/api/jira/config/export?archivos=1" download style="text-decoration:none;" title="Puede tardar si hay muchos archivos"><i class="bi bi-paperclip"></i> Datos + adjuntos</a>
+      </div>
       <style>
         .brand-wrap { display:grid; grid-template-columns:1fr 240px; gap:16px; align-items:start; }
         .cat-grid input:not([type=color]) { width:100%; box-sizing:border-box; border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; font-size:12px; background:var(--bg); color:var(--text); font-family:inherit; font-weight:400; }

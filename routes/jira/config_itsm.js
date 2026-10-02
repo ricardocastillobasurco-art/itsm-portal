@@ -118,5 +118,29 @@ router.delete('/config/branding/logo', authenticateToken, requireAdmin, async (r
     catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+
+// Envía la exportación de datos de una empresa como ZIP descargable
+async function sendTenantExport(req, res, tid) {
+    const { exportTenant } = require('../../src/services/TenantExportService');
+    const { executeQuery, equipmentPool } = require('../../config/database');
+    const [t] = await executeQuery(equipmentPool, 'SELECT slug FROM tenants WHERE id = ?', [tid]);
+    if (!t) return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
+    const name = `datos-${String(t.slug || tid).replace(/[^a-z0-9-]/gi, '')}-${new Date().toISOString().slice(0, 10)}.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+        await exportTenant(tid, res, { includeFiles: req.query.archivos === '1',
+            requestedBy: { id: req.user?.id ?? null, email: req.user?.email ?? null, role: req.user?.role ?? null } });
+    } catch (e) {
+        console.error('[exportación]', tid, e.message);
+        if (!res.headersSent) res.status(e.status || 500).json({ success: false, message: e.message });
+        else res.destroy(e);
+    }
+}
+
+// GET /api/jira/config/export[?archivos=1] — el administrador descarga todos los datos de SU empresa
+router.get('/config/export', authenticateToken, requireAdmin, (req, res) => sendTenantExport(req, res, tenantId(req)));
+
 module.exports = router;
 module.exports.getSettings = getSettings;
