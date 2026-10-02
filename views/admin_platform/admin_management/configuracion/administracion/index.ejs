@@ -1173,6 +1173,47 @@ input:checked + .cfg-toggle-track{background:var(--primary);}
         </a>
         <span id="cfgStatus" style="font-size:12px;color:var(--success);display:none;"><i class="bi bi-check-circle-fill"></i> Guardado</span>
       </div>
+
+      <!-- Catálogos de cierre -->
+      <div class="cat-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-top:24px;max-width:900px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+          <div style="width:32px;height:32px;background:rgba(220,38,38,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#dc2626;"><i class="bi bi-check2-circle"></i></div>
+          <div style="flex:1;min-width:200px;">
+            <div style="font-size:13px;font-weight:800;color:var(--text);">Catálogos de cierre</div>
+            <div style="font-size:11px;color:var(--muted);">Opciones que ve el técnico al cerrar una incidencia. Se usan en los reportes.</div>
+          </div>
+          <span id="catMode" style="font-size:11px;padding:3px 10px;border-radius:12px;background:var(--bg);border:1px solid var(--border);color:var(--muted);"></span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin:8px 0 14px;">Escribe <b>una opción por línea</b>. Si dejas un catálogo vacío (excepto el tipo de resolución), ese campo no se mostrará.</div>
+        <div class="cat-grid">
+          <label>Tipos de resolución *
+            <textarea id="cat-resolucion" rows="8" placeholder="Resuelto&#10;Orientación al usuario&#10;Ticket duplicado"></textarea></label>
+          <label>Procesos impactados <span>(opcional)</span>
+            <textarea id="cat-proceso" rows="8" placeholder="Ventas&#10;Facturación&#10;Logística"></textarea></label>
+          <label class="cat-wide">Resultado y detalle <span>(opcional) — formato: Resultado: detalle 1, detalle 2</span>
+            <textarea id="cat-resultado" rows="8" placeholder="Hardware: Falla de equipo, Periférico&#10;Software: Error de aplicación, Configuración&#10;Red: Conectividad, VPN"></textarea></label>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--text);cursor:pointer;width:fit-content;">
+          <input type="checkbox" id="cat-masiva"> Preguntar si es una incidencia masiva
+        </label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;">
+          <button onclick="catSave()" id="catSaveBtn" style="display:flex;align-items:center;gap:7px;padding:9px 22px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">
+            <i class="bi bi-floppy-fill"></i> Guardar catálogos
+          </button>
+          <button onclick="catReset()" style="padding:9px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:12px;font-weight:600;color:var(--muted);background:transparent;cursor:pointer;">
+            <i class="bi bi-arrow-counterclockwise"></i> Usar lista genérica
+          </button>
+        </div>
+      </div>
+      <style>
+        .cat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .cat-grid label { display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:700; color:var(--text); }
+        .cat-grid label span { font-weight:400; color:var(--muted); font-size:11px; }
+        .cat-grid .cat-wide { grid-column:1/-1; }
+        .cat-grid textarea { width:100%; box-sizing:border-box; border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; font-size:12px; line-height:1.6; background:var(--bg); color:var(--text); font-family:inherit; resize:vertical; }
+        .cat-grid textarea:focus { outline:none; border-color:var(--primary); }
+        @media (max-width:700px) { .cat-grid { grid-template-columns:1fr; } }
+      </style>
     </div><!-- /panelConfig -->
 
   </div><!-- /content-area -->
@@ -1670,10 +1711,57 @@ function panelGo(id) {
     if (el) el.style.display = p === id ? '' : 'none';
   });
   const hdr = { panelInicio:'Centro de Control ITSM', panelConfig:'Configuración ITSM' };
-  const sub = { panelInicio:'Gestión completa · IT Platform Administración', panelConfig:'SLA, alertas, NOC y escalación' };
+  const sub = { panelInicio:'Gestión completa · IT Platform Administración', panelConfig:'SLA, alertas, NOC, escalación y catálogos de cierre' };
   const t = document.getElementById('chTitle'); if (t) t.textContent = hdr[id] || '';
   const s = document.getElementById('chSub');   if (s) s.textContent = sub[id] || '';
-  if (id === 'panelConfig') cfgLoad();
+  if (id === 'panelConfig') { cfgLoad(); catLoad(); }
+}
+
+/* ── CATÁLOGOS DE CIERRE ────────────────────────────────────── */
+function _catFill(c) {
+  document.getElementById('cat-resolucion').value = (c.resolucion || []).join('\n');
+  document.getElementById('cat-proceso').value    = (c.proceso || []).join('\n');
+  document.getElementById('cat-resultado').value  = (c.resultado || [])
+    .map(r => r.children && r.children.length ? `${r.value}: ${r.children.join(', ')}` : r.value).join('\n');
+  document.getElementById('cat-masiva').checked = !!c.ask_masiva;
+  document.getElementById('catMode').textContent = c.configured ? 'Personalizado' : 'Lista genérica';
+}
+async function catLoad() {
+  try {
+    const d = await (await fetch('/api/jira/config/close-catalogs', { credentials:'include' })).json();
+    if (d.success) _catFill(d.data);
+  } catch(e) { console.error('[catalogos]', e); }
+}
+async function catSave() {
+  const lines = id => document.getElementById(id).value.split('\n').map(s => s.trim()).filter(Boolean);
+  const body = {
+    resolucion: lines('cat-resolucion'),
+    proceso:    lines('cat-proceso'),
+    resultado:  lines('cat-resultado').map(l => {
+      const i = l.indexOf(':');
+      return i < 0 ? { value: l, children: [] }
+                   : { value: l.slice(0, i).trim(), children: l.slice(i + 1).split(',').map(s => s.trim()).filter(Boolean) };
+    }).filter(r => r.value),
+    ask_masiva: document.getElementById('cat-masiva').checked,
+  };
+  if (!body.resolucion.length) { toast('Agrega al menos un tipo de resolución', 'err'); return; }
+  const btn = document.getElementById('catSaveBtn');
+  btn.disabled = true;
+  try {
+    const d = await (await fetch('/api/jira/config/close-catalogs', { method:'PUT', credentials:'include',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })).json();
+    if (d.success) { _catFill(d.data); toast('Catálogos guardados'); }
+    else toast(d.message || d.error || 'Error al guardar', 'err');
+  } catch(e) { toast('Error de conexión', 'err'); }
+  finally { btn.disabled = false; }
+}
+async function catReset() {
+  if (!confirm('¿Reemplazar tus catálogos por la lista genérica? Los tickets ya cerrados no cambian.')) return;
+  try {
+    const d = await (await fetch('/api/jira/config/close-catalogs', { method:'DELETE', credentials:'include' })).json();
+    if (d.success) { _catFill(d.data); toast('Se restauró la lista genérica'); }
+    else toast(d.message || d.error || 'Error', 'err');
+  } catch(e) { toast('Error de conexión', 'err'); }
 }
 
 /* ── CONFIG ITSM ────────────────────────────────────────────── */

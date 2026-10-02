@@ -696,6 +696,14 @@ router.post('/ticket/:key/close', authenticateToken, async (req, res) => {
             const { row } = await LocalTickets.load(tenantId(req), key);
             const target = row.internal_status === 'resuelto' ? 'cerrado' : 'resuelto';
             await LocalTickets.changeStatus({ tenantId: tenantId(req), key, status: target, note, actor: _actor(req), io: req.app.get('io') });
+            // Datos de resolución elegidos en el formulario (catálogos de la empresa) para reportes
+            const _v = (x) => (String(x || '').trim().slice(0, 150) || null);
+            await dbQuery(`UPDATE jira_tickets /* tenant_id: clave validada por router.param */
+                           SET resolution_type = COALESCE(?, resolution_type), process_impacted = COALESCE(?, process_impacted),
+                               wp_resultado_padre = COALESCE(?, wp_resultado_padre), wp_resultado_hijo = COALESCE(?, wp_resultado_hijo)
+                           WHERE ticket_key = ?`,
+                [_v(req.body.resolucion), _v(req.body.proceso), _v(req.body.resultado_padre), _v(req.body.resultado_hijo), key])
+                .catch(e => console.warn('[close local] datos de resolución:', e.message));
             return res.json({ success: true, local: true, jiraClosed: false, status: target });
         } catch (e) { return res.status(e.status || 500).json({ success: false, message: e.message }); }
     }

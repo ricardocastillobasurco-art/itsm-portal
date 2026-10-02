@@ -2,9 +2,17 @@ const express = require('express');
 const router  = express.Router();
 const fs      = require('fs');
 const path    = require('path');
-const { authenticateToken } = require('../../middleware/auth');
+const { authenticateToken, requireRole } = require('../../middleware/auth');
+const { executeQuery, equipmentPool } = require('../../config/database');
+const { tenantId } = require('../../src/utils/tenantScope');
+const Catalogs = require('../../src/services/TicketCatalogService');
 
-const SETTINGS_PATH = path.join(__dirname, '../../config/itsm_settings.json');
+// Configuración ITSM por empresa (alertas, escalamiento, NOC), guardada en
+// itsm_automations con la clave 'itsm_settings'. La empresa 1 conserva como
+// valor inicial el antiguo archivo config/itsm_settings.json.
+const LEGACY_PATH = path.join(__dirname, '../../config/itsm_settings.json');
+const SETTINGS_KEY = 'itsm_settings';
+const requireAdmin = requireRole('administrador', 'admin');
 
 const DEFAULTS = {
     sla:        { P1: 60, P2: 240, P3: 480, P4: 1440 },
@@ -13,41 +21,71 @@ const DEFAULTS = {
     noc:        { queue: 'wp', refresh_seconds: 60 }
 };
 
-function getSettings() {
-    try { return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8')); }
-    catch(e) { return { ...DEFAULTS }; }
+function merge(base, over = {}) {
+    return {
+        sla:        { ...base.sla,        ...(over.sla        || {}) },
+        alerts:     { ...base.alerts,     ...(over.alerts     || {}) },
+        escalation: { ...base.escalation, ...(over.escalation || {}) },
+        noc:        { ...base.noc,        ...(over.noc        || {}) },
+    };
 }
 
-function saveSettings(data) {
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(data, null, 2), 'utf8');
+async function getSettings(tid = 1) {
+    tid = Number(tid) || 1;
+    const [row] = await executeQuery(equipmentPool,
+        'SELECT value FROM itsm_automations WHERE tenant_id = ? AND `key` = ? LIMIT 1', [tid, SETTINGS_KEY]);
+    if (row?.value) {
+        try { return merge(DEFAULTS, JSON.parse(row.value)); } catch (_) { /* valor dañado: defaults */ }
+    }
+    if (tid === 1) {
+        try { return merge(DEFAULTS, JSON.parse(fs.readFileSync(LEGACY_PATH, 'utf8'))); } catch (_) {}
+    }
+    return merge(DEFAULTS);
 }
 
-router.get('/config/itsm', authenticateToken, (_req, res) => {
-    res.json({ success: true, data: getSettings() });
+router.get('/config/itsm', authenticateToken, async (req, res) => {
+    try { res.json({ success: true, data: await getSettings(tenantId(req)) }); }
+    catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-router.post('/config/itsm', authenticateToken, (req, res) => {
+router.post('/config/itsm', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const cur = getSettings();
-        const next = {
-            sla:        { ...cur.sla,        ...(req.body.sla        || {}) },
-            alerts:     { ...cur.alerts,     ...(req.body.alerts     || {}) },
-            escalation: { ...cur.escalation, ...(req.body.escalation || {}) },
-            noc:        { ...cur.noc,        ...(req.body.noc        || {}) },
-        };
+        const tid  = tenantId(req);
+        const next = merge(await getSettings(tid), req.body || {});
         // Sanitize numeric fields
         ['P1','P2','P3','P4'].forEach(p => {
             const v = parseInt(next.sla[p]);
-            if (!isNaN(v) && v > 0) next.sla[p] = v;
-            else next.sla[p] = DEFAULTS.sla[p];
+            next.sla[p] = !isNaN(v) && v > 0 ? v : DEFAULTS.sla[p];
         });
         next.alerts.window_minutes = Math.max(1, Math.min(120, parseInt(next.alerts.window_minutes) || 10));
+        next.alerts.breach_notification = !!next.alerts.breach_notification;
+        next.escalation.enabled = !!next.escalation.enabled;
+        next.escalation.emails  = String(next.escalation.emails || '').slice(0, 1000);
+        next.noc.queue = String(next.noc.queue || 'wp').slice(0, 40);
         next.noc.refresh_seconds   = Math.max(15, Math.min(300, parseInt(next.noc.refresh_seconds) || 60));
-        saveSettings(next);
+        await executeQuery(equipmentPool,
+            `INSERT INTO itsm_automations (tenant_id, \`key\`, value) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE value = VALUES(value)`, [tid, SETTINGS_KEY, JSON.stringify(next)]);
         res.json({ success: true, data: next });
     } catch(e) {
         res.status(500).json({ success: false, error: e.message });
     }
+});
+
+// ── Catálogos de cierre (tipo de resolución, proceso, resultado) ────────────
+router.get('/config/close-catalogs', authenticateToken, async (req, res) => {
+    try { res.json({ success: true, data: await Catalogs.getCatalogs(tenantId(req)) }); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+router.put('/config/close-catalogs', authenticateToken, requireAdmin, async (req, res) => {
+    try { res.json({ success: true, data: await Catalogs.saveCatalogs(tenantId(req), req.body || {}) }); }
+    catch (e) { res.status(e.status || 500).json({ success: false, message: e.message }); }
+});
+
+router.delete('/config/close-catalogs', authenticateToken, requireAdmin, async (req, res) => {
+    try { res.json({ success: true, data: await Catalogs.resetCatalogs(tenantId(req)) }); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
 module.exports = router;

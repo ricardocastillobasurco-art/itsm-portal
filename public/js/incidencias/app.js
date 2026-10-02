@@ -4732,65 +4732,28 @@ function renderTicket(issue, opts) {
       <!-- CERRAR INLINE -->
       <div class="cerrar-inline" id="cerrar-${key}" style="display:none; padding:12px; border:1px solid rgba(239,68,68,.3); border-radius:8px; margin-top:8px; background:var(--bg-card);">
         <div style="font-size:11px;color:#ef4444;font-family:monospace;margin-bottom:10px;text-transform:uppercase;">Cerrar incidencia · ${key}</div>
-        <select id="cerrar-res-${key}"              style="display:none;"><option value="Resuelto" selected>Resuelto</option></select>
-        <select id="cerrar-proc-${key}"             style="display:none;"><option value="WORKPLACE" selected>WORKPLACE</option></select>
-        <select id="cerrar-masiva-${key}"           style="display:none;"><option value="NO" selected>NO</option></select>
-        <select id="cerrar-resultado-padre-${key}"  style="display:none;"><option value="Workplace" selected>Workplace</option></select>
-        <select id="cerrar-resultado-hijo-${key}"   style="display:none;"><option value="Workplace" selected>Workplace</option></select>
         <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:5px;text-transform:uppercase;">Comentario de cierre *</div>
         <textarea id="cerrar-com-${key}" class="form-control-custom" rows="3" placeholder="Describe cómo se resolvió el problema..." style="resize:vertical;margin-bottom:8px;border-color:rgba(239,68,68,.4);"></textarea>
         <div style="margin-bottom:10px;">
-          <button class="btn-outline-sm" style="font-size:11px;" onclick="toggleAvanzado('${key}')"><i class="bi bi-chevron-down"></i> Opciones avanzadas — Resolución: <b id="lbl-res-${key}">Resuelto · Workplace · Workplace</b></button>
-          <div id="avanzado-${key}" style="display:none;margin-top:10px;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <div>
-                <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:4px;text-transform:uppercase;">Tipo de resolución</div>
-                <select id="cerrar-res-adv-${key}" onchange="actualizarLabel('${key}')" class="form-select-custom" style="font-size:12px;padding:7px 10px;">
-                  <option>Resuelto</option><option>Reinicio de servicio</option><option>Aplicación de workaround</option>
-                  <option>Orientación al usuario</option><option>Sin acción correctiva</option>
-                  <option>Ticket duplicado</option><option>Cese de alarma</option>
-                  <option>Resueltos por tren</option><option>Desarrollo de Hotfix</option><option>Cierre masivo</option>
-                </select>
-              </div>
-              <div>
-                <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:4px;text-transform:uppercase;">Proceso impactado</div>
-                <select id="cerrar-proc-adv-${key}" onchange="actualizarLabel('${key}')" class="form-select-custom" style="font-size:12px;padding:7px 10px;">
-                  <option>WORKPLACE</option><option>PLATAFORMAS</option><option>LOGIN APP MIMOVISTAR</option>
-                  <option>ECOMMERCE</option><option>VENTAS MOVIL</option><option>VENTAS FIJA</option>
-                  <option>AVERÍAS</option><option>RECLAMOS</option><option>ALERTA P1</option>
-                  <option>PORT IN</option><option>PORT OUT</option><option>JIRA</option>
-                  <option>SISTEMAS</option><option>INFRAESTRUCTURA</option>
-                </select>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <div>
-                <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:4px;text-transform:uppercase;">Resultado (padre)</div>
-                <select id="cerrar-rpadre-adv-${key}" onchange="updateResultadoHijoAdv('${key}');actualizarLabel('${key}')" class="form-select-custom" style="font-size:12px;padding:7px 10px;">
-                  <option>Workplace</option><option>Amdocs</option><option>Infraestructura</option>
-                  <option>Automatismo</option><option>Otros</option><option>Asociado a PaP</option>
-                  <option>Deuda técnica</option><option>Resuelto en N3</option>
-                  <option>Seguridad</option><option>Servicios Externos</option>
-                </select>
-              </div>
-              <div>
-                <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:4px;text-transform:uppercase;">Resultado (hijo)</div>
-                <select id="cerrar-rhijo-adv-${key}" onchange="actualizarLabel('${key}')" class="form-select-custom" style="font-size:12px;padding:7px 10px;">
-                  <option>Workplace</option><option>Sin acción - Orden completada</option><option>Sin acción - Orden cancelada</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:4px;text-transform:uppercase;">¿Es incidencia masiva?</div>
-              <select id="cerrar-masiva-adv-${key}" class="form-select-custom" style="width:160px;font-size:12px;padding:7px 10px;">
-                <option value="NO">NO</option><option value="SI">SI</option>
-              </select>
+          <button class="btn-outline-sm" style="font-size:11px;" onclick="toggleAvanzado('${key}',this)"><i class="bi bi-chevron-down"></i> Datos de resolución: <b id="lbl-res-${key}">Resuelto</b></button>
+          <div id="avanzado-${key}" class="close-adv" style="display:none;margin-top:10px;">
+            <div class="close-grid">
+              <label>Tipo de resolución
+                <select id="cerrar-res-adv-${key}" onchange="actualizarLabel('${key}')" class="form-select-custom"></select></label>
+              <label data-cat="proceso">Proceso impactado
+                <select id="cerrar-proc-adv-${key}" onchange="actualizarLabel('${key}')" class="form-select-custom"></select></label>
+              <label data-cat="resultado">Resultado
+                <select id="cerrar-rpadre-adv-${key}" onchange="updateResultadoHijoAdv('${key}');actualizarLabel('${key}')" class="form-select-custom"></select></label>
+              <label data-cat="resultado">Detalle
+                <select id="cerrar-rhijo-adv-${key}" onchange="actualizarLabel('${key}')" class="form-select-custom"></select></label>
+              <label data-cat="masiva">¿Es incidencia masiva?
+                <select id="cerrar-masiva-adv-${key}" class="form-select-custom"><option value="NO">NO</option><option value="SI">SI</option></select></label>
             </div>
           </div>
         </div>
         <div style="display:flex;gap:8px;">
-          <button class="btn-outline-sm" style="border-color:#ef4444;color:#ef4444;font-size:12px;" id="btnCerrar-${key}" onclick="ejecutarCierre('${key}')"><i class="bi bi-check2-circle"></i> Confirmar cierre</button>
-          <button class="btn-outline-sm" style="font-size:12px;" onclick="toggleCerrarInc('${key}')">Cancelar</button>
+          <button class="btn-outline-sm" style="border-color:#ef4444;color:#ef4444;font-size:12px;" id="btnCerrar-${key}" onclick="ejecutarCierre('${key}',this)"><i class="bi bi-check2-circle"></i> Confirmar cierre</button>
+          <button class="btn-outline-sm" style="font-size:12px;" onclick="toggleCerrarInc('${key}',this)">Cancelar</button>
         </div>
       </div>
 
@@ -4891,6 +4854,7 @@ function toggleCerrarInc(key, btn) {
     if (!el) return;
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
     if (el.style.display === 'block') {
+        fillCloseForm(key, el);
         const card = el.closest('.ticket-card');
         if (card) {
             card.querySelector('#asig-'+key)?.style.setProperty('display','none');
@@ -7528,37 +7492,75 @@ async function ejecutarComentar(key) {
 }
 
 // ── Cascada Resultado (definido en ticket-card.js — no redeclarar) ────────────
-function updateResultadoHijoAdv(key) {
-    const padre = document.getElementById(`cerrar-rpadre-adv-${key}`)?.value||'';
-    const sel   = document.getElementById(`cerrar-rhijo-adv-${key}`);
-    if (!sel) return;
-    sel.innerHTML = (RESULTADO_HIJOS[padre]||[]).map(h=>`<option>${h}</option>`).join('');
+// ── Catálogos de cierre de la empresa (Administración → Catálogos de cierre) ──
+let _closeCat = null, _closeCatP = null;
+function loadCloseCatalogs(force) {
+    if (_closeCat && !force) return Promise.resolve(_closeCat);
+    if (!_closeCatP || force) {
+        _closeCatP = fetch('/api/jira/config/close-catalogs', { credentials: 'include' })
+            .then(r => r.json()).then(j => (_closeCat = j.success ? j.data : null))
+            .catch(() => null).finally(() => { _closeCatP = null; });
+    }
+    return _closeCatP;
 }
-function toggleAvanzado(key) {
-    const el = document.getElementById(`avanzado-${key}`);
+function _closeRoot(key, el) {
+    return (el && el.closest && el.closest('.ticket-card')?.querySelector('#cerrar-' + key)) ||
+           document.getElementById('card-' + key)?.querySelector('#cerrar-' + key) ||
+           document.getElementById('cerrar-' + key);
+}
+const _cf = (root, id) => root?.querySelector('[id="' + id + '"]');
+const _opts = (list) => (list || []).map(v => `<option>${incEsc(v)}</option>`).join('');
+async function fillCloseForm(key, el) {
+    const root = _closeRoot(key, el);
+    if (!root || root.dataset.filled) return;
+    const cat = await loadCloseCatalogs();
+    if (!cat) return;
+    root.dataset.filled = '1';
+    _cf(root, `cerrar-res-adv-${key}`).innerHTML  = _opts(cat.resolucion);
+    _cf(root, `cerrar-proc-adv-${key}`).innerHTML = _opts(cat.proceso);
+    _cf(root, `cerrar-rpadre-adv-${key}`).innerHTML = _opts((cat.resultado || []).map(r => r.value));
+    root.querySelectorAll('[data-cat="proceso"]').forEach(l => l.style.display = cat.proceso?.length ? '' : 'none');
+    root.querySelectorAll('[data-cat="resultado"]').forEach(l => l.style.display = cat.resultado?.length ? '' : 'none');
+    root.querySelectorAll('[data-cat="masiva"]').forEach(l => l.style.display = cat.ask_masiva ? '' : 'none');
+    updateResultadoHijoAdv(key, root);
+    actualizarLabel(key, root);
+}
+function updateResultadoHijoAdv(key, root) {
+    root = root || _closeRoot(key);
+    const padre = _cf(root, `cerrar-rpadre-adv-${key}`)?.value || '';
+    const sel   = _cf(root, `cerrar-rhijo-adv-${key}`);
+    if (!sel) return;
+    const node  = (_closeCat?.resultado || []).find(r => r.value === padre);
+    sel.innerHTML = _opts(node?.children);
+    sel.closest('label').style.display = node?.children?.length ? '' : 'none';
+}
+function toggleAvanzado(key, btn) {
+    const el = _cf(_closeRoot(key, btn), `avanzado-${key}`);
     if (el) el.style.display = el.style.display==='none'||!el.style.display ? 'block' : 'none';
 }
-function actualizarLabel(key) {
-    const res   = document.getElementById(`cerrar-res-adv-${key}`)?.value||'Resuelto';
-    const padre = document.getElementById(`cerrar-rpadre-adv-${key}`)?.value||'Workplace';
-    const hijo  = document.getElementById(`cerrar-rhijo-adv-${key}`)?.value||'Workplace';
-    const lbl   = document.getElementById(`lbl-res-${key}`);
-    if (lbl) lbl.textContent = `${res} · ${padre} · ${hijo}`;
+function actualizarLabel(key, root) {
+    root = root || _closeRoot(key);
+    const val = (id) => { const s = _cf(root, id); return s && s.closest('label')?.style.display !== 'none' ? s.value : ''; };
+    const parts = [val(`cerrar-res-adv-${key}`), val(`cerrar-proc-adv-${key}`), val(`cerrar-rpadre-adv-${key}`), val(`cerrar-rhijo-adv-${key}`)].filter(Boolean);
+    const lbl = _cf(root, `lbl-res-${key}`);
+    if (lbl) lbl.textContent = parts.join(' · ') || 'Resuelto';
 }
 
 // ── Cerrar ticket ─────────────────────────────────────────────────────────────
-async function ejecutarCierre(key) {
-    const advEl      = document.getElementById(`avanzado-${key}`);
-    const advVisible = advEl && advEl.style.display !== 'none';
-    const resolucion = (advVisible ? document.getElementById(`cerrar-res-adv-${key}`)?.value   : null) || 'Resuelto';
-    const proceso    = (advVisible ? document.getElementById(`cerrar-proc-adv-${key}`)?.value  : null) || 'WORKPLACE';
-    const resPadre   = (advVisible ? document.getElementById(`cerrar-rpadre-adv-${key}`)?.value: null) || 'Workplace';
-    const resHijo    = (advVisible ? document.getElementById(`cerrar-rhijo-adv-${key}`)?.value : null) || 'Workplace';
-    const masiva     = (advVisible ? document.getElementById(`cerrar-masiva-adv-${key}`)?.value: null) || 'NO';
-    const baseComment = document.getElementById(`cerrar-com-${key}`)?.value.trim();
+async function ejecutarCierre(key, srcBtn) {
+    const root = _closeRoot(key, srcBtn);
+    await fillCloseForm(key, root);
+    // Solo se envían los datos que la empresa usa (los selects ocultos no aplican)
+    const val = (id) => { const s = _cf(root, id); return s && s.closest('label')?.style.display !== 'none' ? (s.value || undefined) : undefined; };
+    const resolucion = val(`cerrar-res-adv-${key}`) || 'Resuelto';
+    const proceso    = val(`cerrar-proc-adv-${key}`);
+    const resPadre   = val(`cerrar-rpadre-adv-${key}`);
+    const resHijo    = val(`cerrar-rhijo-adv-${key}`);
+    const masiva     = val(`cerrar-masiva-adv-${key}`) || 'NO';
+    const baseComment = _cf(root, `cerrar-com-${key}`)?.value.trim();
     if (!baseComment) { showToast('Agrega un comentario de cierre','error'); return; }
 
-    const btn = document.getElementById(`btnCerrar-${key}`);
+    const btn = _cf(root, `btnCerrar-${key}`);
     if (btn) { btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split"></i> Cerrando...'; }
 
     try {
@@ -7591,7 +7593,7 @@ async function ejecutarCierre(key) {
 // ── Reload card individual ────────────────────────────────────────────────────
 async function reloadCard(key) {
     try {
-        const issue = await jira('GET', `/rest/api/3/issue/${key}?fields=summary,status,assignee,reporter,priority,created,updated,comment,description`);
+        const issue = await jira('GET', `/rest/api/3/issue/${key}?fields=summary,status,assignee,reporter,priority,created,updated,comment,description,attachment`);
         const card  = document.getElementById('card-'+key);
         if (card) {
             const tmp = document.createElement('div');

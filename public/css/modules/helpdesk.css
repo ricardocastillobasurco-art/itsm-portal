@@ -397,6 +397,11 @@
 .tc-count { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 2px; border-radius: 9px; background: var(--jira-blue); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
 .tc-dot   { display: inline-block; width: 6px; height: 6px; margin-left: 2px; border-radius: 50%; background: #8b5cf6; vertical-align: middle; }
 
+/* datos de resolución (formulario de cierre) */
+.close-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.close-grid label { display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: 10px; font-family: monospace; color: var(--text-muted); text-transform: uppercase; }
+.close-grid select { font-size: 12px; padding: 7px 10px; text-transform: none; font-family: inherit; }
+
 /* menú "Más" de la tarjeta */
 .tc-more { position: relative; }
 .tc-more-menu { display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 50; min-width: 200px; padding: 4px; background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 10px; box-shadow: 0 8px 28px rgba(15,23,42,.16); }

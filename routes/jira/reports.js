@@ -315,7 +315,7 @@ router.get('/local/stats', authenticateToken, async (req, res) => {
 
 router.get('/alerts', authenticateToken, async (req, res) => {
     try {
-        const _cfg   = getItsmSettings();
+        const _cfg   = await getItsmSettings(tenantId(req));
         const _win   = Math.max(1, parseInt(_cfg?.alerts?.window_minutes) || 10);
         // source=local → solo TK-%; default → todos (INC-% + TK-%)
         const srcFilter = req.query.source === 'local' ? `AND ticket_key LIKE 'TK-%'` : '';
