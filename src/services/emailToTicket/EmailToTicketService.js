@@ -8,16 +8,14 @@
 // normalizados { messageId, from: { email, name }, subject, text, autoSubmitted,
 // attachments: [{ filename, contentType, content: Buffer, inline }] }.
 
-const fs     = require('fs');
-const path   = require('path');
 const crypto = require('crypto');
 const { executeQuery, equipmentPool } = require('../../../config/database');
+const { saveLocalAttachment } = require('../../utils/ticketAttachments');
 const logger = require('../../utils/logger');
 const LocalTickets = require('../localTickets/LocalTicketService');
 
 const q = (sql, params = []) => executeQuery(equipmentPool, sql, params);
 
-const UPLOAD_DIR       = path.join(__dirname, '../../../uploads/tickets');
 const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
 const MAX_ATTACHMENTS  = 10;
 const MAX_PER_SENDER_H = 10;   // tickets nuevos por remitente y hora (anti-spam / anti-bucle)
@@ -77,18 +75,14 @@ async function saveAttachments(ticketKey, msg) {
     .filter(a => !(a.inline && /^image\//.test(a.contentType || '') && a.content.length < 20 * 1024))
     .slice(0, MAX_ATTACHMENTS);
   if (!files.length) return 0;
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  let saved = 0;
   for (const a of files) {
-    const original = String(a.filename || 'adjunto').replace(/[\\/]/g, '_').slice(0, 200);
-    const filename = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${path.extname(original).slice(0, 10)}`;
-    const full = path.join(UPLOAD_DIR, filename);
-    fs.writeFileSync(full, a.content);
-    await q(`INSERT INTO ticket_attachments /* tenant_id: ticket padre recién validado */
-               (ticket_id, user_id, filename, original, originalname, mimetype, size_bytes, size, path)
-             VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?)`,
-      [ticketKey, filename, original, original, a.contentType || 'application/octet-stream', a.content.length, a.content.length, full]);
+    try {
+      await saveLocalAttachment({ key: ticketKey, original: a.filename || 'adjunto', mimetype: a.contentType, buffer: a.content });
+      saved++;
+    } catch (e) { if (!e.status) throw e; /* tipo bloqueado: se omite */ }
   }
-  return files.length;
+  return saved;
 }
 
 // Comentario y alta pasan por el motor local: mismas reglas, SLA y avisos que el resto de canales

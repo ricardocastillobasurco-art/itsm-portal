@@ -1418,14 +1418,14 @@ async function loadAttachments(key, listEl) {
             return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-soft,#e2e8f0);">
                 <i class="bi ${icon}" style="font-size:20px;color:#0891b2;flex-shrink:0;"></i>
                 <div style="flex:1;min-width:0;">
-                    <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${a.originalname}">${a.originalname}</div>
-                    <div style="font-size:11px;color:var(--text-muted);">${kb} KB · ${a.uploader_name||'—'} · ${new Date(a.created_at).toLocaleDateString('es-PE')}</div>
+                    <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${incEsc(a.originalname||a.original||'')}">${incEsc(a.originalname||a.original||'')}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">${kb} KB · ${incEsc(a.uploader_name||'—')} · ${new Date(a.created_at).toLocaleDateString('es-PE')}</div>
                 </div>
                 <a href="/api/jira/ticket/${key}/attachments/${a.id}/download" target="_blank" class="btn-outline-sm" style="padding:4px 10px;font-size:11px;text-decoration:none;" title="Ver / Descargar"><i class="bi bi-eye"></i></a>
                 <button onclick="deleteAttachment('${key}',${a.id})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:4px;" title="Eliminar"><i class="bi bi-trash"></i></button>
             </div>`;
         }).join('');
-    } catch(e) { listEl.innerHTML = `<div style="color:#ef4444;font-size:12px;">${e.message}</div>`; }
+    } catch(e) { listEl.innerHTML = `<div style="color:#ef4444;font-size:12px;">${incEsc(e.message)}</div>`; }
 }
 async function uploadAttachment() {
     const file = document.getElementById('attFileInput').files[0];
@@ -1834,11 +1834,11 @@ async function openHistory(key) {
 
         // Timeline
         const evIcons = {creacion:'bi-plus-circle-fill',asignacion:'bi-person-check-fill',
-                         cambio_estado:'bi-arrow-repeat',cierre:'bi-lock-fill',comentario:'bi-chat-fill'};
+                         cambio_estado:'bi-arrow-repeat',cierre:'bi-lock-fill',comentario:'bi-chat-fill',adjunto:'bi-paperclip'};
         const evColors= {creacion:'#0052CC',asignacion:'#7c3aed',cambio_estado:'#f59e0b',
-                         cierre:'#10b981',comentario:'#64748b'};
+                         cierre:'#10b981',comentario:'#64748b',adjunto:'#0891b2'};
         const evLabel = {creacion:'Creación',asignacion:'Asignación',cambio_estado:'Cambio de estado',
-                         cierre:'Cierre',comentario:'Comentario'};
+                         cierre:'Cierre',comentario:'Comentario',adjunto:'Adjunto'};
 
         const allEvents = [
             { evento:'creacion', user_name: ticket.reporter||'—', detalle:`Incidencia creada. Prioridad: ${ticket.priority||'—'}. ${ticket.summary||''}`, created_at: ticket.created_at },
@@ -4626,6 +4626,8 @@ function renderTicket(issue, opts) {
     const _creTime = f.created ? new Date(f.created).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : '';
     const _slaChip = _slaFlag; // backward-compat alias
     const _hasNote = typeof localStorage !== 'undefined' && !!localStorage.getItem('itsmNote_'+key);
+    const _isLocal = /^(TK|RQ)-/.test(key);
+    const _attCount = Array.isArray(f.attachment) ? f.attachment.length : 0;
 
     return `<div class="ticket-card" id="card-${key}" style="border-left:4px solid ${_bdrClr};${_bgClr ? 'background:'+_bgClr+';' : ''}">
       <div class="tc-top">
@@ -4666,16 +4668,38 @@ function renderTicket(issue, opts) {
       : ''}
       <div class="tc-actions">
         <button class="btn-outline-sm" style="font-size:12px;color:var(--jira-blue);border-color:rgba(0,82,204,0.3);" onclick="asignarDirecto('${key}')"><i class="bi bi-person-check-fill"></i> Asignarme</button>
-        ${!isClosed_ && asgn && asgn !== 'Sin asignar' ? `<button class="btn-outline-sm" style="font-size:12px;color:#dc2626;border-color:rgba(220,38,38,0.35);" onclick="desasignarme('${key}',this)"><i class="bi bi-person-dash"></i> Desasignarme</button>` : ''}
         <button class="btn-outline-sm" style="font-size:12px;" onclick="toggleAsigInc('${key}',this)"><i class="bi bi-people"></i> Reasignar</button>
         <button class="btn-outline-sm" style="font-size:12px;" onclick="toggleComentarInc('${key}',this)"><i class="bi bi-chat-dots"></i> Comentar</button>
-        ${isPend_ ? `<button class="btn-outline-sm" style="font-size:12px;color:#6366f1;border-color:rgba(99,102,241,.4);" onclick="toggleReanudarInc('${key}',this)"><i class="bi bi-arrow-counterclockwise"></i> Reanudar</button>` : ''}
-        ${isActive_ ? `<button class="btn-outline-sm" style="font-size:12px;color:#b45309;border-color:rgba(234,179,8,.4);" onclick="togglePendienteInc('${key}',this)"><i class="bi bi-pause-circle"></i> Poner en Pendiente</button>` : ''}
-        ${!isClosed_ ? `<button class="btn-outline-sm" style="border-color:#ef4444;color:#ef4444;font-size:12px;" onclick="toggleCerrarInc('${key}',this)"><i class="bi bi-check2-circle"></i> Cerrar incidencia</button>` : (key.startsWith('TK-') ? '<span style="font-size:11px;color:var(--text-muted);font-family:monospace;">✓ cerrado</span>' : '')}
-        ${!isClosed_ && !key.startsWith('TK-') ? `<button class="btn-outline-sm" style="font-size:12px;color:#0f172a;border-color:rgba(15,23,42,.35);" onclick="openDeriveModal('${key}')"><i class="bi bi-arrow-right-circle"></i> Derivar</button>` : ''}
-        <button class="btn-outline-sm" style="font-size:12px;color:#6366f1;border-color:rgba(99,102,241,.3);" onclick="openTimeline('${key}')"><i class="bi bi-clock-history"></i> Timeline</button>
-        <button class="btn-outline-sm" id="noteBtn-${key}" style="font-size:12px;${_hasNote ? 'color:#8b5cf6;border-color:rgba(139,92,246,.4);' : ''}" onclick="toggleNoteInc('${key}',this)"><i class="bi bi-sticky${_hasNote ? '-fill' : ''}"></i> Nota${_hasNote ? ' ·' : ''}</button>
-        <a href="${JIRA_BASE}/browse/${key}" target="_blank" class="btn-outline-sm" style="font-size:12px;text-decoration:none;margin-left:auto;"><i class="bi bi-box-arrow-up-right"></i> Jira</a>
+        <button class="btn-outline-sm" style="font-size:12px;" onclick="toggleAdjInc('${key}',this)" title="Fotos, capturas y archivos del ticket"><i class="bi bi-paperclip"></i> Adjuntos${_attCount ? ` <span class="tc-count">${_attCount}</span>` : ''}</button>
+        ${!isClosed_ ? `<button class="btn-outline-sm" style="border-color:#ef4444;color:#ef4444;font-size:12px;" onclick="toggleCerrarInc('${key}',this)"><i class="bi bi-check2-circle"></i> Cerrar incidencia</button>` : (_isLocal ? '<span style="font-size:11px;color:var(--text-muted);font-family:monospace;">✓ cerrado</span>' : '')}
+        <div class="tc-more">
+          <button class="btn-outline-sm" style="font-size:12px;" onclick="toggleMoreInc(this,event)" aria-haspopup="true" title="Más acciones"><i class="bi bi-three-dots"></i> Más${_hasNote ? ' <span class="tc-dot" title="Tiene nota"></span>' : ''}</button>
+          <div class="tc-more-menu" role="menu">
+            ${isPend_ ? `<button role="menuitem" style="color:#6366f1;" onclick="toggleReanudarInc('${key}',this)"><i class="bi bi-arrow-counterclockwise"></i> Reanudar</button>` : ''}
+            ${isActive_ ? `<button role="menuitem" style="color:#b45309;" onclick="togglePendienteInc('${key}',this)"><i class="bi bi-pause-circle"></i> Poner en pendiente</button>` : ''}
+            ${!isClosed_ && asgn && asgn !== 'Sin asignar' ? `<button role="menuitem" style="color:#dc2626;" onclick="desasignarme('${key}',this)"><i class="bi bi-person-dash"></i> Desasignarme</button>` : ''}
+            ${!isClosed_ && !_isLocal ? `<button role="menuitem" onclick="openDeriveModal('${key}')"><i class="bi bi-arrow-right-circle"></i> Derivar</button>` : ''}
+            <button role="menuitem" onclick="openTimeline('${key}')"><i class="bi bi-clock-history"></i> Timeline</button>
+            <button role="menuitem" id="noteBtn-${key}" style="${_hasNote ? 'color:#8b5cf6;' : ''}" onclick="toggleNoteInc('${key}',this)"><i class="bi bi-sticky${_hasNote ? '-fill' : ''}"></i> Nota privada${_hasNote ? ' ·' : ''}</button>
+          </div>
+        </div>
+        ${_isLocal ? '' : `<a href="${JIRA_BASE}/browse/${key}" target="_blank" rel="noopener" class="btn-outline-sm" style="font-size:12px;text-decoration:none;margin-left:auto;" title="Abrir en Jira"><i class="bi bi-box-arrow-up-right"></i> Jira</a>`}
+      </div>
+
+      <!-- ADJUNTOS INLINE -->
+      <div class="asig-inline adj-panel" id="adj-${key}" style="display:none;" data-key="${key}">
+        <div class="adj-head">
+          <span><i class="bi bi-paperclip"></i> Adjuntos · ${key}</span>
+          <button class="btn-outline-sm" style="font-size:11px;padding:2px 8px;" onclick="toggleAdjInc('${key}',this)">✕</button>
+        </div>
+        <label class="adj-drop" tabindex="0">
+          <input type="file" multiple hidden onchange="adjUploadInc('${key}',this.files,this)">
+          <i class="bi bi-cloud-arrow-up"></i>
+          <span><b>Arrastra fotos o archivos aquí</b>, haz clic para elegirlos o pega una captura con <kbd>Ctrl</kbd>+<kbd>V</kbd></span>
+          <small>Hasta 10 archivos · 20 MB cada uno${_isLocal ? '' : ' · se guardan en Jira'}</small>
+        </label>
+        <div class="adj-progress"></div>
+        <div class="adj-list"><span class="adj-empty">Cargando…</span></div>
       </div>
 
       <!-- COMENTAR INLINE -->
@@ -4888,11 +4912,169 @@ function toggleComentarInc(key, btn) {
     }
 }
 function _closeAllInc(key, card) {
-    ['asig','cerrar','comentar','pendiente','reanudar','trans'].forEach(p => {
+    ['asig','cerrar','comentar','pendiente','reanudar','trans','adj'].forEach(p => {
         const el = (card ? card.querySelector('#'+p+'-'+key) : null) || document.getElementById(`${p}-${key}`);
         if (el) el.style.display = 'none';
     });
 }
+// ── Menú "Más" de la tarjeta ─────────────────────────────────────────────────
+function toggleMoreInc(btn, ev) {
+    ev?.stopPropagation();
+    const wrap = btn.closest('.tc-more');
+    const open = wrap.classList.contains('open');
+    document.querySelectorAll('.tc-more.open').forEach(m => m.classList.remove('open'));
+    if (!open) wrap.classList.add('open');
+}
+document.addEventListener('click', (e) => {
+    // Cualquier clic fuera del menú (o en una de sus opciones) lo cierra
+    if (!e.target.closest('.tc-more') || e.target.closest('.tc-more-menu button')) {
+        document.querySelectorAll('.tc-more.open').forEach(m => m.classList.remove('open'));
+    }
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.querySelectorAll('.tc-more.open').forEach(m => m.classList.remove('open'));
+});
+
+// ── Adjuntos (evidencias) ────────────────────────────────────────────────────
+// Ticket de Jira → se suben a Jira; TK-/RQ- → almacenamiento local. Mismo panel para ambos.
+const ADJ_MAX_MB = 20;
+function _adjSize(b) { b = +b || 0; return b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB'; }
+function _adjIcon(mime, name) {
+    const n = String(name || '').toLowerCase();
+    if (/pdf/.test(mime) || n.endsWith('.pdf')) return 'bi-file-earmark-pdf-fill" style="color:#dc2626';
+    if (/sheet|excel|csv/.test(mime) || /\.(xlsx?|csv)$/.test(n)) return 'bi-file-earmark-spreadsheet-fill" style="color:#16a34a';
+    if (/word|document/.test(mime) || /\.docx?$/.test(n)) return 'bi-file-earmark-word-fill" style="color:#2563eb';
+    if (/zip|compressed|rar|7z/.test(mime) || /\.(zip|rar|7z)$/.test(n)) return 'bi-file-earmark-zip-fill" style="color:#a16207';
+    if (/^video\//.test(mime)) return 'bi-file-earmark-play-fill" style="color:#7c3aed';
+    if (/^text\/|log$/.test(mime) || /\.(txt|log)$/.test(n)) return 'bi-file-earmark-text-fill" style="color:#64748b';
+    return 'bi-file-earmark-fill" style="color:#64748b';
+}
+function _adjPanel(key, btn) {
+    return (btn && btn.closest('.ticket-card')?.querySelector('#adj-' + key)) || document.getElementById('adj-' + key);
+}
+function toggleAdjInc(key, btn) {
+    const el = _adjPanel(key, btn);
+    if (!el) return;
+    const card = el.closest('.ticket-card');
+    const wasOpen = el.style.display !== 'none';
+    _closeAllInc(key, card);
+    if (wasOpen) return;
+    el.style.display = 'block';
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    loadAdjInc(key, el);
+}
+async function loadAdjInc(key, panel) {
+    panel = panel || _adjPanel(key);
+    const list = panel?.querySelector('.adj-list');
+    if (!list) return;
+    try {
+        const r = await fetch(`/api/jira/ticket/${encodeURIComponent(key)}/files`, { credentials: 'include' });
+        const j = await r.json();
+        if (!j.success) throw new Error(j.message || 'No se pudo cargar');
+        _adjSetCount(key, j.data.length);
+        const warn = j.jiraError ? `<div class="adj-warn"><i class="bi bi-exclamation-triangle"></i> ${incEsc(j.jiraError)}</div>` : '';
+        if (!j.data.length) { list.innerHTML = warn + '<span class="adj-empty">Aún no hay adjuntos. Sube una foto o captura del problema.</span>'; return; }
+        list.innerHTML = warn + j.data.map(a => {
+            const meta = [_adjSize(a.size), a.author, a.created ? incFmtDate(a.created) : ''].filter(Boolean).map(incEsc).join(' · ');
+            const prev = a.thumb
+                ? `<img src="${incEsc(a.thumb)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'bi bi-image'}))">`
+                : `<i class="bi ${_adjIcon(a.mime, a.name)}"></i>`;
+            return `<a class="adj-item${a.thumb ? ' is-img' : ''}" href="${incEsc(a.url)}" target="_blank" rel="noopener" title="${incEsc(a.name)}">
+                      <span class="adj-prev">${prev}</span>
+                      <span class="adj-name">${incEsc(a.name)}</span>
+                      <span class="adj-meta">${meta}</span>
+                    </a>`;
+        }).join('');
+    } catch (e) {
+        list.innerHTML = `<span class="adj-empty" style="color:#ef4444;">Error: ${incEsc(e.message)}</span>`;
+    }
+}
+function _adjSetCount(key, n) {
+    document.querySelectorAll(`#card-${CSS.escape(key)} .tc-actions [onclick^="toggleAdjInc"]`).forEach(b => {
+        b.innerHTML = `<i class="bi bi-paperclip"></i> Adjuntos${n ? ` <span class="tc-count">${n}</span>` : ''}`;
+    });
+}
+function adjUploadInc(key, fileList, srcEl) {
+    const panel = (srcEl && srcEl.closest('.adj-panel')) || _adjPanel(key);
+    const files = Array.from(fileList || []);
+    if (srcEl && srcEl.tagName === 'INPUT') srcEl.value = '';
+    if (!files.length || !panel) return;
+    if (files.length > 10) { showToast('Máximo 10 archivos por envío', 'error'); return; }
+    const big = files.find(f => f.size > ADJ_MAX_MB * 1048576);
+    if (big) { showToast(`"${big.name}" supera ${ADJ_MAX_MB} MB`, 'error'); return; }
+
+    const prog = panel.querySelector('.adj-progress');
+    const label = files.length === 1 ? files[0].name : `${files.length} archivos`;
+    const row = document.createElement('div');
+    row.className = 'adj-up';
+    row.innerHTML = `<span class="adj-up-name"><i class="bi bi-arrow-up-circle"></i> ${incEsc(label)}</span><span class="adj-bar"><span></span></span><span class="adj-pct">0%</span>`;
+    prog.appendChild(row);
+    const bar = row.querySelector('.adj-bar span'), pct = row.querySelector('.adj-pct');
+
+    const fd = new FormData();
+    files.forEach(f => fd.append('files', f, f.name));
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/jira/ticket/${encodeURIComponent(key)}/files`);
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const p = Math.min(99, Math.round(e.loaded / e.total * 100));
+        bar.style.width = p + '%'; pct.textContent = p + '%';
+    };
+    xhr.onload = () => {
+        let j = {};
+        try { j = JSON.parse(xhr.responseText); } catch (_) {}
+        if (xhr.status >= 200 && xhr.status < 300 && j.success) {
+            bar.style.width = '100%'; pct.textContent = '✓';
+            row.classList.add('ok');
+            showToast(j.message || 'Adjunto agregado', 'success');
+            setTimeout(() => row.remove(), 1500);
+            loadAdjInc(key, panel);
+        } else {
+            row.classList.add('err');
+            pct.textContent = '✕';
+            row.querySelector('.adj-up-name').innerHTML += ` — <span>${incEsc(j.message || 'Error HTTP ' + xhr.status)}</span>`;
+            setTimeout(() => row.remove(), 6000);
+        }
+    };
+    xhr.onerror = () => { row.classList.add('err'); pct.textContent = '✕'; showToast('Sin conexión con el servidor', 'error'); };
+    xhr.send(fd);
+}
+// Arrastrar y soltar sobre la zona de carga de cualquier tarjeta
+['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, (e) => {
+    const z = e.target.closest?.('.adj-drop');
+    if (!z) return;
+    e.preventDefault();
+    z.classList.add('drag');
+}));
+['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, (e) => {
+    const z = e.target.closest?.('.adj-drop');
+    if (!z) return;
+    e.preventDefault();
+    z.classList.remove('drag');
+    if (ev === 'drop' && e.dataTransfer?.files?.length) {
+        const panel = z.closest('.adj-panel');
+        adjUploadInc(panel.dataset.key, e.dataTransfer.files, z);
+    }
+}));
+document.addEventListener('keydown', (e) => {
+    const z = e.target.closest?.('.adj-drop');
+    if (z && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); z.querySelector('input')?.click(); }
+});
+// Ctrl+V: pega capturas de pantalla en el panel de adjuntos abierto
+document.addEventListener('paste', (e) => {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (!files.length) return;
+    if (e.target.closest?.('textarea, input:not([type=file])')) return;
+    const panel = Array.from(document.querySelectorAll('.adj-panel')).find(p => p.style.display !== 'none' && p.offsetParent);
+    if (!panel) return;
+    e.preventDefault();
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+    const named = files.map((f, i) => (f.name && f.name !== 'image.png') ? f
+        : new File([f], `captura-${stamp}${i ? '-' + i : ''}.${(f.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`, { type: f.type }));
+    adjUploadInc(panel.dataset.key, named, panel);
+});
+
 function togglePendienteInc(key, btn) {
     const el = _cardEl(btn, 'pendiente-'+key);
     if (!el) return;
@@ -5122,7 +5304,7 @@ async function loadMisAsig() {
         todos:     `project = INC AND assignee = "${email}" ORDER BY updated DESC`,
     };
     const jql = JQL_MAP[_misAsigFilter] || JQL_MAP.activos;
-    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','description'];
+    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','description','attachment'];
     const chartJql = `project = INC AND assignee = "${email}" AND created >= -7d ORDER BY created ASC`;
 
     try {
@@ -5207,7 +5389,7 @@ async function loadSinAsig() {
         todos:       `${BASE} AND status IN ("Asignado N2",Pendiente) ORDER BY created ${sort}`,
     };
     const jql = JQL_MAP[_sinAsigFilter] || JQL_MAP.sin_asignar;
-    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','description'];
+    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','description','attachment'];
     const BASE_CHT = 'project = INC AND "Tipo de Componente" = Workplace';
     const chartJql = `${BASE_CHT} AND assignee is EMPTY AND created >= -7d ORDER BY created ASC`;
 
@@ -5305,7 +5487,7 @@ async function loadEnCurso(force) {
     list.innerHTML = '<div class="inc-skeleton"></div><div class="inc-skeleton"></div><div class="inc-skeleton"></div>';
     const jql      = `project = INC AND "Tipo de Componente" = Workplace AND assignee is not EMPTY AND status NOT IN (Cerrado,Closed,Done,Resuelto,Resolved) ORDER BY created ASC`;
     const chartJql = `project = INC AND "Tipo de Componente" = Workplace AND assignee is not EMPTY AND created >= -7d ORDER BY created ASC`;
-    const FIELDS   = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','description'];
+    const FIELDS   = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','description','attachment'];
     try {
         const [data, chartData] = await Promise.all([
             jira('POST', '/rest/api/3/search/jql', { jql, fields: FIELDS, maxResults: 200 }),
@@ -5635,7 +5817,7 @@ async function loadAlertas() {
         todos_prob:  `${BASE} AND (status IN (Pendiente,Cancelado,Cancelled) OR (${OPEN} AND created <= "-1d")) ORDER BY priority ASC, created ${sort}`,
     };
     const jql = JQL_MAP[_alertaFilter] || JQL_MAP.sla_vencido;
-    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795'];
+    const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','attachment'];
 
     try {
         const data  = await jira('POST', '/rest/api/3/search/jql', { jql, fields: FIELDS, maxResults: 100 });
@@ -7061,7 +7243,7 @@ async function buscarTicket() {
             // Buscar por correo de reporter
             const data = await jira('POST', '/rest/api/3/search/jql', {
                 jql: `project = INC AND reporter = "${val}" ORDER BY created ${sort}`,
-                fields: ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795'],
+                fields: ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_11795','attachment'],
                 maxResults: 50
             });
             const issues = data.issues || [];
@@ -7083,7 +7265,7 @@ async function buscarTicket() {
                 const el = document.getElementById(`${pfx}-${key}`);
                 if (el && !el.closest('#result-buscar')) el.remove();
             });
-            const issue = await jira('GET', `/rest/api/3/issue/${key}?fields=summary,status,assignee,reporter,priority,created,updated,comment,resolutiondate`);
+            const issue = await jira('GET', `/rest/api/3/issue/${key}?fields=summary,status,assignee,reporter,priority,created,updated,comment,resolutiondate,attachment`);
             res.innerHTML = renderTicket(issue);
         }
     } catch(e) {
@@ -7116,7 +7298,7 @@ async function buscarHistorico() {
     res.innerHTML = '<div class="inc-skeleton"></div><div class="inc-skeleton"></div><div class="inc-skeleton"></div>';
 
     try {
-        const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_15147','customfield_11795','description','resolution'];
+        const FIELDS = ['summary','status','assignee','reporter','priority','created','updated','comment','resolutiondate','customfield_15147','customfield_11795','description','resolution','attachment'];
         const data = await jira('POST', '/rest/api/3/search/jql', { jql, fields: FIELDS, maxResults: 200 });
         const issues = data.issues || [];
         const total  = data.total ?? issues.length;
@@ -9607,7 +9789,7 @@ function saveNoteInc(key, val) {
             var has = !!(val && val.trim());
             btn.style.color       = has ? '#8b5cf6' : '';
             btn.style.borderColor = has ? 'rgba(139,92,246,.4)' : '';
-            btn.innerHTML = '<i class="bi bi-sticky' + (has ? '-fill' : '') + '"></i> Nota' + (has ? ' ·' : '');
+            btn.innerHTML = '<i class="bi bi-sticky' + (has ? '-fill' : '') + '"></i> Nota privada' + (has ? ' ·' : '');
         }
     }, 400);
 }
@@ -9623,7 +9805,7 @@ function clearNoteInc(key, el) {
     if (btn) {
         btn.style.color = '';
         btn.style.borderColor = '';
-        btn.innerHTML = '<i class="bi bi-sticky"></i> Nota';
+        btn.innerHTML = '<i class="bi bi-sticky"></i> Nota privada';
     }
 }
 

@@ -1567,9 +1567,9 @@ async function reqOpenTimeline(key) {
         const r = await fetch(`/api/jira/ticket/${key}/history`, { credentials:'include' });
         const d = await r.json();
         if (!d.success) throw new Error(d.message || d.error || 'Error cargando timeline');
-        const evColors = { creacion:'#0052CC', asignacion:'#7c3aed', cambio_estado:'#f59e0b', cierre:'#10b981', comentario:'#64748b' };
-        const evIcons  = { creacion:'bi-plus-circle-fill', asignacion:'bi-person-check-fill', cambio_estado:'bi-arrow-repeat', cierre:'bi-lock-fill', comentario:'bi-chat-fill' };
-        const evLabel  = { creacion:'Creación', asignacion:'Asignación', cambio_estado:'Cambio de estado', cierre:'Cierre', comentario:'Comentario' };
+        const evColors = { creacion:'#0052CC', asignacion:'#7c3aed', cambio_estado:'#f59e0b', cierre:'#10b981', comentario:'#64748b', adjunto:'#0891b2' };
+        const evIcons  = { creacion:'bi-plus-circle-fill', asignacion:'bi-person-check-fill', cambio_estado:'bi-arrow-repeat', cierre:'bi-lock-fill', comentario:'bi-chat-fill', adjunto:'bi-paperclip' };
+        const evLabel  = { creacion:'Creación', asignacion:'Asignación', cambio_estado:'Cambio de estado', cierre:'Cierre', comentario:'Comentario', adjunto:'Adjunto' };
         const history  = d.data?.history || [];
         const comments = d.data?.comments || [];
         const ticket   = d.data?.ticket   || {};
