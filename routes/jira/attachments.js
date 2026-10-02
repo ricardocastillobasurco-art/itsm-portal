@@ -289,29 +289,87 @@ router.post('/ticket/:key/files', authenticateToken, (req, res) => {
     });
 });
 
+// Descarga un adjunto de Jira sin reenviar credenciales a otro servidor:
+// redirect=false pide el archivo directo; si aun así Jira redirige (al servicio
+// de medios de Atlassian, URL firmada), se sigue la redirección SIN Authorization.
+// Si una ruta falla (p. ej. bloqueada por un WAF delante de Jira) se prueba la
+// siguiente: API REST → ruta web /secure → API de Service Management.
+async function _getNoAuthRedirect(url) {
+    const r = await axios.get(url, {
+        headers: { Authorization: `Basic ${Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64')}`, Accept: '*/*', 'X-ExperimentalApi': 'opt-in' },
+        responseType: 'stream', timeout: 60000, maxRedirects: 0, validateStatus: s => s < 400,
+    });
+    let out = r;
+    if (r.status >= 300) {
+        r.data.resume();
+        if (!r.headers.location) throw Object.assign(new Error(`HTTP ${r.status} sin destino`), { response: { status: 502 } });
+        const loc = new URL(r.headers.location, url).toString();
+        out = await axios.get(loc, { responseType: 'stream', timeout: 60000, maxRedirects: 3 });
+    }
+    // Una página HTML (login o bloqueo del WAF) no es el archivo
+    if (/text\/html/i.test(out.headers['content-type'] || '')) {
+        out.data.resume();
+        throw Object.assign(new Error('Jira devolvió una página en lugar del archivo (¿WAF/login?)'), { response: { status: 502 } });
+    }
+    return out;
+}
+async function _jiraAttachmentStream(kind, id, att = {}, key = '') {
+    const name = encodeURIComponent(att.filename || 'archivo');
+    const urls = kind === 'thumbnail'
+        ? [`${JIRA_HOST}/rest/api/3/attachment/thumbnail/${id}?redirect=false`, `${JIRA_HOST}/secure/thumbnail/${id}/${name}`]
+        : [`${JIRA_HOST}/rest/api/3/attachment/content/${id}?redirect=false`, `${JIRA_HOST}/secure/attachment/${id}/${name}`]
+            .concat(key ? [`${JIRA_HOST}/rest/servicedeskapi/request/${encodeURIComponent(key)}/attachment/${id}`] : []);
+    let last;
+    for (const u of urls) {
+        try { return await _getNoAuthRedirect(u); }
+        catch (e) {
+            last = e;
+            console.warn(`[adjuntos] ${u.replace(JIRA_HOST, '')} →`, e.response?.status || e.code || '', e.message);
+        }
+    }
+    throw last;
+}
+const _attErrorPage = (msg) => `<!doctype html><meta charset="utf-8"><title>Adjunto</title>
+<body style="font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:90vh;color:#334155;background:#f8fafc">
+<div style="text-align:center;max-width:420px"><div style="font-size:40px">📎</div><h3 style="margin:8px 0">No se pudo abrir el adjunto</h3>
+<p style="font-size:14px;color:#64748b">${String(msg).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c])}</p></div></body>`;
+
 // GET /api/jira/ticket/:key/files/jira/:id[?thumb=1] — muestra/descarga un adjunto de Jira
 router.get('/ticket/:key/files/jira/:id', authenticateToken, async (req, res) => {
     const { key, id } = req.params;
+    const thumb = !!req.query.thumb;
+    const fail = (status, msg) => thumb ? res.status(status).end() : res.status(status).type('html').send(_attErrorPage(msg));
     try {
-        if (_isLocalKey(key) || !/^\d+$/.test(id)) return res.status(404).end();
-        if (!(await _canTouch(req, key))) return res.status(403).end();
+        if (_isLocalKey(key) || !/^\d+$/.test(id)) return fail(404, 'El adjunto no existe.');
+        if (!(await _canTouch(req, key))) return fail(403, 'No tienes acceso a este ticket.');
         // El adjunto debe pertenecer a ESTE ticket (no se sirven adjuntos de otros tickets)
         const issue = await jira('GET', `/rest/api/3/issue/${encodeURIComponent(key)}?fields=attachment`);
         const att = (issue.fields?.attachment || []).find(a => String(a.id) === id);
-        if (!att) return res.status(404).end();
-        const kind = req.query.thumb ? 'thumbnail' : 'content';
-        const r = await axios.get(`${JIRA_HOST}/rest/api/3/attachment/${kind}/${id}`, {
-            auth: _jiraAuth(), responseType: 'stream', timeout: 60000, maxRedirects: 5,
-        });
-        const mime = req.query.thumb ? (r.headers['content-type'] || 'image/png') : (att.mimeType || 'application/octet-stream');
+        if (!att) return fail(404, 'El adjunto ya no está en el ticket.');
+        let r;
+        try { r = await _jiraAttachmentStream(thumb ? 'thumbnail' : 'content', id, att, key); }
+        catch (e) {
+            // Sin miniatura en Jira (archivo muy pequeño o formato raro): se usa la imagen original
+            if (!thumb || !/^image\//.test(att.mimeType || '')) throw e;
+            r = await _jiraAttachmentStream('content', id, att, key);
+        }
+        const mime = thumb ? (r.headers['content-type'] || 'image/png') : (att.mimeType || 'application/octet-stream');
         const inline = /^image\/|\/pdf$|^text\/plain/.test(mime);
         res.setHeader('Content-Type', mime);
         res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(att.filename)}`);
         res.setHeader('Cache-Control', 'private, max-age=300');
         res.setHeader('X-Content-Type-Options', 'nosniff');
+        r.data.on('error', () => res.destroy());
         r.data.pipe(res);
-    } catch (e) { if (!res.headersSent) res.status(e.response?.status === 404 ? 404 : 502).end(); }
+    } catch (e) {
+        console.warn(`[adjuntos] descarga ${key}/${id}${thumb ? ' (miniatura)' : ''}:`, e.response?.status || e.code || '', e.message);
+        if (res.headersSent) return res.destroy();
+        const st = e.response?.status;
+        fail(st === 404 ? 404 : 502, st === 404 ? 'Jira ya no tiene este archivo.' : 'Jira no respondió al pedir el archivo. Intenta de nuevo en unos segundos.');
+    }
 });
 
 module.exports = router;
             
+
+module.exports._jiraAttachmentStream = _jiraAttachmentStream; // pruebas
