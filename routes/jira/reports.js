@@ -376,7 +376,7 @@ router.get('/noc/stats', authenticateToken, async (req, res) => {
             const r = await jira('GET', `/rest/api/3/search?jql=${encodeURIComponent(`project = INC AND resolutiondate >= "${today}"`)}&maxResults=0`);
             resueltos_hoy = r.total ?? 0;
         } catch (_) {
-            const [fb] = await dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status IN ('resuelto','cerrado') AND DATE(COALESCE(resolved_at,updated_at)) = CURDATE())`);
+            const [fb] = await dbQuery(`SELECT COUNT(*) AS n FROM jira_tickets WHERE COALESCE(tenant_id, 1) = ${Number(tenantId(req))} AND (internal_status IN ('resuelto','cerrado') AND DATE(COALESCE(resolved_at,closed_at)) = CURDATE())`);
             resueltos_hoy = Number(fb?.n ?? 0);
         }
 

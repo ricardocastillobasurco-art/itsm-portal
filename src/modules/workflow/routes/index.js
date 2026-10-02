@@ -167,7 +167,7 @@ router.get('/my-pending', async (req, res, next) => {
   try {
     const flows = await ApprovalFlow.findAll({ /* tenant_id: aprobaciones asignadas al propio usuario */
       where:  { approverId: req.user?.id, status: 'pendiente' },
-      order:  [['createdAt', 'ASC']],
+      order:  [['created_at', 'ASC']],
       limit:  100,
     });
     res.ok(flows);
