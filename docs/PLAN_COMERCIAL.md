@@ -64,7 +64,7 @@
 ### 3.2 Configurable — que el cliente se configure sin programar
 | # | Tema | Quién |
 |---|---|---|
-| C1 | Asistente de alta: logo, colores, técnicos, categorías, SLA, horario laboral | Yo |
+| C1 | ✅ Asistente de alta: marca, invitación del equipo, SLA, categorías, enlace del portal (falta: horario laboral) | Yo |
 | C2 | Calendario laboral y feriados para el cálculo de SLA; zona horaria por empresa | Yo |
 | C3 | Plantillas de correo editables por empresa | Yo |
 | C4 | **SSO por empresa** (Microsoft Entra ID / Google) y **2FA** | Yo (código) / Tú (registrar apps) |
@@ -251,7 +251,7 @@ Además de lo anterior: definir infraestructura (tamaño, región o servidores),
 ### Fase 3 — Listo para un cliente
 | Yo | Tú |
 |---|---|
-| Asistente de alta, plantillas de correo, calendario/feriados | Probar el asistente con una empresa ficticia |
+| ✅ Asistente de alta + paquete inicial genérico · ⏳ plantillas de correo, calendario/feriados | Probar el asistente con una empresa ficticia |
 | SSO por empresa + 2FA | Registrar apps en Azure (Entra ID) y Google |
 | Adjuntos en portal de usuario + sugerencias de base de conocimiento | Redactar textos de bienvenida y manual corto |
 
@@ -293,3 +293,4 @@ Además de lo anterior: definir infraestructura (tamaño, región o servidores),
 | 2026-10-02 | Adjuntos/evidencias y barra de acciones; catálogos de cierre por empresa; configuración ITSM aislada; orden "más recientes primero"; descarga robusta de adjuntos Jira |
 | 2026-10-02 | Marca blanca por empresa desde la BD; CI en GitHub (pruebas + migraciones MySQL 8); backup diario cifrado con restauración probada |
 | 2026-10-02 | Errores de NOC, aprobaciones y reglas de negocio; exportación completa de datos por empresa |
+| 2026-10-05 | Asistente de alta para empresas nuevas; paquete inicial genérico (ya no se copian datos de la empresa 1); alta de usuarios compatible con id UUID o numérico |
