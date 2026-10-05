@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Ylianst/MeshCentral/master/meshcentral-config-schema.json",
+  "settings": {
+    "cert": "TU_SERVIDOR_RMM",
+    "port": 443,
+    "redirPort": 80,
+    "WANonly": true,
+    "tlsOffload": false,
+    "SelfUpdate": false,
+    "AllowFraming": false,
+    "WebRTC": true,
+    "AgentPong": 300,
+    "plugins": { "enabled": false },
+    "maxInvalidLogin": { "time": 10, "count": 5, "coolofftime": 30 },
+    "autoBackup": {
+      "backupIntervalHours": 24,
+      "keepLastDaysBackup": 14,
+      "zipPassword": "CLAVE_RESPALDOS"
+    }
+  },
+  "domains": {
+    "": {
+      "title": "Soporte remoto",
+      "minify": true,
+      "newAccounts": false,
+      "allowedOrigin": false,
+      "passwordRequirements": { "min": 12, "upper": 1, "lower": 1, "numeric": 1, "nonalpha": 1, "banCommonPasswords": true },
+      "localSessionRecording": true,
+      "sessionRecording": { "index": true, "maxRecordingDays": 90, "protocols": [1, 2, 5] },
+      "userConsentFlags": {
+        "desktopprompt": true,
+        "desktopprivacybar": true,
+        "terminalnotify": true,
+        "filenotify": true
+      },
+      "consentMessages": {
+        "Title": "Soporte técnico",
+        "Desktop": "{0} de Soporte técnico solicita ver y controlar tu pantalla para ayudarte. ¿Lo permites?",
+        "Terminal": "{0} de Soporte técnico abrió una consola en tu equipo.",
+        "Files": "{0} de Soporte técnico está accediendo a archivos de tu equipo.",
+        "consentTimeout": 60,
+        "autoAcceptIfNoUser": true,
+        "autoAcceptIfLocked": true
+      }
+    }
+  },
+  "letsencrypt": {
+    "email": "TU_CORREO",
+    "names": "TU_SERVIDOR_RMM",
+    "production": true
+  }
+}

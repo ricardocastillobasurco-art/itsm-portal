@@ -1,0 +1,32 @@
+# MeshCentral (control remoto de equipos) — servidor propio, separado de Railway.
+# Instalación: sudo bash instalar-servidor.sh   ·   Guía: docs/RMM_MESHCENTRAL.md
+#
+#   docker compose ps                 # ¿está corriendo?
+#   docker compose logs -f            # ver registros
+#   docker compose restart            # reiniciar
+
+services:
+  meshcentral:
+    # Imagen oficial 1.2.6 + complementos preinstalados (ver Dockerfile).
+    # Actualizar a propósito: cambiar la versión en el Dockerfile, respaldo, y
+    #   docker compose build && docker compose up -d
+    build: .
+    image: meshcentral-local:1.2.6
+    container_name: meshcentral
+    restart: unless-stopped
+    ports:
+      - "80:80"     # solo para el certificado (Let's Encrypt) y redirigir a https
+      - "443:443"   # portal web + conexión de los agentes
+    environment:
+      TZ: America/Lima
+      # Usa config.json tal cual (no lo regenera con variables de entorno)
+      DYNAMIC_CONFIG: "false"
+    volumes:
+      # ⚠️ meshcentral-data contiene los CERTIFICADOS: si se pierde, hay que
+      # reinstalar el agente en todas las PCs. Se respalda (ver guía).
+      - ./meshcentral-data:/opt/meshcentral/meshcentral-data
+      - ./meshcentral-files:/opt/meshcentral/meshcentral-files
+      - ./meshcentral-backups:/opt/meshcentral/meshcentral-backups
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }

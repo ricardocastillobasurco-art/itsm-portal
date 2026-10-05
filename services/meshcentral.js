@@ -5,6 +5,26 @@
 const WebSocket = require('ws');
 const logger    = require('../utils/logger');
 
+// El certificado del servidor se verifica siempre (un tercero en el medio podría
+// robar la contraseña de la cuenta de servicio). Se acepta un certificado propio
+// (autofirmado) solo si MeshCentral está en la red interna o en este equipo, o si
+// se fuerza con MESHCENTRAL_ALLOW_SELF_SIGNED=true.
+function isPrivateHost(hostname) {
+    const h = String(hostname || '').replace(/^\[|\]$/g, '').toLowerCase();
+    if (h === 'localhost' || h === '::1') return true;
+    if (require('net').isIPv4(h)) {
+        const [a, b] = h.split('.').map(Number);
+        return a === 10 || a === 127 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31);
+    }
+    return !h.includes('.') && !require('net').isIP(h);   // nombre interno (p. ej. contenedor "meshcentral")
+}
+function allowSelfSigned(url) {
+    if (String(process.env.MESHCENTRAL_ALLOW_SELF_SIGNED || '').toLowerCase() === 'true') return true;
+    try { return isPrivateHost(new URL(url).hostname); } catch (_) { return false; }
+}
+// Vigencia (minutos) del acceso de un solo uso que abre la sesión remota
+const SESSION_TOKEN_MINUTES = 5;
+
 class MeshCentralService {
     constructor() {
         this._url       = process.env.MESHCENTRAL_URL        || '';
@@ -23,8 +43,31 @@ class MeshCentralService {
         this._chatStore    = new Map();  // nodeId → [{from,msg,ts}]
         this._pendingRec   = null;
 
-        if (this._url && this._user && this._pass) {
-            setTimeout(() => this._connect(), 3000);
+        // Al iniciar: configuración de la BD; si no hay, la del .env
+        setTimeout(async () => {
+            if (await this.loadFromDb()) return;
+            if (this._url && this._user && this._pass) this._connect();
+        }, 3000);
+    }
+
+    // Configuración guardada desde el panel (rmm_settings) — tiene prioridad sobre .env.
+    // Antes solo se aplicaba al guardar: tras cada reinicio el RMM quedaba desconectado.
+    async loadFromDb() {
+        try {
+            const { executeQuery, equipmentPool } = require('../config/database');
+            const { decrypt } = require('../src/utils/secretBox');
+            const rows = await executeQuery(equipmentPool,
+                'SELECT `key`, value FROM rmm_settings /* tenant_id: configuración global de la plataforma */');
+            const m = Object.fromEntries(rows.map(r => [r.key, r.value || '']));
+            if (!m.mesh_url) return false;
+            let pass = '';
+            try { pass = decrypt(m.mesh_pass) || ''; } catch (e) { logger.warn('[MeshCentral] No se pudo leer la contraseña guardada:', e.message); }
+            this.reloadConfig({ url: m.mesh_url, publicUrl: m.mesh_public_url, user: m.mesh_user, pass: pass || undefined });
+            logger.info('[MeshCentral] Configuración cargada desde la base de datos');
+            return true;
+        } catch (e) {
+            logger.warn('[MeshCentral] Sin configuración en BD:', e.message);
+            return false;
         }
     }
 
@@ -71,7 +114,7 @@ class MeshCentralService {
         if (this._reconnecting) return;
         try {
             this.ws = new WebSocket(this._wsUrl(), {
-                rejectUnauthorized: false,
+                rejectUnauthorized: !allowSelfSigned(this._url),
                 handshakeTimeout:   10000,
                 headers: {
                     'x-meshauth': Buffer.from(this._user).toString('base64') + ',' + Buffer.from(this._pass).toString('base64'),
@@ -268,7 +311,7 @@ class MeshCentralService {
     // → espera serverinfo → envía runcommands type:2 → acumula output → done.
     _openWs() {
         return new WebSocket(this._wsUrl(), {
-            rejectUnauthorized: false,
+            rejectUnauthorized: !allowSelfSigned(this._url),
             handshakeTimeout:   12000,
             headers: {
                 'x-meshauth': Buffer.from(this._user).toString('base64')
@@ -446,7 +489,7 @@ class MeshCentralService {
         if (!this.connected) throw new Error('MeshCentral no disponible');
         const result = await new Promise((resolve, reject) => {
             this._addPending('createLoginToken', resolve, reject);
-            this._send({ action: 'createLoginToken', name: 'platform-session', expire: 60 });
+            this._send({ action: 'createLoginToken', name: 'platform-session', expire: SESSION_TOKEN_MINUTES });
         });
         const nodeHash = nodeId.split('/').filter(s => s.length > 0).pop();
         return `${base}/?logintoken=${encodeURIComponent(result.token)}&node=${nodeHash}&viewmode=${viewmode}&hide=16`;

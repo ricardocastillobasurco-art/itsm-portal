@@ -95,12 +95,14 @@ async function _assertNodeAllowed(nodeId, tenantId) {
 router.get('/status', async (req, res) => {
     const owner = tenantId(req) === OWNER_TENANT_ID;
     const meshIds = await _getMeshIdsForTenant(tenantId(req)).catch(() => new Set());
+    // Configuración efectiva del servicio (panel o .env), no solo la del .env
+    const cfg = meshSvc.getConfig();
     res.json({
         ok:         true,
         connected:  meshSvc.isConnected(),
-        configured: !!(process.env.MESHCENTRAL_URL && process.env.MESHCENTRAL_USER) && (owner || !!meshIds?.size),
-        url:        process.env.MESHCENTRAL_PUBLIC_URL || process.env.MESHCENTRAL_URL || '',
-        user:       owner ? (process.env.MESHCENTRAL_USER || '') : '',
+        configured: !!(cfg.url && cfg.user && cfg.hasPass) && (owner || !!meshIds?.size),
+        url:        cfg.publicUrl || cfg.url || '',
+        user:       owner ? (cfg.user || '') : '',
     });
 });
 
@@ -905,7 +907,8 @@ router.put('/config', requireSuperadmin, async (req, res) => {
         if (mesh_pass !== undefined && mesh_pass !== '••••••••') {
             await dbQuery(
                 'INSERT INTO rmm_settings /* tenant_id: configuración global de la plataforma (superadmin) */ (`key`, value, updated_at) VALUES (?,?,NOW()) ON DUPLICATE KEY UPDATE value=VALUES(value), updated_at=NOW()',
-                ['mesh_pass', mesh_pass || null]
+                // Cifrada en la BD (CONFIG_ENCRYPTION_KEY); el servicio la descifra al iniciar
+                ['mesh_pass', mesh_pass ? require('../../src/utils/secretBox').encrypt(mesh_pass) : null]
             );
         }
         const cfg = await dbQuery('SELECT `key`, value FROM rmm_settings /* tenant_id: configuración global de la plataforma (superadmin) */');
