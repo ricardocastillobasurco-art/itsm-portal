@@ -450,7 +450,6 @@ router.post('/:tenantId/users', async (req, res, next) => {
   try {
     const sequelize    = require('../../../config/database');
     const bcrypt       = require('bcrypt');
-    const { v4: uuidv4 } = require('uuid');
     const { email, full_name, username, role, password } = req.body;
 
     if (!email) return res.fail('El email es requerido', 400);
@@ -469,11 +468,13 @@ router.post('/:tenantId/users', async (req, res, next) => {
     // Sin contraseña indicada se genera una aleatoria (se devuelve una sola vez al superadmin)
     const rawPass      = (password || '').trim() || require('crypto').randomBytes(12).toString('base64url') + 'A1!';
     const hash         = await bcrypt.hash(rawPass, 10);
+    const idp          = await require('../../../utils/userId').newUserIdParts();
 
     await sequelize.query(
-      `INSERT INTO users (id, username, full_name, email, password_hash, role, tenant_id, is_active, is_verified, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, NOW(), NOW())`,
-      { replacements: [uuidv4(), rawUsername, fullName, cleanEmail, hash, userRole, req.params.tenantId] }
+      // users.id puede ser UUID o autoincremental según la instalación (utils/userId)
+      `INSERT INTO users (${idp.cols.map(c => c + ', ').join('')}username, full_name, email, password_hash, role, tenant_id, is_active, is_verified, created_at, updated_at)
+       VALUES (${idp.vals.map(() => '?, ').join('')}?, ?, ?, ?, ?, ?, 1, 1, NOW(), NOW())`,
+      { replacements: [...idp.vals, rawUsername, fullName, cleanEmail, hash, userRole, req.params.tenantId] }
     );
 
     res.ok(

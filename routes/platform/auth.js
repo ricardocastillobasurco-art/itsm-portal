@@ -387,12 +387,13 @@ router.post('/register', requireAdmin, async (req, res) => {
         const uname  = username || email.split('@')[0];
 
         // El usuario nace en el tenant del administrador que lo crea
+        const idp = await require('../../src/utils/userId').newUserIdParts();
         const result = await executeQuery(equipmentPool,
-            `INSERT INTO users (full_name, username, email, role, password_hash, is_active, is_verified, created_at, tenant_id)
-             VALUES (?, ?, ?, ?, ?, 1, 1, NOW(), ?)`,
-            [full_name, uname, email.toLowerCase(), role, hash, reqTenantId(req)]
+            `INSERT INTO users (${idp.cols.map(c => c + ', ').join('')}full_name, username, email, role, password_hash, is_active, is_verified, created_at, updated_at, tenant_id)
+             VALUES (${idp.vals.map(() => '?, ').join('')}?, ?, ?, ?, ?, 1, 1, NOW(), NOW(), ?)`,
+            [...idp.vals, full_name, uname, email.toLowerCase(), role, hash, reqTenantId(req)]
         );
-        res.status(201).json({ success: true, userId: result.insertId, message: 'Usuario creado' });
+        res.status(201).json({ success: true, userId: idp.id ?? result.insertId, message: 'Usuario creado' });
     } catch(err) {
         if (err.code === 'ER_DUP_ENTRY')
             return res.status(409).json({ success: false, error: 'El email o usuario ya existe' });
@@ -677,10 +678,11 @@ router.get('/microsoft/callback', async (req, res) => {
             const username = msEmail.split('@')[0];
             const { v4: uuidv4 } = require('uuid');
             const roleInicial = SUPERADMIN_EMAILS.includes(msEmail) ? 'superadmin' : ADMIN_EMAILS.includes(msEmail) ? 'admin' : 'usuario';
+            const idp = await require('../../src/utils/userId').newUserIdParts();
             await executeQuery(equipmentPool,
-                `INSERT INTO users (id, username, full_name, email, password_hash, role, is_active, is_verified, created_at, updated_at, tenant_id)
-                 VALUES (?, ?, ?, ?, ?, ?, 1, 1, NOW(), NOW(), ?)`,
-                [uuidv4(), username, fullName, msEmail, crypto.randomBytes(32).toString('hex'), roleInicial, emailTenantId]
+                `INSERT INTO users (${idp.cols.map(c => c + ', ').join('')}username, full_name, email, password_hash, role, is_active, is_verified, created_at, updated_at, tenant_id)
+                 VALUES (${idp.vals.map(() => '?, ').join('')}?, ?, ?, ?, ?, 1, 1, NOW(), NOW(), ?)`,
+                [...idp.vals, username, fullName, msEmail, crypto.randomBytes(32).toString('hex'), roleInicial, emailTenantId]
             );
             userRows = await executeQuery(equipmentPool,
                 `SELECT id, username, email, role, is_active, tenant_id FROM users WHERE LOWER(email)=? LIMIT 1`,

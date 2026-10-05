@@ -119,6 +119,38 @@ router.delete('/config/branding/logo', authenticateToken, requireAdmin, async (r
 });
 
 
+// ── Asistente de configuración inicial (solo administradores) ───────────────
+const Onboarding = require('../../src/services/OnboardingService');
+const _ob = (fn) => async (req, res) => {
+    try { res.json({ success: true, data: await fn(req) }); }
+    catch (e) { res.status(e.status || 500).json({ success: false, message: e.message }); }
+};
+router.get('/config/onboarding',                authenticateToken, requireAdmin, _ob(req => Onboarding.getState(tenantId(req))));
+router.post('/config/onboarding/steps/:step',   authenticateToken, requireAdmin, _ob(req => Onboarding.markStep(tenantId(req), req.params.step)));
+router.post('/config/onboarding/complete',      authenticateToken, requireAdmin, _ob(req => Onboarding.complete(tenantId(req))));
+router.post('/config/onboarding/dismiss',       authenticateToken, requireAdmin, _ob(req => Onboarding.dismiss(tenantId(req))));
+router.post('/config/onboarding/reopen',        authenticateToken, requireAdmin, _ob(req => Onboarding.reopen(tenantId(req))));
+router.get('/config/onboarding/team',           authenticateToken, requireAdmin, _ob(req => Onboarding.listTeam(tenantId(req))));
+router.get('/config/onboarding/sla',            authenticateToken, requireAdmin, _ob(req => Onboarding.getSla(tenantId(req))));
+router.put('/config/onboarding/sla',            authenticateToken, requireAdmin, _ob(req => Onboarding.saveSla(tenantId(req), req.body || {})));
+router.get('/config/onboarding/summary',        authenticateToken, requireAdmin, _ob(req => Onboarding.summary(tenantId(req))));
+
+// Invita a varias personas; cada una se procesa por separado (un error no frena al resto)
+router.post('/config/onboarding/team', authenticateToken, requireAdmin, async (req, res) => {
+    const members = Array.isArray(req.body?.members) ? req.body.members.slice(0, 50) : [];
+    if (!members.length) return res.status(400).json({ success: false, message: 'Agrega al menos una persona' });
+    const tid = tenantId(req);
+    const brand = await Branding.get(tid).catch(() => ({}));
+    const results = [];
+    for (const m of members) {
+        try {
+            results.push({ ok: true, ...(await Onboarding.inviteMember(tid, m,
+                { inviterName: req.user?.full_name || req.user?.username, companyName: brand.companyName })) });
+        } catch (e) { results.push({ ok: false, email: m?.email || '', message: e.message }); }
+    }
+    res.json({ success: true, data: results });
+});
+
 // Envía la exportación de datos de una empresa como ZIP descargable
 async function sendTenantExport(req, res, tid) {
     const { exportTenant } = require('../../src/services/TenantExportService');

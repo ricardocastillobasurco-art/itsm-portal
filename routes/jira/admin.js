@@ -461,12 +461,14 @@ router.post('/specialists', authenticateToken, requireAdmin, async (req, res) =>
                 [full_name, uname, email, phone||null, hash, specialty||null, newId, tenantId(req)]
             );
         } else {
-            newId = uuidv4();
-            await dbQuery(
-                `INSERT INTO users (id, username, email, phone, ${passCol}, full_name, role, specialty, is_active, is_verified, created_by, created_at, updated_at, tenant_id)
-                 VALUES (?, ?, ?, ?, ?, ?, 'especialista', ?, 1, 1, ?, NOW(), NOW(), ?)`,
-                [newId, uname, email, phone||null, hash, full_name, specialty||null, req.user?.id||null, tenantId(req)]
+            // users.id puede ser UUID o autoincremental según la instalación
+            const idp = await require('../../src/utils/userId').newUserIdParts();
+            const ins = await dbQuery(
+                `INSERT INTO users (${idp.cols.map(c => c + ', ').join('')}username, email, phone, ${passCol}, full_name, role, specialty, is_active, is_verified, created_by, created_at, updated_at, tenant_id)
+                 VALUES (${idp.vals.map(() => '?, ').join('')}?, ?, ?, ?, ?, 'especialista', ?, 1, 1, ?, NOW(), NOW(), ?)`,
+                [...idp.vals, uname, email, phone||null, hash, full_name, specialty||null, req.user?.id||null, tenantId(req)]
             );
+            newId = idp.id ?? ins.insertId;
         }
         res.status(201).json({ success: true, data: { id: newId, full_name, email, username: uname } });
     } catch (e) {
@@ -731,12 +733,13 @@ router.post('/admin/users', authenticateToken, async (req, res) => {
             );
             resultId = deleted[0].id;
         } else {
+            const idp = await require('../../src/utils/userId').newUserIdParts();
             const result = await dbQuery(
-                `INSERT INTO users (full_name, username, email, ${passCol}, role, is_active, is_verified, created_at, tenant_id)
-                 VALUES (?,?,?,?,?,1,1,NOW(),?)`,
-                [full_name, username, email, hash, role, tenantId(req)]
+                `INSERT INTO users (${idp.cols.map(c => c + ',').join('')}full_name, username, email, ${passCol}, role, is_active, is_verified, created_at, updated_at, tenant_id)
+                 VALUES (${idp.vals.map(() => '?,').join('')}?,?,?,?,?,1,1,NOW(),NOW(),?)`,
+                [...idp.vals, full_name, username, email, hash, role, tenantId(req)]
             );
-            resultId = result.insertId;
+            resultId = idp.id ?? result.insertId;
         }
         res.status(201).json({ success: true, id: resultId });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }

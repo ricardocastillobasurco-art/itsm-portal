@@ -134,11 +134,12 @@ class TenantImportService {
     // "¿Olvidaste tu contraseña?" (código por correo) o entra con Microsoft
     const tempPass = await bcrypt.hash(require('crypto').randomBytes(24).toString('base64url'), 10);
 
+    const idp = await require('../utils/userId').newUserIdParts();
     await sequelize.query(
       `INSERT INTO users
-         (id, username, full_name, email, password_hash, role, employee_cip, tenant_id, is_active, is_verified, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW(), NOW())`,
-      { replacements: [uuidv4(), username, fullName, email, tempPass, role, employeeCip, tenantId] }
+         (${idp.cols.map(c => c + ', ').join('')}username, full_name, email, password_hash, role, employee_cip, tenant_id, is_active, is_verified, created_at, updated_at)
+       VALUES (${idp.vals.map(() => '?, ').join('')}?, ?, ?, ?, ?, ?, ?, 1, 0, NOW(), NOW())`,
+      { replacements: [...idp.vals, username, fullName, email, tempPass, role, employeeCip, tenantId] }
     );
   }
 

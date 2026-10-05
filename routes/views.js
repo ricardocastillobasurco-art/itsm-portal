@@ -117,10 +117,21 @@ router.get('/administracion',
     authenticateToken,
     requireRole('administrador', 'especialista', 'agente', 'tecnico', 'superadmin'),
     async (req, res) => {
+        // Empresa nueva: la primera vez el administrador entra al asistente de configuración
+        if (req.user?.role === 'administrador' && req.query.asistente !== 'no') {
+            try {
+                const st = await require('../src/services/OnboardingService').getState(req.user.tenant_id);
+                if (st.pending) return res.redirect('/bienvenida');
+            } catch (_) { /* si falla, se muestra el panel normal */ }
+        }
         const ticketModeJira = (await ticketMode(req.user?.tenant_id)) === 'jira';
         res.render('admin_platform/admin_management/configuracion/administracion/index', { user: req.user, ticketModeJira });
     }
 );
+// Asistente de configuración inicial de la empresa (solo administradores)
+router.get('/bienvenida', authenticateToken, requireRole('administrador'), (req, res) => {
+    res.render('admin_platform/onboarding/index', { title: 'Configura tu portal', user: req.user });
+});
 router.get('/sccm',       (req, res) => res.render('admin_platform/admin_management/asset_management/sccm/index'));
 
 router.get('/import-csv', authenticateToken, (req, res) => {

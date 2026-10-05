@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configura tu portal</title>
+<script>(function(){const t=localStorage.getItem('dashboardTheme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{
+  --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--soft:#f8fafc;
+  --primary:<%= brand.primaryColor || '#2563eb' %>;--ok:#059669;--warn:#d97706;--danger:#dc2626;
+  --sh:0 1px 3px rgba(0,0,0,.06),0 10px 30px rgba(15,23,42,.06);
+}
+[data-theme="dark"]{--bg:#080d1c;--card:#111827;--border:#1e293b;--text:#f1f5f9;--muted:#94a3b8;--soft:#0d1425;--sh:0 10px 30px rgba(0,0,0,.4);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.5}
+a{color:var(--primary)}
+.top{display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--card)}
+.top .logo{max-height:28px;max-width:120px;object-fit:contain}
+.top .name{font-weight:800;font-size:15px}
+.top .skip{margin-left:auto;font-size:13px;color:var(--muted);background:none;border:0;cursor:pointer;padding:6px 10px;border-radius:8px}
+.top .skip:hover{background:var(--soft);color:var(--text)}
+.wrap{display:grid;grid-template-columns:260px 1fr;gap:28px;max-width:1080px;margin:28px auto;padding:0 20px}
+.rail{position:sticky;top:20px;align-self:start}
+.rail h2{font-size:18px;margin:0 0 4px}
+.rail .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+.bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:18px}
+.bar span{display:block;height:100%;background:var(--primary);transition:width .3s}
+.step{display:flex;gap:12px;padding:10px 12px;border-radius:12px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;background:none;width:100%;text-align:left;color:inherit;font:inherit}
+.step:hover{background:var(--card)}
+.step.active{background:var(--card);border-color:var(--border);box-shadow:var(--sh)}
+.step .dot{flex:0 0 28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;background:var(--soft);border:2px solid var(--border);color:var(--muted)}
+.step.active .dot{border-color:var(--primary);color:var(--primary)}
+.step.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.step .t{font-weight:700;font-size:13.5px}
+.step .d{font-size:12px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:var(--sh);padding:28px;min-height:420px;display:flex;flex-direction:column}
+.card h1{font-size:22px;margin:0 0 6px}
+.card .lead{color:var(--muted);margin:0 0 22px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:700}
+label.f small{font-weight:400;color:var(--muted)}
+input,select{font:inherit;color:var(--text);background:var(--soft);border:1.5px solid var(--border);border-radius:10px;padding:9px 12px;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--primary);background:var(--card)}
+.actions{display:flex;gap:10px;align-items:center;margin-top:auto;padding-top:24px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:10px 18px;font:inherit;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--card);color:var(--text);text-decoration:none}
+.btn:hover{border-color:var(--primary)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted)}
+.btn.sm{padding:6px 12px;font-size:12.5px}
+.right{margin-left:auto}
+.preview{display:flex;align-items:center;gap:12px;padding:14px;border:1.5px dashed var(--border);border-radius:12px;background:var(--soft);min-height:64px}
+.preview img{max-height:40px;max-width:130px;object-fit:contain}
+.note{font-size:12px;color:var(--muted)}
+.alert{padding:10px 14px;border-radius:10px;font-size:13px;margin-top:12px}
+.alert.err{background:rgba(220,38,38,.08);color:var(--danger)}
+.alert.ok{background:rgba(5,150,105,.08);color:var(--ok)}
+.alert.warn{background:rgba(217,119,6,.1);color:var(--warn)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--border)}
+td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11.5px;font-weight:700;background:var(--soft);border:1px solid var(--border)}
+.row-inv{display:grid;grid-template-columns:1.2fr 1.4fr 150px 36px;gap:8px;margin-bottom:8px}
+.icon-btn{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;border-radius:8px}
+.icon-btn:hover{color:var(--danger);background:var(--soft)}
+.code{font-family:ui-monospace,Consolas,monospace;background:var(--soft);border:1px solid var(--border);border-radius:6px;padding:2px 8px}
+.sla-p{display:flex;align-items:center;gap:10px}
+.sla-p b{display:inline-flex;width:34px;height:24px;border-radius:6px;align-items:center;justify-content:center;color:#fff;font-size:12px}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.cats{display:flex;flex-direction:column;gap:10px}
+.cat{border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--soft)}
+.cat-h{display:flex;align-items:center;gap:8px;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border-radius:14px;background:var(--card);border:1px solid var(--border);font-size:12.5px}
+.chip button{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 2px;font-size:13px;line-height:1}
+.chip button:hover{color:var(--danger)}
+.add-inline{display:flex;gap:6px;margin-top:8px}
+.add-inline input{padding:6px 10px;font-size:12.5px}
+.done-hero{text-align:center;padding:10px 0 4px}
+.done-hero i{font-size:46px;color:var(--ok)}
+.share{display:flex;gap:8px;align-items:center;background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin:14px 0}
+.share input{border:0;background:none;padding:0}
+.tips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
+.tip{border:1px solid var(--border);border-radius:12px;padding:14px;font-size:13px}
+.tip i{font-size:20px;color:var(--primary)}
+.tip b{display:block;margin:6px 0 2px}
+.hidden{display:none!important}
+@media (max-width:860px){
+  .wrap{grid-template-columns:1fr;margin:16px auto;gap:16px}
+  .rail{position:static}
+  .rail .steps{display:flex;gap:6px;overflow-x:auto}
+  .step{flex:0 0 auto;width:auto;padding:8px}
+  .step .txt{display:none}
+  .grid2,.tips{grid-template-columns:1fr}
+  .row-inv{grid-template-columns:1fr 1fr;}
+  .card{padding:20px}
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <% if (brand.logoUrl) { %><img class="logo" id="topLogo" src="<%= brand.logoUrl %>" alt=""><% } else { %><img class="logo hidden" id="topLogo" alt=""><% } %>
+  <span class="name" id="topName"><%= brand.companyName || 'Tu empresa' %></span>
+  <button class="skip" onclick="skipWizard()" title="Puedes retomarlo desde Configuración ITSM"><i class="bi bi-x-lg"></i> Omitir por ahora</button>
+</div>
+
+<div class="wrap">
+  <aside class="rail">
+    <h2>Configura tu portal</h2>
+    <div class="sub">5 pasos · unos 10 minutos. Puedes cambiar todo después.</div>
+    <div class="bar"><span id="bar" style="width:0%"></span></div>
+    <div class="steps" id="steps"></div>
+  </aside>
+
+  <main>
+    <!-- 1. MARCA -->
+    <section class="card hidden" data-step="marca">
+      <h1>¿Cómo se llama tu empresa?</h1>
+      <p class="lead">Tus usuarios verán este nombre y logo en el portal y en los correos.</p>
+      <div class="grid2">
+        <label class="f">Nombre de la empresa <input id="m-company" maxlength="255" placeholder="Mi Empresa S.A.C."></label>
+        <label class="f">Nombre de tu equipo de soporte <small>Así se presenta el chatbot</small><input id="m-support" maxlength="100" placeholder="Mesa de ayuda TI"></label>
+        <label class="f">Título del portal <small>Aparece como «ITSM · TÍTULO»</small><input id="m-title" maxlength="60" placeholder="SERVICIOS TI"></label>
+        <label class="f">Color principal <input type="color" id="m-color" value="#2563eb" style="height:42px;padding:4px"></label>
+      </div>
+      <div style="margin-top:16px">
+        <div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Logo</div>
+        <div class="preview">
+          <img id="m-logo" class="hidden" alt="">
+          <span class="note" id="m-nologo">Sin logo todavía</span>
+          <label class="btn sm right"><input type="file" hidden accept="image/png,image/jpeg,image/webp,image/gif" onchange="uploadLogo(this)"><i class="bi bi-upload"></i> Subir logo</label>
+        </div>
+        <div class="note" style="margin-top:6px">PNG, JPG o WEBP · máximo 1 MB · mejor con fondo transparente</div>
+      </div>
+      <div id="m-msg"></div>
+      <div class="actions">
+        <button class="btn primary" onclick="saveBrand(this)">Guardar y continuar <i class="bi bi-arrow-right"></i></button>
+        <button class="btn ghost right" onclick="go(1)">Saltar este paso</button>
+      </div>
+    </section>
+
+    <!-- 2. EQUIPO -->
+    <section class="card hidden" data-step="equipo">
+      <h1>Invita a tu equipo de TI</h1>
+      <p class="lead">Los <b>técnicos</b> atienden los tickets. Los <b>administradores</b> además configuran el portal. Cada persona recibe un correo con su acceso.</p>
+      <div id="team-now"></div>
+      <div id="inv-rows" style="margin-top:14px"></div>
+      <button class="btn sm" onclick="addInvite()"><i class="bi bi-plus-lg"></i> Agregar otra persona</button>
+      <div id="inv-result"></div>
+      <div class="actions">
+        <button class="btn primary" id="btnInvite" onclick="sendInvites(this)"><i class="bi bi-send"></i> Enviar invitaciones</button>
+        <button class="btn ghost right" onclick="markAndGo('equipo', 2)">Continuar <i class="bi bi-arrow-right"></i></button>
+      </div>
+    </section>
+
+    <!-- 3. SLA -->
+    <section class="card hidden" data-step="sla">
+      <h1>¿En cuánto tiempo atienden?</h1>
+      <p class="lead">Es el compromiso con tus usuarios (SLA). Si un ticket se acerca al límite, el sistema avisa al equipo.</p>
+      <div class="presets">
+        <button class="btn sm" onclick="preset('flexible')">Flexible</button>
+        <button class="btn sm" onclick="preset('estandar')">Estándar</button>
+        <button class="btn sm" onclick="preset('exigente')">Exigente</button>
+      </div>
+      <table>
+        <thead><tr><th>Prioridad</th><th>Primera respuesta (horas)</th><th>Resolución (horas)</th></tr></thead>
+        <tbody id="sla-rows"></tbody>
+      </table>
+      <div class="note" style="margin-top:8px">Las horas se cuentan corridas. Mientras un ticket espera respuesta del usuario, el reloj se pausa.</div>
+      <div id="sla-msg"></div>
+      <div class="actions">
+        <button class="btn primary" onclick="saveSla(this)">Guardar y continuar <i class="bi bi-arrow-right"></i></button>
+        <button class="btn ghost right" onclick="markAndGo('sla', 3)">Usar estos valores</button>
+      </div>
+    </section>
+
+    <!-- 4. CATEGORÍAS -->
+    <section class="card hidden" data-step="categorias">
+      <h1>¿Qué tipo de problemas reportan?</h1>
+      <p class="lead">Ya dejamos una lista inicial. Quita lo que no uses y agrega lo propio de tu empresa (por ejemplo, el nombre de tu sistema de ventas).</p>
+      <div class="cats" id="cats"></div>
+      <div class="add-inline" style="margin-top:12px">
+        <input id="newCat" maxlength="80" placeholder="Nueva categoría, p. ej. «Sistema de ventas»" onkeydown="if(event.key==='Enter')addCat()">
+        <button class="btn sm" onclick="addCat()"><i class="bi bi-plus-lg"></i> Agregar</button>
+      </div>
+      <div class="actions">
+        <button class="btn primary" onclick="markAndGo('categorias', 4)">Continuar <i class="bi bi-arrow-right"></i></button>
+      </div>
+    </section>
+
+    <!-- 5. LISTO -->
+    <section class="card hidden" data-step="canales">
+      <div class="done-hero"><i class="bi bi-patch-check-fill"></i>
+        <h1>¡Tu portal está listo!</h1>
+        <p class="lead" id="sum-lead">Comparte este enlace con tus colaboradores para que reporten sus problemas.</p>
+      </div>
+      <div class="share">
+        <i class="bi bi-link-45deg"></i>
+        <input id="portalUrl" readonly>
+        <button class="btn sm" onclick="copy('portalUrl', this)"><i class="bi bi-clipboard"></i> Copiar</button>
+      </div>
+      <div class="tips">
+        <div class="tip"><i class="bi bi-person-plus"></i><b>Usuarios</b><span id="sum-domain">Tus colaboradores crean su cuenta con su correo de la empresa.</span></div>
+        <div class="tip"><i class="bi bi-chat-dots"></i><b>Chatbot</b>En el portal hay un asistente que registra incidencias y requerimientos conversando.</div>
+        <div class="tip"><i class="bi bi-ticket-perforated"></i><b>Haz una prueba</b>Crea un ticket desde el portal y atiéndelo desde «Gestión de incidencias».</div>
+      </div>
+      <div class="note" style="margin-top:14px" id="sum-stats"></div>
+      <div class="actions">
+        <button class="btn primary" onclick="finish(this)"><i class="bi bi-rocket-takeoff"></i> Ir a mi panel</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const ORDER = ['marca', 'equipo', 'sla', 'categorias', 'canales'];
+let STATE = null, CUR = 0;
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+async function api(method, url, body) {
+  const r = await fetch(url, { method, credentials: 'include', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  let j = {}; try { j = await r.json(); } catch (_) {}
+  if (!r.ok || j.success === false) throw new Error(j.message || j.error || ('Error ' + r.status));
+  return j.data;
+}
+function msg(id, text, kind) { document.getElementById(id).innerHTML = text ? `<div class="alert ${kind || 'err'}">${esc(text)}</div>` : ''; }
+function busy(btn, on) { if (!btn) return; btn.disabled = on; }
+
+function renderRail() {
+  const box = document.getElementById('steps');
+  box.innerHTML = STATE.steps.map((s, i) => `
+    <button class="step ${i === CUR ? 'active' : ''} ${s.done ? 'done' : ''}" onclick="go(${i})">
+      <span class="dot">${s.done ? '<i class="bi bi-check-lg"></i>' : i + 1}</span>
+      <span class="txt"><span class="t">${esc(s.title)}</span><br><span class="d">${esc(s.desc)}</span></span>
+    </button>`).join('');
+  document.getElementById('bar').style.width = STATE.percent + '%';
+}
+function go(i) {
+  CUR = Math.max(0, Math.min(ORDER.length - 1, i));
+  document.querySelectorAll('section[data-step]').forEach(s => s.classList.toggle('hidden', s.dataset.step !== ORDER[CUR]));
+  renderRail();
+  LOADERS[ORDER[CUR]]?.();
+  try { sessionStorage.setItem('obStep', CUR); } catch (_) {}
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+async function markAndGo(step, next) {
+  try { STATE = await api('POST', `/api/jira/config/onboarding/steps/${step}`); } catch (_) {}
+  go(next);
+}
+
+// ── 1. Marca ──
+function fillBrand(b) {
+  document.getElementById('m-company').value = b.companyName || '';
+  document.getElementById('m-support').value = b.supportName || '';
+  document.getElementById('m-title').value = b.portalTitle || '';
+  document.getElementById('m-color').value = b.primaryColor || '#2563eb';
+  const img = document.getElementById('m-logo'), top = document.getElementById('topLogo');
+  [img, top].forEach(el => { if (b.logoUrl) { el.src = b.logoUrl; el.classList.remove('hidden'); } else el.classList.add('hidden'); });
+  document.getElementById('m-nologo').classList.toggle('hidden', !!b.logoUrl);
+  document.getElementById('topName').textContent = b.companyName || 'Tu empresa';
+}
+async function loadBrand() { try { fillBrand(await api('GET', '/api/jira/config/branding')); } catch (e) { msg('m-msg', e.message); } }
+async function uploadLogo(input) {
+  const f = input.files[0]; input.value = '';
+  if (!f) return;
+  if (f.size > 1048576) return msg('m-msg', 'El logo debe pesar menos de 1 MB');
+  const fd = new FormData(); fd.append('logo', f);
+  try {
+    const r = await fetch('/api/jira/config/branding/logo', { method: 'POST', credentials: 'include', body: fd });
+    const j = await r.json();
+    if (!j.success) throw new Error(j.message);
+    fillBrand(j.data); msg('m-msg', 'Logo actualizado', 'ok');
+  } catch (e) { msg('m-msg', e.message); }
+}
+async function saveBrand(btn) {
+  const companyName = document.getElementById('m-company').value.trim();
+  if (!companyName) return msg('m-msg', 'Escribe el nombre de tu empresa');
+  busy(btn, true);
+  try {
+    const b = await api('PUT', '/api/jira/config/branding', { companyName, supportName: document.getElementById('m-support').value,
+      portalTitle: document.getElementById('m-title').value, primaryColor: document.getElementById('m-color').value });
+    fillBrand(b);
+    document.documentElement.style.setProperty('--primary', b.primaryColor);
+    await markAndGo('marca', 1);
+  } catch (e) { msg('m-msg', e.message); }
+  finally { busy(btn, false); }
+}
+
+// ── 2. Equipo ──
+function addInvite(v = {}) {
+  const row = document.createElement('div');
+  row.className = 'row-inv';
+  row.innerHTML = `<input placeholder="Nombre y apellido" maxlength="150" value="${esc(v.full_name)}">
+    <input type="email" placeholder="correo@empresa.com" maxlength="150" value="${esc(v.email)}">
+    <select><option value="especialista">Técnico</option><option value="administrador">Administrador</option></select>
+    <button class="icon-btn" title="Quitar" onclick="this.parentElement.remove()"><i class="bi bi-x-lg"></i></button>`;
+  document.getElementById('inv-rows').appendChild(row);
+}
+async function loadTeam() {
+  if (!document.querySelector('#inv-rows .row-inv')) addInvite();
+  try {
+    const team = await api('GET', '/api/jira/config/onboarding/team');
+    document.getElementById('team-now').innerHTML = team.length ? `
+      <table><thead><tr><th>Equipo actual</th><th>Correo</th><th>Rol</th></tr></thead><tbody>
+      ${team.map(u => `<tr><td>${esc(u.full_name)}</td><td>${esc(u.email)}</td><td><span class="pill">${u.role === 'administrador' ? 'Administrador' : 'Técnico'}</span></td></tr>`).join('')}
+      </tbody></table>` : '';
+  } catch (e) { msg('inv-result', e.message); }
+}
+async function sendInvites(btn) {
+  const members = [...document.querySelectorAll('#inv-rows .row-inv')].map(r => {
+    const [n, e, s] = r.querySelectorAll('input,select');
+    return { full_name: n.value.trim(), email: e.value.trim(), role: s.value };
+  }).filter(m => m.full_name || m.email);
+  if (!members.length) return msg('inv-result', 'Agrega al menos una persona (o pulsa «Continuar» para hacerlo después)');
+  busy(btn, true);
+  try {
+    const res = await api('POST', '/api/jira/config/onboarding/team', { members });
+    const ok = res.filter(r => r.ok), bad = res.filter(r => !r.ok);
+    document.getElementById('inv-result').innerHTML =
+      (ok.length ? `<div class="alert ok"><b>${ok.length} invitación(es) creada(s).</b> Si el correo no llega, entrega la contraseña temporal en persona:
+        <table style="margin-top:8px"><tbody>${ok.map(r => `<tr><td>${esc(r.full_name)}</td><td>${esc(r.email)}</td>
+        <td><span class="code" id="pw-${r.id}">${esc(r.tempPassword)}</span> <button class="btn sm" onclick="copy('pw-${r.id}', this)"><i class="bi bi-clipboard"></i></button></td></tr>`).join('')}</tbody></table></div>` : '') +
+      (bad.length ? `<div class="alert err">${bad.map(r => esc(r.message)).join('<br>')}</div>` : '');
+    document.getElementById('inv-rows').innerHTML = '';
+    bad.forEach(b => addInvite(members.find(m => m.email === b.email) || {}));
+    if (!bad.length) addInvite();
+    loadTeam();
+    if (ok.length) STATE = await api('POST', '/api/jira/config/onboarding/steps/equipo');
+    renderRail();
+  } catch (e) { msg('inv-result', e.message); }
+  finally { busy(btn, false); }
+}
+
+// ── 3. SLA ──
+const PRIO = { P1: ['#dc2626', 'Crítica', 'Toda un área o la empresa sin poder trabajar'], P2: ['#ea580c', 'Alta', 'Una persona sin poder trabajar'],
+               P3: ['#2563eb', 'Media', 'Molestia, pero se puede seguir trabajando'], P4: ['#059669', 'Baja', 'Consultas o pedidos sin urgencia'] };
+const PRESETS = { flexible: [[2, 8], [4, 24], [24, 72], [48, 120]], estandar: [[1, 4], [2, 8], [8, 24], [24, 72]], exigente: [[0.5, 2], [1, 4], [4, 12], [8, 48]] };
+function slaRow(r) {
+  const [c, name, hint] = PRIO[r.prioridad];
+  return `<tr data-p="${r.prioridad}"><td><div class="sla-p"><b style="background:${c}">${r.prioridad}</b><div><div style="font-weight:700">${name}</div><div class="note">${hint}</div></div></div></td>
+    <td><input type="number" min="0.25" step="0.25" value="${r.resp}" style="max-width:120px"></td>
+    <td><input type="number" min="0.25" step="0.25" value="${r.resol}" style="max-width:120px"></td></tr>`;
+}
+async function loadSla() {
+  try { document.getElementById('sla-rows').innerHTML = (await api('GET', '/api/jira/config/onboarding/sla')).map(slaRow).join(''); }
+  catch (e) { msg('sla-msg', e.message); }
+}
+function preset(name) {
+  document.querySelectorAll('#sla-rows tr').forEach((tr, i) => { const [a, b] = PRESETS[name][i]; const ins = tr.querySelectorAll('input'); ins[0].value = a; ins[1].value = b; });
+}
+async function saveSla(btn) {
+  const body = {};
+  document.querySelectorAll('#sla-rows tr').forEach(tr => { const ins = tr.querySelectorAll('input'); body[tr.dataset.p] = { resp: ins[0].value, resol: ins[1].value }; });
+  busy(btn, true);
+  try { await api('PUT', '/api/jira/config/onboarding/sla', body); await markAndGo('sla', 3); }
+  catch (e) { msg('sla-msg', e.message); }
+  finally { busy(btn, false); }
+}
+
+// ── 4. Categorías ──
+async function loadCats() {
+  try {
+    const tree = await api('GET', '/api/jira/categories?tree=1');
+    document.getElementById('cats').innerHTML = tree.length ? tree.map(c => `
+      <div class="cat">
+        <div class="cat-h"><i class="bi ${esc(c.icon || 'bi-tag')}"></i> ${esc(c.name)}
+          <button class="icon-btn right" title="Quitar categoría" onclick="delCat(${Number(c.id)}, true)"><i class="bi bi-trash3"></i></button></div>
+        <div class="chips">${(c.children || []).map(s => `<span class="chip">${esc(s.name)}<button title="Quitar" onclick="delCat(${Number(s.id)})"><i class="bi bi-x"></i></button></span>`).join('')}</div>
+        <div class="add-inline"><input maxlength="80" placeholder="Agregar subcategoría…" onkeydown="if(event.key==='Enter')addSub(${Number(c.id)}, this)">
+          <button class="btn sm" onclick="addSub(${Number(c.id)}, this.previousElementSibling)"><i class="bi bi-plus"></i></button></div>
+      </div>`).join('') : '<div class="note">Aún no hay categorías. Agrega la primera abajo.</div>';
+  } catch (e) { document.getElementById('cats').innerHTML = `<div class="alert err">${esc(e.message)}</div>`; }
+}
+async function addCat() {
+  const inp = document.getElementById('newCat'); const name = inp.value.trim();
+  if (!name) return;
+  try { await api('POST', '/api/jira/categories', { name, icon: 'bi-tag' }); inp.value = ''; loadCats(); } catch (e) { alert(e.message); }
+}
+async function addSub(parentId, inp) {
+  const name = inp.value.trim(); if (!name) return;
+  try { await api('POST', '/api/jira/categories', { name, parent_id: parentId, icon: 'bi-tag' }); loadCats(); } catch (e) { alert(e.message); }
+}
+async function delCat(id, isParent) {
+  if (isParent && !confirm('¿Quitar esta categoría y sus subcategorías?')) return;
+  try {
+    if (isParent) {
+      const flat = await api('GET', '/api/jira/categories');
+      for (const c of flat.filter(c => Number(c.parent_id) === id)) await api('DELETE', `/api/jira/categories/${c.id}`);
+    }
+    await api('DELETE', `/api/jira/categories/${id}`); loadCats();
+  } catch (e) { alert(e.message); }
+}
+
+// ── 5. Listo ──
+async function loadSummary() {
+  try {
+    const s = await api('GET', '/api/jira/config/onboarding/summary');
+    document.getElementById('portalUrl').value = s.portalUrl;
+    if (s.domain) document.getElementById('sum-domain').innerHTML = `Tus colaboradores con correo <b>@${esc(s.domain)}</b> crean su cuenta desde el portal.`;
+    document.getElementById('sum-stats').textContent = `${s.team} persona(s) en el equipo de TI · ${s.categories} categorías activas.`;
+  } catch (e) { document.getElementById('sum-stats').textContent = e.message; }
+}
+async function finish(btn) {
+  busy(btn, true);
+  try { await api('POST', '/api/jira/config/onboarding/steps/canales'); await api('POST', '/api/jira/config/onboarding/complete'); } catch (_) {}
+  location.href = '/administracion';
+}
+async function skipWizard() {
+  try { await api('POST', '/api/jira/config/onboarding/dismiss'); } catch (_) {}
+  location.href = '/administracion?asistente=no';
+}
+function copy(id, btn) {
+  const el = document.getElementById(id);
+  const text = el.value ?? el.textContent;
+  navigator.clipboard?.writeText(text).then(() => { const o = btn.innerHTML; btn.innerHTML = '<i class="bi bi-check-lg"></i>'; setTimeout(() => btn.innerHTML = o, 1200); });
+}
+
+const LOADERS = { marca: loadBrand, equipo: loadTeam, sla: loadSla, categorias: loadCats, canales: loadSummary };
+(async () => {
+  try { STATE = await api('GET', '/api/jira/config/onboarding'); }
+  catch (e) { STATE = { steps: ORDER.map(id => ({ id, title: id, desc: '', done: false })), percent: 0 }; }
+  let start = STATE.steps.findIndex(s => !s.done);
+  try { const saved = Number(sessionStorage.getItem('obStep')); if (!isNaN(saved) && saved > 0) start = saved; } catch (_) {}
+  go(start < 0 ? ORDER.length - 1 : start);
+})();
+</script>
+</body>
+</html>

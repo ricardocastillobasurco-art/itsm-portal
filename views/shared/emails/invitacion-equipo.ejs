@@ -1,0 +1,17 @@
+<%
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+const body = `
+<div class="header">
+  <h1>👋 Te damos la bienvenida${company ? ' a ' + esc(company) : ''}</h1>
+  <p>${inviter ? esc(inviter) + ' te invitó' : 'Te invitaron'} al portal de TI como <b>${esc(role)}</b></p>
+</div>
+<div class="body">
+  <p style="margin:0 0 14px;">Hola ${esc(name)}, ya tienes una cuenta para atender los tickets de soporte.</p>
+  <div class="field"><div class="field-label">Usuario</div><div class="field-val">${esc(email)}</div></div>
+  <div class="field"><div class="field-label">Contraseña temporal</div><div class="field-val" style="font-family:monospace;font-size:16px;letter-spacing:1px;">${esc(tempPassword)}</div></div>
+  <p style="margin:16px 0 8px;font-size:13px;color:#64748b;">Al ingresar, cámbiala desde tu perfil o con «¿Olvidaste tu contraseña?». Si no esperabas este correo, ignóralo.</p>
+  <div class="cta"><a href="${appUrl}/api/auth/login">Ingresar al portal</a></div>
+</div>`;
+%>
+<%- include('_base', { body }) %>
