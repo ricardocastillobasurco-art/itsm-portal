@@ -381,6 +381,10 @@ router.post('/register', requireAdmin, async (req, res) => {
             return res.status(400).json({ success: false, error: 'Faltan campos obligatorios' });
         if (!ASSIGNABLE_ROLES.includes(role))
             return res.status(400).json({ success: false, error: 'Rol no válido' });
+        if (['administrador', 'admin', 'especialista', 'agente', 'tecnico'].includes(role)) {
+            try { await require('../../src/services/PlanService').assertCanAdd(reqTenantId(req), 'technicians'); }
+            catch (e) { if (e.code === 'PLAN_LIMIT') return res.status(403).json({ success: false, error: e.message, code: e.code }); throw e; }
+        }
 
         const bcrypt = require('bcryptjs');
         const hash   = await bcrypt.hash(password, 10);

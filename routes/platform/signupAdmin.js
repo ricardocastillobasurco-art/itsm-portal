@@ -41,6 +41,31 @@ router.put('/settings', wrap(async (req) => {
     return { signup_mode: s.signup_mode, trial_days: s.trial_days, brand_name: s.brand_name, brand_url: s.brand_url };
 }));
 
+// Límites por plan (null = sin límite)
+const LIMIT_PLANS = ['free', 'trial', 'professional'];
+const LIMIT_KEYS = ['technicians', 'devices', 'ai_per_month', 'storage_gb', 'devices_per_technician'];
+router.get('/plan-limits', wrap(async () => (await Settings.get('plan_limits'))));
+router.put('/plan-limits', wrap(async (req) => {
+    const cur = (await Settings.get('plan_limits')) || {};
+    const next = { ...cur };
+    for (const plan of LIMIT_PLANS) {
+        const inp = req.body?.[plan];
+        if (!inp || typeof inp !== 'object') continue;
+        const row = { ...(cur[plan] || {}) };
+        for (const k of LIMIT_KEYS) {
+            if (!(k in inp)) continue;
+            const v = inp[k];
+            if (v === null || v === '') { row[k] = null; continue; }
+            const n = Number(v);
+            if (!(n >= 0 && n <= 100000)) throw Object.assign(new Error('Límite inválido: ' + plan + ' · ' + k), { status: 400 });
+            row[k] = k === 'storage_gb' ? Math.round(n * 10) / 10 : Math.round(n);
+        }
+        next[plan] = row;
+    }
+    await Settings.set({ plan_limits: next });
+    return Settings.get('plan_limits');
+}));
+
 // Invitaciones
 router.get('/invites', wrap(() => Signup.listInvites()));
 router.post('/invites', wrap((req) => Signup.createInvite(req.body || {}, req.user?.id)));

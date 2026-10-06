@@ -129,6 +129,7 @@ app.use('/', viewsRoutes);
 // Registro autoservicio de empresas (público) y su administración (superadmin)
 app.use('/api/signup', require('./routes/platform/signup'));
 app.use('/api/admin/signup', require('./routes/platform/signupAdmin'));
+app.use('/api/plan', require('./routes/platform/plan'));
 app.use('/api', apiRoutes);
 
 // Admin: feature flags, custom fields y branding por tenant
@@ -241,6 +242,9 @@ startEmailToTicketJob(io);
 // Gestión local: cierre automático de tickets resueltos
 const { startLocalTicketsJob } = require('./src/jobs/localTicketsJob');
 startLocalTicketsJob();
+
+// Prueba gratuita: recordatorios y paso a plan Gratis
+require('./src/jobs/trialJob').startTrialJob();
 
 // Socket.io — conexión autenticada con la cookie de sesión. Las salas son por
 // usuario y por tenant: un cliente solo recibe eventos de su propia empresa.

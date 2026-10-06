@@ -442,6 +442,9 @@ router.post('/specialists', authenticateToken, requireAdmin, async (req, res) =>
     if (!full_name || !email || !password)
         return res.status(400).json({ success: false, message: 'Nombre, email y contraseña son obligatorios' });
     try {
+        // Límite de técnicos del plan
+        try { await require('../../src/services/PlanService').assertCanAdd(tenantId(req), 'technicians'); }
+        catch (e) { if (e.code === 'PLAN_LIMIT') return res.status(403).json({ success: false, message: e.message, code: e.code }); throw e; }
         const bcrypt = require('bcrypt');
         const { v4: uuidv4 } = require('uuid');
         const hash = await bcrypt.hash(password, 10);
@@ -716,6 +719,10 @@ router.post('/admin/users', authenticateToken, async (req, res) => {
     if (password.length < 8) return res.status(400).json({ success: false, message: 'La contraseña debe tener al menos 8 caracteres' });
     if (!VALID_ROLES.includes(role)) return res.status(400).json({ success: false, message: 'Rol inválido' });
     try {
+        if (['administrador', 'especialista', 'agente', 'tecnico'].includes(role)) {
+            try { await require('../../src/services/PlanService').assertCanAdd(tenantId(req), 'technicians'); }
+            catch (e) { if (e.code === 'PLAN_LIMIT') return res.status(403).json({ success: false, message: e.message, code: e.code }); throw e; }
+        }
         const bcrypt = require('bcrypt'); // mismo módulo que usa el modelo Sequelize
         const exists = await dbQuery(`SELECT id FROM users /* tenant_id: username/email son únicos en toda la plataforma */ WHERE (username=? OR email=?) AND deleted_at IS NULL LIMIT 1`, [username, email]);
         if (exists.length) return res.status(409).json({ success: false, message: 'El usuario o email ya existe' });
@@ -751,6 +758,14 @@ router.put('/admin/users/:id/role', authenticateToken, async (req, res) => {
     if (!VALID_ROLES.includes(role)) return res.status(400).json({ success: false, message: 'Rol inválido' });
     if (parseInt(req.params.id) === req.user.id) return res.status(400).json({ success: false, message: 'No puedes cambiar tu propio rol' });
     try {
+        // Pasar a un usuario final a técnico ocupa un lugar del plan
+        if (['administrador', 'especialista', 'agente', 'tecnico'].includes(role)) {
+            const [cur] = await dbQuery(`SELECT role FROM users WHERE id=? AND ${USER_IN_TENANT} LIMIT 1`, [req.params.id, tenantId(req)]);
+            if (cur && !['administrador', 'especialista', 'agente', 'tecnico'].concat('admin').includes(cur.role)) {
+                try { await require('../../src/services/PlanService').assertCanAdd(tenantId(req), 'technicians'); }
+                catch (e) { if (e.code === 'PLAN_LIMIT') return res.status(403).json({ success: false, message: e.message, code: e.code }); throw e; }
+            }
+        }
         const r = await dbQuery(`UPDATE users SET role=? WHERE id=? AND role <> 'superadmin' AND ${USER_IN_TENANT}`, [role, req.params.id, tenantId(req)]);
         if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
         res.json({ success: true });
@@ -764,6 +779,14 @@ router.put('/admin/users/:id/status', authenticateToken, async (req, res) => {
         const rows = await dbQuery(`SELECT is_active FROM users WHERE id=? AND role <> 'superadmin' AND ${USER_IN_TENANT} LIMIT 1`, [req.params.id, tenantId(req)]);
         if (!rows.length) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
         const newStatus = rows[0].is_active ? 0 : 1;
+        // Reactivar a un técnico ocupa un lugar del plan
+        if (newStatus === 1) {
+            const [cur] = await dbQuery(`SELECT role FROM users WHERE id=? AND ${USER_IN_TENANT} LIMIT 1`, [req.params.id, tenantId(req)]);
+            if (cur && ['administrador', 'especialista', 'agente', 'tecnico'].concat('admin').includes(cur.role)) {
+                try { await require('../../src/services/PlanService').assertCanAdd(tenantId(req), 'technicians'); }
+                catch (e) { if (e.code === 'PLAN_LIMIT') return res.status(403).json({ success: false, message: e.message, code: e.code }); throw e; }
+            }
+        }
         await dbQuery(`UPDATE users SET is_active=? WHERE id=? AND ${USER_IN_TENANT}`, [newStatus, req.params.id, tenantId(req)]);
         res.json({ success: true, is_active: newStatus });
     } catch(e) { res.status(500).json({ success: false, message: e.message }); }

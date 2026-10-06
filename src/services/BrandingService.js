@@ -37,7 +37,7 @@ async function get(tid) {
 
   let row = {};
   try {
-    [row = {}] = await q(`SELECT t.name AS tenant_name, o.company_name, o.logo_url, o.primary_color, o.support_name, o.portal_title
+    [row = {}] = await q(`SELECT t.name AS tenant_name, t.plan, o.company_name, o.logo_url, o.primary_color, o.support_name, o.portal_title
                           FROM tenants t LEFT JOIN tenant_view_overrides o ON o.tenant_id = t.id
                           WHERE t.id = ? LIMIT 1`, [tid]);
   } catch (_) { /* sin tabla aún: valores por defecto */ }
@@ -49,6 +49,7 @@ async function get(tid) {
     supportName:  row.support_name || DEFAULTS.supportName,
     portalTitle:  row.portal_title || (companyName ? companyName.toUpperCase().slice(0, 60) : 'SERVICIOS TI'),
     customized:   !!(row.company_name || row.logo_url || row.primary_color || row.support_name || row.portal_title),
+    plan:         row.plan || null,
   };
   _cache.set(tid, { data, exp: Date.now() + TTL_MS });
   return data;

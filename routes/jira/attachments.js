@@ -256,6 +256,10 @@ router.post('/ticket/:key/files', authenticateToken, (req, res) => {
         if (!files.length) return res.status(400).json({ success: false, message: 'No se recibió ningún archivo' });
         try {
             if (!(await _canTouch(req, key))) return res.status(403).json({ success: false, message: 'Sin acceso a este ticket' });
+            if (_isLocalKey(key)) {
+                try { await require('../../src/services/PlanService').assertCanAdd(_tenantOf(req), 'storage_gb', files.reduce((a, f) => a + f.size, 0)); }
+                catch (e) { if (e.code === 'PLAN_LIMIT') return res.status(403).json({ success: false, message: e.message, code: e.code }); throw e; }
+            }
             const actor = req.user?.full_name || req.user?.username || 'Usuario';
             const done = [];
             if (_isLocalKey(key)) {
@@ -273,6 +277,7 @@ router.post('/ticket/:key/files', authenticateToken, (req, res) => {
                 });
                 files.forEach(f => done.push(f.originalname));
             }
+            if (_isLocalKey(key)) require('../../src/services/PlanService').invalidate(_tenantOf(req));   // espacio usado actualizado
             const list = done.join(', ').slice(0, 900);
             await dbQuery(`INSERT INTO ticket_history /* tenant_id: clave validada por router.param */ (ticket_id, user_id, user_name, evento, detalle)
                            VALUES (?, ?, ?, 'adjunto', ?)`, [key, req.user?.id || 0, actor, `${actor} adjuntó: ${list}`]).catch(() => {});

@@ -542,6 +542,15 @@ router.post('/message', authenticateToken, async (req, res) => {
       return res.json({ success: false, reply: 'No tengo información sobre eso. Por favor contacta al Service Desk o inicia una consulta con un especialista.' });
     }
 
+    // Límite mensual de conversaciones con IA del plan: sin cupo, se ofrece registrar el caso
+    const Plan = require('../../src/services/PlanService');
+    try { await Plan.assertCanAdd(tenantId(req), 'ai_per_month'); }
+    catch (e) {
+      if (e.code !== 'PLAN_LIMIT') throw e;
+      return res.json({ success: true, reply: 'Este mes se agotaron las consultas al asistente inteligente de tu empresa. Igual puedo ayudarte a registrar tu caso para que un especialista lo atienda.',
+        followups: req.user ? [{ label: '🎫 Generar incidencia', _createTicket: true, _summary: message.substring(0, 200) }] : undefined, limited: true });
+    }
+
     let kbContext = 'No se encontraron artículos específicos para esta consulta.';
     if (kbArticles.length) {
       kbContext = kbArticles.slice(0, 3).map(a =>
@@ -571,6 +580,7 @@ router.post('/message', authenticateToken, async (req, res) => {
     if (!groqRes.ok) throw new Error(groqData.error?.message || 'Error Groq API');
 
     const reply = groqData.choices?.[0]?.message?.content?.trim() || 'No pude generar una respuesta.';
+    Plan.addAi(tenantId(req));   // cuenta la conversación para el límite del plan
     const _isProblem = /no funciona|falla|error|problema|ca[ií]do|bloqueado|lento|da[ñn]ado|no puedo|no puede|no tengo|no abre|no responde|no arranca|se apag|pantalla|virus|crash/i.test(message);
     const groqFups = (_isProblem && req.user) ? [{ label: '🎫 Generar incidencia', _createTicket: true, _summary: message.substring(0, 200) }] : undefined;
     res.json({ success: true, reply, followups: groqFups });

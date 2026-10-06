@@ -25,8 +25,10 @@ const SELLABLE_MODULES = ALL_MODULES.filter(k => !MODULES[k].ownerOnly);
 
 const PLANS = {
     trial:        { label: 'Prueba',       modules: SELLABLE_MODULES },
+    // Gratis: mesa de ayuda completa + control remoto con límite de equipos (ver PlanService)
+    free:         { label: 'Gratis',       modules: ['helpdesk', 'rmm'] },
     starter:      { label: 'Starter',      modules: ['helpdesk'] },
-    professional: { label: 'Profesional',  modules: ['helpdesk', 'itsm_avanzado', 'activos', 'reportes', 'licencias_m365'] },
+    professional: { label: 'Pro',          modules: ['helpdesk', 'itsm_avanzado', 'activos', 'reportes', 'licencias_m365', 'rmm'] },
     enterprise:   { label: 'Enterprise',   modules: SELLABLE_MODULES },
 };
 

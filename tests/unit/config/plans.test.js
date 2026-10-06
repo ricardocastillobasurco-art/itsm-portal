@@ -20,11 +20,15 @@ describe('modulesForTenant()', () => {
     expect([...modulesForTenant({ id: 7, plan: 'starter' })]).toEqual(['helpdesk']);
   });
 
-  it('gives professional its modules but not RMM or Microsoft', () => {
+  it('gives professional its modules, including RMM, but not Microsoft (owner only)', () => {
     const mods = modulesForTenant({ id: 7, plan: 'professional' });
     expect(mods.has('activos')).toBe(true);
-    expect(mods.has('rmm')).toBe(false);
+    expect(mods.has('rmm')).toBe(true);
     expect(mods.has('microsoft')).toBe(false);
+  });
+
+  it('gives the free plan the help desk and (limited) RMM only', () => {
+    expect([...modulesForTenant({ id: 7, plan: 'free' })].sort()).toEqual(['helpdesk', 'rmm']);
   });
 
   it('falls back to trial (all modules) for unknown plans', () => {

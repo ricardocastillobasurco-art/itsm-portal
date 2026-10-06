@@ -44,6 +44,8 @@ function _setLocals(req, res, brand, userTid = null) {
     res.locals.tenantName   = brand.companyName ?? cfg?.name ?? null;
     res.locals.tenantDomain = cfg?.domain ?? null;
     res.locals.brand        = brand;
+    // Plan Gratis: leyenda "Con tecnología de <plataforma>" en el portal de usuarios (se completa al renderizar)
+    res.locals.poweredBy    = res.locals.poweredBy ?? null;
     res.locals.brandJson    = JSON.stringify(brand).replace(/</g, '\\u003c');
 }
 
@@ -57,15 +59,19 @@ module.exports = function tenantLocals(req, res, next) {
         // Algunas rutas validan la sesión por su cuenta y pasan `user` a la vista
         const userTid = (options && typeof options === 'object' && options.user?.tenant_id) || req.user?.tenant_id || null;
         const tid = userTid ?? req.tenant?.id ?? null;
-        const go = (brand) => {
+        const go = async (brand) => {
             if (brand) _setLocals(req, res, brand, userTid);
+            if (brand?.plan === 'free' && Number(tid) !== 1) {
+                const s = await require('../src/services/PlatformSettings').getAll().catch(() => null);
+                if (s) res.locals.poweredBy = { name: s.brand_name, url: s.brand_url || '/registro' };
+            }
             // Selector de empresa (técnicos multiempresa) en todas las pantallas del panel de TI.
             // El script solo se muestra si el usuario atiende más de una empresa.
             const staff = ['administrador', 'especialista', 'agente', 'tecnico'].includes(req.user?.home_role || req.user?.role);
             if (staff && !callback && typeof options !== 'function' && String(view).startsWith('admin_platform/')) {
                 return render(view, options, (err, html) => {
                     if (err) return req.next(err);
-                    const tag = '<script src="/js/company-switcher.js" defer></script>';
+                    const tag = '<script src="/js/company-switcher.js" defer></script><script src="/js/plan-banner.js" defer></script>';
                     res.send(html.includes('</body>') ? html.replace(/<\/body>(?![\s\S]*<\/body>)/i, tag + '</body>') : html + tag);
                 });
             }

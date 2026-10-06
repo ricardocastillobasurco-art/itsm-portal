@@ -170,6 +170,10 @@ router.post('/agent-invite', async (req, res) => {
     const { svc, meshIds } = req.rmm;
     if (meshIds && !meshIds.has(meshId)) return res.status(403).json({ ok: false, error: 'Ese grupo no pertenece a tu empresa' });
     try {
+        if (req.rmm.mode === 'shared') {
+            try { await require('../../src/services/PlanService').assertCanAdd(req.rmm.tenantId, 'devices'); }
+            catch (e) { if (e.code === 'PLAN_LIMIT') return res.status(403).json({ ok: false, error: e.message, code: e.code }); throw e; }
+        }
         const r = await svc.request({ action: 'createInviteLink', meshid: meshId, expire: hours, flags: 0 });
         if (!r.url) return res.status(502).json({ ok: false, error: 'MeshCentral no generó el enlace' + (r.result ? ': ' + r.result : '') });
         // MeshCentral arma el enlace con su nombre interno; se publica con la URL pública configurada

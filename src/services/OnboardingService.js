@@ -110,6 +110,7 @@ async function inviteMember(tid, { full_name, email, role }, { inviterName = nul
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) throw Object.assign(new Error(`Correo inválido: ${email || '(vacío)'}`), { status: 400 });
   if (!name) throw Object.assign(new Error(`Falta el nombre de ${cleanEmail}`), { status: 400 });
   const userRole = INVITE_ROLES.includes(role) ? role : 'especialista';
+  await require('./PlanService').assertCanAdd(tid, 'technicians');   // límite de técnicos del plan
 
   const [exists] = await q('SELECT id, COALESCE(tenant_id, 1) AS tid, deleted_at FROM users /* tenant_id: el correo es único en toda la plataforma */ WHERE email = ? LIMIT 1', [cleanEmail]);
   if (exists && !exists.deleted_at) {
@@ -149,6 +150,7 @@ async function inviteMember(tid, { full_name, email, role }, { inviterName = nul
     emailQueued = true;
   } catch (_) { /* sin correo: el administrador entrega la contraseña */ }
 
+  require('./PlanService').invalidate(tid);
   return { id, full_name: name, email: cleanEmail, role: userRole, tempPassword: temp, emailQueued };
 }
 

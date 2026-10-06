@@ -100,6 +100,12 @@ class TenantRepository {
     return { ...DEFAULT_TENANT };
   }
 
+  /** Olvida la empresa en caché (p. ej. tras cambiar de plan): la próxima lectura va a la BD. */
+  invalidate(id) {
+    const cached = _cacheGet(`id:${id}`);
+    _cacheInvalidate(id, cached?.slug);
+  }
+
   /** Only call from test suites — clears in-memory cache state. */
   _resetCacheForTest() {
     _cache.clear();

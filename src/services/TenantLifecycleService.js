@@ -56,7 +56,7 @@ class TenantLifecycleService {
   // ── Cambiar plan ─────────────────────────────────────────────────────────
 
   async changePlan(tenantId, newPlan, actorId) {
-    const VALID_PLANS = ['trial', 'starter', 'professional', 'enterprise'];
+    const VALID_PLANS = ['trial', 'free', 'starter', 'professional', 'enterprise'];
     if (!VALID_PLANS.includes(newPlan)) throw new ValidationError(`Plan inválido: ${newPlan}`);
 
     const tenant = await this._findOrFail(tenantId);
@@ -69,6 +69,7 @@ class TenantLifecycleService {
 
     await this._audit(tenantId, 'tenant.plan_changed', actorId, { from: oldPlan, to: newPlan });
     await FeatureFlagService.invalidate(tenantId);
+    require('../repositories/platform/TenantRepository').invalidate(tenantId);   // el plan se aplica de inmediato
 
     logger.info('Plan de tenant cambiado', { tenantId, slug: tenant.slug, oldPlan, newPlan, actorId });
     return this._findOrFail(tenantId);

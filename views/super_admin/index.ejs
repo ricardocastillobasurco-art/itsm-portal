@@ -565,6 +565,23 @@ select.form-input{cursor:pointer;}
       <div id="regMsg" style="font-size:12.5px;"></div>
 
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;"><i class="bi bi-sliders"></i> Límites por plan</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px;">Vacío = sin límite. Los usuarios finales siempre son ilimitados. En Pro, los equipos se calculan por técnico.</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;" id="limTable">
+          <thead><tr style="text-align:left;color:var(--muted);font-size:11px;"><th style="padding:4px;">Plan</th><th>Técnicos</th><th>Equipos</th><th>Equipos por técnico</th><th>IA / mes</th><th>Adjuntos (GB)</th></tr></thead>
+          <tbody>
+            <tr data-plan="free"><td style="padding:4px;font-weight:700;">Gratis</td><td style="padding:3px;"><input data-k="technicians" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="devices" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="devices_per_technician" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="ai_per_month" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="storage_gb" type="number" min="0" step="0.5" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td></tr>
+            <tr data-plan="trial"><td style="padding:4px;font-weight:700;">Prueba</td><td style="padding:3px;"><input data-k="technicians" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="devices" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="devices_per_technician" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="ai_per_month" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="storage_gb" type="number" min="0" step="0.5" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td></tr>
+            <tr data-plan="professional"><td style="padding:4px;font-weight:700;">Pro</td><td style="padding:3px;"><input data-k="technicians" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="devices" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="devices_per_technician" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="ai_per_month" type="number" min="0" step="1" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td><td style="padding:3px;"><input data-k="storage_gb" type="number" min="0" step="0.5" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;"></td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
+          <button class="btn-primary" onclick="saveLimites()" style="padding:7px 14px;"><i class="bi bi-floppy"></i> Guardar límites</button>
+          <span id="limMsg" style="font-size:12.5px;"></span>
+        </div>
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;"><i class="bi bi-envelope-paper"></i> Nueva invitación</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input id="invEmail" type="email" placeholder="correo (opcional: solo esa persona podrá usarla)" style="flex:2;min-width:220px;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;">
@@ -2156,6 +2173,28 @@ async function openRegistro() {
     document.getElementById('regBrandUrl').value = d.brand_url || '';
   } catch (_) {}
   cargarRegistroListas();
+  cargarLimites();
+}
+async function cargarLimites() {
+  try {
+    const j = await (await fetch('/api/admin/signup/plan-limits', { credentials: 'include' })).json();
+    const d = j.data || {};
+    document.querySelectorAll('#limTable tr[data-plan]').forEach(tr => {
+      const row = d[tr.dataset.plan] || {};
+      tr.querySelectorAll('input').forEach(i => { const v = row[i.dataset.k]; i.value = v == null ? '' : v; });
+    });
+  } catch (_) {}
+}
+async function saveLimites() {
+  const body = {};
+  document.querySelectorAll('#limTable tr[data-plan]').forEach(tr => {
+    body[tr.dataset.plan] = {};
+    tr.querySelectorAll('input').forEach(i => { body[tr.dataset.plan][i.dataset.k] = i.value === '' ? null : Number(i.value); });
+  });
+  const r = await fetch('/api/admin/signup/plan-limits', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  const m = document.getElementById('limMsg');
+  m.style.color = r.ok ? '#059669' : '#dc2626'; m.textContent = r.ok ? 'Límites guardados.' : (j.message || 'Error');
 }
 async function saveRegistro() {
   const msg = document.getElementById('regMsg');
