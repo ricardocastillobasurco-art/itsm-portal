@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centro de ayuda</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--soft:#f8fafc;--primary:#2563eb}
+@media (prefers-color-scheme:dark){:root{--bg:#080d1c;--card:#111827;--border:#1e293b;--text:#f1f5f9;--muted:#94a3b8;--soft:#0d1425}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:14.5px;line-height:1.6}
+.top{display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--card)}
+.top a{color:var(--muted);text-decoration:none;font-weight:600}
+main{max-width:860px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 18px}
+#search{width:100%;font:inherit;padding:11px 14px;border:1.5px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);margin-bottom:18px}
+details{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:10px}
+summary{cursor:pointer;padding:14px 16px;font-weight:800;display:flex;gap:10px;align-items:center;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary i{color:var(--primary);font-size:18px}
+summary::after{content:'\F282';font-family:bootstrap-icons;margin-left:auto;color:var(--muted);transition:transform .15s}
+details[open] summary::after{transform:rotate(180deg)}
+.c{padding:0 18px 14px 44px}
+.c ol,.c ul{padding-left:18px;margin:0 0 8px}
+.c li{margin-bottom:5px}
+.c a{color:var(--primary)}
+.tip{background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--muted)}
+.none{display:none;color:var(--muted);text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<div class="top"><a href="/admin-management"><i class="bi bi-arrow-left"></i> Volver al panel</a></div>
+<main>
+  <h1>Centro de ayuda</h1>
+  <p class="sub">Guías cortas para dejar tu mesa de ayuda funcionando.</p>
+  <input id="search" type="search" placeholder="Buscar: agente, técnico, SLA, horas…" aria-label="Buscar en la ayuda">
+
+  <div id="guides">
+  <details data-k="empezar configurar asistente logo marca">
+    <summary><i class="bi bi-rocket-takeoff"></i>Primeros pasos</summary>
+    <div class="c">
+      <ol>
+        <li>Abre el <a href="/bienvenida">asistente de configuración</a>: logo, colores, tiempos de atención y categorías.</li>
+        <li>Invita a tu equipo de TI (paso "Equipo de TI").</li>
+        <li>Crea un ticket de prueba desde el <a href="/autogestion">portal de autoservicio</a>, como lo haría un usuario.</li>
+        <li>Instala el agente en un equipo para el soporte remoto (ver abajo).</li>
+      </ol>
+      <div class="tip">La tarjeta "Primeros pasos" abajo a la derecha del panel te muestra lo que falta.</div>
+    </div>
+  </details>
+
+  <details data-k="tecnico invitar usuario rol administrador especialista">
+    <summary><i class="bi bi-people"></i>Invitar técnicos y administradores</summary>
+    <div class="c">
+      <ol>
+        <li>Ve al <a href="/bienvenida">asistente</a>, paso "Equipo de TI", o a Configuración → Usuarios.</li>
+        <li>Escribe nombre y correo y elige el rol: <b>Especialista</b> (atiende tickets) o <b>Administrador</b> (además configura).</li>
+        <li>La persona recibe un correo con su acceso.</li>
+      </ol>
+      <div class="tip">Los usuarios finales (quienes reportan) no cuentan como técnicos y son ilimitados en todos los planes.</div>
+    </div>
+  </details>
+
+  <details data-k="usuario portal reportar autoservicio correo chatbot">
+    <summary><i class="bi bi-chat-dots"></i>Cómo reportan tus usuarios</summary>
+    <div class="c">
+      <ul>
+        <li><b>Portal de autoservicio:</b> comparte el enlace <a href="/autogestion">/autogestion</a>. Si registraste el dominio de tu empresa, sus usuarios entran con su correo.</li>
+        <li><b>Asistente:</b> dentro del portal, el chat crea el ticket por ellos.</li>
+        <li><b>Base de conocimiento:</b> publica soluciones a problemas frecuentes para que se resuelvan solos.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details data-k="agente instalar remoto rmm equipo mesh control">
+    <summary><i class="bi bi-pc-display"></i>Instalar el agente de soporte remoto</summary>
+    <div class="c">
+      <ol>
+        <li>Abre <a href="/rmm">Equipos (RMM)</a> y pulsa <b>Instalar agente</b>.</li>
+        <li>Copia el enlace de invitación y ábrelo en el equipo del usuario (Windows, macOS o Linux).</li>
+        <li>Descarga e instala el agente. En unos segundos el equipo aparece en tu lista.</li>
+      </ol>
+      <div class="tip">Cada empresa tiene su propio grupo: tus técnicos solo ven los equipos de tu empresa.</div>
+    </div>
+  </details>
+
+  <details data-k="conectar remoto ticket sesion escritorio">
+    <summary><i class="bi bi-display"></i>Conectarte al equipo desde un ticket</summary>
+    <div class="c">
+      <ol>
+        <li>Abre el ticket. Si el equipo del usuario tiene el agente, verás <b>Conectar al equipo</b>.</li>
+        <li>Se abre la sesión remota en una pestaña nueva, sin pedir otra contraseña.</li>
+      </ol>
+      <div class="tip">Pide siempre permiso al usuario antes de conectarte.</div>
+    </div>
+  </details>
+
+  <details data-k="sla tiempos atencion respuesta resolucion prioridad">
+    <summary><i class="bi bi-stopwatch"></i>Tiempos de atención (SLA)</summary>
+    <div class="c">
+      <p>Define cuánto tardas en responder y resolver según la prioridad (Crítica, Alta, Media, Baja) en el paso "Tiempos de atención" del <a href="/bienvenida">asistente</a>. Los tickets por vencer se resaltan y el equipo recibe avisos.</p>
+    </div>
+  </details>
+
+  <details data-k="horas tiempo registrar facturar reporte">
+    <summary><i class="bi bi-clock-history"></i>Registrar horas en los tickets</summary>
+    <div class="c">
+      <p>En la tarjeta del ticket, menú <b>Más → Registrar tiempo</b>: indica minutos, una nota y si es facturable. Sirve para medir el trabajo del equipo y para reportes por cliente.</p>
+    </div>
+  </details>
+
+  <details data-k="exportar datos respaldo backup descargar">
+    <summary><i class="bi bi-download"></i>Exportar tus datos</summary>
+    <div class="c">
+      <p>Los datos son de tu empresa. Desde Configuración → Administración, botón <b>Descargar datos</b>, obtienes un ZIP con tickets, usuarios, inventario y adjuntos.</p>
+    </div>
+  </details>
+
+  <details data-k="plan precio gratis pro limite prueba pagar soporte gestionado">
+    <summary><i class="bi bi-tag"></i>Planes, límites y prueba gratis</summary>
+    <div class="c">
+      <ul>
+        <li>Durante la prueba tienes todas las funciones. Al terminar sigues en el plan <b>Gratis</b> sin perder nada.</li>
+        <li>Mira tu uso y los planes en <a href="/planes">Planes</a>. Desde ahí puedes pedir el plan Pro o que nuestro equipo atienda a tus usuarios (soporte gestionado).</li>
+      </ul>
+    </div>
+  </details>
+  </div>
+  <div class="none" id="none">No encontramos guías con esa palabra. Escríbenos y te ayudamos.</div>
+</main>
+<script>
+(function () {
+  var s = document.getElementById('search'), all = document.querySelectorAll('#guides details');
+  var norm = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); };
+  s.addEventListener('input', function () {
+    var v = norm(s.value.trim()), n = 0;
+    all.forEach(function (d) {
+      var hit = !v || norm(d.getAttribute('data-k') + ' ' + d.textContent).indexOf(v) >= 0;
+      d.style.display = hit ? '' : 'none'; if (hit) n++;
+      d.open = !!v && hit;
+    });
+    document.getElementById('none').style.display = n ? 'none' : 'block';
+  });
+})();
+</script>
+</body>
+</html>

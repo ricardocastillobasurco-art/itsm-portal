@@ -1,6 +1,6 @@
 # Propuesta: registro autoservicio + plan gratis + soporte gestionado
 
-> 6 de octubre de 2026 · Estado: **propuesta para aprobar** (no hay cambios hechos).
+> 6 de octubre de 2026 · Estado: **en construcción** — ver avance abajo.
 > Objetivo: que cualquier empresa pueda registrarse sola, usar el producto gratis con límites,
 > y que de ahí salgan clientes de pago y clientes de tu **servicio de soporte**.
 
@@ -28,7 +28,21 @@ así nadie se va por "se me venció".
 
 ---
 
-## 2. Lo que falta construir
+## Avance (6 de octubre de 2026)
+
+| Fase | Estado | Dónde |
+|---|---|---|
+| A — Registro autoservicio | ✅ Hecho | `/registro`; superadmin → **Registro** (modo invitación/abierto, invitaciones, códigos pendientes) |
+| B1–B3 — Límites, prueba → Gratis | ✅ Hecho | Límites editables en superadmin → Registro; aviso en el panel; job horario |
+| B4 — Inactivas 60 días | ✅ Listadas en Comercial · sin borrado automático (lo decide el superadmin) | |
+| C1, C2, C4 — Planes, contratar soporte, panel comercial | ✅ Hecho | `/planes`; superadmin → **Comercial** (solicitudes, KPIs, precios) |
+| C3 — Cobro | ✅ Etapa 1 manual · ⏳ Etapa 2 pasarela | Botón **Billing** de cada empresa: aviso al cliente 7 días antes; vencido → aviso al superadmin |
+| D1, D3, D4 — Ayuda, checklist, bienvenida | ✅ Hecho | `/ayuda`, tarjeta "Primeros pasos", correos días 0/2/7 |
+| D2 — Datos de ejemplo | ⏳ Pendiente (opcional) | |
+| E3 — Legales | ✅ Borrador | `/legal/terminos`, `/legal/privacidad`; datos del titular en Comercial. **Revisión de abogado obligatoria** |
+| E1, E2 — Landing y estado | ⏳ Pendiente (necesita marca, dominio y precios) | |
+
+## 2. Lo que falta construir (plan original)
 
 ### Fase A — Registro autoservicio (núcleo) · ~3–4 sesiones mías
 | # | Qué | Detalle |

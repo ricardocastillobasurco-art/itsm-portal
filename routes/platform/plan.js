@@ -13,6 +13,16 @@ router.get('/status', authenticateToken, async (req, res) => {
     catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// Primeros pasos (solo personal de TI; el aviso lo muestra plan-banner.js)
+router.get('/checklist', authenticateToken, async (req, res) => {
+    try { res.json({ success: true, data: await require('../../src/services/GettingStartedService').checklist(tenantId(req)) }); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+router.post('/checklist/dismiss', authenticateToken, async (req, res) => {
+    try { await require('../../src/services/GettingStartedService').dismiss(tenantId(req)); res.json({ success: true }); }
+    catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 // Página de planes: precios configurados por el superadmin + plan actual
 router.get('/offer', authenticateToken, async (req, res) => {
     try {

@@ -139,6 +139,17 @@ router.get('/registro', async (req, res) => {
 router.get('/bienvenida', authenticateToken, requireRole('administrador'), (req, res) => {
     res.render('admin_platform/onboarding/index', { title: 'Configura tu portal', user: req.user });
 });
+// Páginas legales públicas (texto base; revisar con un abogado)
+router.get('/legal/:doc(terminos|privacidad)', async (req, res) => {
+    const Settings = require('../src/services/PlatformSettings');
+    const st = await Settings.getAll().catch(() => Settings.DEFAULTS);
+    res.render('legal/documento', { doc: req.params.doc, brandName: st.brand_name, legal: st.legal });
+});
+// Centro de ayuda (personal de TI)
+router.get('/ayuda', authenticateToken, (req, res) => {
+    res.render('admin_platform/ayuda/index', { user: req.user });
+});
+
 // Planes y contratación (cualquier usuario del panel; solo el administrador puede solicitar)
 router.get('/planes', authenticateToken, (req, res) => {
     res.setHeader('Cache-Control', 'no-store');

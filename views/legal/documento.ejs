@@ -1,0 +1,123 @@
+<%
+// Páginas legales públicas. Texto base para revisión de un abogado: los datos del
+// titular se configuran en el superadmin (Comercial → Datos legales).
+const L = legal || {};
+const owner = L.company || brandName;
+const contact = String(L.email || '').replace(/[^\w.@+-]/g, '');
+const mail = contact ? `<a href="mailto:${contact}">${contact}</a>` : 'los canales de contacto indicados en el sitio';
+%><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= doc === 'terminos' ? 'Términos del servicio' : 'Política de privacidad' %> · <%= brandName %></title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--primary:#2563eb}
+@media (prefers-color-scheme:dark){:root{--bg:#080d1c;--card:#111827;--border:#1e293b;--text:#f1f5f9;--muted:#94a3b8}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:15px;line-height:1.65}
+main{max-width:780px;margin:0 auto;padding:32px 16px 64px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px}
+h1{font-size:26px;margin:0 0 4px}
+h2{font-size:17px;margin:26px 0 6px}
+p,li{margin:0 0 10px}
+.meta{color:var(--muted);font-size:13px;margin-bottom:18px}
+nav{display:flex;gap:14px;margin-bottom:16px;font-size:13.5px}
+a{color:var(--primary)}
+</style>
+</head>
+<body>
+<main>
+  <nav><a href="/registro">← Volver</a><a href="/legal/terminos">Términos</a><a href="/legal/privacidad">Privacidad</a></nav>
+  <div class="card">
+<% if (doc === 'terminos') { %>
+    <h1>Términos del servicio</h1>
+    <div class="meta"><%= brandName %><%= L.updated_at ? ' · Última actualización: ' + L.updated_at : '' %></div>
+
+    <h2>1. Quiénes somos</h2>
+    <p><%= brandName %> es un servicio en la nube de mesa de ayuda, gestión de activos y soporte remoto operado por <b><%= owner %></b><%= L.tax_id ? ' (' + L.tax_id + ')' : '' %><%= L.address ? ', con domicilio en ' + L.address : '' %><%= L.country ? ', ' + L.country : '' %>.</p>
+
+    <h2>2. Aceptación</h2>
+    <p>Al crear una cuenta o usar el servicio, la empresa que representas (el "Cliente") acepta estos términos. Si no estás de acuerdo, no uses el servicio. Declaras tener facultades para obligar al Cliente.</p>
+
+    <h2>3. La cuenta</h2>
+    <ul>
+      <li>El Cliente es responsable de los usuarios que invita, de mantener sus contraseñas en reserva y de la información que carga.</li>
+      <li>Debes darnos datos verdaderos y mantenerlos actualizados.</li>
+      <li>Podemos suspender cuentas creadas con datos falsos, usadas para enviar spam o que pongan en riesgo la plataforma o a otros clientes.</li>
+    </ul>
+
+    <h2>4. Planes, prueba y pagos</h2>
+    <ul>
+      <li>Las cuentas nuevas pueden empezar con una prueba gratuita por tiempo limitado. Al terminar, la cuenta pasa al plan Gratis con los límites publicados en la página de planes, sin perder datos.</li>
+      <li>Los planes de pago y el soporte gestionado se contratan según la propuesta aceptada por el Cliente. Los precios no incluyen impuestos salvo que se indique lo contrario.</li>
+      <li>Si un pago vence, podremos avisar y, tras un plazo razonable, limitar la cuenta al plan Gratis.</li>
+    </ul>
+
+    <h2>5. Uso aceptable</h2>
+    <p>No está permitido usar el servicio para actividades ilegales, para acceder a equipos sin autorización de su propietario, para distribuir software malicioso ni para intentar vulnerar la seguridad de la plataforma. El control remoto solo debe usarse en equipos del Cliente o con autorización expresa del usuario.</p>
+
+    <h2>6. Datos del Cliente</h2>
+    <p>Los datos que el Cliente carga (tickets, usuarios, inventario, adjuntos) le pertenecen. Los tratamos solo para prestar el servicio, según nuestra <a href="/legal/privacidad">política de privacidad</a>. El Cliente puede exportar sus datos en cualquier momento desde su panel.</p>
+
+    <h2>7. Disponibilidad y soporte</h2>
+    <p>Hacemos esfuerzos razonables para mantener el servicio disponible y realizamos copias de seguridad periódicas. Pueden existir interrupciones por mantenimiento o causas fuera de nuestro control. Los niveles de servicio específicos, si los hay, constan en la propuesta comercial del Cliente.</p>
+
+    <h2>8. Responsabilidad</h2>
+    <p>En la medida permitida por la ley, nuestra responsabilidad total frente al Cliente se limita al monto pagado por el servicio en los últimos doce (12) meses. No respondemos por daños indirectos ni lucro cesante.</p>
+
+    <h2>9. Terminación</h2>
+    <p>El Cliente puede dejar de usar el servicio cuando quiera. Al cerrar la cuenta, podrá exportar sus datos durante un plazo razonable; después serán eliminados, salvo lo que debamos conservar por ley.</p>
+
+    <h2>10. Cambios</h2>
+    <p>Podemos actualizar estos términos. Si el cambio es importante, avisaremos con anticipación por correo o dentro del servicio.</p>
+
+    <h2>11. Ley aplicable y contacto</h2>
+    <p>Estos términos se rigen por las leyes de <%= L.country || 'Perú' %>. Consultas: <%- mail %>.</p>
+<% } else { %>
+    <h1>Política de privacidad</h1>
+    <div class="meta"><%= brandName %><%= L.updated_at ? ' · Última actualización: ' + L.updated_at : '' %></div>
+
+    <h2>1. Responsable</h2>
+    <p>El responsable del tratamiento de los datos de las cuentas es <b><%= owner %></b><%= L.tax_id ? ' (' + L.tax_id + ')' : '' %><%= L.address ? ', ' + L.address : '' %><%= L.country ? ', ' + L.country : '' %>. Respecto de los datos que cada empresa cliente carga sobre sus propios usuarios y equipos, actuamos como encargados por cuenta de esa empresa.</p>
+
+    <h2>2. Qué datos tratamos</h2>
+    <ul>
+      <li><b>De la cuenta:</b> nombre, correo, empresa, país y contraseña (guardada cifrada).</li>
+      <li><b>Del uso del servicio:</b> tickets, comentarios, adjuntos, inventario de equipos y registros de actividad.</li>
+      <li><b>Del soporte remoto:</b> nombre, sistema operativo y estado de los equipos con el agente instalado. Las sesiones remotas no se graban salvo que el Cliente lo configure.</li>
+      <li><b>Técnicos:</b> dirección IP, navegador y fecha de acceso, para seguridad.</li>
+    </ul>
+
+    <h2>3. Para qué los usamos</h2>
+    <ul>
+      <li>Prestar el servicio y el soporte contratado.</li>
+      <li>Enviar avisos sobre la cuenta (verificación, fin de la prueba, pagos, cambios importantes).</li>
+      <li>Proteger la plataforma frente a fraudes y abusos.</li>
+      <li>Mejorar el producto con estadísticas agregadas que no identifican a nadie.</li>
+    </ul>
+    <p>No vendemos datos personales ni los usamos para publicidad de terceros.</p>
+
+    <h2>4. Con quién los compartimos</h2>
+    <p>Solo con proveedores necesarios para operar el servicio (alojamiento en la nube, envío de correos y, si el Cliente lo activa, servicios de inteligencia artificial o integraciones como Jira o Microsoft 365), bajo obligaciones de confidencialidad. Algunos de estos proveedores pueden estar fuera del país; en ese caso aplicamos las garantías que exige la ley.</p>
+
+    <h2>5. Seguridad</h2>
+    <p>Usamos conexiones cifradas, contraseñas con hash, cifrado de credenciales de integraciones, aislamiento de datos entre empresas y copias de seguridad cifradas.</p>
+
+    <h2>6. Cuánto tiempo</h2>
+    <p>Mientras la cuenta esté activa. Al cerrarla, eliminamos los datos tras el plazo de exportación, salvo lo que debamos conservar por obligaciones legales.</p>
+
+    <h2>7. Tus derechos</h2>
+    <p>Puedes solicitar acceso, rectificación, cancelación u oposición al tratamiento de tus datos<%= (L.country || 'Perú') === 'Perú' ? ' conforme a la Ley N.° 29733, Ley de Protección de Datos Personales, y su reglamento' : '' %>. Si tus datos los cargó una empresa cliente, dirígete primero a ella. Escríbenos a <%- mail %>.</p>
+
+    <h2>8. Cookies</h2>
+    <p>Usamos solo cookies necesarias para iniciar sesión y recordar preferencias. No usamos cookies de publicidad.</p>
+
+    <h2>9. Cambios</h2>
+    <p>Si cambiamos esta política de forma importante, te avisaremos por correo o dentro del servicio.</p>
+<% } %>
+  </div>
+</main>
+</body>
+</html>

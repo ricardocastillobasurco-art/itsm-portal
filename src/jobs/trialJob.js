@@ -13,6 +13,8 @@ function startTrialJob() {
     run().catch(e => logger.warn(`[prueba] ${e.message}`));
     // Cobro manual: recordatorios de pago y vencidos
     require('../services/CommercialService').billingRun().catch(e => logger.warn(`[cobros] ${e.message}`));
+    // Correos de bienvenida (días 0, 2 y 7) a empresas nuevas del registro
+    require('../services/GettingStartedService').runWelcomeSeries().catch(e => logger.warn(`[bienvenida] ${e.message}`));
   };
   _timer = setInterval(tick, 60 * 60 * 1000);
   setTimeout(tick, 3 * 60 * 1000);   // primera pasada 3 min después de arrancar

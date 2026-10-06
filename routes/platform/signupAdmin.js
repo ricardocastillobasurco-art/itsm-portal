@@ -87,6 +87,17 @@ router.put('/pricing', wrap(async (req) => {
     return Settings.get('pricing');
 }));
 
+// Datos del titular para /legal/terminos y /legal/privacidad
+const LEGAL_KEYS = ['company', 'tax_id', 'address', 'country', 'email', 'updated_at'];
+router.get('/legal', wrap(() => Settings.get('legal')));
+router.put('/legal', wrap(async (req) => {
+    const next = { ...((await Settings.get('legal')) || {}) };
+    for (const k of LEGAL_KEYS) if (req.body && k in req.body) next[k] = String(req.body[k] ?? '').trim().slice(0, 160);
+    if (next.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next.email)) throw Object.assign(new Error('Correo inválido'), { status: 400 });
+    await Settings.set({ legal: next });
+    return Settings.get('legal');
+}));
+
 // Panel comercial
 const Commercial = require('../../src/services/CommercialService');
 router.get('/commercial', wrap(() => Commercial.summary()));

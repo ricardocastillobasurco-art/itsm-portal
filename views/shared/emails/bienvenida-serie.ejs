@@ -1,0 +1,23 @@
+<%
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+const list = (pending || []).map(p => `<div class="field"><div class="field-label"><a href="${appUrl}${esc(p.href)}">${esc(p.title)}</a></div><div class="field-val">${esc(p.desc)}</div></div>`).join('');
+const intro = day === 0
+  ? `<p style="margin:0 0 12px;">Tu portal de soporte para <b>${esc(company)}</b> ya está listo. En pocos minutos puedes dejarlo funcionando:</p>`
+  : day === 2
+  ? `<p style="margin:0 0 12px;">Llevas ${esc(done)} de ${esc(total)} pasos. Te faltan estos para aprovechar todo:</p>`
+  : `<p style="margin:0 0 12px;">Ya pasó una semana. Si algo no quedó claro, responde este correo y te ayudamos a configurarlo. Lo que aún falta:</p>`;
+const body = `
+<div class="header">
+  <h1>${day === 0 ? 'Bienvenido' : day === 2 ? 'Tus primeros pasos' : '¿Cómo vas?'}</h1>
+  <p>${esc(brand)} · ${esc(company)}</p>
+</div>
+<div class="body">
+  <p style="margin:0 0 12px;">Hola ${esc(name)},</p>
+  ${intro}
+  ${list}
+  <div class="cta"><a href="${appUrl}/admin-management">Abrir mi panel</a></div>
+  ${day === 7 ? `<p style="margin:14px 0 0;font-size:13px;color:#64748b;">¿Prefieres que nuestro equipo atienda a tus usuarios? <a href="${appUrl}/planes">Conoce el soporte gestionado</a>.</p>` : ''}
+</div>`;
+%>
+<%- include('_base', { body }) %>

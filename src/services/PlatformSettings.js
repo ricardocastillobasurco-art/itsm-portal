@@ -35,6 +35,15 @@ const DEFAULTS = {
     contact_email: '',
     contact_whatsapp: '',
   },
+  // Datos del titular para las páginas legales (/legal/terminos y /legal/privacidad)
+  legal: {
+    company: '',
+    tax_id: '',
+    address: '',
+    country: 'Perú',
+    email: '',
+    updated_at: '',
+  },
 };
 
 async function getAll() {

@@ -83,6 +83,7 @@ async function summary() {
     signups30: Number(signups.n), trialsEnding7: Number(ending.n), openRequests: Number(openReq.n), overdue: Number(overdue.n),
     paidThisMonth: paidMonth.map(r => ({ currency: r.currency, total: Number(r.total) })),
     trials,
+    inactive: await require('./GettingStartedService').inactive(60).catch(() => []),
   };
 }
 

@@ -635,6 +635,12 @@ select.form-input{cursor:pointer;}
         <div id="comTrials"></div>
       </div>
 
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;"><i class="bi bi-moon"></i> Sin actividad (60 días)</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px;">Empresas del registro (Prueba o Gratis) en las que nadie entra hace 60 días. No se borran solas: escríbeles o desactívalas desde su tarjeta.</div>
+        <div id="comInactive"></div>
+      </div>
+
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-bottom:4px;"><i class="bi bi-tag"></i> Precios que ve el cliente</div>
         <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px;">Texto libre (por ejemplo "15" o "15/mes"). Vacío = se muestra "Consultar".</div>
@@ -649,6 +655,22 @@ select.form-input{cursor:pointer;}
         <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
           <button class="btn-primary" onclick="savePrecios()" style="padding:7px 14px;"><i class="bi bi-floppy"></i> Guardar precios</button>
           <span id="priceMsg" style="font-size:12.5px;"></span>
+        </div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;"><i class="bi bi-file-earmark-text"></i> Datos legales</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px;">Aparecen en <a href="/legal/terminos" target="_blank">Términos</a> y <a href="/legal/privacidad" target="_blank">Privacidad</a>. El texto es una base: revísalo con un abogado antes de abrir el registro al público.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end;" id="legalForm">
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Razón social <input data-k="company" maxlength="160" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">RUC <input data-k="tax_id" maxlength="40" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Dirección <input data-k="address" maxlength="160" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">País <input data-k="country" maxlength="40" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Correo de privacidad <input data-k="email" type="email" maxlength="80" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Fecha de actualización <input data-k="updated_at" type="date" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
+          <button class="btn-primary" onclick="saveLegal()" style="padding:7px 14px;"><i class="bi bi-floppy"></i> Guardar datos legales</button>
+          <span id="legalMsg" style="font-size:12.5px;"></span>
         </div>
       </div>
       <div style="font-size:11.5px;color:var(--muted);">Cobros: registra cada renovación con el botón <b>Billing</b> de la empresa. El sistema avisa al cliente 7 días antes y, si vence sin pago, la marca como vencida y te avisa (no corta el servicio solo).</div>
@@ -2303,7 +2325,7 @@ async function cargarRegistroListas() {
 function openComercial() {
   openModal('modalComercial');
   document.getElementById('priceMsg').textContent = '';
-  cargarComercial(); cargarSolicitudes(); cargarPrecios();
+  cargarComercial(); cargarSolicitudes(); cargarPrecios(); cargarLegal();
 }
 async function cargarComercial() {
   const kp = document.getElementById('comKpis');
@@ -2324,6 +2346,12 @@ async function cargarComercial() {
         '<div style="flex:1;min-width:0;"><b>' + escHtml(t.name) + '</b><div style="color:var(--muted);font-size:11.5px;">' + escHtml(t.contact_email || '') + (t.signup_source ? ' · ' + escHtml(t.signup_source) : '') + '</div></div>' +
         '<span style="font-weight:700;color:' + (left != null && left <= 7 ? '#d97706' : 'var(--muted)') + ';">' + (left == null ? '' : left <= 0 ? 'Vence hoy' : left + ' día(s) · ' + fmt(t.trial_ends_at)) + '</span></div>';
     }).join('') : '<div style="color:var(--muted);font-size:12.5px;">Ninguna empresa en prueba.</div>';
+    const ina = d.inactive || [];
+    document.getElementById('comInactive').innerHTML = ina.length ? ina.map(t =>
+      '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);font-size:12.5px;margin-bottom:6px;">' +
+      '<div style="flex:1;min-width:0;"><b>' + escHtml(t.name) + '</b><div style="color:var(--muted);font-size:11.5px;">' + escHtml(t.contact_email || '') + ' · ' + escHtml(t.plan) + '</div></div>' +
+      '<span style="color:var(--muted);">' + (t.last_login ? 'Último acceso ' + fmt(t.last_login) : 'Nunca entró') + '</span></div>').join('')
+      : '<div style="color:var(--muted);font-size:12.5px;">Ninguna.</div>';
   } catch (e) { kp.innerHTML = '<div style="color:#dc2626;">Error: ' + escHtml(e.message) + '</div>'; }
 }
 async function cargarSolicitudes() {
@@ -2357,6 +2385,20 @@ async function cargarPrecios() {
     const d = (await (await fetch('/api/admin/signup/pricing', { credentials: 'include' })).json()).data || {};
     document.querySelectorAll('#priceForm input').forEach(i => { i.value = d[i.dataset.k] || ''; });
   } catch (_) {}
+}
+async function cargarLegal() {
+  try {
+    const d = (await (await fetch('/api/admin/signup/legal', { credentials: 'include' })).json()).data || {};
+    document.querySelectorAll('#legalForm input').forEach(i => { i.value = d[i.dataset.k] || ''; });
+  } catch (_) {}
+}
+async function saveLegal() {
+  const body = {};
+  document.querySelectorAll('#legalForm input').forEach(i => { body[i.dataset.k] = i.value; });
+  const r = await fetch('/api/admin/signup/legal', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  const m = document.getElementById('legalMsg');
+  m.style.color = r.ok ? '#059669' : '#dc2626'; m.textContent = r.ok ? 'Datos guardados.' : (j.message || 'Error');
 }
 async function savePrecios() {
   const body = {};
