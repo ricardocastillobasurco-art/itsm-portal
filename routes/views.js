@@ -128,6 +128,13 @@ router.get('/administracion',
         res.render('admin_platform/admin_management/configuracion/administracion/index', { user: req.user, ticketModeJira });
     }
 );
+// Registro autoservicio de empresas (público)
+router.get('/registro', async (req, res) => {
+    const Settings = require('../src/services/PlatformSettings');
+    const s = await Settings.getAll().catch(() => Settings.DEFAULTS);
+    res.render('auth/registro', { brandName: s.brand_name, trialDays: s.trial_days });
+});
+
 // Asistente de configuración inicial de la empresa (solo administradores)
 router.get('/bienvenida', authenticateToken, requireRole('administrador'), (req, res) => {
     res.render('admin_platform/onboarding/index', { title: 'Configura tu portal', user: req.user });

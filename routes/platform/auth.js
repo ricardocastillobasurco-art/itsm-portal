@@ -745,3 +745,16 @@ router.get('/microsoft/callback', async (req, res) => {
 });
 
 module.exports = router;
+
+// Abre la sesión de un usuario recién creado (registro autoservicio): mismas cookies y
+// tokens que el inicio de sesión normal.
+module.exports.issueSession = async (res, user) => {
+    const accessToken  = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+    await executeQuery(equipmentPool,
+        'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))',
+        [user.id, refreshToken, jwtRefreshExpirySeconds]).catch(() => {});
+    const opts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' };
+    res.cookie('accessToken', accessToken, { ...opts, maxAge: jwtExpirySeconds * 1000 });
+    res.cookie('refreshToken', refreshToken, { ...opts, maxAge: jwtRefreshExpirySeconds * 1000 });
+};

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crea tu cuenta · <%= brandName %></title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--soft:#f8fafc;--primary:#2563eb;--ok:#059669;--danger:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#080d1c;--card:#111827;--border:#1e293b;--text:#f1f5f9;--muted:#94a3b8;--soft:#0d1425}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.5}
+a{color:var(--primary)}
+.wrap{display:grid;grid-template-columns:1.05fr 1fr;min-height:100vh}
+.side{background:linear-gradient(150deg,#1e3a8a,#2563eb 55%,#7c3aed);color:#fff;padding:48px 52px;display:flex;flex-direction:column;gap:22px}
+.side .brand{font-weight:800;font-size:18px;display:flex;align-items:center;gap:10px}
+.side h1{font-size:30px;line-height:1.2;margin:18px 0 0}
+.side p.lead{opacity:.9;font-size:15px;margin:0}
+.feat{display:grid;gap:14px;margin-top:6px}
+.feat div{display:flex;gap:12px;align-items:flex-start}
+.feat i{font-size:20px;background:rgba(255,255,255,.15);border-radius:10px;padding:7px 9px}
+.feat b{display:block}
+.feat span{opacity:.85;font-size:13px}
+.side .foot{margin-top:auto;font-size:12.5px;opacity:.8}
+.main{display:flex;align-items:center;justify-content:center;padding:32px 20px}
+.card{width:100%;max-width:440px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:30px;box-shadow:0 10px 40px rgba(15,23,42,.08)}
+.card h2{margin:0 0 4px;font-size:22px}
+.card .sub{color:var(--muted);margin:0 0 20px}
+.inv{display:flex;gap:8px;align-items:center;background:rgba(5,150,105,.08);color:var(--ok);border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:14px}
+label.f{display:block;font-size:12.5px;font-weight:700;margin-bottom:12px}
+label.f input,label.f select{display:block;width:100%;margin-top:5px;font:inherit;color:var(--text);background:var(--soft);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px}
+label.f input:focus,label.f select:focus{outline:none;border-color:var(--primary);background:var(--card)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pw{position:relative}
+.pw button{position:absolute;right:8px;bottom:8px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
+.hint{font-size:11.5px;color:var(--muted);font-weight:400;margin-top:4px}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:6px 0 14px}
+.check input{margin-top:3px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:0;border-radius:12px;background:var(--primary);color:#fff;font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.ghost{background:none;color:var(--primary);font-weight:700;font-size:13px;padding:8px}
+.alert{border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+.alert.err{background:rgba(220,38,38,.08);color:var(--danger)}
+.alert.info{background:rgba(37,99,235,.08);color:var(--primary)}
+.code{display:flex;gap:8px;justify-content:center;margin:18px 0}
+.code input{width:46px;height:56px;text-align:center;font-size:24px;font-weight:800;font-family:ui-monospace,monospace;border:1.5px solid var(--border);border-radius:12px;background:var(--soft);color:var(--text)}
+.code input:focus{outline:none;border-color:var(--primary)}
+.center{text-align:center}
+.small{font-size:12.5px;color:var(--muted)}
+.hidden{display:none!important}
+.closed{text-align:center;padding:10px 0}
+.closed i{font-size:40px;color:var(--muted)}
+@media (max-width:900px){.wrap{grid-template-columns:1fr}.side{padding:28px 22px}.side h1{font-size:24px}.feat{display:none}.side .foot{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="side">
+    <div class="brand"><i class="bi bi-hexagon-fill"></i> <%= brandName %></div>
+    <h1>Mesa de ayuda, portal de autoservicio y control remoto en un solo lugar</h1>
+    <p class="lead">Prueba todo gratis por <%= trialDays %> días. Sin tarjeta. Al terminar sigues en el plan Gratis sin perder nada.</p>
+    <div class="feat">
+      <div><i class="bi bi-ticket-perforated"></i><span><b>Tickets con SLA</b>Incidencias y requerimientos con tiempos de atención y encuestas de satisfacción.</span></div>
+      <div><i class="bi bi-chat-dots"></i><span><b>Portal y chatbot</b>Tus colaboradores reportan desde el portal, por correo o conversando con el asistente.</span></div>
+      <div><i class="bi bi-display"></i><span><b>Control remoto</b>Conéctate a los equipos para resolver, con permiso del usuario y sesiones grabadas.</span></div>
+      <div><i class="bi bi-headset"></i><span><b>¿Prefieres que lo hagamos nosotros?</b>Contrata el soporte gestionado cuando quieras desde el mismo producto.</span></div>
+    </div>
+    <div class="foot">¿Ya tienes cuenta? <a href="/api/auth/login" style="color:#fff;font-weight:700;">Inicia sesión</a></div>
+  </aside>
+
+  <main class="main">
+    <div class="card">
+      <!-- Registro cerrado / requiere invitación -->
+      <section id="stClosed" class="closed hidden">
+        <i class="bi bi-envelope-paper"></i>
+        <h2 id="closedTitle">Registro por invitación</h2>
+        <p class="sub" id="closedText">Por ahora las cuentas se crean con una invitación. Si te interesa, escríbenos y te enviamos una.</p>
+        <a class="btn" href="/api/auth/login" style="text-decoration:none;">Ir a iniciar sesión</a>
+      </section>
+
+      <!-- Paso 1: datos -->
+      <section id="st1" class="hidden">
+        <h2>Crea la cuenta de tu empresa</h2>
+        <p class="sub">En 2 minutos tendrás tu portal listo.</p>
+        <div id="invBox" class="inv hidden"><i class="bi bi-patch-check-fill"></i><span id="invText">Invitación válida</span></div>
+        <div id="err1" class="alert err hidden"></div>
+        <form id="f1" novalidate>
+          <label class="f">Tu nombre y apellido <input name="fullName" autocomplete="name" maxlength="150" required></label>
+          <label class="f">Empresa <input name="company" autocomplete="organization" maxlength="120" required></label>
+          <label class="f">Correo de trabajo <input name="email" type="email" autocomplete="email" maxlength="150" required>
+            <div class="hint">Te enviaremos un código para confirmarlo.</div></label>
+          <div class="row2">
+            <label class="f pw">Contraseña <input name="password" type="password" autocomplete="new-password" minlength="10" required>
+              <button type="button" onclick="togglePw(this)" aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button></label>
+            <label class="f">País <select name="country">
+              <option>Perú</option><option>Argentina</option><option>Bolivia</option><option>Chile</option><option>Colombia</option>
+              <option>Costa Rica</option><option>Ecuador</option><option>El Salvador</option><option>España</option><option>Guatemala</option>
+              <option>Honduras</option><option>México</option><option>Nicaragua</option><option>Panamá</option><option>Paraguay</option>
+              <option>República Dominicana</option><option>Uruguay</option><option>Venezuela</option><option>Estados Unidos</option><option>Otro</option>
+            </select></label>
+          </div>
+          <div class="hint" style="margin:-6px 0 12px;">Mínimo 10 caracteres, con letras y números.</div>
+          <label class="f" id="capLabel"><span id="capQ">Verificación</span> <input name="challengeAnswer" inputmode="numeric" maxlength="3" required></label>
+          <div class="hp" aria-hidden="true"><label>Sitio web <input name="website" tabindex="-1" autocomplete="off"></label></div>
+          <label class="check"><input type="checkbox" name="acceptTerms" required>
+            <span>Acepto los <a href="/legal/terminos" target="_blank">términos del servicio</a> y la <a href="/legal/privacidad" target="_blank">política de privacidad</a>.</span></label>
+          <button class="btn" id="btn1" type="submit"><i class="bi bi-rocket-takeoff"></i> Crear mi cuenta gratis</button>
+        </form>
+      </section>
+
+      <!-- Paso 2: código -->
+      <section id="st2" class="hidden">
+        <h2>Revisa tu correo</h2>
+        <p class="sub">Enviamos un código de 6 dígitos a <b id="sentTo"></b>. Vence en 30 minutos.</p>
+        <div id="err2" class="alert err hidden"></div>
+        <div class="code" id="codeBox">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 1"><input inputmode="numeric" maxlength="1" aria-label="Dígito 2">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 3"><input inputmode="numeric" maxlength="1" aria-label="Dígito 4">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 5"><input inputmode="numeric" maxlength="1" aria-label="Dígito 6">
+        </div>
+        <button class="btn" id="btn2" onclick="verify()"><i class="bi bi-check2-circle"></i> Confirmar y crear mi empresa</button>
+        <div class="center" style="margin-top:12px;">
+          <button class="btn ghost" id="btnResend" onclick="resend()">¿No llegó? Reenviar código</button>
+          <div class="small">Revisa también la carpeta de spam. <a href="#" onclick="backTo1();return false;">Cambiar correo</a></div>
+        </div>
+      </section>
+
+      <!-- Paso 3: creando -->
+      <section id="st3" class="hidden center">
+        <i class="bi bi-gear-wide-connected" style="font-size:40px;color:var(--primary);"></i>
+        <h2>Preparando tu portal…</h2>
+        <p class="sub">Estamos creando tu empresa con categorías, tiempos de atención y catálogo iniciales.</p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+var invite = new URLSearchParams(location.search).get('i') || '';
+var reqId = null, challengeToken = null;
+var $ = function (id) { return document.getElementById(id); };
+function show(id) { ['stClosed', 'st1', 'st2', 'st3'].forEach(function (s) { $(s).classList.toggle('hidden', s !== id); }); }
+function err(id, msg) { var e = $(id); e.textContent = msg || ''; e.classList.toggle('hidden', !msg); }
+function togglePw(b) { var i = b.parentNode.querySelector('input'); i.type = i.type === 'password' ? 'text' : 'password'; b.firstElementChild.className = i.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash'; }
+function api(method, url, body) {
+  return fetch(url, { method: method, credentials: 'include', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined })
+    .then(function (r) { return r.json().then(function (j) { if (!r.ok || !j.success) { var e = new Error(j.message || 'Error'); e.code = j.code; throw e; } return j.data; }); });
+}
+function loadChallenge() {
+  return api('GET', '/api/signup/challenge').then(function (c) { challengeToken = c.token; $('capQ').textContent = 'Verificación: ' + c.question; document.forms.f1.challengeAnswer.value = ''; });
+}
+
+api('GET', '/api/signup/config' + (invite ? '?i=' + encodeURIComponent(invite) : '')).then(function (cfg) {
+  if (cfg.mode === 'closed') { $('closedTitle').textContent = 'Registro cerrado por ahora'; $('closedText').textContent = 'Vuelve pronto o escríbenos para más información.'; return show('stClosed'); }
+  if (invite && cfg.inviteError) { $('closedTitle').textContent = 'Invitación no válida'; $('closedText').textContent = cfg.inviteError; return show('stClosed'); }
+  if (!invite && cfg.mode === 'invite') return show('stClosed');
+  if (cfg.invite) {
+    $('invBox').classList.remove('hidden');
+    $('invText').textContent = 'Invitación válida' + (cfg.invite.company ? ' para ' + cfg.invite.company : '');
+    if (cfg.invite.company) document.forms.f1.company.value = cfg.invite.company;
+    if (cfg.invite.email) { document.forms.f1.email.value = cfg.invite.email; document.forms.f1.email.readOnly = true; }
+  }
+  show('st1');
+  loadChallenge();
+}).catch(function () { show('st1'); loadChallenge(); });
+
+$('f1').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var f = e.target, btn = $('btn1');
+  err('err1', '');
+  if (!f.acceptTerms.checked) return err('err1', 'Debes aceptar los términos y la política de privacidad');
+  btn.disabled = true;
+  api('POST', '/api/signup/start', {
+    fullName: f.fullName.value, company: f.company.value, email: f.email.value, password: f.password.value, country: f.country.value,
+    acceptTerms: f.acceptTerms.checked, website: f.website.value, invite: invite || undefined,
+    challengeToken: challengeToken, challengeAnswer: f.challengeAnswer.value,
+  }).then(function (d) {
+    reqId = d.requestId;
+    $('sentTo').textContent = d.email;
+    show('st2');
+    $('codeBox').querySelector('input').focus();
+  }).catch(function (e) {
+    err('err1', e.message);
+    if (e.code === 'CAPTCHA') loadChallenge();
+  }).then(function () { btn.disabled = false; });
+});
+
+// Casillas del código: avanzar, retroceder y pegar los 6 dígitos de una vez
+var boxes = Array.prototype.slice.call($('codeBox').querySelectorAll('input'));
+boxes.forEach(function (inp, i) {
+  inp.addEventListener('input', function () {
+    inp.value = inp.value.replace(/\D/g, '').slice(-1);
+    if (inp.value && boxes[i + 1]) boxes[i + 1].focus();
+    if (boxes.every(function (b) { return b.value; })) verify();
+  });
+  inp.addEventListener('keydown', function (e) { if (e.key === 'Backspace' && !inp.value && boxes[i - 1]) boxes[i - 1].focus(); });
+  inp.addEventListener('paste', function (e) {
+    var d = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+    if (d.length) { e.preventDefault(); boxes.forEach(function (b, k) { b.value = d[k] || ''; }); if (d.length === 6) verify(); else boxes[d.length].focus(); }
+  });
+});
+var verifying = false;
+function verify() {
+  if (verifying) return;
+  var code = boxes.map(function (b) { return b.value; }).join('');
+  if (code.length !== 6) return err('err2', 'Escribe los 6 dígitos');
+  verifying = true; err('err2', ''); $('btn2').disabled = true;
+  show('st3');
+  api('POST', '/api/signup/verify', { requestId: reqId, code: code }).then(function (d) {
+    location.href = d.redirect || '/bienvenida';
+  }).catch(function (e) {
+    show('st2'); err('err2', e.message);
+    boxes.forEach(function (b) { b.value = ''; }); boxes[0].focus();
+  }).then(function () { verifying = false; $('btn2').disabled = false; });
+}
+function resend() {
+  var b = $('btnResend'); b.disabled = true;
+  api('POST', '/api/signup/resend', { requestId: reqId }).then(function () { err('err2', ''); b.textContent = 'Código reenviado ✓'; })
+    .catch(function (e) { err('err2', e.message); }).then(function () { setTimeout(function () { b.disabled = false; b.textContent = '¿No llegó? Reenviar código'; }, 30000); });
+}
+function backTo1() { show('st1'); loadChallenge(); }
+</script>
+</body>
+</html>

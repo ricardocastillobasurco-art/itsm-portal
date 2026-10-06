@@ -144,6 +144,11 @@ async function _logSessionOnTicket(req, key, nodeId, viewmode) {
 // Grupos donde la empresa puede instalar agentes (con nombre)
 router.get('/my-groups', async (req, res) => {
     try {
+        // Empresa registrada sola mientras MeshCentral no estaba conectado: su grupo se crea ahora
+        if (req.rmm.mode === 'shared' && !req.rmm.meshIds.size && await require('../../src/services/SignupService').ensurePendingMeshGroup(req.rmm.tenantId).catch(() => false)) {
+            meshPool.invalidate(req.rmm.tenantId);
+            req.rmm = await meshPool.scopeFor(req);
+        }
         const { svc, meshIds } = req.rmm;
         let groups;
         if (meshIds) {

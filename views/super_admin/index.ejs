@@ -282,6 +282,9 @@ select.form-input{cursor:pointer;}
   <div class="sec-head">
     <span class="sec-title"><i class="bi bi-buildings"></i> Clientes</span>
     <div class="sec-line"></div>
+    <button class="btn-outline" onclick="openRegistro()" style="color:#2563eb;border-color:#2563eb;" title="Registro autoservicio e invitaciones">
+      <i class="bi bi-person-plus"></i> Registro
+    </button>
     <button class="btn-outline" onclick="openHoras()" style="color:#059669;border-color:#059669;" title="Horas de soporte por cliente (para facturar)">
       <i class="bi bi-stopwatch"></i> Horas
     </button>
@@ -538,6 +541,54 @@ select.form-input{cursor:pointer;}
 </div>
 
 <!-- ══ MODAL USUARIOS ════════════════════════════════════════════════════ -->
+<div id="modalRegistro" class="modal-bg">
+  <div class="modal-box" style="max-width:760px;max-height:90vh;display:flex;flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;">
+      <div>
+        <div class="modal-title"><i class="bi bi-person-plus" style="color:#2563eb;"></i> Registro autoservicio</div>
+        <div class="modal-sub">Cómo se crean cuentas nuevas desde la página <a href="/registro" target="_blank">/registro</a></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalRegistro')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:18px;overflow:auto;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end;">
+        <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Modo
+          <select id="regMode" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"><option value="invite">Solo con invitación</option><option value="open">Abierto al público</option><option value="closed">Cerrado</option></select></label>
+        <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Días de prueba
+          <input id="regDays" type="number" min="7" max="90" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+        <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Nombre de la plataforma
+          <input id="regBrand" maxlength="60" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+        <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Web de la marca
+          <input id="regBrandUrl" placeholder="https://..." style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+        <button class="btn-primary" onclick="saveRegistro()" style="padding:9px 16px;"><i class="bi bi-floppy"></i> Guardar</button>
+      </div>
+      <div id="regMsg" style="font-size:12.5px;"></div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;"><i class="bi bi-envelope-paper"></i> Nueva invitación</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input id="invEmail" type="email" placeholder="correo (opcional: solo esa persona podrá usarla)" style="flex:2;min-width:220px;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;">
+          <input id="invCompany" placeholder="empresa (opcional)" style="flex:1;min-width:150px;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;">
+          <select id="invDays" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"><option value="7">7 días</option><option value="14" selected>14 días</option><option value="30">30 días</option></select>
+          <button class="btn-primary" onclick="crearInvitacion()" style="padding:9px 14px;"><i class="bi bi-link-45deg"></i> Crear enlace</button>
+        </div>
+        <div id="invNew" style="display:none;margin-top:10px;gap:6px;"><input id="invUrl" readonly style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;">
+          <button class="btn-outline" onclick="navigator.clipboard.writeText(document.getElementById('invUrl').value);this.innerHTML='<i class=&quot;bi bi-check2&quot;></i> Copiado'"><i class="bi bi-clipboard"></i> Copiar</button></div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Invitaciones</div>
+        <div id="invList"></div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Registros recientes</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;">Mientras no esté configurado el correo de salida, el código de verificación pendiente aparece aquí para que se lo dictes al cliente.</div>
+        <div id="reqList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="modalHoras" class="modal-bg">
   <div class="modal-box" style="max-width:680px;">
     <div class="modal-header">
@@ -2091,6 +2142,71 @@ async function toggleFeature(key, enabled) {
 
 /* ── Usuarios por tenant ───────────────────────────────────────────────── */
 let _usuariosTenantId = null;
+
+async function openRegistro() {
+  openModal('modalRegistro');
+  document.getElementById('regMsg').textContent = '';
+  document.getElementById('invNew').style.display = 'none';
+  try {
+    const j = await (await fetch('/api/admin/signup/settings', { credentials: 'include' })).json();
+    const d = j.data || {};
+    document.getElementById('regMode').value = d.signup_mode || 'invite';
+    document.getElementById('regDays').value = d.trial_days || 30;
+    document.getElementById('regBrand').value = d.brand_name || '';
+    document.getElementById('regBrandUrl').value = d.brand_url || '';
+  } catch (_) {}
+  cargarRegistroListas();
+}
+async function saveRegistro() {
+  const msg = document.getElementById('regMsg');
+  const r = await fetch('/api/admin/signup/settings', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ signup_mode: document.getElementById('regMode').value, trial_days: document.getElementById('regDays').value,
+      brand_name: document.getElementById('regBrand').value, brand_url: document.getElementById('regBrandUrl').value }) });
+  const j = await r.json().catch(() => ({}));
+  msg.style.color = r.ok ? '#059669' : '#dc2626';
+  msg.textContent = r.ok ? 'Guardado.' : (j.message || 'Error');
+}
+async function crearInvitacion() {
+  const r = await fetch('/api/admin/signup/invites', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: document.getElementById('invEmail').value.trim() || null, company: document.getElementById('invCompany').value.trim() || null,
+      days: document.getElementById('invDays').value }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(j.message || 'Error'); return; }
+  document.getElementById('invUrl').value = j.data.url;
+  document.getElementById('invNew').style.display = 'flex';
+  document.getElementById('invEmail').value = ''; document.getElementById('invCompany').value = '';
+  cargarRegistroListas();
+}
+async function anularInvitacion(id) {
+  if (!confirm('¿Anular esta invitación? El enlace dejará de funcionar.')) return;
+  await fetch('/api/admin/signup/invites/' + id, { method: 'DELETE', credentials: 'include' });
+  cargarRegistroListas();
+}
+async function cargarRegistroListas() {
+  const fmt = (d) => d ? new Date(d).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  const row = 'display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);font-size:12.5px;margin-bottom:6px;';
+  try {
+    const inv = (await (await fetch('/api/admin/signup/invites', { credentials: 'include' })).json()).data || [];
+    document.getElementById('invList').innerHTML = inv.length ? inv.map(i => {
+      const st = i.used_at ? ['Usada' + (i.tenant_name ? ' · ' + escHtml(i.tenant_name) : ''), '#059669'] : i.revoked_at ? ['Anulada', '#94a3b8']
+               : new Date(i.expires_at) < new Date() ? ['Vencida', '#94a3b8'] : ['Pendiente', '#2563eb'];
+      const live = st[0] === 'Pendiente';
+      return '<div style="' + row + '"><i class="bi bi-envelope" style="color:' + st[1] + ';"></i><div style="flex:1;min-width:0;"><b>' + escHtml(i.company_name || i.email || 'Invitación abierta') + '</b>' +
+        '<div style="color:var(--muted);font-size:11.5px;">' + escHtml(i.email || 'cualquier correo') + ' · vence ' + fmt(i.expires_at) + '</div></div>' +
+        '<span style="font-weight:700;color:' + st[1] + ';">' + st[0] + '</span>' +
+        (live ? '<button class="btn-outline" style="padding:4px 9px;color:#dc2626;border-color:#dc2626;" onclick="anularInvitacion(' + Number(i.id) + ')">Anular</button>' : '') + '</div>';
+    }).join('') : '<div style="color:var(--muted);font-size:12.5px;">Sin invitaciones aún.</div>';
+    const reqs = (await (await fetch('/api/admin/signup/requests', { credentials: 'include' })).json()).data || [];
+    document.getElementById('reqList').innerHTML = reqs.length ? reqs.map(r => {
+      const done = !!r.verified_at;
+      return '<div style="' + row + '"><i class="bi ' + (done ? 'bi-building-check' : 'bi-hourglass-split') + '" style="color:' + (done ? '#059669' : '#d97706') + ';"></i>' +
+        '<div style="flex:1;min-width:0;"><b>' + escHtml(r.company_name) + '</b><div style="color:var(--muted);font-size:11.5px;">' + escHtml(r.full_name) + ' · ' + escHtml(r.email) +
+        (r.country ? ' · ' + escHtml(r.country) : '') + ' · ' + fmt(r.created_at) + '</div></div>' +
+        (done ? '<span style="font-weight:700;color:#059669;">Creada · ' + escHtml(r.plan || '') + '</span>'
+              : (r.code ? '<span title="Código vigente" style="font-family:monospace;font-weight:800;letter-spacing:2px;">' + escHtml(r.code) + '</span>' : '<span style="color:var(--muted);">Sin confirmar</span>')) + '</div>';
+    }).join('') : '<div style="color:var(--muted);font-size:12.5px;">Sin registros aún.</div>';
+  } catch (e) { document.getElementById('invList').innerHTML = '<div style="color:#dc2626;">Error: ' + escHtml(e.message) + '</div>'; }
+}
 
 function openHoras() {
   const t = new Date(), iso = (d) => new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);

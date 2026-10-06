@@ -1,0 +1,16 @@
+<%
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const body = `
+<div class="header">
+  <h1>Confirma tu correo</h1>
+  <p>${esc(brand || 'Portal TI')} · registro de tu empresa</p>
+</div>
+<div class="body">
+  <p style="margin:0 0 14px;">Hola ${esc(name)}, usa este código para terminar de crear tu cuenta:</p>
+  <div style="text-align:center;margin:18px 0;">
+    <span style="display:inline-block;font-family:monospace;font-size:32px;font-weight:800;letter-spacing:8px;padding:12px 22px;background:#f1f5f9;border-radius:10px;color:#0f172a;">${esc(code)}</span>
+  </div>
+  <p style="margin:0;font-size:13px;color:#64748b;">Vence en ${esc(minutes)} minutos. Si no fuiste tú, ignora este correo: no se creará ninguna cuenta.</p>
+</div>`;
+%>
+<%- include('_base', { body }) %>

@@ -403,6 +403,15 @@
                 <div style="text-align:center;margin-top:12px;">
                     <a href="#" onclick="startReset();return false;" style="font-size:12px;">¿Olvidaste tu contraseña?</a>
                 </div>
+                <!-- Registro autoservicio: solo visible si está abierto al público -->
+                <div id="signupLink" style="text-align:center;margin-top:10px;font-size:12.5px;display:none;">
+                    ¿Tu empresa aún no tiene cuenta? <a href="/registro" style="font-weight:700;">Créala gratis</a>
+                </div>
+                <script>
+                    fetch('/api/signup/config').then(function (r) { return r.json(); }).then(function (j) {
+                        if (j && j.success && j.data && j.data.mode === 'open') document.getElementById('signupLink').style.display = '';
+                    }).catch(function () {});
+                </script>
             </div>
 
             <!-- PASO 2b: Crear contraseña (primer acceso) -->

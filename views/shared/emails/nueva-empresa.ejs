@@ -1,0 +1,17 @@
+<%
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+const body = `
+<div class="header">
+  <h1>🎉 Nueva empresa registrada</h1>
+  <p>${invite ? 'Con invitación' : 'Registro público'}</p>
+</div>
+<div class="body">
+  <div class="field"><div class="field-label">Empresa</div><div class="field-val">${esc(company)}</div></div>
+  <div class="field"><div class="field-label">Administrador</div><div class="field-val">${esc(name)} · ${esc(email)}</div></div>
+  ${country ? `<div class="field"><div class="field-label">País</div><div class="field-val">${esc(country)}</div></div>` : ''}
+  <p style="margin:14px 0 0;font-size:13px;color:#64748b;">Está en la prueba gratuita. Buen momento para escribirle y ofrecerle ayuda o el soporte gestionado.</p>
+  <div class="cta"><a href="${appUrl}/superadmin">Abrir el superadmin</a></div>
+</div>`;
+%>
+<%- include('_base', { body }) %>

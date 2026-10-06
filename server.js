@@ -126,6 +126,9 @@ const jiraRoutes  = require('./routes/jira');
 
 // Las vistas deben registrarse antes para que capturen rutas específicas
 app.use('/', viewsRoutes);
+// Registro autoservicio de empresas (público) y su administración (superadmin)
+app.use('/api/signup', require('./routes/platform/signup'));
+app.use('/api/admin/signup', require('./routes/platform/signupAdmin'));
 app.use('/api', apiRoutes);
 
 // Admin: feature flags, custom fields y branding por tenant
