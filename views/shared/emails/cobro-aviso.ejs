@@ -1,0 +1,15 @@
+<%
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const body = `
+<div class="header">
+  <h1>Recordatorio de pago</h1>
+  <p>${esc(company)}</p>
+</div>
+<div class="body">
+  <p style="margin:0 0 12px;">Hola ${esc(name)}, te recordamos que la renovación de tu servicio vence pronto.</p>
+  <div class="field"><div class="field-label">Fecha de vencimiento</div><div class="field-val">${esc(date)}</div></div>
+  ${amount ? `<div class="field"><div class="field-label">Monto</div><div class="field-val">${esc(currency)} ${esc(amount)}</div></div>` : ''}
+  <p style="margin:14px 0 0;font-size:13px;color:#64748b;">Si ya realizaste el pago, ignora este mensaje. Ante cualquier duda, responde a tu contacto comercial.</p>
+</div>`;
+%>
+<%- include('_base', { body }) %>

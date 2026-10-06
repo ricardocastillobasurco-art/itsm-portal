@@ -1,0 +1,21 @@
+<%
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+const row = (label, val) => val ? `<div class="field"><div class="field-label">${label}</div><div class="field-val">${esc(val)}</div></div>` : '';
+const body = `
+<div class="header">
+  <h1>${esc(type)}</h1>
+  <p>${esc(company)}${typeof plan !== 'undefined' && plan ? ' · plan actual: ' + esc(plan) : ''}</p>
+</div>
+<div class="body">
+  ${row('Contacto', typeof contact !== 'undefined' ? contact : '')}
+  ${row('Teléfono', typeof phone !== 'undefined' ? phone : '')}
+  ${row('Usuarios', typeof users !== 'undefined' ? users : '')}
+  ${row('Técnicos', typeof technicians !== 'undefined' ? technicians : '')}
+  ${row('Equipos', typeof devices !== 'undefined' ? devices : '')}
+  ${row('Horario de soporte', typeof schedule !== 'undefined' ? schedule : '')}
+  ${row('Mensaje', typeof message !== 'undefined' ? message : '')}
+  <div class="cta"><a href="${appUrl}/superadmin">Abrir el superadmin</a></div>
+</div>`;
+%>
+<%- include('_base', { body }) %>

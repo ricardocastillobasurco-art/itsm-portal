@@ -75,4 +75,23 @@ router.delete('/invites/:id', wrap(async (req) => { await Signup.revokeInvite(pa
 // el código pendiente se muestra aquí para poder ayudar al cliente.
 router.get('/requests', wrap(() => Signup.listRequests()));
 
+// Precios que se muestran en /planes (texto libre: "15", "15/mes", "Consultar"...)
+const PRICING_KEYS = ['currency', 'pro_per_technician', 'extra_device', 'managed_per_user', 'contact_email', 'contact_whatsapp'];
+router.get('/pricing', wrap(() => Settings.get('pricing')));
+router.put('/pricing', wrap(async (req) => {
+    const cur = (await Settings.get('pricing')) || {};
+    const next = { ...cur };
+    for (const k of PRICING_KEYS) if (req.body && k in req.body) next[k] = String(req.body[k] ?? '').trim().slice(0, 80);
+    if (next.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next.contact_email)) throw Object.assign(new Error('Correo de contacto inválido'), { status: 400 });
+    await Settings.set({ pricing: next });
+    return Settings.get('pricing');
+}));
+
+// Panel comercial
+const Commercial = require('../../src/services/CommercialService');
+router.get('/commercial', wrap(() => Commercial.summary()));
+router.get('/sales', wrap((req) => Commercial.listRequests({ status: req.query.status })));
+router.patch('/sales/:id', wrap(async (req) => { await Commercial.updateRequest(parseInt(req.params.id), req.body || {}); return null; }));
+router.post('/billing-run', wrap(() => Commercial.billingRun()));
+
 module.exports = router;

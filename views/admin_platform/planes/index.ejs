@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planes</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--soft:#f8fafc;--primary:#2563eb;--ok:#059669;--warn:#b45309;--danger:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#080d1c;--card:#111827;--border:#1e293b;--text:#f1f5f9;--muted:#94a3b8;--soft:#0d1425}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.5}
+.top{display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--card)}
+.top a{color:var(--muted);text-decoration:none;font-weight:600}
+.top a:hover{color:var(--primary)}
+main{max-width:1080px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 22px}
+.now{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin-bottom:26px}
+.now .head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.pill{display:inline-block;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:800;background:rgba(37,99,235,.12);color:var(--primary)}
+.pill.warn{background:rgba(180,83,9,.12);color:var(--warn)}
+.meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.meter .lbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:5px}
+.meter .lbl b{color:var(--text)}
+.bar{height:8px;background:var(--soft);border:1px solid var(--border);border-radius:99px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--primary)}
+.bar span.hi{background:var(--warn)}
+.bar span.full{background:var(--danger)}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px}
+.plan{background:var(--card);border:1.5px solid var(--border);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:10px;position:relative}
+.plan.best{border-color:var(--primary);box-shadow:0 10px 30px rgba(37,99,235,.12)}
+.plan .tag{position:absolute;top:-11px;left:20px;background:var(--primary);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:800}
+.plan h2{margin:0;font-size:19px}
+.plan .price{font-size:26px;font-weight:800}
+.plan .price small{font-size:13px;color:var(--muted);font-weight:600}
+.plan p.d{color:var(--muted);margin:0;font-size:13px}
+.plan ul{list-style:none;padding:0;margin:4px 0 8px;display:grid;gap:7px;font-size:13.5px}
+.plan li{display:flex;gap:8px}
+.plan li i{color:var(--ok)}
+.plan .act{margin-top:auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;width:100%;border:0;border-radius:11px;padding:11px 14px;font:inherit;font-weight:800;cursor:pointer;background:var(--primary);color:#fff}
+.btn.ghost{background:var(--soft);color:var(--text);border:1.5px solid var(--border);cursor:default}
+.btn:disabled{opacity:.6}
+.note{margin-top:22px;color:var(--muted);font-size:13px;text-align:center}
+dialog{border:0;border-radius:18px;padding:0;max-width:460px;width:calc(100% - 32px);background:var(--card);color:var(--text);box-shadow:0 20px 60px rgba(15,23,42,.3)}
+dialog::backdrop{background:rgba(15,23,42,.5)}
+dialog form{padding:22px}
+dialog h3{margin:0 0 4px}
+label.f{display:block;font-size:12.5px;font-weight:700;margin-bottom:11px}
+label.f input,label.f select,label.f textarea{display:block;width:100%;margin-top:5px;font:inherit;color:var(--text);background:var(--soft);border:1.5px solid var(--border);border-radius:10px;padding:9px 11px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dlg-act{display:flex;gap:10px;margin-top:6px}
+.dlg-act .btn{width:auto;flex:1}
+.msg{border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px;display:none}
+.msg.err{display:block;background:rgba(220,38,38,.1);color:var(--danger)}
+.msg.ok{display:block;background:rgba(5,150,105,.1);color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="top"><a href="/admin-management"><i class="bi bi-arrow-left"></i> Volver al panel</a></div>
+<main>
+  <h1>Planes</h1>
+  <p class="sub">Empieza gratis y crece cuando lo necesites. Nunca pierdes tus datos al cambiar de plan.</p>
+
+  <section class="now" id="now" hidden>
+    <div class="head"><div>Tu plan actual: <span class="pill" id="curPlan"></span> <span id="curTrial"></span></div></div>
+    <div class="meters" id="meters"></div>
+  </section>
+
+  <section class="plans">
+    <article class="plan">
+      <h2>Gratis</h2>
+      <div class="price">0 <small>para siempre</small></div>
+      <p class="d">Para equipos pequeños que empiezan a ordenar su soporte.</p>
+      <ul id="freeList"></ul>
+      <div class="act" id="actFree"></div>
+    </article>
+    <article class="plan best">
+      <span class="tag">Más elegido</span>
+      <h2>Pro</h2>
+      <div class="price" id="proPrice"></div>
+      <p class="d">Todo sin límites prácticos para tu mesa de ayuda.</p>
+      <ul id="proList"></ul>
+      <div class="act" id="actPro"></div>
+    </article>
+    <article class="plan">
+      <h2>Soporte gestionado</h2>
+      <div class="price" id="mgdPrice"></div>
+      <p class="d">Nosotros atendemos a tus usuarios con nuestros técnicos.</p>
+      <ul>
+        <li><i class="bi bi-check-circle-fill"></i>Todo lo del plan Pro</li>
+        <li><i class="bi bi-check-circle-fill"></i>Mesa de ayuda atendida por especialistas</li>
+        <li><i class="bi bi-check-circle-fill"></i>Soporte remoto a tus equipos</li>
+        <li><i class="bi bi-check-circle-fill"></i>Horario a tu medida (8x5, 12x6 o 24x7)</li>
+        <li><i class="bi bi-check-circle-fill"></i>Reporte mensual de horas y tickets</li>
+      </ul>
+      <div class="act" id="actMgd"></div>
+    </article>
+  </section>
+  <p class="note" id="contactNote"></p>
+</main>
+
+<dialog id="dlg">
+  <form method="dialog" id="reqForm" novalidate>
+    <h3 id="dlgTitle"></h3>
+    <p class="sub" style="margin-bottom:14px" id="dlgSub"></p>
+    <div class="msg" id="dlgMsg"></div>
+    <div class="row2">
+      <label class="f">Usuarios a atender <input name="users" type="number" min="0" max="100000"></label>
+      <label class="f">Equipos <input name="devices" type="number" min="0" max="100000"></label>
+    </div>
+    <div class="row2">
+      <label class="f" id="fTech">Técnicos <input name="technicians" type="number" min="0" max="10000"></label>
+      <label class="f" id="fSched">Horario
+        <select name="schedule"><option value="8x5">8x5 (lun–vie)</option><option value="12x6">12x6 (lun–sáb)</option><option value="24x7">24x7</option></select>
+      </label>
+    </div>
+    <label class="f">Teléfono / WhatsApp <input name="phone" maxlength="40"></label>
+    <label class="f">Comentarios <textarea name="message" rows="3" maxlength="1000"></textarea></label>
+    <div class="dlg-act">
+      <button type="button" class="btn ghost" style="cursor:pointer" id="dlgCancel">Cancelar</button>
+      <button type="submit" class="btn" id="dlgSend">Enviar solicitud</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+  var IS_ADMIN = <%- JSON.stringify(['administrador', 'admin', 'superadmin'].includes(user && user.role)) %>;
+  var esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var $ = function (id) { return document.getElementById(id); };
+  var NAMES = { technicians: 'Técnicos', devices: 'Equipos con control remoto', ai_per_month: 'Asistente IA este mes', storage_gb: 'Adjuntos (GB)' };
+  var reqType = null;
+
+  function li(t) { return '<li><i class="bi bi-check-circle-fill"></i>' + t + '</li>'; }
+  function lim(v, unit) { return v == null ? 'ilimitados' : esc(v) + (unit || ''); }
+  function price(p, val, per) {
+    return val ? esc(p.currency || '') + ' ' + esc(val) + ' <small>' + per + '</small>' : 'Consultar <small>según tu equipo</small>';
+  }
+
+  function render(d) {
+    var st = d.status, p = d.pricing || {}, L = d.limits || {}, free = L.free || {}, pro = L.professional || {};
+    // Plan actual
+    $('now').hidden = false;
+    $('curPlan').textContent = st.unlimited ? 'Sin límites' : st.label;
+    if (st.plan === 'trial' && st.trialDaysLeft != null) {
+      $('curTrial').innerHTML = '<span class="pill warn">' + (st.trialDaysLeft <= 0 ? 'La prueba termina hoy' : 'Prueba: ' + st.trialDaysLeft + ' día(s) restantes') + '</span>';
+    }
+    var m = '';
+    Object.keys(NAMES).forEach(function (k) {
+      if (!(k in (st.usage || {}))) return;
+      var used = st.usage[k], max = st.limits ? st.limits[k] : null;
+      var pct = max ? Math.min(100, Math.round(used / max * 100)) : 0;
+      m += '<div class="meter"><div class="lbl"><span>' + NAMES[k] + '</span><b>' + esc(used) + (max != null ? ' / ' + esc(max) : ' · sin límite') + '</b></div>' +
+           '<div class="bar"><span class="' + (pct >= 100 ? 'full' : pct >= 80 ? 'hi' : '') + '" style="width:' + (max ? pct : 0) + '%"></span></div></div>';
+    });
+    $('meters').innerHTML = m;
+
+    // Tarjetas
+    $('freeList').innerHTML = li(lim(free.technicians) + ' técnicos') + li(lim(free.devices) + ' equipos con control remoto') +
+      li('Usuarios finales ilimitados') + li(lim(free.ai_per_month) + ' consultas al asistente IA al mes') + li(lim(free.storage_gb, ' GB') + ' de adjuntos') +
+      li('Portal de autoservicio y base de conocimiento');
+    $('proList').innerHTML = li('Técnicos ilimitados') + li((pro.devices_per_technician ? esc(pro.devices_per_technician) + ' equipos por técnico' : 'Equipos ilimitados') + (p.extra_device ? ' (adicional: ' + esc(p.currency || '') + ' ' + esc(p.extra_device) + ')' : '')) +
+      li('Asistente IA sin límite mensual') + li(lim(pro.storage_gb, ' GB') + ' de adjuntos') + li('SLA, flujos de aprobación y reportes') + li('Tu marca y tu dominio');
+    $('proPrice').innerHTML = price(p, p.pro_per_technician, 'por técnico / mes');
+    $('mgdPrice').innerHTML = price(p, p.managed_per_user, 'por usuario / mes');
+
+    var cur = st.unlimited ? 'enterprise' : st.plan;
+    $('actFree').innerHTML = cur === 'free' ? '<span class="btn ghost">Tu plan actual</span>'
+      : cur === 'trial' ? '<span class="btn ghost">Al terminar la prueba sigues aquí</span>' : '';
+    $('actPro').innerHTML = cur === 'professional' ? '<span class="btn ghost">Tu plan actual</span>' : cur === 'enterprise' ? '' : btn('pro', 'Quiero el plan Pro');
+    $('actMgd').innerHTML = cur === 'enterprise' ? '<span class="btn ghost">Ya lo tienes</span>' : btn('managed', 'Contratar soporte');
+    document.querySelectorAll('[data-req]').forEach(function (b) { b.onclick = function () { openReq(b.getAttribute('data-req')); }; });
+
+    var c = [];
+    if (p.contact_email) c.push('<a href="mailto:' + esc(p.contact_email) + '">' + esc(p.contact_email) + '</a>');
+    if (p.contact_whatsapp) c.push('WhatsApp ' + esc(p.contact_whatsapp));
+    $('contactNote').innerHTML = (c.length ? '¿Dudas? Escríbenos: ' + c.join(' · ') + '. ' : '') + 'Los precios no incluyen impuestos.';
+  }
+
+  function btn(type, text) {
+    if (!IS_ADMIN) return '<span class="btn ghost" title="Pídeselo al administrador de tu empresa">Solo el administrador puede solicitarlo</span>';
+    return '<button class="btn" data-req="' + type + '"><i class="bi bi-send"></i>' + text + '</button>';
+  }
+
+  function openReq(type) {
+    reqType = type;
+    $('dlgTitle').textContent = type === 'pro' ? 'Pasar al plan Pro' : 'Contratar soporte gestionado';
+    $('dlgSub').textContent = 'Déjanos unos datos y te contactaremos con una propuesta. No se cobra nada todavía.';
+    $('fTech').style.display = type === 'pro' ? '' : 'none';
+    $('fSched').style.display = type === 'managed' ? '' : 'none';
+    $('dlgMsg').className = 'msg'; $('dlgSend').disabled = false; $('dlgSend').style.display = '';
+    $('reqForm').reset();
+    $('dlg').showModal();
+  }
+  $('dlgCancel').onclick = function () { $('dlg').close(); };
+  $('reqForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var fd = new FormData(e.target), body = { type: reqType };
+    fd.forEach(function (v, k) { body[k] = v; });
+    $('dlgSend').disabled = true;
+    fetch('/api/plan/request', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.success) throw new Error(j.message || 'No se pudo enviar');
+        $('dlgMsg').className = 'msg ok'; $('dlgMsg').textContent = '¡Listo! Recibimos tu solicitud y te contactaremos pronto.';
+        $('dlgSend').style.display = 'none'; $('dlgCancel').textContent = 'Cerrar';
+      })
+      .catch(function (err) { $('dlgMsg').className = 'msg err'; $('dlgMsg').textContent = err.message; $('dlgSend').disabled = false; });
+  });
+
+  fetch('/api/plan/offer', { credentials: 'include' }).then(function (r) { return r.json(); }).then(function (j) {
+    if (j.success) render(j.data);
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>

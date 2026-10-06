@@ -139,6 +139,11 @@ router.get('/registro', async (req, res) => {
 router.get('/bienvenida', authenticateToken, requireRole('administrador'), (req, res) => {
     res.render('admin_platform/onboarding/index', { title: 'Configura tu portal', user: req.user });
 });
+// Planes y contratación (cualquier usuario del panel; solo el administrador puede solicitar)
+router.get('/planes', authenticateToken, (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.render('admin_platform/planes/index', { user: req.user });
+});
 router.get('/sccm',       (req, res) => res.render('admin_platform/admin_management/asset_management/sccm/index'));
 
 router.get('/import-csv', authenticateToken, (req, res) => {

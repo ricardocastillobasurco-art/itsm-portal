@@ -9,7 +9,11 @@ let _timer = null;
 
 function startTrialJob() {
   if (_timer) return;
-  const tick = () => run().catch(e => logger.warn(`[prueba] ${e.message}`));
+  const tick = () => {
+    run().catch(e => logger.warn(`[prueba] ${e.message}`));
+    // Cobro manual: recordatorios de pago y vencidos
+    require('../services/CommercialService').billingRun().catch(e => logger.warn(`[cobros] ${e.message}`));
+  };
   _timer = setInterval(tick, 60 * 60 * 1000);
   setTimeout(tick, 3 * 60 * 1000);   // primera pasada 3 min después de arrancar
   logger.info('[prueba] Job de pruebas gratuitas registrado — cada hora');

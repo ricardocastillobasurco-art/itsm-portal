@@ -88,6 +88,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;}
 .tc-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.2px;}
 .badge-trial{background:rgba(217,119,6,.12);color:#d97706;}
+.badge-free{background:rgba(100,116,139,.12);color:#64748b;}
 .badge-starter{background:rgba(37,99,235,.1);color:#2563eb;}
 .badge-professional{background:rgba(124,58,237,.1);color:#7c3aed;}
 .badge-enterprise{background:rgba(5,150,105,.1);color:#059669;}
@@ -282,6 +283,9 @@ select.form-input{cursor:pointer;}
   <div class="sec-head">
     <span class="sec-title"><i class="bi bi-buildings"></i> Clientes</span>
     <div class="sec-line"></div>
+    <button class="btn-outline" onclick="openComercial()" style="color:#d97706;border-color:#d97706;" title="Pruebas, solicitudes de clientes, precios y cobros">
+      <i class="bi bi-graph-up-arrow"></i> Comercial
+    </button>
     <button class="btn-outline" onclick="openRegistro()" style="color:#2563eb;border-color:#2563eb;" title="Registro autoservicio e invitaciones">
       <i class="bi bi-person-plus"></i> Registro
     </button>
@@ -606,6 +610,52 @@ select.form-input{cursor:pointer;}
   </div>
 </div>
 
+<div id="modalComercial" class="modal-bg">
+  <div class="modal-box" style="max-width:820px;max-height:90vh;display:flex;flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;">
+      <div>
+        <div class="modal-title"><i class="bi bi-graph-up-arrow" style="color:#d97706;"></i> Comercial</div>
+        <div class="modal-sub">Pruebas en curso, solicitudes de clientes, precios de <a href="/planes" target="_blank">/planes</a> y cobros pendientes</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalComercial')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:18px;overflow:auto;">
+      <div id="comKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;"></div>
+
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin:0;flex:1;"><i class="bi bi-inbox"></i> Solicitudes de clientes</div>
+          <select id="comFilter" onchange="cargarSolicitudes()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;padding:5px 8px;"><option value="">Todas</option><option value="nuevo">Nuevas</option><option value="contactado">Contactadas</option><option value="ganado">Ganadas</option><option value="perdido">Perdidas</option></select>
+        </div>
+        <div id="comReqs"></div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;"><i class="bi bi-hourglass-split"></i> Empresas en prueba</div>
+        <div id="comTrials"></div>
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-bottom:4px;"><i class="bi bi-tag"></i> Precios que ve el cliente</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px;">Texto libre (por ejemplo "15" o "15/mes"). Vacío = se muestra "Consultar".</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;" id="priceForm">
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Moneda <input data-k="currency" maxlength="10" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Pro por técnico/mes <input data-k="pro_per_technician" maxlength="40" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Equipo adicional <input data-k="extra_device" maxlength="40" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Soporte por usuario/mes <input data-k="managed_per_user" maxlength="40" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Correo de ventas <input data-k="contact_email" type="email" maxlength="80" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+          <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">WhatsApp <input data-k="contact_whatsapp" maxlength="40" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
+          <button class="btn-primary" onclick="savePrecios()" style="padding:7px 14px;"><i class="bi bi-floppy"></i> Guardar precios</button>
+          <span id="priceMsg" style="font-size:12.5px;"></span>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);">Cobros: registra cada renovación con el botón <b>Billing</b> de la empresa. El sistema avisa al cliente 7 días antes y, si vence sin pago, la marca como vencida y te avisa (no corta el servicio solo).</div>
+    </div>
+  </div>
+</div>
+
 <div id="modalHoras" class="modal-bg">
   <div class="modal-box" style="max-width:680px;">
     <div class="modal-header">
@@ -830,10 +880,11 @@ select.form-input{cursor:pointer;}
       <div class="form-group" style="margin-bottom:16px;">
         <label class="form-label">Nuevo plan</label>
         <select id="planSelect" class="form-input" style="padding:10px 14px;height:auto;cursor:pointer;">
-          <option value="trial">Trial — hasta 5 usuarios · 200 tickets</option>
-          <option value="starter">Starter — hasta 20 usuarios · 1 000 tickets</option>
-          <option value="professional">Professional — hasta 50 usuarios · 5 000 tickets</option>
-          <option value="enterprise">Enterprise — usuarios y tickets ilimitados</option>
+          <option value="trial">Prueba — todas las funciones por tiempo limitado</option>
+          <option value="free">Gratis — técnicos y equipos limitados · usuarios ilimitados</option>
+          <option value="professional">Pro — por técnico · todas las funciones</option>
+          <option value="enterprise">Empresa / Soporte gestionado — sin límites</option>
+          <option value="starter">Básico (antiguo) — solo mesa de ayuda</option>
         </select>
       </div>
       <div class="form-group" style="margin-bottom:0;">
@@ -945,7 +996,8 @@ function quotaBar(used, limit, label) {
 }
 
 function tenantCard(t) {
-  const planBadge  = `<span class="badge badge-${t.plan}">${t.plan.charAt(0).toUpperCase()+t.plan.slice(1)}</span>`;
+  const PLAN_NAMES = { trial: 'Prueba', free: 'Gratis', starter: 'Básico', professional: 'Pro', enterprise: 'Empresa' };
+  const planBadge  = `<span class="badge badge-${t.plan}">${PLAN_NAMES[t.plan] || t.plan}</span>`;
   const statusBadge = t.is_active
     ? '<span class="badge badge-active"><i class="bi bi-circle-fill" style="font-size:7px;"></i> Activo</span>'
     : '<span class="badge badge-suspended"><i class="bi bi-pause-circle-fill" style="font-size:7px;"></i> Suspendido</span>';
@@ -2245,6 +2297,74 @@ async function cargarRegistroListas() {
               : (r.code ? '<span title="Código vigente" style="font-family:monospace;font-weight:800;letter-spacing:2px;">' + escHtml(r.code) + '</span>' : '<span style="color:var(--muted);">Sin confirmar</span>')) + '</div>';
     }).join('') : '<div style="color:var(--muted);font-size:12.5px;">Sin registros aún.</div>';
   } catch (e) { document.getElementById('invList').innerHTML = '<div style="color:#dc2626;">Error: ' + escHtml(e.message) + '</div>'; }
+}
+
+/* ── Comercial ─────────────────────────────────────────────────────────── */
+function openComercial() {
+  openModal('modalComercial');
+  document.getElementById('priceMsg').textContent = '';
+  cargarComercial(); cargarSolicitudes(); cargarPrecios();
+}
+async function cargarComercial() {
+  const kp = document.getElementById('comKpis');
+  const fmt = (d) => d ? new Date(d).toLocaleDateString('es-PE', { dateStyle: 'medium' }) : '';
+  try {
+    const d = (await (await fetch('/api/admin/signup/commercial', { credentials: 'include' })).json()).data || {};
+    const p = d.plans || {};
+    const money = (d.paidThisMonth || []).map(x => escHtml(x.currency) + ' ' + Number(x.total).toLocaleString('es-PE')).join(' · ') || '0';
+    const k = (n, t, c) => '<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:10px 12px;"><div style="font-size:20px;font-weight:800;color:' + c + ';">' + n + '</div><div style="font-size:11.5px;color:var(--muted);">' + t + '</div></div>';
+    kp.innerHTML = k(Number(d.signups30 || 0), 'Registros (30 días)', '#2563eb') + k(Number(p.trial || 0), 'En prueba', '#7c3aed') +
+      k(Number(d.trialsEnding7 || 0), 'Prueba vence en 7 días', '#d97706') + k(Number(p.free || 0), 'Plan Gratis', '#64748b') +
+      k(Number(d.paying || 0), 'Clientes de pago', '#059669') + k(Number(d.openRequests || 0), 'Solicitudes abiertas', '#d97706') +
+      k(Number(d.overdue || 0), 'Cobros vencidos', Number(d.overdue) ? '#dc2626' : '#64748b') + k(money, 'Cobrado este mes', '#059669');
+    const tr = d.trials || [];
+    document.getElementById('comTrials').innerHTML = tr.length ? tr.map(t => {
+      const left = t.trial_ends_at ? Math.ceil((new Date(t.trial_ends_at) - Date.now()) / 86400000) : null;
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);font-size:12.5px;margin-bottom:6px;">' +
+        '<div style="flex:1;min-width:0;"><b>' + escHtml(t.name) + '</b><div style="color:var(--muted);font-size:11.5px;">' + escHtml(t.contact_email || '') + (t.signup_source ? ' · ' + escHtml(t.signup_source) : '') + '</div></div>' +
+        '<span style="font-weight:700;color:' + (left != null && left <= 7 ? '#d97706' : 'var(--muted)') + ';">' + (left == null ? '' : left <= 0 ? 'Vence hoy' : left + ' día(s) · ' + fmt(t.trial_ends_at)) + '</span></div>';
+    }).join('') : '<div style="color:var(--muted);font-size:12.5px;">Ninguna empresa en prueba.</div>';
+  } catch (e) { kp.innerHTML = '<div style="color:#dc2626;">Error: ' + escHtml(e.message) + '</div>'; }
+}
+async function cargarSolicitudes() {
+  const box = document.getElementById('comReqs');
+  const st = document.getElementById('comFilter').value;
+  const COL = { nuevo: '#2563eb', contactado: '#d97706', ganado: '#059669', perdido: '#94a3b8' };
+  try {
+    const rows = (await (await fetch('/api/admin/signup/sales' + (st ? '?status=' + st : ''), { credentials: 'include' })).json()).data || [];
+    box.innerHTML = rows.length ? rows.map(r => {
+      const d = r.data || {};
+      const det = [d.users && d.users + ' usuarios', d.technicians && d.technicians + ' técnicos', d.devices && d.devices + ' equipos', d.schedule, d.phone].filter(Boolean).map(escHtml).join(' · ');
+      return '<div style="padding:10px 12px;border:1px solid var(--border);border-left:4px solid ' + (COL[r.status] || '#94a3b8') + ';border-radius:10px;background:var(--card);font-size:12.5px;margin-bottom:8px;">' +
+        '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><b style="flex:1;min-width:160px;">' + escHtml(r.typeLabel) + ' · ' + escHtml(r.tenant_name) + '</b>' +
+        '<span style="color:var(--muted);font-size:11.5px;">' + new Date(r.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }) + '</span>' +
+        '<select onchange="updSolicitud(' + Number(r.id) + ',{status:this.value})" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;">' +
+        ['nuevo', 'contactado', 'ganado', 'perdido'].map(o => '<option value="' + o + '"' + (o === r.status ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></div>' +
+        '<div style="color:var(--muted);font-size:11.5px;margin-top:3px;">' + escHtml(r.contact || '') + (det ? ' · ' + det : '') + '</div>' +
+        (d.message ? '<div style="margin-top:5px;">' + escHtml(d.message) + '</div>' : '') +
+        '<input placeholder="Notas internas…" value="' + escHtml(r.notes || '') + '" onchange="updSolicitud(' + Number(r.id) + ',{notes:this.value})" style="margin-top:7px;width:100%;padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;font-size:12px;"></div>';
+    }).join('') : '<div style="color:var(--muted);font-size:12.5px;">Sin solicitudes.</div>';
+  } catch (e) { box.innerHTML = '<div style="color:#dc2626;">Error: ' + escHtml(e.message) + '</div>'; }
+}
+async function updSolicitud(id, body) {
+  const r = await fetch('/api/admin/signup/sales/' + id, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) { toast('No se pudo guardar', 'err'); return; }
+  toast('Guardado', 'ok');
+  if (body.status) { cargarSolicitudes(); cargarComercial(); }
+}
+async function cargarPrecios() {
+  try {
+    const d = (await (await fetch('/api/admin/signup/pricing', { credentials: 'include' })).json()).data || {};
+    document.querySelectorAll('#priceForm input').forEach(i => { i.value = d[i.dataset.k] || ''; });
+  } catch (_) {}
+}
+async function savePrecios() {
+  const body = {};
+  document.querySelectorAll('#priceForm input').forEach(i => { body[i.dataset.k] = i.value; });
+  const r = await fetch('/api/admin/signup/pricing', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  const m = document.getElementById('priceMsg');
+  m.style.color = r.ok ? '#059669' : '#dc2626'; m.textContent = r.ok ? 'Precios guardados.' : (j.message || 'Error');
 }
 
 function openHoras() {
