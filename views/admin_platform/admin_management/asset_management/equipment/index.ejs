@@ -1408,6 +1408,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
                 <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">Dejar vacío para mantener la contraseña actual.</div>
               </div>
+              <div class="col-12">
+                <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Llave de inicio de sesión <span style="font-weight:400;color:var(--text-muted);">(la muestra el script de instalación)</span></label>
+                <input type="password" id="cfgMeshLoginKey" class="form-control form-control-sm" placeholder="Sin cambios" autocomplete="off" spellcheck="false">
+                <div style="font-size:10px;color:var(--text-muted);margin-top:3px;" id="cfgLoginKeyHint">Permite abrir las sesiones remotas sin pedir usuario, cada empresa con su propia cuenta (solo ve sus equipos).</div>
+              </div>
             </div>
             <div style="display:flex;gap:10px;margin-top:4px;">
               <button class="btn btn-primary btn-sm" onclick="saveRMMConfig()"><i class="bi bi-floppy me-1"></i>Guardar</button>
@@ -3643,6 +3648,8 @@ function loadRMMConfig() {
             document.getElementById('cfgMeshPublicUrl').value = (s.mesh_public_url && !s.mesh_public_url.is_secret) ? s.mesh_public_url.value  : (j.current.publicUrl || '');
             document.getElementById('cfgMeshUser').value      = (s.mesh_user       && !s.mesh_user.is_secret)       ? s.mesh_user.value        : (j.current.user      || '');
             document.getElementById('cfgMeshPass').placeholder = j.current.hasPass ? 'Contraseña guardada (dejar vacío para no cambiar)' : 'Sin contraseña guardada';
+            var lk = document.getElementById('cfgMeshLoginKey');
+            if (lk) lk.placeholder = j.current.hasLoginKey ? 'Llave guardada (dejar vacío para no cambiar)' : 'Sin llave: MeshCentral pedirá usuario al abrir la sesión';
             var st = document.getElementById('rmmCfgStatus');
             if (j.connected) {
                 st.textContent = 'Conectado';
@@ -3665,6 +3672,8 @@ function saveRMMConfig() {
     };
     var pass = document.getElementById('cfgMeshPass').value;
     if (pass) body.mesh_pass = pass;
+    var lkey = (document.getElementById('cfgMeshLoginKey') || {}).value;
+    if (lkey) body.mesh_login_key = lkey.trim();
     var msg = document.getElementById('cfgSaveMsg');
     msg.textContent = 'Guardando…';
     fetch('/api/rmm/config', { method: 'PUT', credentials: 'include',
@@ -3675,6 +3684,7 @@ function saveRMMConfig() {
             msg.textContent = 'Guardado. Reconectando…';
             msg.style.color = '#22c55e';
             document.getElementById('cfgMeshPass').value = '';
+            if (document.getElementById('cfgMeshLoginKey')) document.getElementById('cfgMeshLoginKey').value = '';
             document.getElementById('rmmCfgStatus').textContent = 'Reconectando…';
             document.getElementById('rmmCfgStatus').style.background = '';
             document.getElementById('rmmCfgStatus').style.color = '';

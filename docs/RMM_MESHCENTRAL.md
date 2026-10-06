@@ -70,15 +70,16 @@ actualiza el sistema · activa parches de seguridad automáticos · firewall (so
 protección contra fuerza bruta · instala Docker · crea **tu cuenta** y la **cuenta del portal** antes de abrir
 el servidor · obtiene el certificado · inicia MeshCentral.
 
-Al final muestra **tres datos que no se vuelven a mostrar**: tu contraseña, la de la cuenta `portal` y la clave de
-los respaldos. **Guárdalos en tu gestor de contraseñas.**
+Al final muestra **cuatro datos que no se vuelven a mostrar**: tu contraseña, la de la cuenta `portal`, la
+**llave de inicio de sesión** y la clave de los respaldos. **Guárdalos en tu gestor de contraseñas.**
 
 ## 5. Primer ingreso (10 min)
 
 1. Abre `https://rmm.tumarca.com` e ingresa con tu usuario.
 2. **Activa la verificación en dos pasos**: Mi cuenta → Seguridad → *Autenticación de dos factores* (app Google/Microsoft Authenticator).
-3. Crea **un grupo de dispositivos por cliente** (botón *Agregar grupo de dispositivos*), p. ej. `Acme - Oficina Lima`.
-   Si un cliente tiene varias sedes, un grupo por sede.
+3. Los grupos de dispositivos (uno por cliente o por sede) **se crean desde el portal** (paso 6).
+   Si creas uno en la web de MeshCentral, agrega la cuenta `portal` a ese grupo: en MeshCentral ser
+   administrador **no** da acceso a los grupos de otros.
 
 ## 6. Conectar el portal (5 min)
 
@@ -87,10 +88,19 @@ los respaldos. **Guárdalos en tu gestor de contraseñas.**
    y **no la cambies nunca**.
 2. En el portal, como **superadmin**, abre **RMM** (`/rmm`) → botón ⚙ **Configuración MeshCentral**:
    - URL y URL pública: `https://rmm.tumarca.com`
-   - Usuario: `portal` · Contraseña: la que mostró el script.
+   - Usuario: `portal` · Contraseña y **llave de inicio de sesión**: las que mostró el script.
    - Guardar. Debe decir **Conectado**.
-3. En la misma pantalla, botón **Grupos por tenant**: asigna a cada empresa su grupo de MeshCentral.
-   Cada empresa solo ve y controla los equipos de sus grupos; una empresa sin grupos no ve ninguno.
+   - La llave permite que, al pulsar *Conectar*, se abra la sesión **sin pedir usuario**, con una cuenta
+     de MeshCentral **propia de cada empresa** (el portal la crea sola) que solo ve los equipos de esa empresa.
+     El enlace sirve **una sola vez** y vence en 5 minutos.
+3. En la misma pantalla, botón **Grupos por tenant**: elige la empresa y pulsa **Crear grupo** (p. ej.
+   `Acme - Oficina Lima`). Cada empresa solo ve y controla los equipos de sus grupos; sin grupos no ve ninguno.
+
+### Cliente con servidor propio (opcional)
+Si un cliente exige su propio MeshCentral (p. ej. por política de seguridad), instálalo igual que este
+(en un servidor para ese cliente) y en el portal: **Superadmin → la empresa → Conexiones → RMM · servidor propio**:
+URL, usuario `portal`, contraseña y llave de ese servidor, y **actívalo**. Esa empresa verá todos los equipos de
+su servidor; el resto sigue en el compartido. Los grupos de ese servidor deben crearse con su cuenta `portal`.
 
 ## 7. Instalar el agente en las PCs del cliente
 

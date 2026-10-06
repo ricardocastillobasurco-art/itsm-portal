@@ -12,6 +12,12 @@ const OWNER_TENANT_ID = 1;
 const requireStaff      = requireRole('administrador', 'especialista', 'agente', 'tecnico');
 const requireSuperadmin = requireRole(); // requireRole deja pasar siempre a superadmin
 router.use(authenticateToken, requireStaff);
+// Servidor (compartido o propio), grupos visibles y cuenta de sesión de la empresa
+const meshPool = require('../../services/meshPool');
+router.use(async (req, res, next) => {
+    try { req.rmm = await meshPool.scopeFor(req); next(); }
+    catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
 
 // Toda ruta que reciba nodeId (body o query) se valida contra los dispositivos del tenant
 router.use((req, res, next) => {
@@ -43,49 +49,31 @@ function requireNodeAccess(getNodeId) {
     return async (req, res, next) => {
         const nodeId = getNodeId(req);
         if (!nodeId) return next();
-        const allowed = await _assertNodeAllowed(nodeId, tenantId(req)).catch(() => false);
+        const allowed = await _assertNodeAllowed(nodeId, req).catch(() => false);
         if (!allowed) return res.status(403).json({ ok: false, error: 'Acceso denegado a este dispositivo' });
         next();
     };
 }
 
-// ── Multi-tenant: filtrado por MeshGroup ──────────────────────────────────────
-// Si el tenant tiene grupos configurados, solo ve los dispositivos de esos grupos.
-// Sin grupos: el tenant dueño ve todo (backward-compatible); los demás, nada.
-
-const _meshIdCache = new Map(); // tenantId → { ids: Set, ts }
-const MESH_CACHE_TTL = 60000;
-
-async function _getMeshIdsForTenant(tenantId) {
-    tenantId = Number(tenantId) || OWNER_TENANT_ID;
-    const cached = _meshIdCache.get(tenantId);
-    if (cached && Date.now() - cached.ts < MESH_CACHE_TTL) return cached.ids;
-    const rows = await dbQuery('SELECT mesh_id FROM rmm_tenant_groups WHERE tenant_id=?', [tenantId]);
-    const ids = rows.length ? new Set(rows.map(r => r.mesh_id)) : (tenantId === OWNER_TENANT_ID ? null : new Set());
-    _meshIdCache.set(tenantId, { ids, ts: Date.now() });
-    return ids;
-}
-
-function _invalidateMeshCache(tenantId) {
-    if (tenantId) _meshIdCache.delete(tenantId);
-    else _meshIdCache.clear();
-}
+// ── Multi-tenant: filtrado por grupo de MeshCentral ───────────────────────────
+// req.rmm.meshIds: null = sin filtro (superadmin o servidor propio de la empresa);
+// Set = grupos asignados a la empresa en el servidor compartido (vacío = ningún equipo).
 
 function _filterDevices(devices, allowedMeshIds) {
     if (!allowedMeshIds) return devices;
     return devices.filter(d => allowedMeshIds.has(d.meshId));
 }
 
-async function _getAllowedNodeIds(tenantId) {
-    const meshIds = await _getMeshIdsForTenant(tenantId);
+async function _getAllowedNodeIds(req) {
+    const meshIds = req.rmm.meshIds;
     if (!meshIds) return null; // sin restricción
-    const result = await meshSvc.getDevices(false);
+    const result = await req.rmm.svc.getDevices(false);
     const devices = result.ok ? result.devices : [];
     return new Set(devices.filter(d => meshIds.has(d.meshId)).map(d => d.nodeId));
 }
 
-async function _assertNodeAllowed(nodeId, tenantId) {
-    const allowed = await _getAllowedNodeIds(tenantId);
+async function _assertNodeAllowed(nodeId, req) {
+    const allowed = await _getAllowedNodeIds(req);
     if (!allowed) return true; // sin restricción
     return allowed.has(nodeId);
 }
@@ -93,25 +81,26 @@ async function _assertNodeAllowed(nodeId, tenantId) {
 // ── Estado y dispositivos ──────────────────────────────────────────────────────
 
 router.get('/status', async (req, res) => {
-    const owner = tenantId(req) === OWNER_TENANT_ID;
-    const meshIds = await _getMeshIdsForTenant(tenantId(req)).catch(() => new Set());
-    // Configuración efectiva del servicio (panel o .env), no solo la del .env
-    const cfg = meshSvc.getConfig();
+    const { svc, mode, meshIds } = req.rmm;
+    const cfg = svc.getConfig();
     res.json({
         ok:         true,
-        connected:  meshSvc.isConnected(),
-        configured: !!(cfg.url && cfg.user && cfg.hasPass) && (owner || !!meshIds?.size),
+        connected:  svc.isConnected(),
+        configured: !!(cfg.url && cfg.user && cfg.hasPass) && (mode !== 'shared' || !!meshIds?.size),
+        mode,                                   // superadmin | dedicated (servidor propio) | shared
+        groups:     meshIds ? meshIds.size : null,
         url:        cfg.publicUrl || cfg.url || '',
-        user:       owner ? (cfg.user || '') : '',
+        user:       mode === 'superadmin' ? (cfg.user || '') : '',
+        autoLogin:  !!cfg.hasLoginKey,          // la sesión remota entra sin pedir usuario
     });
 });
 
 router.get('/devices', async (req, res) => {
     try {
         const force  = req.query.refresh === '1';
-        const result = await meshSvc.getDevices(force);
+        const result = await req.rmm.svc.getDevices(force);
         if (!result.ok) return res.status(503).json({ ok: false, error: result.error });
-        const meshIds = await _getMeshIdsForTenant(tenantId(req));
+        const meshIds = req.rmm.meshIds;
         const q = (req.query.q || '').toLowerCase().trim();
         let devices = _filterDevices(result.devices, meshIds);
         if (q) devices = devices.filter(d =>
@@ -128,7 +117,8 @@ router.post('/session', requireNodeAccess(r => r.body.nodeId), async (req, res) 
     const { nodeId, viewmode } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const url = await meshSvc.sessionUrl(nodeId, viewmode || 12);
+        if (req.rmm.mode === 'shared') await meshPool.syncTenantAccount(req.rmm.tenantId);
+        const url = await req.rmm.svc.sessionUrl(nodeId, viewmode || 12, req.rmm.sessionUser);
         res.json({ ok: true, url });
     } catch (e) {
         res.status(503).json({ ok: false, error: e.message });
@@ -190,7 +180,7 @@ router.post('/device/disk', async (req, res) => {
         if (cached) { logger.info(`[RMM] /device/disk cache hit`); return res.json({ ok: true, ...cached.data, cached: true, cachedAt: cached.cachedAt }); }
     }
     try {
-        const diskR = await _runDedup(nodeId, 'disk', () => meshSvc.runScript(nodeId, PS_DISK, 45000));
+        const diskR = await _runDedup(nodeId, 'disk', () => req.rmm.svc.runScript(nodeId, PS_DISK, 45000));
         logger.info(`[RMM] /device/disk output: ${(diskR?.output||'').slice(0,120)}`);
         let disks = [];
         if (diskR?.output) {
@@ -218,7 +208,7 @@ router.post('/device/system', async (req, res) => {
     const { nodeId, refresh } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const node = meshSvc.getDevice(nodeId) || {};
+        const node = req.rmm.svc.getDevice(nodeId) || {};
 
         const osRaw    = node.os || '';
         const osParts  = osRaw.split(' - ');
@@ -262,7 +252,7 @@ router.post('/device/system', async (req, res) => {
         // para que el script de disco (PS_DISK) se encole primero y no quede bloqueado
         if (!cached || refresh) {
             setTimeout(() => {
-                _runDedup(nodeId, 'system', () => meshSvc.runScript(nodeId, PS_SYSTEM, 60000))
+                _runDedup(nodeId, 'system', () => req.rmm.svc.runScript(nodeId, PS_SYSTEM, 60000))
                     .then(r => {
                         const d = parseScriptOutput(r.output);
                         if (d && !d.error) {
@@ -291,7 +281,7 @@ router.post('/device/updates', async (req, res) => {
         if (cached) return res.json({ ok: true, total: cached.data.length, updates: cached.data, cached: true, cachedAt: cached.cachedAt });
     }
     try {
-        const result  = await _runDedup(nodeId, 'updates', () => meshSvc.runScript(nodeId, PS_UPDATES, 60000));
+        const result  = await _runDedup(nodeId, 'updates', () => req.rmm.svc.runScript(nodeId, PS_UPDATES, 60000));
         const parsed  = parseScriptOutput(result.output);
         if (parsed?.error) { const stale2 = _cacheGet(nodeId, 'updates'); return stale2 ? res.json({ ok: true, total: stale2.data.length, updates: stale2.data, cached: true, cachedAt: stale2.cachedAt }) : res.json({ ok: true, total: 0, updates: [], scriptUnavailable: true, warn: parsed.error }); }
         const updates = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
@@ -318,7 +308,7 @@ router.post('/device/hardware', async (req, res) => {
         if (cached) return res.json({ ok: true, data: cached.data, cached: true, cachedAt: cached.cachedAt });
     }
     try {
-        const r = await _runDedup(nodeId, 'hardware', () => meshSvc.runScript(nodeId, PS_HARDWARE_SERIAL, 45000));
+        const r = await _runDedup(nodeId, 'hardware', () => req.rmm.svc.runScript(nodeId, PS_HARDWARE_SERIAL, 45000));
         const d = parseScriptOutput(r.output);
         if (d && !d.error) {
             _cacheSet(nodeId, 'hardware', d);
@@ -338,7 +328,7 @@ router.post('/device/monitors', async (req, res) => {
         if (cached) return res.json({ ok: true, monitors: cached.data, cached: true, cachedAt: cached.cachedAt });
     }
     try {
-        const result = await _runDedup(nodeId, 'monitors', () => meshSvc.runScript(nodeId, PS_MONITORS, 45000));
+        const result = await _runDedup(nodeId, 'monitors', () => req.rmm.svc.runScript(nodeId, PS_MONITORS, 45000));
         const parsed = parseScriptOutput(result.output);
         const monitors = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
         if (monitors.length) {
@@ -363,7 +353,7 @@ router.post('/device/apps', async (req, res) => {
         if (cached) return res.json({ ok: true, total: cached.data.length, apps: cached.data, cached: true, cachedAt: cached.cachedAt });
     }
     try {
-        const result = await _runDedup(nodeId, 'apps', () => meshSvc.runScript(nodeId, PS_APPS, 60000));
+        const result = await _runDedup(nodeId, 'apps', () => req.rmm.svc.runScript(nodeId, PS_APPS, 60000));
         const parsed = parseScriptOutput(result.output);
         if (parsed?.error) { const stale2 = _cacheGet(nodeId, 'apps'); return stale2 ? res.json({ ok: true, total: stale2.data.length, apps: stale2.data, cached: true, cachedAt: stale2.cachedAt }) : res.json({ ok: true, total: 0, apps: [], scriptUnavailable: true, warn: parsed.error }); }
         const apps = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
@@ -535,7 +525,7 @@ router.post('/device/run', async (req, res) => {
             code       = rows[0].code;
             scriptName = rows[0].name;
         }
-        const result = await meshSvc.runScript(nodeId, code, 120000);
+        const result = await req.rmm.svc.runScript(nodeId, code, 120000);
         res.json({ ok: true, output: result.output, scriptName });
     } catch (e) {
         res.status(503).json({ ok: false, error: e.message });
@@ -546,7 +536,7 @@ router.post('/device/processes', async (req, res) => {
     const { nodeId } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const r = await meshSvc.runScript(nodeId, PS_PROCESSES, 30000);
+        const r = await req.rmm.svc.runScript(nodeId, PS_PROCESSES, 30000);
         const d = parseScriptOutput(r.output);
         if (d?.error) return res.status(500).json({ ok: false, error: d.error });
         const processes = Array.isArray(d) ? d : (d ? [d] : []);
@@ -562,7 +552,7 @@ router.post('/device/process/kill', async (req, res) => {
     if (!nodeId || !Number.isInteger(pidNum) || pidNum <= 0)
         return res.status(400).json({ ok: false, error: 'nodeId y pid (entero) requeridos' });
     try {
-        const r = await meshSvc.runScript(nodeId, `try{Stop-Process -Id ${pidNum} -Force -ErrorAction Stop;'ok'}catch{$_.Exception.Message}`, 15000);
+        const r = await req.rmm.svc.runScript(nodeId, `try{Stop-Process -Id ${pidNum} -Force -ErrorAction Stop;'ok'}catch{$_.Exception.Message}`, 15000);
         res.json({ ok: true, output: (r.output||'').trim() });
     } catch (e) {
         res.status(503).json({ ok: false, error: e.message });
@@ -573,7 +563,7 @@ router.post('/device/services', async (req, res) => {
     const { nodeId } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const r = await meshSvc.runScript(nodeId, PS_SERVICES, 30000);
+        const r = await req.rmm.svc.runScript(nodeId, PS_SERVICES, 30000);
         const d = parseScriptOutput(r.output);
         if (d?.error) return res.status(500).json({ ok: false, error: d.error });
         const services = Array.isArray(d) ? d : (d ? [d] : []);
@@ -591,7 +581,7 @@ router.post('/device/service/action', async (req, res) => {
         return res.status(400).json({ ok: false, error: 'Nombre de servicio no válido' });
     const cmdMap = { start: 'Start-Service', stop: 'Stop-Service', restart: 'Restart-Service' };
     try {
-        const r = await meshSvc.runScript(nodeId, `try{${cmdMap[action]} -Name '${name}' -ErrorAction Stop;'ok'}catch{$_.Exception.Message}`, 30000);
+        const r = await req.rmm.svc.runScript(nodeId, `try{${cmdMap[action]} -Name '${name}' -ErrorAction Stop;'ok'}catch{$_.Exception.Message}`, 30000);
         res.json({ ok: true, output: (r.output||'').trim() });
     } catch (e) {
         res.status(503).json({ ok: false, error: e.message });
@@ -602,7 +592,7 @@ router.post('/device/metrics', async (req, res) => {
     const { nodeId } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const r = await meshSvc.runScript(nodeId, PS_METRICS, 25000);
+        const r = await req.rmm.svc.runScript(nodeId, PS_METRICS, 25000);
         const d = parseScriptOutput(r.output);
         if (d?.error) return res.status(500).json({ ok: false, error: d.error });
         res.json({ ok: true, metrics: d });
@@ -615,7 +605,7 @@ router.post('/device/eventlog', async (req, res) => {
     const { nodeId } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const r = await meshSvc.runScript(nodeId, PS_EVENTLOG, 45000);
+        const r = await req.rmm.svc.runScript(nodeId, PS_EVENTLOG, 45000);
         const d = parseScriptOutput(r.output);
         if (d?.error) return res.status(500).json({ ok: false, error: d.error });
         const events = Array.isArray(d) ? d : [];
@@ -630,7 +620,7 @@ router.post('/device/power', async (req, res) => {
     if (!nodeId || !['sleep', 'reset', 'off'].includes(action))
         return res.status(400).json({ ok: false, error: 'nodeId y action (sleep/reset/off) requeridos' });
     try {
-        await meshSvc.power(nodeId, action);
+        await req.rmm.svc.power(nodeId, action);
         res.json({ ok: true });
     } catch (e) {
         res.status(503).json({ ok: false, error: e.message });
@@ -642,7 +632,7 @@ router.post('/device/toast', async (req, res) => {
     if (!nodeId || !message)
         return res.status(400).json({ ok: false, error: 'nodeId y message requeridos' });
     try {
-        await meshSvc.sendToast(nodeId, title, message);
+        await req.rmm.svc.sendToast(nodeId, title, message);
         res.json({ ok: true });
     } catch (e) {
         res.status(503).json({ ok: false, error: e.message });
@@ -653,7 +643,7 @@ router.post('/device/tasks', async (req, res) => {
     const { nodeId } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const r = await meshSvc.runScript(nodeId, PS_TASKS, 30000);
+        const r = await req.rmm.svc.runScript(nodeId, PS_TASKS, 30000);
         const d = parseScriptOutput(r.output);
         if (d?.error) return res.status(500).json({ ok: false, error: d.error });
         const tasks = Array.isArray(d) ? d : (d ? [d] : []);
@@ -670,7 +660,7 @@ router.post('/device/task/run', async (req, res) => {
     if (!/^[\w\-. ]+$/.test(name))
         return res.status(400).json({ ok: false, error: 'Nombre de tarea no válido' });
     try {
-        const r = await meshSvc.runScript(nodeId, `try{Start-ScheduledTask -TaskName '${name}' -EA Stop;'ok'}catch{$_.Exception.Message}`, 15000);
+        const r = await req.rmm.svc.runScript(nodeId, `try{Start-ScheduledTask -TaskName '${name}' -EA Stop;'ok'}catch{$_.Exception.Message}`, 15000);
         res.json({ ok: true, output: (r.output || '').trim() });
     } catch (e) {
         res.status(503).json({ ok: false, error: e.message });
@@ -681,7 +671,7 @@ router.post('/device/users', async (req, res) => {
     const { nodeId } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const r = await meshSvc.runScript(nodeId, PS_LOCALUSERS, 20000);
+        const r = await req.rmm.svc.runScript(nodeId, PS_LOCALUSERS, 20000);
         const d = parseScriptOutput(r.output);
         if (d?.error) return res.status(500).json({ ok: false, error: d.error });
         const users = Array.isArray(d) ? d : (d ? [d] : []);
@@ -701,7 +691,7 @@ router.post('/device/user/action', async (req, res) => {
         ? `Enable-LocalUser -Name '${name}' -EA Stop;'ok'`
         : `Disable-LocalUser -Name '${name}' -EA Stop;'ok'`;
     try {
-        const r = await meshSvc.runScript(nodeId, `try{${cmd}}catch{$_.Exception.Message}`, 15000);
+        const r = await req.rmm.svc.runScript(nodeId, `try{${cmd}}catch{$_.Exception.Message}`, 15000);
         res.json({ ok: true, output: (r.output || '').trim() });
     } catch (e) {
         res.status(503).json({ ok: false, error: e.message });
@@ -712,7 +702,7 @@ router.post('/device/network', async (req, res) => {
     const { nodeId } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const r = await meshSvc.runScript(nodeId, PS_NETWORK, 20000);
+        const r = await req.rmm.svc.runScript(nodeId, PS_NETWORK, 20000);
         const d = parseScriptOutput(r.output);
         if (d?.error) return res.status(500).json({ ok: false, error: d.error });
         res.json({ ok: true, network: d });
@@ -777,7 +767,7 @@ router.post('/device/files', async (req, res) => {
     const { nodeId, path = 'C:\\' } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const r = await meshSvc.runScript(nodeId, psFilesList(path), 20000);
+        const r = await req.rmm.svc.runScript(nodeId, psFilesList(path), 20000);
         const d = parseScriptOutput(r.output);
         if (!d || d.error) return res.status(500).json({ ok: false, error: d?.error || 'Sin respuesta' });
         res.json({ ok: true, path: d.path, parent: d.parent, items: d.items || [] });
@@ -788,7 +778,7 @@ router.post('/device/files/read', async (req, res) => {
     const { nodeId, path } = req.body;
     if (!nodeId || !path) return res.status(400).json({ ok: false, error: 'nodeId y path requeridos' });
     try {
-        const r = await meshSvc.runScript(nodeId, psFilesRead(path), 30000);
+        const r = await req.rmm.svc.runScript(nodeId, psFilesRead(path), 30000);
         const d = parseScriptOutput(r.output);
         if (!d || !d.ok) return res.status(500).json({ ok: false, error: d?.error || 'No se pudo leer el archivo' });
         res.json({ ok: true, name: d.name, content: d.content, size: d.size });
@@ -799,7 +789,7 @@ router.post('/device/files/delete', async (req, res) => {
     const { nodeId, path } = req.body;
     if (!nodeId || !path) return res.status(400).json({ ok: false, error: 'nodeId y path requeridos' });
     try {
-        const r = await meshSvc.runScript(nodeId, psFilesDelete(path), 15000);
+        const r = await req.rmm.svc.runScript(nodeId, psFilesDelete(path), 15000);
         const d = parseScriptOutput(r.output);
         if (!d || !d.ok) return res.status(500).json({ ok: false, error: d?.error || 'Error al eliminar' });
         res.json({ ok: true });
@@ -810,7 +800,7 @@ router.post('/device/files/mkdir', async (req, res) => {
     const { nodeId, path } = req.body;
     if (!nodeId || !path) return res.status(400).json({ ok: false, error: 'nodeId y path requeridos' });
     try {
-        const r = await meshSvc.runScript(nodeId, psFilesMkdir(path), 10000);
+        const r = await req.rmm.svc.runScript(nodeId, psFilesMkdir(path), 10000);
         const d = parseScriptOutput(r.output);
         if (!d || !d.ok) return res.status(500).json({ ok: false, error: d?.error || 'Error al crear carpeta' });
         res.json({ ok: true });
@@ -822,7 +812,7 @@ router.post('/device/files/write', async (req, res) => {
     if (!nodeId || !path || !content) return res.status(400).json({ ok: false, error: 'nodeId, path y content requeridos' });
     if (content.length > 3500000) return res.status(413).json({ ok: false, error: 'Archivo demasiado grande (máx 2.5 MB)' });
     try {
-        const r = await meshSvc.runScript(nodeId, psFilesWrite(path, content), 20000);
+        const r = await req.rmm.svc.runScript(nodeId, psFilesWrite(path, content), 20000);
         const d = parseScriptOutput(r.output);
         if (!d || !d.ok) return res.status(500).json({ ok: false, error: d?.error || 'Error al escribir archivo' });
         res.json({ ok: true, size: d.size });
@@ -835,7 +825,7 @@ router.post('/device/chat/send', (req, res) => {
     const { nodeId, msg } = req.body;
     if (!nodeId || !msg) return res.status(400).json({ ok: false, error: 'nodeId y msg requeridos' });
     try {
-        meshSvc.sendChat(nodeId, msg);
+        req.rmm.svc.sendChat(nodeId, msg);
         res.json({ ok: true });
     } catch (e) { res.status(503).json({ ok: false, error: e.message }); }
 });
@@ -843,13 +833,13 @@ router.post('/device/chat/send', (req, res) => {
 router.get('/device/chat/messages', (req, res) => {
     const { nodeId, since } = req.query;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
-    const msgs = meshSvc.getChatMessages(nodeId, parseInt(since || '0', 10));
+    const msgs = req.rmm.svc.getChatMessages(nodeId, parseInt(since || '0', 10));
     res.json({ ok: true, messages: msgs });
 });
 
 router.delete('/device/chat', (req, res) => {
     const { nodeId } = req.body;
-    if (nodeId) meshSvc.clearChat(nodeId);
+    if (nodeId) req.rmm.svc.clearChat(nodeId);
     res.json({ ok: true });
 });
 
@@ -859,9 +849,9 @@ router.post('/device/recordings', async (req, res) => {
     const { nodeId } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
-        const result = await meshSvc.getRecordings(nodeId);
+        const result = await req.rmm.svc.getRecordings(nodeId);
         if (!result.recordings?.length) {
-            const cfg = meshSvc.getConfig();
+            const cfg = req.rmm.svc.getConfig();
             const base = (cfg.publicUrl || cfg.url || '').replace(/\/$/, '');
             result.meshUrl = base ? `${base}/` : null;
         }
@@ -891,7 +881,11 @@ router.get('/config', requireSuperadmin, async (req, res) => {
 });
 
 router.put('/config', requireSuperadmin, async (req, res) => {
-    const { mesh_url, mesh_public_url, mesh_user, mesh_pass } = req.body;
+    const { mesh_url, mesh_public_url, mesh_user, mesh_pass, mesh_login_key } = req.body;
+    const MASK = '••••••••';
+    if (mesh_login_key && mesh_login_key !== MASK && !/^[0-9a-f]{160}$/i.test(String(mesh_login_key).trim())) {
+        return res.status(400).json({ ok: false, error: 'La llave de inicio de sesión debe tener 160 caracteres hexadecimales (la muestra el script de instalación)' });
+    }
     try {
         const updates = [
             ['mesh_url',        mesh_url        ?? null],
@@ -911,6 +905,13 @@ router.put('/config', requireSuperadmin, async (req, res) => {
                 ['mesh_pass', mesh_pass ? require('../../src/utils/secretBox').encrypt(mesh_pass) : null]
             );
         }
+        // Llave de inicio de sesión de MeshCentral (loginCookieEncryptionKey), cifrada
+        if (mesh_login_key !== undefined && mesh_login_key !== MASK) {
+            await dbQuery(
+                'INSERT INTO rmm_settings /* tenant_id: configuración global de la plataforma (superadmin) */ (`key`, value, label, is_secret, updated_at) VALUES (?,?,?,1,NOW()) ON DUPLICATE KEY UPDATE value=VALUES(value), updated_at=NOW()',
+                ['mesh_login_key', mesh_login_key ? require('../../src/utils/secretBox').encrypt(String(mesh_login_key).trim()) : null, 'Llave de inicio de sesión MeshCentral']
+            );
+        }
         const cfg = await dbQuery('SELECT `key`, value FROM rmm_settings /* tenant_id: configuración global de la plataforma (superadmin) */');
         const m = {};
         for (const r of cfg) m[r.key] = r.value || '';
@@ -918,8 +919,10 @@ router.put('/config', requireSuperadmin, async (req, res) => {
             url:       m.mesh_url,
             publicUrl: m.mesh_public_url,
             user:      m.mesh_user,
-            pass:      mesh_pass !== undefined && mesh_pass !== '••••••••' ? mesh_pass : undefined,
+            pass:      mesh_pass !== undefined && mesh_pass !== MASK ? mesh_pass : undefined,
+            loginKey:  mesh_login_key && mesh_login_key !== MASK ? String(mesh_login_key).trim() : undefined,
         });
+        require('../../services/meshPool').invalidate();
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ ok: false, error: e.message });
@@ -933,7 +936,7 @@ router.get('/alerts', async (req, res) => {
     const { status = 'open', limit = 50, nodeId } = req.query;
     try {
         const lim = Math.min(parseInt(limit) || 50, 200);
-        const allowedIds = await _getAllowedNodeIds(tenantId(req));
+        const allowedIds = await _getAllowedNodeIds(req);
         let rows;
         if (nodeId) {
             if (allowedIds && !allowedIds.has(nodeId)) return res.json({ ok: true, alerts: [], stats: {} });
@@ -952,7 +955,7 @@ router.get('/alerts', async (req, res) => {
 
 router.get('/alerts/stats', async (req, res) => {
     try {
-        const allowedIds = await _getAllowedNodeIds(tenantId(req));
+        const allowedIds = await _getAllowedNodeIds(req);
         res.json({ ok: true, ...(await getAlertStats(allowedIds, tenantId(req))) });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -1096,7 +1099,7 @@ Remove-Item '${tmpVar}' -Force -EA SilentlyContinue;
     // Ejecutar de forma asíncrona — responder inmediatamente con jobId
     res.json({ ok: true, jobId, status: 'running', app: app.name });
 
-    meshSvc.runScript(nodeId, ps, 360000)
+    req.rmm.svc.runScript(nodeId, ps, 360000)
         .then(result => {
             let parsed = {};
             try { parsed = JSON.parse((result.output||'').trim()); } catch {}
@@ -1114,7 +1117,7 @@ router.get('/device/deploy/jobs', async (req, res) => {
     const { nodeId, limit } = req.query;
     try {
         const lim = Math.min(parseInt(limit)||20, 100);
-        const allowedIds = await _getAllowedNodeIds(tenantId(req));
+        const allowedIds = await _getAllowedNodeIds(req);
         let rows;
         if (nodeId) {
             if (allowedIds && !allowedIds.has(nodeId)) return res.json({ ok: true, jobs: [] });
@@ -1137,6 +1140,7 @@ router.get('/meshes', requireSuperadmin, async (req, res) => {
     try {
         const result = await meshSvc.getDevices(false);
         const meshMap = {};
+        for (const m of meshSvc.meshes || []) meshMap[m._id] = { meshId: m._id, name: m.name || '', deviceCount: 0 };
         if (result.ok) {
             for (const d of result.devices) {
                 if (d.meshId && !meshMap[d.meshId]) {
@@ -1169,17 +1173,42 @@ router.post('/tenant-groups', requireSuperadmin, async (req, res) => {
             'INSERT INTO rmm_tenant_groups (tenant_id, mesh_id, mesh_name) VALUES (?,?,?) ON DUPLICATE KEY UPDATE mesh_name=VALUES(mesh_name)',
             [tenant_id, mesh_id, mesh_name || null]
         );
-        _invalidateMeshCache(parseInt(tenant_id));
-        res.json({ ok: true });
+        meshPool.invalidate(parseInt(tenant_id));
+        let warning = null;
+        try { await meshPool.syncTenantAccount(parseInt(tenant_id), { force: true }); }
+        catch (e) { warning = 'Grupo asignado; los permisos en MeshCentral se aplicarán al conectar (' + e.message + ')'; }
+        res.json({ ok: true, warning });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Crear un grupo de dispositivos (con la cuenta de servicio, que así tiene permisos sobre él)
+// y asignarlo a una empresa. Es la forma recomendada: un grupo creado desde la web de
+// MeshCentral con otra cuenta no es visible para la cuenta de servicio del portal.
+router.post('/tenant-groups/create', requireSuperadmin, async (req, res) => {
+    const tid  = parseInt(req.body?.tenant_id);
+    const name = String(req.body?.name || '').replace(/\s+/g, ' ').trim().slice(0, 64);
+    if (!tid || !name) return res.status(400).json({ ok: false, error: 'Empresa y nombre del grupo son requeridos' });
+    try {
+        const [t] = await dbQuery('SELECT id FROM tenants WHERE id = ?', [tid]);
+        if (!t) return res.status(404).json({ ok: false, error: 'Empresa no encontrada' });
+        const r = await meshSvc.request({ action: 'createmesh', meshname: name, meshtype: 2, desc: 'Creado desde el portal' });
+        if (r.result !== 'ok' || !r.meshid) return res.status(502).json({ ok: false, error: 'MeshCentral no creó el grupo: ' + (r.result || 'sin respuesta') });
+        await dbQuery('INSERT INTO rmm_tenant_groups (tenant_id, mesh_id, mesh_name) VALUES (?,?,?) ON DUPLICATE KEY UPDATE mesh_name=VALUES(mesh_name)',
+            [tid, r.meshid, name]);
+        meshSvc._send({ action: 'meshes' });   // refresca la lista de grupos del servicio
+        meshPool.invalidate(tid);
+        let warning = null;
+        try { await meshPool.syncTenantAccount(tid, { force: true }); } catch (e) { warning = e.message; }
+        res.json({ ok: true, meshId: r.meshid, name, warning });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 // Eliminar asignación
 router.delete('/tenant-groups/:id', requireSuperadmin, async (req, res) => {
     try {
-        const rows = await dbQuery('SELECT tenant_id FROM rmm_tenant_groups WHERE id=?', [req.params.id]);
+        const rows = await dbQuery('SELECT tenant_id, mesh_id FROM rmm_tenant_groups WHERE id=?', [req.params.id]);
         await dbQuery('DELETE FROM rmm_tenant_groups /* tenant_id: vista de plataforma (superadmin) */ WHERE id=?', [req.params.id]);
-        if (rows.length) _invalidateMeshCache(rows[0].tenant_id);
+        if (rows.length) await meshPool.revokeTenantGroup(rows[0].tenant_id, rows[0].mesh_id);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -1238,10 +1267,10 @@ function _complianceScore(dev) {
     return { score, status, issues };
 }
 
-async function _buildComplianceData(tenantId) {
-    const devResult = await meshSvc.getDevices(false);
-    const meshIds   = await _getMeshIdsForTenant(tenantId);
-    const devices   = _filterDevices(devResult.ok ? devResult.devices : [], meshIds);
+async function _buildComplianceData(req) {
+    const tenantId  = req.rmm.tenantId;
+    const devResult = await req.rmm.svc.getDevices(false);
+    const devices   = _filterDevices(devResult.ok ? devResult.devices : [], req.rmm.meshIds);
 
     // Alertas abiertas por nodo
     let alertMap = {};
@@ -1289,7 +1318,7 @@ async function _buildComplianceData(tenantId) {
 
 router.get('/compliance/summary', async (req, res) => {
     try {
-        const data = await _buildComplianceData(tenantId(req));
+        const data = await _buildComplianceData(req);
         res.json({ ok: true, ...data });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -1297,7 +1326,7 @@ router.get('/compliance/summary', async (req, res) => {
 router.get('/compliance/export/excel', async (req, res) => {
     if (!ExcelJS) return res.status(500).json({ ok: false, error: 'exceljs no disponible' });
     try {
-        const { devices, kpis, generatedAt } = await _buildComplianceData(tenantId(req));
+        const { devices, kpis, generatedAt } = await _buildComplianceData(req);
 
         const wb = new ExcelJS.Workbook();
         wb.creator = 'ITSM Compliance';
@@ -1373,7 +1402,7 @@ router.get('/compliance/export/excel', async (req, res) => {
 router.get('/compliance/export/pdf', async (req, res) => {
     if (!PDFDocument) return res.status(500).json({ ok: false, error: 'pdfkit no disponible' });
     try {
-        const { devices, kpis, generatedAt } = await _buildComplianceData(tenantId(req));
+        const { devices, kpis, generatedAt } = await _buildComplianceData(req);
         const doc = new PDFDocument({ margin: 40, size: 'A4', compress: true });
 
         // Cabecera

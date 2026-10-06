@@ -95,6 +95,9 @@ if [ "$FIRST_INSTALL" = 1 ]; then
   mc --adminaccount "$ADMIN_USER" >/dev/null
   mc --createaccount portal --pass "$PORTAL_PASS" --email "portal@$DOMAIN" >/dev/null
   mc --adminaccount portal >/dev/null
+  # Llave para abrir las sesiones remotas desde el portal sin pedir usuario
+  LOGIN_KEY=$(mc --logintokenkey | tail -n1 | tr -cd '0-9a-f')
+  [[ "$LOGIN_KEY" =~ ^[0-9a-f]{160}$ ]] || { echo "No se pudo obtener la llave de inicio de sesión"; exit 1; }
 fi
 
 say "Iniciando MeshCentral"
@@ -129,6 +132,8 @@ if [ "$FIRST_INSTALL" = 1 ]; then
      URL:         https://$HOST
      Usuario:     portal
      Contraseña:  $PORTAL_PASS
+     Llave de inicio de sesión:
+       $LOGIN_KEY
 
    Clave de los respaldos automáticos (para abrir los .zip):
      $BACKUP_PASS
@@ -136,4 +141,5 @@ if [ "$FIRST_INSTALL" = 1 ]; then
 EOF
 else
   echo "✅ MeshCentral actualizado y en marcha: https://$HOST"
+  echo "   (Llave de inicio de sesión: docker compose run --rm --no-deps --entrypoint node meshcentral meshcentral/meshcentral.js --logintokenkey)"
 fi

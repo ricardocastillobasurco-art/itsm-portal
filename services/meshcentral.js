@@ -26,11 +26,21 @@ function allowSelfSigned(url) {
 const SESSION_TOKEN_MINUTES = 5;
 
 class MeshCentralService {
-    constructor() {
-        this._url       = process.env.MESHCENTRAL_URL        || '';
-        this._publicUrl = process.env.MESHCENTRAL_PUBLIC_URL || this._url;
-        this._user      = process.env.MESHCENTRAL_USER       || '';
-        this._pass      = process.env.MESHCENTRAL_PASS       || '';
+    /**
+     * Sin opciones: servidor COMPARTIDO de la plataforma (.env / panel del superadmin).
+     * Con opciones: servidor PROPIO de una empresa ({ url, publicUrl, user, pass, loginKey, label }).
+     */
+    constructor(opts = null) {
+        this._label     = opts?.label || 'compartido';
+        this._url       = opts ? (opts.url || '') : (process.env.MESHCENTRAL_URL || '');
+        this._publicUrl = opts ? (opts.publicUrl || opts.url || '') : (process.env.MESHCENTRAL_PUBLIC_URL || this._url);
+        this._user      = opts ? (opts.user || '') : (process.env.MESHCENTRAL_USER || '');
+        this._pass      = opts ? (opts.pass || '') : (process.env.MESHCENTRAL_PASS || '');
+        // Llave de inicio de sesión (settings.loginCookieEncryptionKey de MeshCentral, 160 hex):
+        // permite abrir la sesión remota sin pedir usuario/contraseña.
+        this._loginKey  = opts ? (opts.loginKey || '') : (process.env.MESHCENTRAL_LOGIN_KEY || '');
+        this._destroyed = false;
+        this._responses = new Map();   // responseid → { resolve, timer }
 
         this.ws            = null;
         this.connected     = false;
@@ -43,11 +53,21 @@ class MeshCentralService {
         this._chatStore    = new Map();  // nodeId → [{from,msg,ts}]
         this._pendingRec   = null;
 
+        if (opts) {
+            if (this._url && this._user && this._pass) setTimeout(() => this._connect(), 200);
+            return;
+        }
         // Al iniciar: configuración de la BD; si no hay, la del .env
         setTimeout(async () => {
             if (await this.loadFromDb()) return;
             if (this._url && this._user && this._pass) this._connect();
         }, 3000);
+    }
+
+    // Cierra la conexión para siempre (servidor propio que se quitó o cambió)
+    destroy() {
+        this._destroyed = true;
+        this._disconnect();
     }
 
     // Configuración guardada desde el panel (rmm_settings) — tiene prioridad sobre .env.
@@ -62,7 +82,9 @@ class MeshCentralService {
             if (!m.mesh_url) return false;
             let pass = '';
             try { pass = decrypt(m.mesh_pass) || ''; } catch (e) { logger.warn('[MeshCentral] No se pudo leer la contraseña guardada:', e.message); }
-            this.reloadConfig({ url: m.mesh_url, publicUrl: m.mesh_public_url, user: m.mesh_user, pass: pass || undefined });
+            let loginKey = '';
+            try { loginKey = decrypt(m.mesh_login_key) || ''; } catch (_) {}
+            this.reloadConfig({ url: m.mesh_url, publicUrl: m.mesh_public_url, user: m.mesh_user, pass: pass || undefined, loginKey: loginKey || undefined });
             logger.info('[MeshCentral] Configuración cargada desde la base de datos');
             return true;
         } catch (e) {
@@ -71,11 +93,12 @@ class MeshCentralService {
         }
     }
 
-    reloadConfig({ url, publicUrl, user, pass }) {
+    reloadConfig({ url, publicUrl, user, pass, loginKey }) {
         this._url       = url       || this._url;
         this._publicUrl = publicUrl || url || this._publicUrl;
         this._user      = user      || this._user;
         this._pass      = pass      || this._pass;
+        this._loginKey  = loginKey  || this._loginKey;
         this._disconnect();
         this.devices = [];
         this.meshes  = [];
@@ -100,6 +123,8 @@ class MeshCentralService {
             publicUrl: this._publicUrl,
             user:      this._user,
             hasPass:   !!this._pass,
+            hasLoginKey: /^[0-9a-f]{160}$/i.test(this._loginKey || ''),
+            label:     this._label,
         };
     }
 
@@ -111,7 +136,7 @@ class MeshCentralService {
     }
 
     _connect() {
-        if (this._reconnecting) return;
+        if (this._reconnecting || this._destroyed) return;
         try {
             this.ws = new WebSocket(this._wsUrl(), {
                 rejectUnauthorized: !allowSelfSigned(this._url),
@@ -138,7 +163,7 @@ class MeshCentralService {
 
         this.ws.on('close', () => {
             this.connected = false;
-            if (this._reconnecting) return;
+            if (this._reconnecting || this._destroyed) return;
             logger.warn('[MeshCentral] Desconectado — reconectando en 10s');
             setTimeout(() => this._connect(), 10000);
         });
@@ -157,6 +182,14 @@ class MeshCentralService {
     }
 
     _handle(msg) {
+        // Respuesta a una petición hecha con request()
+        if (msg.responseid && this._responses.has(msg.responseid)) {
+            const w = this._responses.get(msg.responseid);
+            this._responses.delete(msg.responseid);
+            clearTimeout(w.timer);
+            w.resolve(msg);
+        }
+
         // ── Autenticación via x-meshauth header ────────────────────────────────
         // serverinfo = conexión aceptada, auth ya fue validada en el HTTP upgrade
         if (msg.action === 'serverinfo') {
@@ -484,7 +517,64 @@ class MeshCentralService {
             : Promise.reject(new Error('WebSocket no disponible'));
     }
 
-    async sessionUrl(nodeId, viewmode = 12) {
+    // Petición al servidor con respuesta (MeshCentral devuelve el mismo responseid)
+    request(obj, timeoutMs = 10000) {
+        if (!this.connected) return Promise.reject(new Error('MeshCentral no disponible'));
+        const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => { this._responses.delete(id); reject(new Error('MeshCentral no respondió')); }, timeoutMs);
+            this._responses.set(id, { resolve, timer });
+            if (!this._send({ ...obj, responseid: id })) {
+                clearTimeout(timer); this._responses.delete(id);
+                reject(new Error('MeshCentral no disponible'));
+            }
+        });
+    }
+
+    // Cuenta de MeshCentral de una empresa (solo ve sus grupos). Se crea si no existe.
+    // La contraseña es aleatoria y no se guarda: la sesión se abre con la llave de inicio de sesión.
+    async ensureUser(username) {
+        const pass = require('crypto').randomBytes(24).toString('base64url') + 'aA1!';
+        const r = await this.request({ action: 'adduser', username, pass, email: username + '@cuentas.portal', emailVerified: true });
+        if (r.result !== 'ok' && !/exist/i.test(r.result || r.msg || '')) throw new Error('No se pudo crear la cuenta ' + username + ': ' + (r.result || r.msg));
+        return username;
+    }
+
+    // Todos los permisos sobre un grupo de dispositivos (solo ese grupo)
+    async grantGroup(username, meshId) {
+        const r = await this.request({ action: 'addmeshuser', meshid: meshId, usernames: [username], meshadmin: 0xFFFFFFFF });
+        if (!r.success) throw new Error(r.result || 'No se pudo asignar el grupo');
+    }
+
+    async revokeGroup(username, meshId) {
+        await this.request({ action: 'removemeshuser', meshid: meshId, userid: 'user//' + username }).catch(() => {});
+    }
+
+    // Enlace de inicio de sesión de un solo uso, válido pocos minutos (cookie de MeshCentral)
+    _loginCookie(username) {
+        const crypto = require('crypto');
+        const key = Buffer.from(this._loginKey, 'hex');
+        const o = { u: 'user//' + String(username).toLowerCase(), a: 3, expire: SESSION_TOKEN_MINUTES,
+                    once: crypto.randomBytes(12).toString('base64url'), time: Math.floor(Date.now() / 1000) };
+        const iv = crypto.randomBytes(12), c = crypto.createCipheriv('aes-256-gcm', key.subarray(0, 32), iv);
+        const enc = Buffer.concat([c.update(JSON.stringify(o), 'utf8'), c.final()]);
+        return Buffer.concat([iv, c.getAuthTag(), enc]).toString('base64').replace(/\+/g, '@').replace(/\//g, '$');
+    }
+
+    /**
+     * URL de la sesión remota. Con llave de inicio de sesión entra directo con la cuenta
+     * indicada (la de la empresa: solo ve sus equipos). Sin llave, MeshCentral pide usuario.
+     */
+    async sessionUrl(nodeId, viewmode = 12, asUser = null) {
+        const base = (this._publicUrl || '').replace(/\/$/, '');
+        if (/^[0-9a-f]{160}$/i.test(this._loginKey || '')) {
+            const nodeHash = nodeId.split('/').filter(x => x.length > 0).pop();
+            return base + '/?login=' + encodeURIComponent(this._loginCookie(asUser || this._user)) + '&node=' + nodeHash + '&viewmode=' + viewmode + '&hide=16';
+        }
+        return this._legacySessionUrl(nodeId, viewmode);
+    }
+
+    async _legacySessionUrl(nodeId, viewmode = 12) {
         const base = (this._publicUrl || '').replace(/\/$/, '');
         if (!this.connected) throw new Error('MeshCentral no disponible');
         const result = await new Promise((resolve, reject) => {
@@ -497,3 +587,4 @@ class MeshCentralService {
 }
 
 module.exports = new MeshCentralService();
+module.exports.MeshCentralService = MeshCentralService;

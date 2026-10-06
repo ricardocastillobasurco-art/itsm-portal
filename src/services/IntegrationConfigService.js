@@ -56,6 +56,14 @@ const ENV_DEFAULTS = {
         allowed_domains:  () => '',
         default_priority: () => '',
     },
+    // Servidor MeshCentral propio de la empresa (sin él usa el compartido de la plataforma)
+    rmm_dedicado: {
+        base_url:     () => '',
+        public_url:   () => '',
+        username:     () => '',
+        mesh_pass:    () => '',
+        login_secret: () => '',
+    },
     api_externa: {
         base_url:       () => '',
         api_key:        () => process.env.GROQ_API_KEY || '',
@@ -99,6 +107,10 @@ const INTEGRATION_MODULES = {
     email_to_ticket: [
         { name: 'Incidencias desde correo', icon: 'bi-envelope-paper-fill', color: '#0891b2' },
         { name: 'Respuestas como comentarios', icon: 'bi-reply-fill', color: '#7c3aed' },
+    ],
+    rmm_dedicado: [
+        { name: 'Control remoto',             icon: 'bi-display',           color: '#0891b2' },
+        { name: 'Alertas de equipos',         icon: 'bi-activity',          color: '#dc2626' },
     ],
     api_externa: [
         { name: 'Chatbot IA',                 icon: 'bi-robot',             color: '#7c3aed' },
@@ -191,7 +203,7 @@ const IntegrationConfigService = {
     },
 };
 
-const SENSITIVE_FIELDS = ['api_token','client_secret','api_key','webhook_secret','smtp_pass','imap_pass'];
+const SENSITIVE_FIELDS = ['api_token','client_secret','api_key','webhook_secret','smtp_pass','imap_pass','mesh_pass','login_secret'];
 
 function _maskUri(uri) {
     if (!uri) return null;

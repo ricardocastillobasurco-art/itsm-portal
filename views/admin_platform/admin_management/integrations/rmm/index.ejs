@@ -576,8 +576,8 @@ textarea.form-input{resize:vertical;font-family:'JetBrains Mono','Cascadia Code'
     <div class="modal-body">
       <div style="padding:14px;background:var(--primary-dim);border-radius:10px;font-size:12.5px;color:var(--primary);margin-bottom:4px;">
         <i class="bi bi-info-circle" style="margin-right:5px;"></i>
-        La configuración de credenciales se gestiona desde el archivo <code>.env</code> del servidor.
-        Contacta al administrador para cambiar las credenciales de acceso.
+        La conexión con MeshCentral la configura el superadministrador de la plataforma
+        (Activos → Configuración RMM, o «Conexiones» de la empresa si usa un servidor propio).
       </div>
       <div class="f-group">
         <label class="form-label">URL MeshCentral</label>
@@ -586,6 +586,10 @@ textarea.form-input{resize:vertical;font-family:'JetBrains Mono','Cascadia Code'
       <div class="f-group">
         <label class="form-label">Usuario</label>
         <div class="form-input" style="cursor:default;opacity:.7;" id="cfgUser">—</div>
+      </div>
+      <div class="f-group">
+        <label class="form-label">Servidor</label>
+        <div class="form-input" style="cursor:default;opacity:.7;" id="cfgMode">—</div>
       </div>
       <div class="f-group">
         <label class="form-label">Estado de conexión</label>
@@ -608,8 +612,9 @@ textarea.form-input{resize:vertical;font-family:'JetBrains Mono','Cascadia Code'
     <div class="modal-body">
       <div style="padding:12px;background:var(--primary-dim);border-radius:10px;font-size:12px;color:var(--primary);margin-bottom:16px;">
         <i class="bi bi-info-circle"></i>
-        Asigna los grupos de MeshCentral a cada empresa. Cada empresa solo ve y controla los equipos de sus grupos.
-        Una empresa sin grupos asignados no ve ningún equipo (la empresa principal ve todos mientras no tenga grupos).
+        Cada empresa solo ve y controla los equipos de SUS grupos; una empresa sin grupos no ve ninguno.
+        Lo más simple: <b>crea el grupo desde aquí</b> (botón «Crear grupo»): el portal queda con permisos sobre él.
+        Si lo creas en la web de MeshCentral, agrega la cuenta del portal a ese grupo.
       </div>
       <!-- Formulario de asignación -->
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
@@ -619,6 +624,9 @@ textarea.form-input{resize:vertical;font-family:'JetBrains Mono','Cascadia Code'
         <select id="grpMeshSel" style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;">
           <option value="">Seleccionar grupo…</option>
         </select>
+        <button onclick="createTenantGroup()" title="Crea un grupo nuevo en MeshCentral para la empresa seleccionada" style="padding:7px 14px;background:transparent;color:var(--primary);border:1.5px solid var(--primary);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">
+          <i class="bi bi-folder-plus"></i> Crear grupo
+        </button>
         <button onclick="addTenantGroup()" style="padding:7px 18px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">
           <i class="bi bi-plus-lg"></i> Asignar
         </button>
@@ -1054,8 +1062,11 @@ function saveCollection(){
 function openSettings(){
     document.getElementById('settingsModal').classList.add('show');
     fetch('/api/rmm/status').then(r=>r.json()).then(function(d){
-        document.getElementById('cfgUrl').textContent   = d.url   || '(configurado en .env)';
-        document.getElementById('cfgUser').textContent  = d.user  || '(configurado en .env)';
+        document.getElementById('cfgUrl').textContent   = d.url   || '(sin configurar)';
+        document.getElementById('cfgUser').textContent  = d.user  || (d.mode === 'shared' ? 'Cuenta de tu empresa (automática)' : '—');
+        var modes = { superadmin: 'Compartido · vista de plataforma (todos los grupos)', dedicated: 'Propio de tu empresa',
+                      shared: 'Compartido · ' + (d.groups ? d.groups + ' grupo(s) de tu empresa' : 'sin grupos asignados: pide al superadmin que asigne los de tu empresa') };
+        document.getElementById('cfgMode').textContent = (modes[d.mode] || '—') + (d.autoLogin ? ' · acceso directo a sesiones' : '');
         document.getElementById('cfgStatus').textContent = d.connected ? '✔ Conectado' : '✖ Desconectado';
         document.getElementById('cfgStatus').style.color = d.connected ? 'var(--success)' : 'var(--danger)';
     });
@@ -1542,7 +1553,7 @@ function openGroupsModal() {
         var meshSel = document.getElementById('grpMeshSel');
         meshSel.innerHTML = '<option value="">Seleccionar grupo…</option>'
             + _groupsMeshes.map(function(m) {
-                return '<option value="' + escHtml(m.meshId) + '">' + escHtml(m.meshId.slice(0,20)) + ' (' + m.deviceCount + ' dispositivos)</option>';
+                return '<option value="' + escHtml(m.meshId) + '">' + escHtml(m.name || m.meshId.slice(0,20)) + ' (' + m.deviceCount + ' equipos)</option>';
             }).join('');
 
         // Grupos asignados
@@ -1599,14 +1610,31 @@ function addTenantGroup() {
     fetch('/api/rmm/tenant-groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant_id: parseInt(tenantId), mesh_id: meshId, mesh_name: meshObj ? meshObj.meshId : meshId }),
+        body: JSON.stringify({ tenant_id: parseInt(tenantId), mesh_id: meshId, mesh_name: meshObj ? (meshObj.name || meshObj.meshId) : meshId }),
     }).then(r => r.json()).then(function(d) {
         if (!d.ok) { alert('Error: ' + d.error); return; }
+        if (d.warning) alert(d.warning);
         fetch('/api/rmm/tenant-groups').then(r => r.json()).then(function(r2) {
             _groupsList = r2.ok ? (r2.groups || []) : [];
             renderGroupsTable();
         });
     });
+}
+
+function createTenantGroup() {
+    var sel = document.getElementById('grpTenantSel');
+    var tenantId = sel.value;
+    if (!tenantId) { alert('Primero selecciona la empresa.'); return; }
+    var tName = sel.options[sel.selectedIndex].text;
+    var name = prompt('Nombre del grupo (p. ej. la sede):', tName + ' - Principal');
+    if (!name || !name.trim()) return;
+    fetch('/api/rmm/tenant-groups/create', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: parseInt(tenantId), name: name.trim() }) })
+    .then(function(r) { return r.json(); }).then(function(d) {
+        if (!d.ok) { alert('Error: ' + d.error); return; }
+        if (d.warning) alert('Grupo creado. Aviso: ' + d.warning);
+        openGroupsModal();
+    }).catch(function(e) { alert('Error: ' + e.message); });
 }
 
 function removeTenantGroup(id) {

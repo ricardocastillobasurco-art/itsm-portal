@@ -612,7 +612,12 @@ router.put('/:tenantId/features/:name', async (req, res, next) => {
       merged[key] = value;
     }
 
+    if (featureName === 'rmm_dedicado' && merged.login_secret && !/^[0-9a-f]{160}$/i.test(String(merged.login_secret).trim())) {
+      return res.fail('La llave de inicio de sesión debe tener 160 caracteres hexadecimales', 400);
+    }
     const record = await FeatureFlagService.set(tenantId, featureName, Boolean(enabled), merged);
+    // Servidor MeshCentral propio: aplicar el cambio sin esperar la caché
+    if (featureName === 'rmm_dedicado') require('../../../../services/meshPool').invalidate(tenantId);
     res.ok(record);
   } catch (e) { next(e); }
 });

@@ -1468,6 +1468,7 @@ const FEATURE_CATALOG = [
   { key:'kb_publico',         label:'KB Público',         icon:'bi-book-fill',          color:'#7c3aed', desc:'Base de conocimiento accesible sin iniciar sesión' },
   { key:'reportes_avanzados', label:'Reportes Avanzados', icon:'bi-graph-up-arrow',     color:'#2563eb', desc:'Dashboard BI y exportación de reportes personalizados' },
   { key:'email_to_ticket',    label:'Correo a ticket',    icon:'bi-envelope-paper-fill', color:'#0891b2', desc:'Los correos al buzón de soporte crean incidencias; las respuestas se agregan como comentarios' },
+  { key:'rmm_dedicado',       label:'RMM · servidor propio', icon:'bi-display-fill',     color:'#0891b2', desc:'Activo: la empresa usa SU servidor MeshCentral. Inactivo: usa el compartido (solo los grupos asignados)' },
   { key:'api_externa',        label:'API / Webhooks',     icon:'bi-plug-fill',          color:'#dc2626', desc:'Integración con sistemas externos via API' },
 ];
 
@@ -1506,6 +1507,13 @@ const INTEGRATION_SCHEMAS = {
     {key:'imap_pass',       label:'Contraseña IMAP',    type:'password', placeholder:'Contraseña de aplicación',                 required:false, sensitive:true},
     {key:'allowed_domains', label:'Dominios permitidos',type:'text',     placeholder:'vacío = dominio de la empresa · * = cualquiera', required:false},
     {key:'default_priority',label:'Prioridad por defecto', type:'text',  placeholder:'P3',                                       required:false},
+  ]},
+  rmm_dedicado:    { label:'RMM · servidor MeshCentral propio', fields:[
+    {key:'base_url',     label:'URL del servidor',          type:'url',      placeholder:'https://rmm.cliente.com',                 required:true},
+    {key:'public_url',   label:'URL pública (si es distinta)', type:'url',   placeholder:'vacío = la misma',                         required:false},
+    {key:'username',     label:'Usuario de servicio',       type:'text',     placeholder:'portal',                                   required:true},
+    {key:'mesh_pass',    label:'Contraseña',                type:'password', placeholder:'••••••••',                                 required:true, sensitive:true},
+    {key:'login_secret', label:'Llave de inicio de sesión (160 hex)', type:'password', placeholder:'loginCookieEncryptionKey de su config.json', required:false, sensitive:true},
   ]},
   api_externa:     { label:'API Externa / Webhook', fields:[
     {key:'base_url',     label:'URL base de la API', type:'url',     placeholder:'https://api.sistema.com/v1',              required:true},

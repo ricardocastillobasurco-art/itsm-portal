@@ -51,8 +51,11 @@ const FeatureFlagService = {
       if (cached) return open(JSON.parse(cached));
 
       const records = await _model().findAll({ where: { tenantId } });
+      // MariaDB devuelve la columna JSON como texto (MySQL 8 como objeto): siempre objeto,
+      // si no, al guardar se "mezclaba" el texto carácter por carácter con la config nueva.
+      const parse = (c) => { if (typeof c !== 'string') return c; try { return JSON.parse(c); } catch (_) { return null; } };
       const map = Object.fromEntries(
-        records.map(r => [r.name, { enabled: r.enabled, config: r.config }])
+        records.map(r => [r.name, { enabled: r.enabled, config: parse(r.config) }])
       );
 
       await redis.setex(_allKey(tenantId), TTL, JSON.stringify(map));

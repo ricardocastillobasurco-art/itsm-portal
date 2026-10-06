@@ -48,24 +48,31 @@ async function resolveAlert(nodeId, metric) {
 
 async function evaluateAll(io, meshSvc) {
     let rules = [];
-    let devices = [];
-    let meshTenant = new Map();
+    // Origen de los equipos: servidor compartido (empresa según el grupo asignado) y
+    // servidores propios de cada empresa (todos sus equipos son de esa empresa).
+    const sources = [];
     try {
-        rules   = await dbQ("SELECT *, COALESCE(tenant_id, 1) AS tid FROM rmm_alert_rules /* tenant_id: se agrupan por tenant abajo */ WHERE enabled=1");
+        rules = await dbQ("SELECT *, COALESCE(tenant_id, 1) AS tid FROM rmm_alert_rules /* tenant_id: se agrupan por tenant abajo */ WHERE enabled=1");
+        if (!rules.length) return;
         const r = await meshSvc.getDevices(false);
-        devices = r && r.ok ? r.devices : [];
-        meshTenant = new Map((await dbQ('SELECT mesh_id, tenant_id FROM rmm_tenant_groups')).map(g => [g.mesh_id, Number(g.tenant_id)]));
+        const meshTenant = new Map((await dbQ('SELECT mesh_id, tenant_id FROM rmm_tenant_groups')).map(g => [g.mesh_id, Number(g.tenant_id)]));
+        // Un equipo sin grupo asignado no es de ninguna empresa (antes se atribuía a la empresa 1)
+        sources.push({ devices: r && r.ok ? r.devices : [], tenantOf: (d) => meshTenant.get(d.meshId) ?? null });
+        for (const { tenantId, svc } of await require('./meshPool').dedicatedTenants()) {
+            const rd = await svc.getDevices(false).catch(() => null);
+            sources.push({ devices: rd && rd.ok ? rd.devices : [], tenantOf: () => tenantId });
+        }
     } catch { return; }
-
-    if (!rules.length || !devices.length) return;
 
     const devCache = { get: (k) => { const p = k.split(':'); return rmmCache.get(p[0], p.slice(1).join(':')); } };
 
+    for (const { devices, tenantOf } of sources)
     for (const device of devices) {
         const nodeId   = device.nodeId || device.id || device.nodeid || '';
         const nodeName = device.name || nodeId;
         const online   = device.online ?? (device.conn === 1 || device.conn === true);
-        const tenantId = meshTenant.get(device.meshId) ?? OWNER_TENANT_ID;
+        const tenantId = tenantOf(device);
+        if (tenantId == null) continue;
 
         for (const rule of rules) {
             if (Number(rule.tid) !== tenantId) continue;
