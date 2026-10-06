@@ -1834,11 +1834,11 @@ async function openHistory(key) {
 
         // Timeline
         const evIcons = {creacion:'bi-plus-circle-fill',asignacion:'bi-person-check-fill',
-                         cambio_estado:'bi-arrow-repeat',cierre:'bi-lock-fill',comentario:'bi-chat-fill',adjunto:'bi-paperclip'};
+                         cambio_estado:'bi-arrow-repeat',cierre:'bi-lock-fill',comentario:'bi-chat-fill',adjunto:'bi-paperclip',remoto:'bi-display'};
         const evColors= {creacion:'#0052CC',asignacion:'#7c3aed',cambio_estado:'#f59e0b',
-                         cierre:'#10b981',comentario:'#64748b',adjunto:'#0891b2'};
+                         cierre:'#10b981',comentario:'#64748b',adjunto:'#0891b2',remoto:'#7c3aed'};
         const evLabel = {creacion:'Creación',asignacion:'Asignación',cambio_estado:'Cambio de estado',
-                         cierre:'Cierre',comentario:'Comentario',adjunto:'Adjunto'};
+                         cierre:'Cierre',comentario:'Comentario',adjunto:'Adjunto',remoto:'Sesión remota'};
 
         const allEvents = [
             { evento:'creacion', user_name: ticket.reporter||'—', detalle:`Incidencia creada. Prioridad: ${ticket.priority||'—'}. ${ticket.summary||''}`, created_at: ticket.created_at },
@@ -4679,11 +4679,31 @@ function renderTicket(issue, opts) {
             ${isActive_ ? `<button role="menuitem" style="color:#b45309;" onclick="togglePendienteInc('${key}',this)"><i class="bi bi-pause-circle"></i> Poner en pendiente</button>` : ''}
             ${!isClosed_ && asgn && asgn !== 'Sin asignar' ? `<button role="menuitem" style="color:#dc2626;" onclick="desasignarme('${key}',this)"><i class="bi bi-person-dash"></i> Desasignarme</button>` : ''}
             ${!isClosed_ && !_isLocal ? `<button role="menuitem" onclick="openDeriveModal('${key}')"><i class="bi bi-arrow-right-circle"></i> Derivar</button>` : ''}
+            <button role="menuitem" class="rmm-only" onclick="openConnectDevice('${key}', this)"><i class="bi bi-display"></i> Conectar al equipo</button>
+            <button role="menuitem" onclick="toggleTiempoInc('${key}', this)"><i class="bi bi-stopwatch"></i> Registrar tiempo</button>
             <button role="menuitem" onclick="openTimeline('${key}')"><i class="bi bi-clock-history"></i> Timeline</button>
             <button role="menuitem" id="noteBtn-${key}" style="${_hasNote ? 'color:#8b5cf6;' : ''}" onclick="toggleNoteInc('${key}',this)"><i class="bi bi-sticky${_hasNote ? '-fill' : ''}"></i> Nota privada${_hasNote ? ' ·' : ''}</button>
           </div>
         </div>
         ${_isLocal ? '' : `<a href="${JIRA_BASE}/browse/${key}" target="_blank" rel="noopener" class="btn-outline-sm" style="font-size:12px;text-decoration:none;margin-left:auto;" title="Abrir en Jira"><i class="bi bi-box-arrow-up-right"></i> Jira</a>`}
+      </div>
+
+      <!-- TIEMPO INLINE -->
+      <div class="asig-inline time-panel" id="tiempo-${key}" style="display:none;" data-key="${key}">
+        <div class="adj-head"><span><i class="bi bi-stopwatch"></i> Tiempo dedicado · ${key}</span>
+          <button class="btn-outline-sm" style="font-size:11px;padding:2px 8px;" onclick="toggleTiempoInc('${key}',this)">✕</button></div>
+        <div class="time-form">
+          <div class="time-quick">
+            <button type="button" onclick="timeQuick(this,15)">15 min</button><button type="button" onclick="timeQuick(this,30)">30 min</button>
+            <button type="button" onclick="timeQuick(this,60)">1 h</button><button type="button" onclick="timeQuick(this,120)">2 h</button>
+          </div>
+          <label>Minutos <input type="number" class="time-min" min="1" max="1440" placeholder="45"></label>
+          <label>Fecha <input type="date" class="time-date"></label>
+          <label class="time-bill"><input type="checkbox" class="time-billable" checked> Facturable</label>
+          <input type="text" class="time-note" maxlength="500" placeholder="¿Qué se hizo? (opcional)">
+          <button class="btn-create" style="padding:7px 14px;font-size:12px;" onclick="saveTiempoInc('${key}',this)">Registrar</button>
+        </div>
+        <div class="time-list"></div>
       </div>
 
       <!-- ADJUNTOS INLINE -->
@@ -4876,7 +4896,7 @@ function toggleComentarInc(key, btn) {
     }
 }
 function _closeAllInc(key, card) {
-    ['asig','cerrar','comentar','pendiente','reanudar','trans','adj'].forEach(p => {
+    ['asig','cerrar','comentar','pendiente','reanudar','trans','adj','tiempo'].forEach(p => {
         const el = (card ? card.querySelector('#'+p+'-'+key) : null) || document.getElementById(`${p}-${key}`);
         if (el) el.style.display = 'none';
     });
@@ -4898,6 +4918,133 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') document.querySelectorAll('.tc-more.open').forEach(m => m.classList.remove('open'));
 });
+
+// ── Registro de tiempo (horas por cliente) ───────────────────────────────────
+function _fmtMin(m) { m = Number(m) || 0; const h = Math.floor(m / 60), r = m % 60; return h ? (h + ' h' + (r ? ' ' + r + ' min' : '')) : (r + ' min'); }
+function toggleTiempoInc(key, btn) {
+    const card = btn && btn.closest('.ticket-card');
+    const el = (card && card.querySelector('#tiempo-' + key)) || document.getElementById('tiempo-' + key);
+    if (!el) return;
+    const wasOpen = el.style.display !== 'none';
+    _closeAllInc(key, el.closest('.ticket-card'));
+    if (wasOpen) return;
+    el.style.display = 'block';
+    const d = el.querySelector('.time-date');
+    if (d && !d.value) { const t = new Date(); d.value = new Date(t - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); d.max = d.value; }
+    loadTiempoInc(key, el);
+}
+function timeQuick(btn, m) { const p = btn.closest('.time-panel'); p.querySelector('.time-min').value = m; p.querySelector('.time-note').focus(); }
+async function loadTiempoInc(key, panel) {
+    const list = panel.querySelector('.time-list');
+    list.innerHTML = '<span class="adj-empty">Cargando…</span>';
+    try {
+        const r = await fetch('/api/jira/ticket/' + encodeURIComponent(key) + '/time', { credentials: 'include' });
+        const j = await r.json();
+        if (!j.success) throw new Error(j.message || 'Error');
+        list.innerHTML = (j.data.length ? j.data.map(e =>
+            '<div class="time-row"><b>' + _fmtMin(e.minutes) + '</b><span>' + incEsc(e.user_name || '') + ' · ' + incEsc(String(e.work_date).slice(0, 10)) +
+            (e.billable ? '' : ' · <i>no facturable</i>') + (e.note ? '<br><small>' + incEsc(e.note) + '</small>' : '') + '</span>' +
+            (e.mine ? '<button title="Borrar" onclick="delTiempoInc(\'' + key + '\',' + Number(e.id) + ',this)"><i class="bi bi-x"></i></button>' : '') + '</div>').join('')
+            : '<span class="adj-empty">Aún no hay tiempo registrado.</span>') +
+            (j.total ? '<div class="time-total">Total: <b>' + _fmtMin(j.total) + '</b> · facturable ' + _fmtMin(j.billable) + '</div>' : '');
+    } catch (e) { list.innerHTML = '<span class="adj-empty" style="color:#ef4444;">Error: ' + incEsc(e.message) + '</span>'; }
+}
+async function saveTiempoInc(key, btn) {
+    const p = btn.closest('.time-panel');
+    const minutes = parseInt(p.querySelector('.time-min').value);
+    if (!(minutes > 0)) { showToast('Indica los minutos', 'error'); return; }
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/jira/ticket/' + encodeURIComponent(key) + '/time', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutes, note: p.querySelector('.time-note').value, billable: p.querySelector('.time-billable').checked, work_date: p.querySelector('.time-date').value }) });
+        const j = await r.json();
+        if (!j.success) throw new Error(j.message || 'Error');
+        p.querySelector('.time-min').value = ''; p.querySelector('.time-note').value = '';
+        showToast('Tiempo registrado: ' + _fmtMin(minutes), 'success');
+        loadTiempoInc(key, p);
+    } catch (e) { showToast(e.message, 'error'); }
+    finally { btn.disabled = false; }
+}
+async function delTiempoInc(key, id, btn) {
+    if (!confirm('¿Borrar este registro de tiempo?')) return;
+    const p = btn.closest('.time-panel');
+    await fetch('/api/jira/ticket/' + encodeURIComponent(key) + '/time/' + id, { method: 'DELETE', credentials: 'include' });
+    loadTiempoInc(key, p);
+}
+
+// ── Conectar al equipo del usuario (control remoto) ──────────────────────────
+// Solo se muestra si la empresa tiene el módulo de control remoto configurado.
+(function () {
+    fetch('/api/rmm/status', { credentials: 'include' }).then(r => r.ok ? r.json() : null)
+        .then(d => { if (d && d.ok && d.configured) document.body.classList.add('rmm-on'); }).catch(() => {});
+})();
+let _connKey = null, _connDevices = [];
+function _connModal() {
+    let m = document.getElementById('connModal');
+    if (m) return m;
+    m = document.createElement('div');
+    m.id = 'connModal';
+    m.className = 'conn-overlay';
+    m.innerHTML = '<div class="conn-box" role="dialog" aria-modal="true" aria-labelledby="connTitle">' +
+        '<div class="conn-head"><div><div id="connTitle" class="conn-title"><i class="bi bi-display"></i> Conectar al equipo</div><div class="conn-sub"></div></div>' +
+        '<button class="conn-x" onclick="closeConnectDevice()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button></div>' +
+        '<input type="search" class="conn-search" placeholder="Buscar por nombre del equipo, usuario o IP…">' +
+        '<div class="conn-list"></div>' +
+        '<div class="conn-foot"><label><input type="radio" name="connMode" value="12" checked> Escritorio</label>' +
+        '<label><input type="radio" name="connMode" value="1"> Consola</label><label><input type="radio" name="connMode" value="5"> Archivos</label>' +
+        '<span class="conn-note">El usuario verá un aviso para aceptar. Queda registrado en el ticket.</span></div></div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) closeConnectDevice(); });
+    m.querySelector('.conn-search').addEventListener('input', e => _renderConn(e.target.value));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeConnectDevice(); });
+    return m;
+}
+function closeConnectDevice() { const m = document.getElementById('connModal'); if (m) m.classList.remove('open'); }
+async function openConnectDevice(key, btn) {
+    _connKey = key;
+    const card = btn && btn.closest('.ticket-card');
+    const reporter = (card && card.querySelector('.tc-meta span:nth-child(2) b') || {}).textContent || '';
+    const m = _connModal();
+    m.querySelector('.conn-sub').textContent = key + (reporter ? ' · ' + reporter : '');
+    m.querySelector('.conn-search').value = '';
+    m.querySelector('.conn-list').innerHTML = '<div class="conn-empty">Cargando equipos…</div>';
+    m.classList.add('open');
+    try {
+        const r = await fetch('/api/rmm/devices', { credentials: 'include' });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || 'No se pudo cargar los equipos');
+        // Sugerencia: equipos cuyo nombre contenga el usuario del reportante (p. ej. "jperez" en "PC-JPEREZ")
+        const hint = String(reporter).split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        _connDevices = (j.devices || []).map(d => ({ ...d, _sug: hint.length > 2 && String(d.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(hint) }))
+            .sort((a, b) => (b._sug - a._sug) || (b.online - a.online) || String(a.name).localeCompare(String(b.name)));
+        _renderConn('');
+        m.querySelector('.conn-search').focus();
+    } catch (e) { m.querySelector('.conn-list').innerHTML = '<div class="conn-empty" style="color:#ef4444;">' + incEsc(e.message) + '</div>'; }
+}
+function _renderConn(q) {
+    const list = document.querySelector('#connModal .conn-list');
+    q = String(q || '').toLowerCase();
+    const rows = _connDevices.filter(d => !q || [d.name, d.host, d.ip, d.os].join(' ').toLowerCase().includes(q));
+    list.innerHTML = rows.length ? rows.slice(0, 200).map(d =>
+        '<button class="conn-dev" ' + (d.online ? '' : 'disabled') + ' onclick="connectToDevice(\'' + encodeURIComponent(d.nodeId) + '\')">' +
+        '<i class="bi ' + (/(win)/i.test(d.os) ? 'bi-windows' : /(mac|darwin)/i.test(d.os) ? 'bi-apple' : 'bi-pc-display') + '"></i>' +
+        '<span><b>' + incEsc(d.name) + '</b>' + (d._sug ? ' <em>sugerido</em>' : '') + '<small>' + incEsc([d.os, d.ip].filter(Boolean).join(' · ')) + '</small></span>' +
+        '<span class="conn-state ' + (d.online ? 'on' : 'off') + '">' + (d.online ? 'En línea' : 'Apagado') + '</span></button>').join('')
+        : '<div class="conn-empty">' + (_connDevices.length ? 'Ningún equipo coincide.' : 'Tu empresa aún no tiene equipos con el agente instalado (RMM → Instalar agente).') + '</div>';
+}
+function connectToDevice(nodeIdEnc) {
+    const nodeId = decodeURIComponent(nodeIdEnc);
+    const mode = (document.querySelector('#connModal input[name=connMode]:checked') || {}).value || '12';
+    const win = window.open('about:blank', '_blank');   // se abre ya (evita el bloqueo de ventanas emergentes)
+    fetch('/api/rmm/session', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodeId, viewmode: Number(mode), ticketKey: _connKey }) })
+    .then(r => r.json()).then(j => {
+        if (!j.ok || !j.url) throw new Error(j.error || 'No se pudo abrir la sesión');
+        if (win) win.location.href = j.url; else window.open(j.url, '_blank');
+        closeConnectDevice();
+        showToast('Sesión abierta · registrada en ' + _connKey, 'success');
+    }).catch(e => { if (win) win.close(); showToast(e.message, 'error'); });
+}
 
 // ── Adjuntos (evidencias) ────────────────────────────────────────────────────
 // Ticket de Jira → se suben a Jira; TK-/RQ- → almacenamiento local. Mismo panel para ambos.

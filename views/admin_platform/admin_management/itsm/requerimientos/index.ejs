@@ -63,7 +63,7 @@ const CURRENT_USER_EMAIL = <%- JSON.stringify(locals.user?.email || locals.user?
 const REQ_LOCAL_VIEW     = <%- JSON.stringify(!!locals.localView) %>;
 window.JIRA_BASE_URL = <%- JSON.stringify(((locals.user && locals.user.tenant_id) || 1) == 1 ? (locals.jiraHost || '') : '') %>;
 </script>
-<script src="/js/requerimientos/app.js?v=2"></script>
+<script src="/js/requerimientos/app.js?v=3"></script>
 <script>
 function reqShowPanel(name, el) {
   document.querySelectorAll('#tabGestionReq .panel').forEach(p => p.classList.remove('active'));

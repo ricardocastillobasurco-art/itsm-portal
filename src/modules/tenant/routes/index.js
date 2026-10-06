@@ -29,6 +29,30 @@ router.get('/', lifecycle.list);
 // GET  /api/admin/tenants/stats  — lista con contadores (para el panel super admin)
 router.get('/stats', lifecycle.listWithStats);
 
+// GET /api/admin/tenants/time-report?from&to[&format=csv] — horas de soporte por empresa (para facturar)
+router.get('/time-report', async (req, res) => {
+  try {
+    const { executeQuery, equipmentPool } = require('../../../../config/database');
+    const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+    const now = new Date().toISOString().slice(0, 10);
+    const from = isDate(req.query.from) ? req.query.from : now.slice(0, 8) + '01';
+    const to   = isDate(req.query.to) ? req.query.to : now;
+    const rows = await executeQuery(equipmentPool,
+      `SELECT t.id, t.name, COUNT(e.id) AS entries, COUNT(DISTINCT e.ticket_key) AS tickets,
+              COALESCE(SUM(e.minutes), 0) AS minutes, COALESCE(SUM(CASE WHEN e.billable = 1 THEN e.minutes ELSE 0 END), 0) AS billable
+       FROM ticket_time_entries e /* tenant_id: reporte de plataforma (superadmin) */ JOIN tenants t ON t.id = e.tenant_id
+       WHERE e.work_date BETWEEN ? AND ? GROUP BY t.id, t.name ORDER BY billable DESC`, [from, to]);
+    if (req.query.format === 'csv') {
+      const cell = (v) => { v = v == null ? '' : String(v); if (/^[=+\-@]/.test(v)) v = "'" + v; return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      const lines = rows.map(r => [r.name, r.tickets, r.entries, (r.minutes / 60).toFixed(2), (r.billable / 60).toFixed(2)].map(cell).join(','));
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="horas-por-empresa-${from}-a-${to}.csv"`);
+      return res.send('\ufeff' + ['Empresa,Tickets,Registros,Horas totales,Horas facturables', ...lines].join('\r\n'));
+    }
+    res.ok({ from, to, companies: rows });
+  } catch (e) { res.fail(e.message, 500); }
+});
+
 // GET  /api/admin/tenants/import-sections  — secciones disponibles para CSV import
 router.get('/import-sections', lifecycle.getSections);
 

@@ -114,15 +114,69 @@ router.get('/devices', async (req, res) => {
 });
 
 router.post('/session', requireNodeAccess(r => r.body.nodeId), async (req, res) => {
-    const { nodeId, viewmode } = req.body;
+    const { nodeId, viewmode, ticketKey } = req.body;
     if (!nodeId) return res.status(400).json({ ok: false, error: 'nodeId requerido' });
     try {
         if (req.rmm.mode === 'shared') await meshPool.syncTenantAccount(req.rmm.tenantId);
         const url = await req.rmm.svc.sessionUrl(nodeId, viewmode || 12, req.rmm.sessionUser);
+        // Desde un ticket: queda registrado en su historial (solo tickets de la propia empresa)
+        if (ticketKey) await _logSessionOnTicket(req, String(ticketKey), nodeId, viewmode).catch(() => {});
         res.json({ ok: true, url });
     } catch (e) {
         res.status(503).json({ ok: false, error: e.message });
     }
+});
+
+async function _logSessionOnTicket(req, key, nodeId, viewmode) {
+    const table = /^RQ-/i.test(key) ? ['jira_requirements', 'req_key'] : ['jira_tickets', 'ticket_key'];
+    const [t] = await dbQuery(`SELECT 1 AS ok FROM ${table[0]} WHERE ${table[1]} = ? AND COALESCE(tenant_id, 1) = ? LIMIT 1`, [key, req.rmm.tenantId]);
+    if (!t) return;
+    const dev = ((await req.rmm.svc.getDevices(false)).devices || []).find(d => d.nodeId === nodeId);
+    const what = { 1: 'consola', 5: 'archivos' }[Number(viewmode)] || 'escritorio remoto';
+    const actor = req.user?.full_name || req.user?.username || 'Técnico';
+    await dbQuery(`INSERT INTO ticket_history /* tenant_id: ticket validado arriba */ (ticket_id, user_id, user_name, evento, detalle)
+                   VALUES (?, ?, ?, 'remoto', ?)`,
+        [key, req.user?.id || 0, actor, `${actor} inició una sesión de ${what} en el equipo ${dev?.name || nodeId.slice(-8)}`]);
+}
+
+// ── Instalar agente: grupos visibles y enlace de instalación ──────────────────
+
+// Grupos donde la empresa puede instalar agentes (con nombre)
+router.get('/my-groups', async (req, res) => {
+    try {
+        const { svc, meshIds } = req.rmm;
+        let groups;
+        if (meshIds) {
+            const rows = meshIds.size ? await dbQuery(`SELECT mesh_id, mesh_name FROM rmm_tenant_groups WHERE tenant_id = ? ORDER BY mesh_name`, [req.rmm.tenantId]) : [];
+            const names = new Map((svc.meshes || []).map(m => [m._id, m.name]));
+            groups = rows.map(r => ({ meshId: r.mesh_id, name: names.get(r.mesh_id) || r.mesh_name || 'Grupo' }));
+        } else {
+            groups = (svc.meshes || []).map(m => ({ meshId: m._id, name: m.name || 'Grupo' }));
+        }
+        res.json({ ok: true, groups });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Enlace público de instalación del agente para un grupo (lo genera MeshCentral, vence solo)
+router.post('/agent-invite', async (req, res) => {
+    const { meshId } = req.body || {};
+    const hours = Math.min(Math.max(parseInt(req.body?.hours) || 168, 1), 720);
+    if (!meshId) return res.status(400).json({ ok: false, error: 'Elige el grupo' });
+    const { svc, meshIds } = req.rmm;
+    if (meshIds && !meshIds.has(meshId)) return res.status(403).json({ ok: false, error: 'Ese grupo no pertenece a tu empresa' });
+    try {
+        const r = await svc.request({ action: 'createInviteLink', meshid: meshId, expire: hours, flags: 0 });
+        if (!r.url) return res.status(502).json({ ok: false, error: 'MeshCentral no generó el enlace' + (r.result ? ': ' + r.result : '') });
+        // MeshCentral arma el enlace con su nombre interno; se publica con la URL pública configurada
+        let url = r.url;
+        try {
+            const pub = new URL(svc.getConfig().publicUrl || svc.getConfig().url);
+            const u = new URL(r.url); u.protocol = pub.protocol; u.host = pub.host; url = u.toString();
+        } catch (_) {}
+        await dbQuery('INSERT INTO tenant_audit_log (tenant_id, event, actor_id, metadata, created_at) VALUES (?, ?, ?, ?, NOW())',
+            [req.rmm.tenantId, 'rmm_agent_invite', /^\d+$/.test(String(req.user?.id)) ? Number(req.user.id) : null, JSON.stringify({ meshId, hours, by: req.user?.email })]).catch(() => {});
+        res.json({ ok: true, url, hours });
+    } catch (e) { res.status(503).json({ ok: false, error: e.message }); }
 });
 
 // ── Scripts PowerShell para inventario ────────────────────────────────────────

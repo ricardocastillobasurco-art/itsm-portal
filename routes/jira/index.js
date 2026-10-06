@@ -14,6 +14,7 @@ router.use('/', require('./reports'));
 router.use('/', require('./local_panels'));
 router.use('/', require('./attachments'));
 router.use('/', require('./config_itsm'));
+router.use('/', require('./time'));
 if (require('fs').existsSync(require('path').join(__dirname, 'other.js'))) {
     router.use('/', require('./other'));
 }

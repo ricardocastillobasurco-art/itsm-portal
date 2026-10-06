@@ -282,6 +282,9 @@ select.form-input{cursor:pointer;}
   <div class="sec-head">
     <span class="sec-title"><i class="bi bi-buildings"></i> Clientes</span>
     <div class="sec-line"></div>
+    <button class="btn-outline" onclick="openHoras()" style="color:#059669;border-color:#059669;" title="Horas de soporte por cliente (para facturar)">
+      <i class="bi bi-stopwatch"></i> Horas
+    </button>
     <button class="btn-outline" onclick="openModal('modalBroadcast')" style="color:#7c3aed;border-color:#7c3aed;" title="Enviar comunicado a todos los clientes">
       <i class="bi bi-megaphone-fill"></i> Comunicado
     </button>
@@ -535,6 +538,27 @@ select.form-input{cursor:pointer;}
 </div>
 
 <!-- ══ MODAL USUARIOS ════════════════════════════════════════════════════ -->
+<div id="modalHoras" class="modal-bg">
+  <div class="modal-box" style="max-width:680px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="bi bi-stopwatch" style="color:#059669;"></i> Horas de soporte por cliente</div>
+        <div class="modal-sub">Tiempo registrado por tus técnicos en los tickets de cada empresa.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalHoras')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+        <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Desde <input type="date" id="hrsFrom" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+        <label style="font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:4px;">Hasta <input type="date" id="hrsTo" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;"></label>
+        <button class="btn-primary" onclick="cargarHoras()" style="padding:9px 16px;"><i class="bi bi-arrow-repeat"></i> Ver</button>
+        <a class="btn-outline" id="hrsCsv" href="#" download style="padding:8px 14px;text-decoration:none;"><i class="bi bi-filetype-csv"></i> Excel (CSV)</a>
+      </div>
+      <div id="hrsBody"></div>
+    </div>
+  </div>
+</div>
+
 <div id="modalTecnicos" class="modal-bg">
   <div class="modal-box" style="max-width:640px;">
     <div class="modal-header">
@@ -2067,6 +2091,32 @@ async function toggleFeature(key, enabled) {
 
 /* ── Usuarios por tenant ───────────────────────────────────────────────── */
 let _usuariosTenantId = null;
+
+function openHoras() {
+  const t = new Date(), iso = (d) => new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  document.getElementById('hrsFrom').value = iso(new Date(t.getFullYear(), t.getMonth(), 1));
+  document.getElementById('hrsTo').value = iso(t);
+  openModal('modalHoras');
+  cargarHoras();
+}
+async function cargarHoras() {
+  const from = document.getElementById('hrsFrom').value, to = document.getElementById('hrsTo').value;
+  const qs = `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  document.getElementById('hrsCsv').href = `/api/admin/tenants/time-report?${qs}&format=csv`;
+  const box = document.getElementById('hrsBody');
+  box.innerHTML = '<div style="color:var(--muted);font-size:13px;">Cargando…</div>';
+  try {
+    const j = await (await fetch(`/api/admin/tenants/time-report?${qs}`, { credentials: 'include' })).json();
+    const rows = j.data?.companies || [];
+    const h = (m) => (Number(m) / 60).toFixed(1) + ' h';
+    const tot = rows.reduce((a, r) => a + Number(r.billable), 0);
+    box.innerHTML = rows.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;"><th style="padding:8px;">Empresa</th><th>Tickets</th><th>Horas</th><th>Facturables</th></tr></thead>
+      <tbody>${rows.map(r => `<tr style="border-top:1px solid var(--border);"><td style="padding:8px;font-weight:700;">${escHtml(r.name)}</td><td>${Number(r.tickets)}</td><td>${h(r.minutes)}</td><td style="font-weight:700;color:#059669;">${h(r.billable)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr style="border-top:2px solid var(--border);"><td style="padding:8px;font-weight:800;">Total facturable</td><td></td><td></td><td style="font-weight:800;color:#059669;">${h(tot)}</td></tr></tfoot></table>`
+      : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:14px;">Sin horas registradas en ese periodo.</div>';
+  } catch (e) { box.innerHTML = '<div style="color:#dc2626;">Error: ' + escHtml(e.message) + '</div>'; }
+}
 
 let _tecTenantId = null;
 function openTecnicos(tenantId, name) {

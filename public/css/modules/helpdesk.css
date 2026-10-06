@@ -539,3 +539,52 @@
   .tc-top { gap: 4px; }
   .ticket-card { padding: 8px 10px; }
 }
+
+/* ── Conectar al equipo (control remoto) ── */
+.tc-more-menu .rmm-only { display: none; }
+body.rmm-on .tc-more-menu .rmm-only { display: flex; }
+.conn-overlay { position: fixed; inset: 0; z-index: 3000; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(15,23,42,.45); }
+.conn-overlay.open { display: flex; }
+.conn-box { width: 100%; max-width: 560px; max-height: 86vh; display: flex; flex-direction: column; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-soft); border-radius: 16px; box-shadow: 0 20px 50px rgba(15,23,42,.3); }
+.conn-head { display: flex; align-items: flex-start; gap: 10px; padding: 16px 18px 10px; }
+.conn-title { font-weight: 800; font-size: 15px; }
+.conn-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.conn-x { margin-left: auto; border: 0; background: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 4px; border-radius: 8px; }
+.conn-x:hover { background: var(--bg-main); }
+.conn-search { margin: 0 18px 10px; padding: 9px 12px; border: 1.5px solid var(--border-soft); border-radius: 10px; background: var(--bg-main); color: var(--text-main); font: inherit; font-size: 13px; }
+.conn-search:focus { outline: none; border-color: var(--jira-blue); }
+.conn-list { overflow: auto; padding: 0 12px; display: flex; flex-direction: column; gap: 6px; min-height: 80px; }
+.conn-dev { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--bg-main); color: var(--text-main); text-align: left; cursor: pointer; font: inherit; }
+.conn-dev:hover:not(:disabled) { border-color: var(--jira-blue); }
+.conn-dev:disabled { opacity: .55; cursor: not-allowed; }
+.conn-dev > i { font-size: 20px; color: var(--jira-blue); }
+.conn-dev span:first-of-type { flex: 1; min-width: 0; }
+.conn-dev b { font-size: 13px; }
+.conn-dev em { font-style: normal; font-size: 10.5px; font-weight: 700; color: #7c3aed; background: rgba(124,58,237,.1); border-radius: 8px; padding: 1px 7px; margin-left: 4px; }
+.conn-dev small { display: block; font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conn-state { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.conn-state.on { color: #059669; } .conn-state.off { color: var(--text-muted); }
+.conn-empty { padding: 18px; text-align: center; font-size: 12.5px; color: var(--text-muted); }
+.conn-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 18px 16px; font-size: 12.5px; border-top: 1px solid var(--border-soft); margin-top: 10px; }
+.conn-foot label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.conn-note { flex-basis: 100%; font-size: 11px; color: var(--text-muted); }
+
+/* ── Registro de tiempo ── */
+.time-panel { padding: 12px; margin-top: 8px; border: 1px solid var(--border-soft); border-radius: 8px; background: var(--bg-card); }
+.time-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.time-quick { display: flex; gap: 6px; flex-basis: 100%; }
+.time-quick button { padding: 4px 10px; border: 1px solid var(--border-soft); border-radius: 14px; background: var(--bg-main); color: var(--text-main); font-size: 12px; cursor: pointer; }
+.time-quick button:hover { border-color: var(--jira-blue); }
+.time-form label { display: flex; flex-direction: column; gap: 3px; font-size: 10px; font-family: monospace; text-transform: uppercase; color: var(--text-muted); }
+.time-form input[type=number], .time-form input[type=date], .time-note { padding: 6px 9px; border: 1.5px solid var(--border-soft); border-radius: 8px; background: var(--bg-main); color: var(--text-main); font: inherit; font-size: 12px; }
+.time-form input[type=number] { width: 90px; }
+.time-note { flex: 1; min-width: 180px; }
+.time-form .time-bill { flex-direction: row; align-items: center; gap: 5px; text-transform: none; font-family: inherit; font-size: 12px; padding-bottom: 6px; }
+.time-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.time-row { display: flex; align-items: flex-start; gap: 10px; padding: 7px 10px; background: var(--bg-main); border: 1px solid var(--border-soft); border-radius: 8px; font-size: 12px; }
+.time-row b { min-width: 70px; }
+.time-row span { flex: 1; color: var(--text-muted); }
+.time-row small { color: var(--text-main); }
+.time-row button { border: 0; background: none; color: var(--text-muted); cursor: pointer; }
+.time-row button:hover { color: #dc2626; }
+.time-total { font-size: 12px; text-align: right; color: var(--text-muted); }

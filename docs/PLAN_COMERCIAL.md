@@ -294,3 +294,4 @@ Además de lo anterior: definir infraestructura (tamaño, región o servidores),
 | 2026-10-02 | Marca blanca por empresa desde la BD; CI en GitHub (pruebas + migraciones MySQL 8); backup diario cifrado con restauración probada |
 | 2026-10-02 | Errores de NOC, aprobaciones y reglas de negocio; exportación completa de datos por empresa |
 | 2026-10-05 | Asistente de alta para empresas nuevas; paquete inicial genérico (ya no se copian datos de la empresa 1); alta de usuarios compatible con id UUID o numérico |
+| 2026-10-06 | Modelo proveedor de soporte (MSP): servidor MeshCentral listo para producción; aislamiento RMM entre clientes (cuenta por empresa, sesión directa de un solo uso); servidor propio por empresa; técnicos multiempresa con selector; instalar agente con enlace; conectar desde el ticket; registro de horas y reportes por cliente |

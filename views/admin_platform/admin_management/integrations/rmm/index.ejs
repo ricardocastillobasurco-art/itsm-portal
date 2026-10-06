@@ -278,6 +278,9 @@ textarea.form-input{resize:vertical;font-family:'JetBrains Mono','Cascadia Code'
     <button class="btn-icon" onclick="toggleEditor()" title="Editor de scripts" id="editorToggleBtn">
       <i class="bi bi-pencil-square"></i>
     </button>
+    <button class="btn-icon" onclick="openInstallAgent()" title="Instalar agente en un equipo" style="width:auto;padding:0 10px;gap:6px;display:inline-flex;align-items:center;font-size:12px;font-weight:700;">
+      <i class="bi bi-download"></i> Instalar agente
+    </button>
     <button class="btn-icon" onclick="openGroupsModal()" title="Grupos por tenant">
       <i class="bi bi-diagram-3"></i>
     </button>
@@ -1645,6 +1648,82 @@ function removeTenantGroup(id) {
             _groupsList = _groupsList.filter(function(g) { return g.id !== id; });
             renderGroupsTable();
         });
+}
+</script>
+<!-- Instalar agente -->
+<div class="modal-overlay" id="installModal">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-head">
+      <div class="modal-title"><i class="bi bi-download" style="color:var(--primary);margin-right:6px;"></i>Instalar el agente en un equipo</div>
+      <button class="modal-close" onclick="closeInstallAgent()"><i class="bi bi-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <ol style="margin:0 0 14px 18px;padding:0;font-size:13px;line-height:1.7;color:var(--text);">
+        <li>Elige el grupo (cliente o sede) y genera el enlace.</li>
+        <li>Ábrelo <b>en el equipo</b> (o envíaselo al usuario) y descarga el instalador de su sistema (Windows, Mac o Linux).</li>
+        <li>Ejecútalo como administrador. El equipo aparece aquí en 1–2 minutos.</li>
+      </ol>
+      <div class="f-group">
+        <label class="form-label">Grupo</label>
+        <select id="instGroup" class="form-input" style="width:100%;"></select>
+      </div>
+      <div class="f-group">
+        <label class="form-label">El enlace vence en</label>
+        <select id="instHours" class="form-input" style="width:100%;">
+          <option value="24">1 día</option><option value="168" selected>7 días</option><option value="720">30 días</option>
+        </select>
+      </div>
+      <div id="instResult" style="display:none;margin-top:12px;">
+        <label class="form-label">Enlace de instalación</label>
+        <div style="display:flex;gap:6px;">
+          <input id="instUrl" class="form-input" readonly style="flex:1;font-size:12px;">
+          <button class="btn-primary" style="flex:none;padding:6px 12px;" onclick="copyInstallUrl(this)"><i class="bi bi-clipboard"></i></button>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px;">Cualquiera con este enlace puede agregar un equipo a este grupo hasta que venza: compártelo solo con quien corresponde.</div>
+      </div>
+      <div id="instMsg" style="font-size:12.5px;margin-top:8px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-primary" id="instBtn" onclick="createInstallLink()" style="flex:none;padding:8px 20px;"><i class="bi bi-link-45deg"></i> Generar enlace</button>
+    </div>
+  </div>
+</div>
+<script>
+function openInstallAgent() {
+    var m = document.getElementById('installModal');
+    m.classList.add('show');
+    document.getElementById('instResult').style.display = 'none';
+    document.getElementById('instMsg').textContent = '';
+    var sel = document.getElementById('instGroup');
+    sel.innerHTML = '<option>Cargando…</option>';
+    fetch('/api/rmm/my-groups', { credentials: 'include' }).then(function (r) { return r.json(); }).then(function (d) {
+        var g = (d && d.groups) || [];
+        sel.innerHTML = g.length ? g.map(function (x) { return '<option value="' + escHtml(x.meshId) + '">' + escHtml(x.name) + '</option>'; }).join('')
+                                 : '<option value="">Tu empresa aún no tiene grupos: pide al superadmin que cree uno</option>';
+        document.getElementById('instBtn').disabled = !g.length;
+    }).catch(function (e) { sel.innerHTML = '<option value="">Error: ' + escHtml(e.message) + '</option>'; });
+}
+function closeInstallAgent() { document.getElementById('installModal').classList.remove('show'); }
+function createInstallLink() {
+    var meshId = document.getElementById('instGroup').value;
+    var msg = document.getElementById('instMsg');
+    if (!meshId) { msg.textContent = 'Elige un grupo.'; return; }
+    var btn = document.getElementById('instBtn'); btn.disabled = true; msg.textContent = 'Generando…'; msg.style.color = '';
+    fetch('/api/rmm/agent-invite', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meshId: meshId, hours: Number(document.getElementById('instHours').value) }) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.ok) throw new Error(d.error || 'Error');
+        document.getElementById('instUrl').value = d.url;
+        document.getElementById('instResult').style.display = '';
+        msg.textContent = '';
+    }).catch(function (e) { msg.textContent = e.message; msg.style.color = 'var(--danger)'; })
+      .finally(function () { btn.disabled = false; });
+}
+function copyInstallUrl(btn) {
+    var v = document.getElementById('instUrl').value;
+    (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(function () {
+        btn.innerHTML = '<i class="bi bi-check2"></i>'; setTimeout(function () { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+    }).catch(function () { document.getElementById('instUrl').select(); });
 }
 </script>
 </body>
