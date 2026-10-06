@@ -59,6 +59,16 @@ module.exports = function tenantLocals(req, res, next) {
         const tid = userTid ?? req.tenant?.id ?? null;
         const go = (brand) => {
             if (brand) _setLocals(req, res, brand, userTid);
+            // Selector de empresa (técnicos multiempresa) en todas las pantallas del panel de TI.
+            // El script solo se muestra si el usuario atiende más de una empresa.
+            const staff = ['administrador', 'especialista', 'agente', 'tecnico'].includes(req.user?.home_role || req.user?.role);
+            if (staff && !callback && typeof options !== 'function' && String(view).startsWith('admin_platform/')) {
+                return render(view, options, (err, html) => {
+                    if (err) return req.next(err);
+                    const tag = '<script src="/js/company-switcher.js" defer></script>';
+                    res.send(html.includes('</body>') ? html.replace(/<\/body>(?![\s\S]*<\/body>)/i, tag + '</body>') : html + tag);
+                });
+            }
             return render(view, options, callback);
         };
         if (!tid) return go(null);

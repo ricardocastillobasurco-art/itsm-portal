@@ -140,6 +140,8 @@ app.use('/api/ai', require('./src/modules/ai/routes'));
 // Utilidades y rutas adicionales montadas en raíz
 app.get('/logout', logout);
 app.use('/api/events', require('./routes/events'));
+// Técnicos multiempresa: empresas que atiendo y cambio de empresa activa
+app.use('/api/companies', require('./routes/platform/companies'));
 app.use('/tickets', jiraRoutes);
 app.use('/uploads/tickets', require('./middleware/protectTicketUploads'), express.static(path.join(__dirname, 'uploads/tickets')));
 app.use('/public/reports', express.static(path.join(__dirname, 'public/reports')));
@@ -252,6 +254,15 @@ io.use(async (socket, next) => {
         const [u] = await executeQuery(equipmentPool, 'SELECT id, role, tenant_id FROM users WHERE id = ? AND is_active = 1 LIMIT 1', [decoded.id]);
         if (!u) return next(new Error('unauthorized'));
         socket.data.user = { id: u.id, role: u.role, tenantId: u.tenant_id || 1 };
+        // Técnico multiempresa: las notificaciones son de la empresa activa
+        try {
+            const CA = require('./src/services/CompanyAccessService');
+            const tid = u.role === 'superadmin' ? null : CA.parseCookie(u.id, fromCookie(CA.COOKIE));
+            if (tid && tid !== Number(u.tenant_id || 1)) {
+                const role = await CA.accessRole(u.id, tid);
+                if (role) socket.data.user = { id: u.id, role, tenantId: tid };
+            }
+        } catch (_) {}
         next();
     } catch (_) { next(new Error('unauthorized')); }
 });

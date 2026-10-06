@@ -535,6 +535,30 @@ select.form-input{cursor:pointer;}
 </div>
 
 <!-- ══ MODAL USUARIOS ════════════════════════════════════════════════════ -->
+<div id="modalTecnicos" class="modal-bg">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="bi bi-headset" style="color:#7c3aed;"></i> Técnicos con acceso — <span id="tecTenantName"></span></div>
+        <div class="modal-sub">Personal de TI de otra empresa (por ejemplo, tu equipo de soporte) que puede atender a este cliente con su propio usuario. Cambian de empresa con el selector del panel.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalTecnicos')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="tecEmail" type="email" placeholder="correo del técnico (ya debe tener cuenta)" style="flex:1;min-width:220px;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;">
+        <select id="tecRol" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;">
+          <option value="especialista">Técnico</option>
+          <option value="administrador">Administrador</option>
+        </select>
+        <button class="btn-primary" onclick="addTecnico()" style="padding:9px 16px;"><i class="bi bi-plus-lg"></i> Dar acceso</button>
+      </div>
+      <div id="tecMsg" style="font-size:12.5px;"></div>
+      <div id="tecList" style="display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto;"></div>
+    </div>
+  </div>
+</div>
+
 <div id="modalUsuarios" class="modal-bg">
   <div class="modal-box" style="max-width:700px;height:85vh;display:flex;flex-direction:column;">
     <div class="modal-header" style="flex-shrink:0;">
@@ -879,6 +903,7 @@ function tenantCard(t) {
     <div class="tc-actions">
       <button class="btn-outline" onclick="openImport(${t.id},'${escHtml(t.name)}')"><i class="bi bi-cloud-upload"></i> Importar</button>
       <button class="btn-outline" style="color:#2563eb;border-color:#2563eb;" onclick="openUsuarios(${t.id},'${escHtml(t.name)}')"><i class="bi bi-people-fill"></i> Usuarios</button>
+      <button class="btn-outline" style="color:#7c3aed;border-color:#7c3aed;" data-tid="${t.id}" data-tname="${escHtml(t.name)}" onclick="openTecnicos(this.dataset.tid, this.dataset.tname)" title="Tu equipo de soporte con acceso a esta empresa"><i class="bi bi-headset"></i> Técnicos</button>
       <button class="btn-outline" onclick="openFeatures(${t.id},'${escHtml(t.name)}')"><i class="bi bi-toggles"></i> Módulos</button>
       <button class="btn-outline" onclick="openConexiones(${t.id},'${escHtml(t.name)}')" style="color:#0891b2;border-color:#0891b2;" title="Configurar URIs y credenciales de integración"><i class="bi bi-plug-fill"></i> Conexiones</button>
       <button class="btn-outline" onclick="changePlanUI(${t.id},'${escHtml(t.name)}','${t.plan}')"><i class="bi bi-arrow-repeat"></i> Plan</button>
@@ -2042,6 +2067,51 @@ async function toggleFeature(key, enabled) {
 
 /* ── Usuarios por tenant ───────────────────────────────────────────────── */
 let _usuariosTenantId = null;
+
+let _tecTenantId = null;
+function openTecnicos(tenantId, name) {
+  _tecTenantId = Number(tenantId);
+  document.getElementById('tecTenantName').textContent = name;
+  document.getElementById('tecEmail').value = '';
+  document.getElementById('tecMsg').textContent = '';
+  openModal('modalTecnicos');
+  cargarTecnicos();
+}
+async function cargarTecnicos() {
+  const box = document.getElementById('tecList');
+  box.innerHTML = '<div style="color:var(--muted);font-size:13px;">Cargando…</div>';
+  try {
+    const j = await (await fetch(`/api/admin/tenants/${_tecTenantId}/technicians`, { credentials: 'include' })).json();
+    const rows = j.data || [];
+    box.innerHTML = rows.length ? rows.map(r => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;">
+        <i class="bi bi-person-badge" style="color:#7c3aed;font-size:18px;"></i>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13px;">${escHtml(r.full_name || r.email)}</div>
+          <div style="font-size:11.5px;color:var(--muted);">${escHtml(r.email)} · de ${escHtml(r.home_tenant || ('empresa ' + r.home_tenant_id))}</div>
+        </div>
+        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;background:var(--bg);border:1px solid var(--border);">${r.role === 'administrador' ? 'Administrador' : 'Técnico'}</span>
+        <button class="btn-outline" style="color:#dc2626;border-color:#dc2626;padding:5px 10px;" title="Quitar acceso" onclick="delTecnico(${Number(r.id)})"><i class="bi bi-x-lg"></i></button>
+      </div>`).join('')
+      : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:14px;">Ningún técnico externo tiene acceso a esta empresa.</div>';
+  } catch (e) { box.innerHTML = '<div style="color:#dc2626;">Error: ' + escHtml(e.message) + '</div>'; }
+}
+async function addTecnico() {
+  const msg = document.getElementById('tecMsg');
+  const email = document.getElementById('tecEmail').value.trim();
+  if (!email) { msg.style.color = '#dc2626'; msg.textContent = 'Escribe el correo del técnico'; return; }
+  const r = await fetch(`/api/admin/tenants/${_tecTenantId}/technicians`, { method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, role: document.getElementById('tecRol').value }) });
+  const j = await r.json().catch(() => ({}));
+  msg.style.color = r.ok ? '#059669' : '#dc2626';
+  msg.textContent = r.ok ? 'Acceso otorgado. El técnico verá el selector de empresa al recargar su panel.' : (j.error || j.message || 'Error');
+  if (r.ok) { document.getElementById('tecEmail').value = ''; cargarTecnicos(); }
+}
+async function delTecnico(id) {
+  if (!confirm('¿Quitar el acceso de este técnico a la empresa? Tiene efecto inmediato.')) return;
+  await fetch(`/api/admin/tenants/${_tecTenantId}/technicians/${id}`, { method: 'DELETE', credentials: 'include' });
+  cargarTecnicos();
+}
 
 async function openUsuarios(tenantId, name) {
   _usuariosTenantId = tenantId;

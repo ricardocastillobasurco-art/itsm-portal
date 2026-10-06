@@ -100,6 +100,10 @@ const authenticateToken = async (req, res, next) => {
                 } catch (_) {
                     // No bloquear autenticación si falla la lookup de tenant
                 }
+                // Técnico multiempresa: empresa activa elegida (acceso verificado en cada petición)
+                try {
+                    if (await require('../src/services/CompanyAccessService').applyActive(req, tenantRepo) && res.locals) res.locals.tenant = req.tenant;
+                } catch (_) { /* sin cambio de empresa */ }
                 // Contexto de tenant para capas sin acceso a req (guardas de integraciones)
                 setTenantContext({ tenantId: req.tenant?.id ?? 1, userId: req.user.id });
 
@@ -344,6 +348,7 @@ const optionalAuth = async (req, res, next) => {
                     // Mismo tenant que authenticateToken: el del usuario, no el adivinado por host
                     const tid = userResult[0].tenant_id;
                     req.tenant = tid ? (await tenantRepo.findById(tid) || tenantRepo.default()) : tenantRepo.default();
+                    try { await require('../src/services/CompanyAccessService').applyActive(req, tenantRepo); } catch (_) {}
                     if (res.locals) res.locals.tenant = req.tenant;
                     setTenantContext({ tenantId: req.tenant?.id ?? 1, userId: req.user.id });
                 }

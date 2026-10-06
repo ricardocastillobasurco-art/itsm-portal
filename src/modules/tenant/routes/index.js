@@ -533,6 +533,30 @@ async function sendTenantExport(req, res, tid) {
 // GET /api/admin/tenants/:tenantId/export/zip[?archivos=1] — todos los datos de una empresa (fin de contrato, auditoría)
 router.get('/:tenantId/export/zip', (req, res) => sendTenantExport(req, res, parseInt(req.params.tenantId)));
 
+// ── Técnicos multiempresa (tu equipo de soporte atendiendo esta empresa) ─────────
+
+// GET /api/admin/tenants/:tenantId/technicians
+router.get('/:tenantId/technicians', async (req, res, next) => {
+  try { res.ok(await require('../../../services/CompanyAccessService').listForTenant(parseInt(req.params.tenantId))); }
+  catch (e) { next(e); }
+});
+
+// POST /api/admin/tenants/:tenantId/technicians { email, role: especialista|administrador }
+router.post('/:tenantId/technicians', async (req, res) => {
+  try {
+    await require('../../../services/CompanyAccessService').grant(parseInt(req.params.tenantId), req.body?.email, req.body?.role || 'especialista', req.user?.id);
+    res.ok(null, 'Acceso otorgado');
+  } catch (e) { res.fail(e.message, e.status || 500); }
+});
+
+// DELETE /api/admin/tenants/:tenantId/technicians/:accessId
+router.delete('/:tenantId/technicians/:accessId', async (req, res) => {
+  try {
+    await require('../../../services/CompanyAccessService').revoke(parseInt(req.params.tenantId), parseInt(req.params.accessId), req.user?.id);
+    res.ok(null, 'Acceso retirado');
+  } catch (e) { res.fail(e.message, e.status || 500); }
+});
+
 // ── Numeración de tickets ─────────────────────────────────────────────────────
 
 // PATCH /api/admin/tenants/:tenantId/ticket-code { code } — código de la numeración (TK-<CODE>-0001).
